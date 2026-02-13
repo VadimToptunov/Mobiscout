@@ -82,6 +82,11 @@
         <group id="MTR.ObserveActions" text="Observe Framework" popup="true" icon="AllIcons.General.GearPlain">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
 
+            <action id="MTR.SetupWizard" class="com.mobiletest.recorder.actions.SetupWizardAction"
+                    text="Setup Wizard..." description="Run the initial setup wizard"
+                    icon="AllIcons.General.Settings"/>
+            <separator/>
+
             <action id="MTR.SecurityScan" class="com.mobiletest.recorder.actions.SecurityScanAction"
                     text="Security Scan" description="Scan project for security vulnerabilities"
                     icon="AllIcons.Nodes.SecurityRole"/>
