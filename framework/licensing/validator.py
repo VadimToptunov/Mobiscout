@@ -66,6 +66,11 @@ class License:
         return max(0, delta.days)
 
 
+class LicenseValidationError(Exception):
+    """Raised when license validation configuration is invalid"""
+    pass
+
+
 class LicenseValidator:
     """
     License validator with upgrade prompts
@@ -75,10 +80,27 @@ class LicenseValidator:
     - Encrypted license keys
     - Feature flags
     - Upgrade prompts
+
+    Security:
+    - Requires LICENSE_SECRET environment variable for HMAC validation
+    - Falls back to FREE tier if secret is not configured (no paid features)
     """
 
-    # Secret for HMAC (in production: env variable)
-    SECRET = os.getenv('LICENSE_SECRET', 'change-me-in-production')
+    # Secret for HMAC - MUST be set via environment variable for paid tiers
+    _SECRET: Optional[str] = None
+
+    @classmethod
+    def _get_secret(cls) -> Optional[str]:
+        """Get HMAC secret from environment. Returns None if not configured."""
+        if cls._SECRET is None:
+            cls._SECRET = os.getenv('LICENSE_SECRET')
+        return cls._SECRET
+
+    @classmethod
+    def is_licensing_configured(cls) -> bool:
+        """Check if licensing system is properly configured."""
+        secret = cls._get_secret()
+        return secret is not None and len(secret) >= 32
 
     # Feature requirements
     FEATURE_TIERS = {
@@ -131,8 +153,25 @@ class LicenseValidator:
             return License(key='FREE', tier=LicenseTier.FREE, email='')
 
     def _verify_key(self, key: str, email: str) -> bool:
-        """Verify license key using HMAC"""
-        # Format: TIER-EMAIL_HASH-RANDOM
+        """
+        Verify license key using HMAC.
+
+        Format: TIER-EMAIL_HASH-RANDOM
+
+        Returns False if:
+        - LICENSE_SECRET is not configured (paid features disabled)
+        - Key format is invalid
+        - HMAC verification fails
+        """
+        secret = self._get_secret()
+        if not secret:
+            # Licensing not configured - only FREE tier works
+            return False
+
+        if len(secret) < 32:
+            # Secret too short - insecure configuration
+            return False
+
         try:
             parts = key.split('-')
             if len(parts) < 2:
@@ -140,12 +179,12 @@ class LicenseValidator:
 
             tier = parts[0]
             expected_hash = hmac.new(
-                self.SECRET.encode(),
+                secret.encode(),
                 f"{tier}:{email}".encode(),
                 hashlib.sha256
             ).hexdigest()[:16]
 
-            return parts[1] == expected_hash
+            return hmac.compare_digest(parts[1], expected_hash)
         except (ValueError, TypeError, KeyError, IndexError):
             return False
 
