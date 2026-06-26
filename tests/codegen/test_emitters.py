@@ -14,6 +14,9 @@ Regenerate goldens after an intentional template change with:
 
 import os
 import py_compile
+import shutil
+import subprocess
+import re
 from pathlib import Path
 
 import pytest
@@ -23,8 +26,35 @@ from framework.codegen.ir import TestModel
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
-# Targets whose generated Python should additionally be compiled.
 TARGET_IDS = [t.id for t in available_targets()]
+
+# javac without the Appium/TestNG/Selenium jars on the classpath can only fail
+# on dependency resolution, never on syntax. So we accept those two error
+# classes and treat anything else (';' expected, illegal start, ...) as a real
+# syntax defect in the generated source.
+_JAVAC_DEP_ERROR = re.compile(
+    r"error:\s+(cannot find symbol|package \S+ does not exist)"
+)
+
+
+def _java_syntax_ok(java_file: Path) -> None:
+    """Assert generated Java is syntactically valid, tolerating missing deps."""
+    javac = shutil.which("javac")
+    if not javac:
+        pytest.skip("javac not available — skipping Java syntax gate")
+    proc = subprocess.run(
+        [javac, "-d", str(java_file.parent / "_out"), str(java_file)],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode == 0:
+        return  # fully compiled (deps present)
+    bad = [
+        line
+        for line in proc.stderr.splitlines()
+        if "error:" in line and not _JAVAC_DEP_ERROR.search(line)
+    ]
+    assert not bad, "Generated Java has syntax errors:\n" + "\n".join(bad)
 
 
 def _check_golden(rel_path: str, content: str) -> None:
@@ -49,18 +79,23 @@ def test_emitter_golden(target_id: str, login_model: TestModel):
 
 
 @pytest.mark.parametrize("target_id", TARGET_IDS)
-def test_generated_python_compiles(target_id: str, login_model: TestModel, tmp_path):
-    """Every generated .py must be valid Python — compile it for real."""
+def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_path):
+    """Every generated code file must be syntactically valid for its language.
+    Python is compiled with py_compile; Java is checked with javac (tolerating
+    absent third-party jars); non-code artifacts like .feature are skipped."""
     out = get_emitter(target_id).emit(login_model)
-    compiled_any = False
+    checked = 0
     for path, content in out.items():
         f = tmp_path / path
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(content)
         if path.endswith(".py"):
             py_compile.compile(str(f), doraise=True)
-            compiled_any = True
-    assert compiled_any, f"{target_id} produced no Python to compile"
+            checked += 1
+        elif path.endswith(".java"):
+            _java_syntax_ok(f)
+            checked += 1
+    assert checked, f"{target_id} produced no source to validate"
 
 
 def test_ir_roundtrip(login_model: TestModel):
