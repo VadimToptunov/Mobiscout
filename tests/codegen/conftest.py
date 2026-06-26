@@ -49,13 +49,13 @@ def login_model() -> TestModel:
                         description="Tap login",
                     ),
                     Step(ActionType.WAIT, timeout=3, description="Wait for home"),
+                    Step(ActionType.BACK, description="Dismiss a dialog"),
                     Step(
                         ActionType.ASSERT,
                         selector=Selector(SelectorStrategy.TEXT, "Welcome", score=0.6),
                         assertion=AssertionType.VISIBLE,
                         description="Welcome message shown",
                     ),
-                    Step(ActionType.BACK, description="Go back"),
                 ],
             )
         ],

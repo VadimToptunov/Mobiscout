@@ -1,0 +1,12 @@
+Feature: {{ model.name }}
+{% if model.description %}
+  {{ model.description }}
+{% endif %}
+
+{% for scenario in scenarios %}
+  Scenario: {{ scenario.title }}
+{% for line in scenario.lines %}
+    {{ line.keyword }} {{ line.phrase }}
+{% endfor %}
+
+{% endfor %}

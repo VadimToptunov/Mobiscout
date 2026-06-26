@@ -46,8 +46,8 @@ def test_login(driver):
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "login_btn"), []).click()
     # Wait for home
     driver.implicitly_wait(3)
+    # Dismiss a dialog
+    driver.back()
     # Welcome message shown
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Welcome\")"), []).is_displayed()
-    # Go back
-    driver.back()
 

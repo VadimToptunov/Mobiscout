@@ -3,9 +3,10 @@ Golden-file + compile tests for codegen emitters.
 
 For every registered target we assert two things, neither of which needs a
 device:
-  1. Output matches the committed golden file (catches accidental drift).
-  2. Generated source is syntactically valid for its language (catches a
-     broken template before it ever reaches a user).
+  1. Output matches the committed golden files (catches accidental drift).
+  2. Generated *source* is syntactically valid (catches a broken template
+     before it ever reaches a user). Python files are compiled; non-code
+     artifacts like .feature are only golden-checked.
 
 Regenerate goldens after an intentional template change with:
     UPDATE_GOLDENS=1 pytest tests/codegen/test_emitters.py
@@ -17,10 +18,13 @@ from pathlib import Path
 
 import pytest
 
-from framework.codegen import get_emitter
+from framework.codegen import available_targets, get_emitter
 from framework.codegen.ir import TestModel
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
+
+# Targets whose generated Python should additionally be compiled.
+TARGET_IDS = [t.id for t in available_targets()]
 
 
 def _check_golden(rel_path: str, content: str) -> None:
@@ -36,19 +40,27 @@ def _check_golden(rel_path: str, content: str) -> None:
     )
 
 
-def test_python_pytest_golden(login_model: TestModel):
-    out = get_emitter("python_pytest").emit(login_model)
+@pytest.mark.parametrize("target_id", TARGET_IDS)
+def test_emitter_golden(target_id: str, login_model: TestModel):
+    out = get_emitter(target_id).emit(login_model)
+    assert out, f"{target_id} emitted no files"
     for path, content in out.items():
-        _check_golden(f"python_pytest/{path}", content)
+        _check_golden(f"{target_id}/{path}", content)
 
 
-def test_python_pytest_compiles(login_model: TestModel, tmp_path):
-    """Generated Python must be importable syntax — compile it for real."""
-    out = get_emitter("python_pytest").emit(login_model)
+@pytest.mark.parametrize("target_id", TARGET_IDS)
+def test_generated_python_compiles(target_id: str, login_model: TestModel, tmp_path):
+    """Every generated .py must be valid Python — compile it for real."""
+    out = get_emitter(target_id).emit(login_model)
+    compiled_any = False
     for path, content in out.items():
         f = tmp_path / path
+        f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(content)
-        py_compile.compile(str(f), doraise=True)
+        if path.endswith(".py"):
+            py_compile.compile(str(f), doraise=True)
+            compiled_any = True
+    assert compiled_any, f"{target_id} produced no Python to compile"
 
 
 def test_ir_roundtrip(login_model: TestModel):
