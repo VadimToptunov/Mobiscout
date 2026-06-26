@@ -246,7 +246,7 @@ class SelectorPredictor(MLModel):
                 warnings.warn(
                     "Loading model with pickle. For better security, install joblib. "
                     "Only load models from trusted sources.",
-                    SecurityWarning
+                    UserWarning
                 )
                 with open(pkl_path, 'rb') as f:
                     self._model = pickle.load(f)
