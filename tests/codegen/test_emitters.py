@@ -57,6 +57,18 @@ def _java_syntax_ok(java_file: Path) -> None:
     assert not bad, "Generated Java has syntax errors:\n" + "\n".join(bad)
 
 
+def _js_syntax_ok(js_file: Path) -> None:
+    """Assert generated JavaScript parses. node --check is syntax-only, so it
+    needs none of the WebdriverIO/Mocha globals at runtime."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not available — skipping JS syntax gate")
+    proc = subprocess.run(
+        [node, "--check", str(js_file)], capture_output=True, text=True
+    )
+    assert proc.returncode == 0, "Generated JS has syntax errors:\n" + proc.stderr
+
+
 def _check_golden(rel_path: str, content: str) -> None:
     golden = GOLDEN_DIR / rel_path
     if os.environ.get("UPDATE_GOLDENS"):
@@ -94,6 +106,9 @@ def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_p
             checked += 1
         elif path.endswith(".java"):
             _java_syntax_ok(f)
+            checked += 1
+        elif path.endswith(".js"):
+            _js_syntax_ok(f)
             checked += 1
     assert checked, f"{target_id} produced no source to validate"
 
