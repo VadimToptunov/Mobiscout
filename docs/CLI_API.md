@@ -35,36 +35,38 @@ See [PROTOCOL.md](./PROTOCOL.md) for complete JSON-RPC 2.0 specification.
 ### Quick Example
 
 **Request** (stdin):
+
 ```json
 {"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}
 ```
 
 **Response** (stdout):
+
 ```json
 {"jsonrpc":"2.0","id":1,"result":{"status":"ok","version":"0.5.0","rust_core":true,"uptime_seconds":10}}
 ```
 
 ## Available Methods (Phase 0)
 
-| Method | Status | Description |
-|--------|--------|-------------|
-| `health/check` | ✅ Implemented | Health check and version info |
-| `environment/detect` | 🚧 Phase 0 | Detect Appium, SDKs, tools |
-| `device/list` | 📋 Phase 1 | List devices/simulators |
-| `device/start` | 📋 Phase 1 | Start emulator/simulator |
-| `device/stop` | 📋 Phase 1 | Stop device |
-| `session/start` | 📋 Phase 2 | Start automation session |
-| `session/stop` | 📋 Phase 2 | Stop session |
-| `ui/getTree` | 📋 Phase 2 | Get UI element tree |
-| `ui/getScreenshot` | 📋 Phase 2 | Capture screenshot |
-| `action/tap` | 📋 Phase 2 | Tap element/coordinates |
-| `action/swipe` | 📋 Phase 2 | Swipe gesture |
-| `action/type` | 📋 Phase 2 | Type text |
-| `logs/stream` | 📋 Phase 1 | Stream device logs |
-| `logs/stop` | 📋 Phase 1 | Stop log streaming |
-| `selector/generate` | 📋 Phase 6 | Generate smart selector |
-| `flow/getGraph` | 📋 Phase 8 | Get flow graph |
-| `codegen/generate` | 📋 Phase 7 | Generate test code |
+| Method               | Status        | Description                   |
+|----------------------|---------------|-------------------------------|
+| `health/check`       | ✅ Implemented | Health check and version info |
+| `environment/detect` | 🚧 Phase 0    | Detect Appium, SDKs, tools    |
+| `device/list`        | 📋 Phase 1    | List devices/simulators       |
+| `device/start`       | 📋 Phase 1    | Start emulator/simulator      |
+| `device/stop`        | 📋 Phase 1    | Stop device                   |
+| `session/start`      | 📋 Phase 2    | Start automation session      |
+| `session/stop`       | 📋 Phase 2    | Stop session                  |
+| `ui/getTree`         | 📋 Phase 2    | Get UI element tree           |
+| `ui/getScreenshot`   | 📋 Phase 2    | Capture screenshot            |
+| `action/tap`         | 📋 Phase 2    | Tap element/coordinates       |
+| `action/swipe`       | 📋 Phase 2    | Swipe gesture                 |
+| `action/type`        | 📋 Phase 2    | Type text                     |
+| `logs/stream`        | 📋 Phase 1    | Stream device logs            |
+| `logs/stop`          | 📋 Phase 1    | Stop log streaming            |
+| `selector/generate`  | 📋 Phase 6    | Generate smart selector       |
+| `flow/getGraph`      | 📋 Phase 8    | Get flow graph                |
+| `codegen/generate`   | 📋 Phase 7    | Generate test code            |
 
 ## IDE Plugin Integration Guide
 
@@ -148,16 +150,16 @@ if (process.isAlive) {
 
 ### Error Codes
 
-| Code | Meaning | Action |
-|------|---------|--------|
-| -32700 | Parse error | Check JSON formatting |
-| -32600 | Invalid Request | Check JSON-RPC structure |
+| Code   | Meaning          | Action                                        |
+|--------|------------------|-----------------------------------------------|
+| -32700 | Parse error      | Check JSON formatting                         |
+| -32600 | Invalid Request  | Check JSON-RPC structure                      |
 | -32601 | Method not found | Check method name, may not be implemented yet |
-| -32602 | Invalid params | Check parameter types/names |
-| -32603 | Internal error | Check daemon logs (stderr) |
-| -32000 | Device not found | Verify device_id |
-| -32001 | Session error | Check session state |
-| -32002 | Backend error | Check backend (Appium, etc.) |
+| -32602 | Invalid params   | Check parameter types/names                   |
+| -32603 | Internal error   | Check daemon logs (stderr)                    |
+| -32000 | Device not found | Verify device_id                              |
+| -32001 | Session error    | Check session state                           |
+| -32002 | Backend error    | Check backend (Appium, etc.)                  |
 
 ### Example Error Response
 
@@ -181,6 +183,7 @@ observe daemon --stdio 2>daemon.log
 ```
 
 Log format:
+
 ```
 [2026-01-14 12:30:00] INFO: Starting JSON-RPC server (stdio mode)
 [2026-01-14 12:30:01] INFO: Health check requested
@@ -283,16 +286,19 @@ python -m framework.cli.main daemon --stdio
 ## Roadmap
 
 ### Phase 0 (Current)
+
 - ✅ JSON-RPC protocol
 - ✅ Health check
 - 🚧 Environment detection
 
 ### Phase 1 (Next)
+
 - Device management
 - Log streaming
 - Basic UI inspection
 
 ### Phase 2-11
+
 See [JETBRAINS_PLUGIN_ROADMAP.md](../JETBRAINS_PLUGIN_ROADMAP.md) for complete roadmap.
 
 ## Support

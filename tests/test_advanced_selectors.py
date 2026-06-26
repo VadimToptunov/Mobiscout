@@ -3,6 +3,7 @@ Tests for Advanced Selector Engine
 """
 
 import pytest
+
 from framework.selectors.advanced_selector import (
     AdvancedSelector,
     AdvancedSelectorEngine,

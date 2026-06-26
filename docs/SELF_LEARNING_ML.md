@@ -139,13 +139,13 @@ observe config set ml.contribute true
 
 ### Comparison with Other Tools
 
-| Feature | Mobile Observe | Other Analytics |
-|---------|----------------|-----------------|
-| Collects app names | ❌ | ✅ |
-| Collects screen text | ❌ | ✅ (stacktraces) |
-| Collects screenshots | ❌ | ✅ | ❌ |
-| Collects user IDs | ❌ | ✅ | ✅ |
-| Can be disabled | ✅ | ✅ | ✅ |
+| Feature              | Mobile Observe | Other Analytics |
+|----------------------|----------------|-----------------|
+| Collects app names   | ❌              | ✅               |
+| Collects screen text | ❌              | ✅ (stacktraces) |
+| Collects screenshots | ❌              | ✅               | ❌ |
+| Collects user IDs    | ❌              | ✅               | ✅ |
+| Can be disabled      | ✅              | ✅               | ✅ |
 
 **Conclusion:** We collect LESS data than standard analytics tools.
 

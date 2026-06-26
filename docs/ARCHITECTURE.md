@@ -35,14 +35,14 @@ Mobile Test Recorder is a **next-generation intelligent mobile testing framework
 
 ### Key Metrics
 
-| Metric | Value |
-|--------|-------|
-| **Performance Boost** | 16x faster (Python → Rust) |
-| **Test Healing Success Rate** | 92% |
-| **ML Classification Accuracy** | 94% |
-| **Supported Platforms** | Android Native/Compose, iOS UIKit/SwiftUI, Flutter, React Native |
-| **Lines of Code** | ~50,000 (Python + Rust) |
-| **Test Coverage** | 85%+ |
+| Metric                         | Value                                                            |
+|--------------------------------|------------------------------------------------------------------|
+| **Performance Boost**          | 16x faster (Python → Rust)                                       |
+| **Test Healing Success Rate**  | 92%                                                              |
+| **ML Classification Accuracy** | 94%                                                              |
+| **Supported Platforms**        | Android Native/Compose, iOS UIKit/SwiftUI, Flutter, React Native |
+| **Lines of Code**              | ~50,000 (Python + Rust)                                          |
+| **Test Coverage**              | 85%+                                                             |
 
 ---
 
@@ -104,23 +104,23 @@ Mobile Test Recorder is a **next-generation intelligent mobile testing framework
 **Three-Layer Architecture:**
 
 1. **Rust Core (90%)** - All performance-critical operations
-   - AST parsing, event correlation, file I/O
-   - Compiled to native binary (no runtime)
-   - C ABI for multi-language support
-   - 16x faster than Python
+    - AST parsing, event correlation, file I/O
+    - Compiled to native binary (no runtime)
+    - C ABI for multi-language support
+    - 16x faster than Python
 
 2. **Python ML Layer (5%)** - Machine learning only
-   - Element classification (scikit-learn)
-   - Self-learning system
-   - Best ML ecosystem
-   - Not performance-critical
+    - Element classification (scikit-learn)
+    - Self-learning system
+    - Best ML ecosystem
+    - Not performance-critical
 
 3. **Language Wrappers (5%)** - Thin bindings
-   - Python: PyO3 bindings
-   - JavaScript: NAPI-RS
-   - Go: CGO
-   - Ruby: FFI
-   - Minimal overhead (<5%)
+    - Python: PyO3 bindings
+    - JavaScript: NAPI-RS
+    - Go: CGO
+    - Ruby: FFI
+    - Minimal overhead (<5%)
 
 **Why This Approach?**
 
@@ -434,50 +434,50 @@ See [Multi-Language Architecture](MULTI_LANGUAGE_ARCHITECTURE.md) for details.
 
 ### Backend
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Core Language** | Python | 3.13+ | Application logic |
-| **Performance Core** | Rust | 1.75+ | CPU-intensive operations |
-| **ML Framework** | scikit-learn | 1.4+ | Element classification |
-| **Device Automation** | Appium | 2.5+ | Mobile device control |
-| **CLI Framework** | Click | 8.1+ | Command-line interface |
-| **Output** | Rich | 14.0+ | Terminal UI |
-| **Testing** | pytest | 8.0+ | Unit/integration tests |
-| **Git Integration** | GitPython | 3.1+ | Version control |
+| Component             | Technology   | Version | Purpose                  |
+|-----------------------|--------------|---------|--------------------------|
+| **Core Language**     | Python       | 3.13+   | Application logic        |
+| **Performance Core**  | Rust         | 1.75+   | CPU-intensive operations |
+| **ML Framework**      | scikit-learn | 1.4+    | Element classification   |
+| **Device Automation** | Appium       | 2.5+    | Mobile device control    |
+| **CLI Framework**     | Click        | 8.1+    | Command-line interface   |
+| **Output**            | Rich         | 14.0+   | Terminal UI              |
+| **Testing**           | pytest       | 8.0+    | Unit/integration tests   |
+| **Git Integration**   | GitPython    | 3.1+    | Version control          |
 
 ### Rust Core
 
-| Component | Technology | Version | Purpose |
-|-----------|-----------|---------|---------|
-| **Python Bindings** | PyO3 | 0.20 | Python ↔ Rust |
-| **AST Parsing** | syn | 2.0 | Code analysis |
-| **Parallel** | rayon | 1.8 | Multi-threading |
-| **Regex** | regex | 1.10 | Pattern matching |
-| **File I/O** | walkdir | 2.4 | Directory traversal |
-| **Serialization** | serde | 1.0 | Data structures |
+| Component           | Technology | Version | Purpose             |
+|---------------------|------------|---------|---------------------|
+| **Python Bindings** | PyO3       | 0.20    | Python ↔ Rust       |
+| **AST Parsing**     | syn        | 2.0     | Code analysis       |
+| **Parallel**        | rayon      | 1.8     | Multi-threading     |
+| **Regex**           | regex      | 1.10    | Pattern matching    |
+| **File I/O**        | walkdir    | 2.4     | Directory traversal |
+| **Serialization**   | serde      | 1.0     | Data structures     |
 
 ### Data & Storage
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Database** | SQLite | Test results, models |
-| **Config** | YAML/JSON | Configuration |
-| **Models** | Pickle | ML model storage |
-| **Logs** | JSON | Structured logging |
+| Component    | Technology | Purpose              |
+|--------------|------------|----------------------|
+| **Database** | SQLite     | Test results, models |
+| **Config**   | YAML/JSON  | Configuration        |
+| **Models**   | Pickle     | ML model storage     |
+| **Logs**     | JSON       | Structured logging   |
 
 ### Integrations
 
-| Integration | Purpose |
-|-------------|---------|
-| **Slack** | Notifications |
-| **Microsoft Teams** | Notifications |
-| **Email** | Reports |
-| **Prometheus** | Metrics export |
-| **OpenTelemetry** | Distributed tracing |
-| **GitHub Actions** | CI/CD |
-| **GitLab CI** | CI/CD |
-| **Jenkins** | CI/CD |
-| **CircleCI** | CI/CD |
+| Integration         | Purpose             |
+|---------------------|---------------------|
+| **Slack**           | Notifications       |
+| **Microsoft Teams** | Notifications       |
+| **Email**           | Reports             |
+| **Prometheus**      | Metrics export      |
+| **OpenTelemetry**   | Distributed tracing |
+| **GitHub Actions**  | CI/CD               |
+| **GitLab CI**       | CI/CD               |
+| **Jenkins**         | CI/CD               |
+| **CircleCI**        | CI/CD               |
 
 ---
 
@@ -530,14 +530,14 @@ See [Multi-Language Architecture](MULTI_LANGUAGE_ARCHITECTURE.md) for details.
 
 ### Performance Benchmarks
 
-| Operation | Python (ms) | Rust (ms) | Speedup |
-|-----------|-------------|-----------|---------|
-| Parse 1000 files (AST) | 45,000 | 2,500 | 18x |
-| Correlate 10K events | 8,000 | 400 | 20x |
-| Read 100 files | 5,000 | 300 | 16x |
-| Analyze business logic | 12,000 | 1,100 | 11x |
-| Element classification | 50 | 5 | 10x |
-| Selector generation | 20 | 2 | 10x |
+| Operation              | Python (ms) | Rust (ms) | Speedup |
+|------------------------|-------------|-----------|---------|
+| Parse 1000 files (AST) | 45,000      | 2,500     | 18x     |
+| Correlate 10K events   | 8,000       | 400       | 20x     |
+| Read 100 files         | 5,000       | 300       | 16x     |
+| Analyze business logic | 12,000      | 1,100     | 11x     |
+| Element classification | 50          | 5         | 10x     |
+| Selector generation    | 20          | 2         | 10x     |
 
 ---
 
@@ -749,20 +749,20 @@ jobs:
 ### Security Features
 
 1. **No Sensitive Data Collection**
-   - Screenshots excluded from ML training
-   - Text content anonymized
-   - Package names removed
-   - User data never transmitted
+    - Screenshots excluded from ML training
+    - Text content anonymized
+    - Package names removed
+    - User data never transmitted
 
 2. **Local Processing**
-   - All analysis runs locally
-   - No cloud dependencies
-   - Offline-capable
+    - All analysis runs locally
+    - No cloud dependencies
+    - Offline-capable
 
 3. **Git Integration**
-   - Automatic commits with proper author
-   - Signed commits support
-   - Branch protection respect
+    - Automatic commits with proper author
+    - Signed commits support
+    - Branch protection respect
 
 ### Privacy-First ML
 
@@ -876,19 +876,19 @@ observability:
 ### Phase 6+ (Planned)
 
 1. **Real-Time Collaboration**
-   - Live test session sharing
-   - Team dashboards
-   - Collaborative debugging
+    - Live test session sharing
+    - Team dashboards
+    - Collaborative debugging
 
 2. **AI-Powered Features**
-   - GPT-based test generation
-   - Natural language test specification
-   - Automatic bug report generation
+    - GPT-based test generation
+    - Natural language test specification
+    - Automatic bug report generation
 
 3. **WebAssembly Support**
-   - Browser-based test runner
-   - Zero-install execution
-   - Rust → WASM compilation
+    - Browser-based test runner
+    - Zero-install execution
+    - Rust → WASM compilation
 
 ---
 

@@ -11,13 +11,14 @@ Architecture:
 4. Users auto-download updated models
 """
 
-import json
 import hashlib
+import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
 import requests
 
 # ElementType imported for type hints in docstrings
@@ -91,10 +92,10 @@ class SelfLearningCollector:
     """
 
     def __init__(
-        self,
-        local_cache_dir: Path = Path("ml_cache/training_samples"),
-        opt_in: bool = True,
-        upload_endpoint: Optional[str] = None
+            self,
+            local_cache_dir: Path = Path("ml_cache/training_samples"),
+            opt_in: bool = True,
+            upload_endpoint: Optional[str] = None
     ):
         """
         Initialize collector.
@@ -114,11 +115,11 @@ class SelfLearningCollector:
         self.batch_size = 1000  # Upload after 1000 samples
 
     def collect_from_hierarchy(
-        self,
-        hierarchy: Dict[str, Any],
-        platform: str,
-        confidence: float = 1.0,
-        source: str = "rule-based"
+            self,
+            hierarchy: Dict[str, Any],
+            platform: str,
+            confidence: float = 1.0,
+            source: str = "rule-based"
     ) -> None:
         """
         Collect training samples from UI hierarchy.
@@ -137,12 +138,12 @@ class SelfLearningCollector:
             self._save_batch()
 
     def _extract_samples_recursive(
-        self,
-        node: Dict[str, Any],
-        platform: str,
-        confidence: float,
-        source: str,
-        depth: int = 0
+            self,
+            node: Dict[str, Any],
+            platform: str,
+            confidence: float,
+            source: str,
+            depth: int = 0
     ) -> List[ElementSample]:
         """Extract samples from hierarchy tree."""
         samples = []
@@ -162,12 +163,12 @@ class SelfLearningCollector:
         return samples
 
     def _create_sample(
-        self,
-        element: Dict[str, Any],
-        platform: str,
-        confidence: float,
-        source: str,
-        depth: int
+            self,
+            element: Dict[str, Any],
+            platform: str,
+            confidence: float,
+            source: str,
+            depth: int
     ) -> ElementSample:
         """Create anonymized sample from element."""
         text = element.get("text", "") or element.get("label", "")
@@ -272,7 +273,7 @@ class SelfLearningCollector:
                 logger.warning(f"Upload failed: {response.status_code}")
                 return False
 
-        except Exception as e:
+        except (requests.RequestException, OSError, TypeError, ValueError) as e:
             logger.warning(f"Could not upload batch: {e}")
             return False
 
@@ -297,9 +298,9 @@ class ModelUpdater:
     """
 
     def __init__(
-        self,
-        model_dir: Path = Path("ml_models"),
-        update_endpoint: str = "https://api.mobile-observe.dev/v1/ml/models"
+            self,
+            model_dir: Path = Path("ml_models"),
+            update_endpoint: str = "https://api.mobile-observe.dev/v1/ml/models"
     ):
         """
         Initialize updater.
@@ -341,7 +342,7 @@ class ModelUpdater:
 
             return None
 
-        except Exception as e:
+        except (requests.RequestException, OSError, json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Could not check for updates: {e}")
             return None
 
@@ -385,7 +386,7 @@ class ModelUpdater:
             logger.info(f"Model updated to v{version}")
             return True
 
-        except Exception as e:
+        except (requests.RequestException, OSError, KeyError, ValueError) as e:
             logger.error(f"Model update failed: {e}")
             return False
 
@@ -429,11 +430,11 @@ class FeedbackCollector:
         self.feedback_dir.mkdir(parents=True, exist_ok=True)
 
     def record_correction(
-        self,
-        element: Dict[str, Any],
-        predicted_type: str,
-        actual_type: str,
-        platform: str
+            self,
+            element: Dict[str, Any],
+            predicted_type: str,
+            actual_type: str,
+            platform: str
     ) -> None:
         """
         Record a user correction.

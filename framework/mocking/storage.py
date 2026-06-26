@@ -5,10 +5,10 @@ Handles persistent storage of recorded API mocks.
 """
 
 import json
+from dataclasses import dataclass, field, asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from datetime import datetime
-from dataclasses import dataclass, field, asdict
 
 
 @dataclass
@@ -127,7 +127,7 @@ class MockStorage:
                             "mock_count": data.get("mock_count", 0),
                         }
                     )
-            except Exception:
+            except (OSError, json.JSONDecodeError, KeyError):
                 continue
 
         return sorted(sessions, key=lambda x: x["created_at"], reverse=True)

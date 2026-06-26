@@ -4,11 +4,11 @@ Change analyzer for detecting modified files
 Analyzes git changes to identify modified files and their impact.
 """
 
+import subprocess
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import List, Set, Optional
-import subprocess
-from enum import Enum
 
 
 class ChangeType(Enum):
@@ -44,10 +44,10 @@ class ChangeAnalyzer:
         self.repo_path = repo_path
 
     def get_changes(
-        self,
-        base_branch: str = "main",
-        target_branch: str = "HEAD",
-        include_untracked: bool = False
+            self,
+            base_branch: str = "main",
+            target_branch: str = "HEAD",
+            include_untracked: bool = False
     ) -> List[FileChange]:
         """
         Get list of changed files
@@ -128,11 +128,33 @@ class ChangeAnalyzer:
 
         return changes
 
+    def get_changed_files(
+            self,
+            base_branch: str = "main",
+            target_branch: str = "HEAD",
+            since_commit: Optional[str] = None
+    ) -> List[Path]:
+        """
+        Get list of changed file paths (simplified interface)
+
+        Args:
+            base_branch: Base branch to compare against
+            target_branch: Target branch/commit
+            since_commit: Optional commit to compare since (overrides base_branch if provided)
+
+        Returns:
+            List of changed file paths
+        """
+        if since_commit:
+            base_branch = since_commit
+        changes = self.get_changes(base_branch, target_branch)
+        return [change.path for change in changes]
+
     def _get_file_stats(
-        self,
-        file_path: Path,
-        base_branch: str,
-        target_branch: str
+            self,
+            file_path: Path,
+            base_branch: str,
+            target_branch: str
     ) -> dict:
         """Get added/deleted line counts for a file"""
         try:
@@ -150,7 +172,7 @@ class ChangeAnalyzer:
                     'added': int(parts[0]) if parts[0] != '-' else 0,
                     'deleted': int(parts[1]) if parts[1] != '-' else 0
                 }
-        except Exception:
+        except (subprocess.SubprocessError, OSError, ValueError):
             pass
 
         return {'added': 0, 'deleted': 0}
@@ -190,7 +212,7 @@ class ChangeAnalyzer:
                         path=Path(parts[1]),
                         change_type=ChangeType.DELETED
                     ))
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             pass
 
         return changes
@@ -214,7 +236,7 @@ class ChangeAnalyzer:
                         path=Path(line),
                         change_type=ChangeType.ADDED
                     ))
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             pass
 
         return changes
@@ -228,9 +250,9 @@ class ChangeAnalyzer:
         return directories
 
     def filter_by_extension(
-        self,
-        changes: List[FileChange],
-        extensions: List[str]
+            self,
+            changes: List[FileChange],
+            extensions: List[str]
     ) -> List[FileChange]:
         """
         Filter changes by file extension

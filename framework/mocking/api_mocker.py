@@ -5,12 +5,12 @@ Provides transparent recording and replay of HTTP API responses
 for faster, more reliable mobile testing.
 """
 
-import time
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Callable, Any
+import time
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Dict, List, Optional, Callable, Any
 
 from framework.mocking.storage import MockStorage, MockEntry, MockRequest, MockResponse
 
@@ -63,15 +63,15 @@ class MockSession:
                 self.mode = MockMode.RECORD
 
     def record_call(
-        self,
-        method: str,
-        url: str,
-        headers: Dict[str, str],
-        body: Optional[str],
-        response_status: int,
-        response_headers: Dict[str, str],
-        response_body: str,
-        latency_ms: float,
+            self,
+            method: str,
+            url: str,
+            headers: Dict[str, str],
+            body: Optional[str],
+            response_status: int,
+            response_headers: Dict[str, str],
+            response_body: str,
+            latency_ms: float,
     ) -> None:
         """Record an API call"""
         if self.mode != MockMode.RECORD:
@@ -166,11 +166,11 @@ class APIMocker:
         return stats
 
     def intercept_request(
-        self,
-        method: str,
-        url: str,
-        headers: Optional[Dict[str, str]] = None,
-        body: Optional[str] = None,
+            self,
+            method: str,
+            url: str,
+            headers: Optional[Dict[str, str]] = None,
+            body: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Intercept an HTTP request
@@ -200,15 +200,15 @@ class APIMocker:
         return None
 
     def record_response(
-        self,
-        method: str,
-        url: str,
-        request_headers: Dict[str, str],
-        request_body: Optional[str],
-        response_status: int,
-        response_headers: Dict[str, str],
-        response_body: str,
-        latency_ms: float,
+            self,
+            method: str,
+            url: str,
+            request_headers: Dict[str, str],
+            request_body: Optional[str],
+            response_status: int,
+            response_headers: Dict[str, str],
+            response_body: str,
+            latency_ms: float,
     ) -> None:
         """Record an API response"""
         if not self.active_session:

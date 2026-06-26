@@ -5,18 +5,17 @@ Commands for managing framework configuration with YAML/JSON support,
 profiles, environment variables, and validation.
 """
 
-import click
 from pathlib import Path
 from typing import Optional, Union
-import yaml
 
+import click
+import yaml
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.table import Table
 
 from framework.config import ConfigManager, ObserveConfig
-
 
 console = Console()
 

@@ -4,9 +4,8 @@ Code Parser - Extract code structure and documentation
 
 import ast
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
 from pathlib import Path
-import inspect
+from typing import List, Dict, Any, Optional
 
 
 @dataclass
@@ -219,7 +218,7 @@ class DocstringParser:
         if not docstring:
             return {}
 
-        sections = {
+        sections: Dict[str, Any] = {
             "description": [],
             "args": [],
             "returns": None,
@@ -268,7 +267,7 @@ class DocstringParser:
         if not docstring:
             return {}
 
-        sections = {
+        sections: Dict[str, Any] = {
             "description": [],
             "parameters": [],
             "returns": None,

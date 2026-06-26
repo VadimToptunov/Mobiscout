@@ -5,6 +5,7 @@ Different strategies for correlating events based on various signals.
 """
 
 from typing import List, Optional, Dict, Any
+
 from framework.correlation.types import CorrelationStrength, CorrelationMethod
 
 
@@ -12,9 +13,9 @@ class CorrelationStrategy:
     """Base class for correlation strategies"""
 
     def correlate(
-        self,
-        ui_event: Dict[str, Any],
-        api_event: Dict[str, Any]
+            self,
+            ui_event: Dict[str, Any],
+            api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
         """
         Check if two events are correlated
@@ -34,11 +35,10 @@ class CorrelationIDStrategy(CorrelationStrategy):
     """
 
     def correlate(
-        self,
-        ui_event: Dict[str, Any],
-        api_event: Dict[str, Any]
+            self,
+            ui_event: Dict[str, Any],
+            api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
-
         ui_corr_id = ui_event.get('correlationId') or ui_event.get('correlation_id')
         api_corr_id = api_event.get('correlationId') or api_event.get('correlation_id')
 
@@ -68,9 +68,9 @@ class TemporalProximityStrategy(CorrelationStrategy):
         self.max_time_delta_ms = max_time_delta_ms
 
     def correlate(
-        self,
-        ui_event: Dict[str, Any],
-        api_event: Dict[str, Any]
+            self,
+            ui_event: Dict[str, Any],
+            api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
         ui_time = ui_event.get('timestamp', 0)
@@ -111,9 +111,9 @@ class ThreadCorrelationStrategy(CorrelationStrategy):
     """
 
     def correlate(
-        self,
-        ui_event: Dict[str, Any],
-        api_event: Dict[str, Any]
+            self,
+            ui_event: Dict[str, Any],
+            api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
         ui_thread = ui_event.get('threadId') or ui_event.get('thread_id')
@@ -141,9 +141,9 @@ class ScreenContextStrategy(CorrelationStrategy):
     """
 
     def correlate(
-        self,
-        ui_event: Dict[str, Any],
-        api_event: Dict[str, Any]
+            self,
+            ui_event: Dict[str, Any],
+            api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
         ui_screen = ui_event.get('screen')
@@ -180,9 +180,9 @@ class HybridCorrelationStrategy(CorrelationStrategy):
         ]
 
     def correlate(
-        self,
-        ui_event: Dict[str, Any],
-        api_event: Dict[str, Any]
+            self,
+            ui_event: Dict[str, Any],
+            api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
         correlations = []

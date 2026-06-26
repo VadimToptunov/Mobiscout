@@ -45,7 +45,7 @@ class TestPriority(str, Enum):
 
 class SelectorStability(str, Enum):
     """Selector stability assessment"""
-    HIGH = "high"    # accessibility ID, resource ID
+    HIGH = "high"  # accessibility ID, resource ID
     MEDIUM = "medium"  # text-based
-    LOW = "low"      # XPath with index
+    LOW = "low"  # XPath with index
     UNKNOWN = "unknown"

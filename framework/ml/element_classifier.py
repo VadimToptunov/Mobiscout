@@ -9,13 +9,14 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
+
+import joblib
 # import numpy  # Unused
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import classification_report
-import joblib
 
 from framework.model.app_model import ElementType
 
@@ -121,8 +122,8 @@ class ElementClassifier:
         return features
 
     def prepare_training_data(
-        self,
-        hierarchy_events: List[Dict[str, Any]]
+            self,
+            hierarchy_events: List[Dict[str, Any]]
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Prepare training dataset from recorded hierarchy events.
@@ -182,11 +183,11 @@ class ElementClassifier:
         return elements
 
     def train(
-        self,
-        features: pd.DataFrame,
-        labels: pd.Series,
-        test_size: float = 0.2,
-        random_state: int = 42
+            self,
+            features: pd.DataFrame,
+            labels: pd.Series,
+            test_size: float = 0.2,
+            random_state: int = 42
     ) -> Dict[str, Any]:
         """
         Train Random Forest classifier.
@@ -269,9 +270,46 @@ class ElementClassifier:
 
         return metrics
 
+    def train_from_data(
+            self,
+            training_data: List[Dict[str, Any]],
+            test_size: float = 0.2
+    ) -> float:
+        """
+        Train model from list of training examples.
+
+        Args:
+            training_data: List of dicts with element features and labels
+            test_size: Test set size (0.0-1.0)
+
+        Returns:
+            Test accuracy score
+        """
+        if not training_data:
+            raise ValueError("Training data is empty")
+
+        # Extract features and labels from training data
+        features_list = []
+        labels = []
+
+        for example in training_data:
+            features = self.extract_features(example)
+            features_list.append(features)
+            label = example.get('label', example.get('element_type', 'generic'))
+            labels.append(label)
+
+        # Create DataFrame
+        features_df = pd.DataFrame(features_list)
+        self.feature_names = list(features_df.columns)
+        labels_series = pd.Series(labels)
+
+        # Train using the main train method
+        metrics = self.train(features_df, labels_series, test_size=test_size)
+        return metrics.get('test_accuracy', 0.0)
+
     def predict(
-        self,
-        element_data: Dict[str, Any]
+            self,
+            element_data: Dict[str, Any]
     ) -> Tuple[ElementType, float]:
         """
         Predict element type with confidence.
@@ -298,6 +336,7 @@ class ElementClassifier:
         label = self.label_encoder.inverse_transform([prediction])[0]
 
         # Map to ElementType
+        element_type: ElementType
         try:
             element_type = ElementType[label.upper()]
         except KeyError:
@@ -307,8 +346,8 @@ class ElementClassifier:
         return element_type, confidence
 
     def predict_batch(
-        self,
-        elements_data: List[Dict[str, Any]]
+            self,
+            elements_data: List[Dict[str, Any]]
     ) -> List[Tuple[ElementType, float]]:
         """Predict multiple elements at once."""
         if not self.trained or self.model is None:

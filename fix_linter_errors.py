@@ -4,14 +4,14 @@ Comprehensive linter error fixer
 Fixes all remaining linter errors in the project
 """
 from pathlib import Path
-import re
 
 print("🔧 Starting comprehensive project fix...\n")
 
 # Fix specific E999 syntax errors - lines are merged
 fixes_map = {
     "framework/selectors/selector_optimizer.py": [
-        (7, "from typing import Dict, Listfrom framework.model.app_model import Selector, SelectorStability as ModelStability",
+        (7,
+         "from typing import Dict, Listfrom framework.model.app_model import Selector, SelectorStability as ModelStability",
          "from typing import Dict, List\nfrom framework.model.app_model import Selector, SelectorStability as ModelStability")
     ],
     "framework/selectors/selector_scorer.py": [
@@ -47,7 +47,8 @@ fixes_map = {
          "from framework.model.app_model import Screen\n\nPAGE_OBJECT_TEMPLATE = \"\"\"")
     ],
     "framework/healing/orchestrator.py": [
-        (8, "from typing import Listfrom .selector_discovery import SelectorDiscoveryfrom .element_matcher import ElementMatcher, MatchResult",
+        (8,
+         "from typing import Listfrom .selector_discovery import SelectorDiscoveryfrom .element_matcher import ElementMatcher, MatchResult",
          "from typing import List\nfrom .selector_discovery import SelectorDiscovery\nfrom .element_matcher import ElementMatcher, MatchResult")
     ],
     "framework/healing/selector_discovery.py": [

@@ -4,18 +4,19 @@ Live Execution Monitor CLI
 Real-time test execution monitoring with rich UI.
 """
 
-import click
-from pathlib import Path
-from typing import Optional, Dict, Any
+import re
 import subprocess
 import time
-import re
+from pathlib import Path
+from typing import Optional, Dict, Any
 
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
+import click
 from rich.console import Console
 from rich.live import Live
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
+
+from framework.cli.rich_output import print_header, print_info, print_success, print_error
 
 console = Console()
 
@@ -115,7 +116,7 @@ class TestMonitor:
         filled = int(bar_length * percentage)
         bar = "█" * filled + "░" * (bar_length - filled)
 
-        return f"[{color}]{bar}[/{color}] {percentage*100:.0f}%"
+        return f"[{color}]{bar}[/{color}] {percentage * 100:.0f}%"
 
 
 def run_tests_with_monitor(test_path: str, pytest_args: str) -> int:

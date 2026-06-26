@@ -141,9 +141,9 @@ fn observe_core(_py: Python, m: &PyModule) -> PyResult<()> {
 - **Algorithm:** Keyword detection with word boundary checks
 - **Performance:** 18x faster than pure Python
 - **Metrics:**
-  - Cyclomatic Complexity
-  - Cognitive Complexity
-  - Nesting Depth
+    - Cyclomatic Complexity
+    - Cognitive Complexity
+    - Nesting Depth
 
 **Implementation:**
 

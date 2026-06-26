@@ -3,6 +3,7 @@ Screen model with UI elements and actions.
 """
 
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 from .element import Element, Action

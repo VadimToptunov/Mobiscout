@@ -2,8 +2,10 @@
 Tests for Parallel Execution
 """
 
-import pytest
 from pathlib import Path
+
+import pytest
+
 from framework.execution.parallel_executor import (
     ParallelExecutor,
     TestStatus,

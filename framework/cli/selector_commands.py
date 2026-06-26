@@ -4,15 +4,15 @@ CLI commands for Advanced Selectors
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.table import Table
 
 from framework.selectors.advanced_selector import (
     AdvancedSelector,
     AdvancedSelectorEngine,
-    SelectorBuilder,
     SelectorType,
+    SelectorFilter,
     FilterOperator,
     by_id,
     by_text,
@@ -260,7 +260,7 @@ def benchmark():
         elements.append(
             {
                 "id": f"element_{i}",
-                "parent_id": f"element_{i//10}" if i > 10 else None,
+                "parent_id": f"element_{i // 10}" if i > 10 else None,
                 "class": f"Class{i % 5}",
                 "text": f"Text {i}",
                 "enabled": i % 2 == 0,
@@ -278,7 +278,7 @@ def benchmark():
     for _ in range(100):
         engine.find(by_id("element_500"))
     id_time = time.time() - start
-    benchmarks.append(("ID lookup (100x)", f"{id_time*1000:.2f}ms", f"{id_time*10:.2f}ms per call"))
+    benchmarks.append(("ID lookup (100x)", f"{id_time * 1000:.2f}ms", f"{id_time * 10:.2f}ms per call"))
 
     # Class selector with filters
     start = time.time()
@@ -291,7 +291,7 @@ def benchmark():
         engine.find(selector)
     filter_time = time.time() - start
     benchmarks.append(
-        ("Class + filter (100x)", f"{filter_time*1000:.2f}ms", f"{filter_time*10:.2f}ms per call")
+        ("Class + filter (100x)", f"{filter_time * 1000:.2f}ms", f"{filter_time * 10:.2f}ms per call")
     )
 
     # Fuzzy text search
@@ -299,7 +299,7 @@ def benchmark():
     for _ in range(100):
         engine.find(by_text("text", fuzzy=True))
     fuzzy_time = time.time() - start
-    benchmarks.append(("Fuzzy text (100x)", f"{fuzzy_time*1000:.2f}ms", f"{fuzzy_time*10:.2f}ms per call"))
+    benchmarks.append(("Fuzzy text (100x)", f"{fuzzy_time * 1000:.2f}ms", f"{fuzzy_time * 10:.2f}ms per call"))
 
     # Display results
     table = Table(title=f"Benchmark Results ({len(elements)} elements)")

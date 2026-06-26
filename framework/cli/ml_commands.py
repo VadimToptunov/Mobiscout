@@ -4,16 +4,17 @@ ML CLI commands
 Commands for machine learning model training and element classification.
 """
 
-import click
-from pathlib import Path
 import json
+from pathlib import Path
 
-from framework.ml.element_classifier import ElementClassifier
-from framework.ml.universal_model import UniversalModelBuilder
-from framework.ml.training_data_generator import TrainingDataGenerator
-from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress
+import click
 from rich.console import Console
 from rich.table import Table
+
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress
+from framework.ml.element_classifier import ElementClassifier
+from framework.ml.training_data_generator import TrainingDataGenerator
+from framework.ml.universal_model import UniversalModelBuilder
 
 console = Console()
 
@@ -53,7 +54,7 @@ def train(training_data_path: str, output_path: str, test_split: float) -> None:
         classifier = ElementClassifier()
 
         print_info("\n🔄 Training model...")
-        accuracy = classifier.train(training_data, test_size=test_split)
+        accuracy = classifier.train_from_data(training_data, test_size=test_split)
 
         print_success(f"\n✅ Model trained!")  # noqa: F541
         print_info(f"Accuracy: {accuracy:.2%}")
@@ -223,15 +224,20 @@ def create_universal_model(output_path: str, samples_per_type: int) -> None:
         print_info("\n🔄 Generating synthetic training data...")
 
         builder = UniversalModelBuilder()
-        training_data = builder.generate_training_data(samples_per_type=samples_per_type)
+        training_data_path = builder.generate_training_data(samples_per_type=samples_per_type)
 
-        print_info("Generated " + str(len(training_data)) + " training samples")
+        # Load the training data from the generated file
+        import json
+        with open(training_data_path, 'r') as f:
+            training_data = json.load(f)
+
+        print_info(f"Generated {len(training_data)} training samples")
 
         # Train model
         print_info("\n🔄 Training universal model...")
 
         classifier = ElementClassifier()
-        accuracy = classifier.train(training_data, test_size=0.2)
+        accuracy = classifier.train_from_data(training_data, test_size=0.2)
 
         print_success(f"\n✅ Universal model trained!")  # noqa: F541
         print_info(f"Accuracy: {accuracy:.2%}")
@@ -274,14 +280,13 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
 
         # Generate training data
         generator = TrainingDataGenerator()
-        training_data = generator.generate_from_app_model(app_model_data)
+        training_data_path = generator.generate_from_app_model(app_model_data, output_path=output_file)
+
+        # Load to get count for display
+        with open(training_data_path, 'r') as f:
+            training_data = json.load(f)
 
         print_info(f"\nGenerated {len(training_data)} training examples")
-
-        # Save
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_file, 'w') as f:
-            json.dump(training_data, f, indent=2)
 
         print_success(f"✅ Training data saved to: {output_file}")
 

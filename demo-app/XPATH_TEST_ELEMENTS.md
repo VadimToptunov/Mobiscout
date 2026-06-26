@@ -1,10 +1,13 @@
 # XPath Test Elements - Intentionally Missing IDs
 
-This document lists UI elements that **intentionally have NO test identifiers** to test the framework's XPath generation capabilities.
+This document lists UI elements that **intentionally have NO test identifiers** to test the framework's XPath generation
+capabilities.
 
-##  Purpose
+## Purpose
 
-Real-world applications often have elements without proper test IDs. This creates "challenging" scenarios where the framework must:
+Real-world applications often have elements without proper test IDs. This creates "challenging" scenarios where the
+framework must:
+
 - Build robust XPath selectors
 - Use text, labels, and placeholders for identification
 - Leverage hierarchy and position
@@ -12,18 +15,19 @@ Real-world applications often have elements without proper test IDs. This create
 
 ---
 
-##  Android App - Elements Without `testTag`
+## Android App - Elements Without `testTag`
 
 ### LoginScreen
 
-| Element | Type | Why No ID | Alternative Selectors |
-|---------|------|-----------|----------------------|
-| **Email Input** | OutlinedTextField | Test label-based XPath | label="Email", icon=Email, position=1st TextField |
-| **Password Input** | OutlinedTextField | Test password field detection | label="Password", icon=Lock, PasswordVisualTransformation |
-| **Forgot Password Button** | TextButton | Test text-based selector | text="Forgot Password?", position after password |
-| **Register Link** | TextButton | Test position in Row | text="Register", second Button in Row |
+| Element                    | Type              | Why No ID                     | Alternative Selectors                                     |
+|----------------------------|-------------------|-------------------------------|-----------------------------------------------------------|
+| **Email Input**            | OutlinedTextField | Test label-based XPath        | label="Email", icon=Email, position=1st TextField         |
+| **Password Input**         | OutlinedTextField | Test password field detection | label="Password", icon=Lock, PasswordVisualTransformation |
+| **Forgot Password Button** | TextButton        | Test text-based selector      | text="Forgot Password?", position after password          |
+| **Register Link**          | TextButton        | Test position in Row          | text="Register", second Button in Row                     |
 
 **XPath Examples:**
+
 ```xpath
 # Email by label
 //OutlinedTextField[contains(@label, 'Email')]
@@ -40,12 +44,13 @@ Real-world applications often have elements without proper test IDs. This create
 
 ### SendMoneyScreen
 
-| Element | Type | Why No ID | Alternative Selectors |
-|---------|------|-----------|----------------------|
-| **Recipient Name Input** | OutlinedTextField | Test complex label + placeholder | label="Recipient Name", placeholder="John Doe" |
-| **Phone/Email Input** | OutlinedTextField | Test long placeholder | label="Phone or Email", placeholder="+1234567890..." |
+| Element                  | Type              | Why No ID                        | Alternative Selectors                                |
+|--------------------------|-------------------|----------------------------------|------------------------------------------------------|
+| **Recipient Name Input** | OutlinedTextField | Test complex label + placeholder | label="Recipient Name", placeholder="John Doe"       |
+| **Phone/Email Input**    | OutlinedTextField | Test long placeholder            | label="Phone or Email", placeholder="+1234567890..." |
 
 **XPath Examples:**
+
 ```xpath
 # Recipient Name by label
 //OutlinedTextField[contains(@label, 'Recipient Name')]
@@ -56,18 +61,19 @@ Real-world applications often have elements without proper test IDs. This create
 
 ---
 
-##  iOS App - Elements Without `accessibilityIdentifier`
+## iOS App - Elements Without `accessibilityIdentifier`
 
 ### LoginView
 
-| Element | Type | Why No ID | Alternative Selectors |
-|---------|------|-----------|----------------------|
-| **Username Field** | TextField | Test placeholder-based XPath | placeholder="Username", textContentType=.username |
-| **Password Field** | SecureField | Test SecureField detection | placeholder="Password", textContentType=.password |
-| **Forgot Password Button** | Button | Test text-based selector | text="Forgot Password?", font=.caption |
-| **Sign Up Button** | Button | Test position in HStack | text="Sign Up", in HStack with Text |
+| Element                    | Type        | Why No ID                    | Alternative Selectors                             |
+|----------------------------|-------------|------------------------------|---------------------------------------------------|
+| **Username Field**         | TextField   | Test placeholder-based XPath | placeholder="Username", textContentType=.username |
+| **Password Field**         | SecureField | Test SecureField detection   | placeholder="Password", textContentType=.password |
+| **Forgot Password Button** | Button      | Test text-based selector     | text="Forgot Password?", font=.caption            |
+| **Sign Up Button**         | Button      | Test position in HStack      | text="Sign Up", in HStack with Text               |
 
 **XPath Examples:**
+
 ```xpath
 # Username by placeholder
 //XCUIElementTypeTextField[@value="Username"]
@@ -84,11 +90,12 @@ Real-world applications often have elements without proper test IDs. This create
 
 ### SendMoneyView
 
-| Element | Type | Why No ID | Alternative Selectors |
-|---------|------|-----------|----------------------|
+| Element          | Type      | Why No ID                    | Alternative Selectors                       |
+|------------------|-----------|------------------------------|---------------------------------------------|
 | **Amount Field** | TextField | Test XPath in complex HStack | placeholder="0.00", in HStack with "$" Text |
 
 **XPath Examples:**
+
 ```xpath
 # Amount field by hierarchy
 //XCUIElementTypeOther/XCUIElementTypeOther/XCUIElementTypeTextField[@value="0.00"]
@@ -102,69 +109,75 @@ Real-world applications often have elements without proper test IDs. This create
 ## 🧪 Test Scenarios
 
 ### Scenario 1: Text-Based Identification
+
 **Elements:** Forgot Password buttons, Register links  
 **Challenge:** Multiple buttons with similar styling  
 **Solution:** Use exact text matching + hierarchy
 
 ### Scenario 2: Label/Placeholder Identification
+
 **Elements:** Input fields without IDs  
 **Challenge:** Compose/SwiftUI dynamic labels  
 **Solution:** Extract label from child Text elements
 
 ### Scenario 3: Position-Based Identification
+
 **Elements:** Buttons in Row/HStack  
 **Challenge:** Dynamic positioning  
 **Solution:** Index-based XPath with siblings
 
 ### Scenario 4: Type-Based Identification
+
 **Elements:** Password fields  
 **Challenge:** No distinguishing ID  
 **Solution:** Detect PasswordVisualTransformation or SecureField type
 
 ### Scenario 5: Hierarchy-Based Identification
+
 **Elements:** Nested fields in complex layouts  
 **Challenge:** Deep nesting without IDs  
 **Solution:** Build XPath from parent to child
 
 ---
 
-##  Coverage Matrix
+## Coverage Matrix
 
-| Screen | Total Elements | With ID | Without ID | XPath Required |
-|--------|---------------|---------|------------|----------------|
-| **Android LoginScreen** | 7 | 3 (43%) | 4 (57%) |  Yes |
-| **Android SendMoneyScreen** | 6 | 4 (67%) | 2 (33%) |  Yes |
-| **iOS LoginView** | 7 | 3 (43%) | 4 (57%) |  Yes |
-| **iOS SendMoneyView** | 5 | 4 (80%) | 1 (20%) |  Yes |
-| **TOTAL** | 25 | 14 (56%) | 11 (44%) |  Yes |
+| Screen                      | Total Elements | With ID  | Without ID | XPath Required |
+|-----------------------------|----------------|----------|------------|----------------|
+| **Android LoginScreen**     | 7              | 3 (43%)  | 4 (57%)    | Yes            |
+| **Android SendMoneyScreen** | 6              | 4 (67%)  | 2 (33%)    | Yes            |
+| **iOS LoginView**           | 7              | 3 (43%)  | 4 (57%)    | Yes            |
+| **iOS SendMoneyView**       | 5              | 4 (80%)  | 1 (20%)    | Yes            |
+| **TOTAL**                   | 25             | 14 (56%) | 11 (44%)   | Yes            |
 
 ---
 
-##  Expected Framework Behavior
+## Expected Framework Behavior
 
 ### Selector Strategy Fallbacks
 
 1. **Primary Strategy (test_id/accessibility_id)**
-   - If available, use directly
-   - High stability score
+    - If available, use directly
+    - High stability score
 
 2. **Fallback Strategy 1 (text/label)**
-   - Extract visible text
-   - Medium stability (text can change with i18n)
+    - Extract visible text
+    - Medium stability (text can change with i18n)
 
 3. **Fallback Strategy 2 (XPath)**
-   - Build hierarchy-based path
-   - Use type + position + attributes
-   - Low stability (structure changes)
+    - Build hierarchy-based path
+    - Use type + position + attributes
+    - Low stability (structure changes)
 
 ### XPath Quality Checks
 
 The framework should generate XPath selectors that:
--  Are as short as possible
--  Use unique attributes when available
--  Include position only when necessary
--  Handle dynamic content (string interpolation)
--  Provide stability warnings
+
+- Are as short as possible
+- Use unique attributes when available
+- Include position only when necessary
+- Handle dynamic content (string interpolation)
+- Provide stability warnings
 
 ### Example Generated Selectors
 
@@ -194,9 +207,10 @@ Selector(
 
 ---
 
-##  How to Test
+## How to Test
 
 ### 1. Run Static Analysis
+
 ```bash
 observe analyze android --source demo-app/android/app
 observe analyze ios --source demo-app/ios/FinDemo
@@ -205,6 +219,7 @@ observe analyze ios --source demo-app/ios/FinDemo
 **Expected:** Some elements should have no `test_tag` or `accessibility_id`
 
 ### 2. Record Session
+
 ```bash
 observe record start
 # Perform actions on elements WITHOUT IDs
@@ -214,21 +229,25 @@ observe record stop
 **Expected:** HierarchyCapture should record full element trees
 
 ### 3. Build Model
+
 ```bash
 observe model build --session-id session_xyz
 ```
 
-**Expected:** 
+**Expected:**
+
 - Elements without IDs should have XPath selectors generated
 - Stability warnings for fragile selectors
 - Multiple fallback strategies
 
 ### 4. Verify Selector Quality
+
 ```bash
 observe model analyze-selectors
 ```
 
 **Expected Output:**
+
 ```
 Selector Stability Report:
   HIGH (test_id/accessibility_id): 14 selectors (56%)
@@ -238,6 +257,7 @@ Selector Stability Report:
 ```
 
 ### 5. Generate Tests
+
 ```bash
 observe generate pages --model app_model.yaml
 ```
@@ -246,7 +266,7 @@ observe generate pages --model app_model.yaml
 
 ---
 
-##  Intentional Design
+## Intentional Design
 
 These missing IDs are **NOT bugs** - they are **intentional test cases** for:
 
@@ -258,7 +278,7 @@ These missing IDs are **NOT bugs** - they are **intentional test cases** for:
 
 ---
 
-##  Related Documentation
+## Related Documentation
 
 - `framework/selectors/selector_builder.py` - Selector generation logic
 - `framework/selectors/selector_scorer.py` - Stability scoring

@@ -11,6 +11,7 @@ Analyzes Android source code (Kotlin) to extract:
 import re
 from pathlib import Path
 from typing import List, Optional
+
 from framework.analyzers.analysis_result import (
     AnalysisResult,
     ScreenCandidate,
@@ -111,11 +112,11 @@ class AndroidAnalyzer:
             self._detect_api_endpoints(content, file_path, lines, result)
 
     def _detect_screens(
-        self,
-        content: str,
-        file_path: Path,
-        lines: List[str],
-        result: AnalysisResult
+            self,
+            content: str,
+            file_path: Path,
+            lines: List[str],
+            result: AnalysisResult
     ) -> None:
         """Detect Composable screen functions"""
         for match in self.composable_pattern.finditer(content):
@@ -145,11 +146,11 @@ class AndroidAnalyzer:
             result.screens.append(screen)
 
     def _detect_ui_elements(
-        self,
-        content: str,
-        file_path: Path,
-        lines: List[str],
-        result: AnalysisResult
+            self,
+            content: str,
+            file_path: Path,
+            lines: List[str],
+            result: AnalysisResult
     ) -> None:
         """Detect UI elements with test tags or content descriptions"""
 
@@ -195,11 +196,11 @@ class AndroidAnalyzer:
             result.ui_elements.append(element)
 
     def _detect_navigation(
-        self,
-        content: str,
-        file_path: Path,
-        lines: List[str],
-        result: AnalysisResult
+            self,
+            content: str,
+            file_path: Path,
+            lines: List[str],
+            result: AnalysisResult
     ) -> None:
         """Detect navigation routes and transitions"""
 
@@ -245,11 +246,11 @@ class AndroidAnalyzer:
             result.navigation.append(navigation)
 
     def _detect_api_endpoints(
-        self,
-        content: str,
-        file_path: Path,
-        lines: List[str],
-        result: AnalysisResult
+            self,
+            content: str,
+            file_path: Path,
+            lines: List[str],
+            result: AnalysisResult
     ) -> None:
         """Detect Retrofit API endpoints"""
 
@@ -291,10 +292,10 @@ class AndroidAnalyzer:
         return None
 
     def _find_ui_elements_in_scope(
-        self,
-        content: str,
-        start_pos: int,
-        func_name: str
+            self,
+            content: str,
+            start_pos: int,
+            func_name: str
     ) -> List[str]:
         """Find test tags within a function scope"""
         # Simple heuristic: look for test tags within ~500 characters of function start
@@ -355,7 +356,7 @@ class AndroidAnalyzer:
             elif char == ')':
                 paren_count -= 1
                 if paren_count == 0:
-                    return signature[:i+1]
+                    return signature[:i + 1]
 
         return signature
 

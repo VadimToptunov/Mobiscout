@@ -1,22 +1,24 @@
-#  iOS Demo App
+# iOS Demo App
 
 iOS version of FinDemo application built with SwiftUI.
 
 ---
 
-##  Features
+## Features
 
-###  Implemented:
--  Onboarding (swipeable pages with TabView)
--  Authentication (Login screen)
--  KYC screen (mock document scanning)
--  Home screen with balance and quick actions
--  Top-up with amount input and WebView payment
--  Send money flow with recipient selection
--  Transaction history display
--  Accessibility identifiers on all interactive elements
+### Implemented:
 
-###  TODO (For Production):
+- Onboarding (swipeable pages with TabView)
+- Authentication (Login screen)
+- KYC screen (mock document scanning)
+- Home screen with balance and quick actions
+- Top-up with amount input and WebView payment
+- Send money flow with recipient selection
+- Transaction history display
+- Accessibility identifiers on all interactive elements
+
+### TODO (For Production):
+
 - [ ] Regula Document Reader SDK integration
 - [ ] Real API integration (currently mock)
 - [ ] Biometric authentication
@@ -26,7 +28,7 @@ iOS version of FinDemo application built with SwiftUI.
 
 ---
 
-##  Project Structure
+## Project Structure
 
 ```
 FinDemo/
@@ -46,7 +48,7 @@ FinDemo/
 
 ---
 
-##  Tech Stack
+## Tech Stack
 
 - **SwiftUI** - Modern declarative UI framework
 - **Combine** - Reactive state management via `@Published`
@@ -56,11 +58,12 @@ FinDemo/
 
 ---
 
-##  Accessibility Identifiers
+## Accessibility Identifiers
 
 All interactive elements have `accessibilityIdentifier` for test automation:
 
 ### Onboarding
+
 - `onboarding_previous_button`
 - `onboarding_next_button`
 - `onboarding_get_started_button`
@@ -69,6 +72,7 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 - `onboarding_description`
 
 ### Login
+
 - `login_logo`
 - `login_title`
 - `login_username_field`
@@ -79,6 +83,7 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 - `login_error_message`
 
 ### KYC
+
 - `kyc_title`
 - `kyc_description`
 - `kyc_document_type_label`
@@ -91,6 +96,7 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 - `kyc_skip_button`
 
 ### Home
+
 - `home_balance_label`
 - `home_balance_value`
 - `home_balance_status`
@@ -102,6 +108,7 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 - `home_logout_button`
 
 ### Top-Up
+
 - `topup_title`
 - `topup_amount_field`
 - `topup_quick_25`, `topup_quick_50`, `topup_quick_100`, `topup_quick_200`
@@ -115,6 +122,7 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 - `topup_payment_cancel`
 
 ### Send Money
+
 - `send_recipient_label`
 - `send_recipient_John_Doe`, `send_recipient_Jane_Smith`, `send_recipient_Bob_Johnson`
 - `send_amount_label`
@@ -134,9 +142,10 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 
 ---
 
-##  How to Build & Run
+## How to Build & Run
 
 ### Requirements:
+
 - macOS with Xcode 15.0+
 - iOS 16.0+ deployment target
 - Swift 5.9+
@@ -150,35 +159,38 @@ All interactive elements have `accessibilityIdentifier` for test automation:
    ```
 
 2. **Select Target:**
-   - Choose iPhone simulator or device
-   - Run scheme: `FinDemo`
+    - Choose iPhone simulator or device
+    - Run scheme: `FinDemo`
 
 3. **Build & Run:**
-   - Press `⌘R` or click the Play button
-   - App will launch on selected simulator/device
+    - Press `⌘R` or click the Play button
+    - App will launch on selected simulator/device
 
 4. **Mock Login Credentials:**
-   - Username: Any non-empty string
-   - Password: Any non-empty string
+    - Username: Any non-empty string
+    - Password: Any non-empty string
 
 ---
 
-##  Configuration
+## Configuration
 
 ### Build Settings:
+
 - **Deployment Target:** iOS 16.0
 - **Swift Version:** 5.0
 - **Code Signing:** Automatic (for development)
 
 ### Future Build Schemes:
+
 (To be implemented in Phase 3)
+
 - **Observe** - With Observe SDK instrumentation
 - **Test** - Clean build for test automation
 - **Production** - Release configuration
 
 ---
 
-##  App Flow
+## App Flow
 
 ```
 Onboarding (3 screens)
@@ -195,7 +207,7 @@ Home Screen
 
 ---
 
-##  Security Notes
+## Security Notes
 
 - Passwords are NOT stored (demo only)
 - No real payment processing
@@ -206,10 +218,11 @@ Home Screen
 
 ---
 
-##  Current Status
+## Current Status
 
 **Status:** 🟢 Core Demo Complete (Phase 3 - Step 1)  
 **Next Steps:**
+
 1. iOS Observe SDK implementation
 2. iOS Static Analyzer for SwiftUI
 3. Cross-platform generator updates
@@ -217,19 +230,21 @@ Home Screen
 
 ---
 
-##  Implementation Notes
+## Implementation Notes
 
 ### SwiftUI vs Jetpack Compose Parity:
-| Feature | Android (Compose) | iOS (SwiftUI) |
-|---------|-------------------|---------------|
-| Swipeable screens | HorizontalPager | TabView |
-| Test IDs | testTag | accessibilityIdentifier |
-| State management | remember/mutableStateOf | @State |
-| Shared state | ViewModel | @EnvironmentObject |
-| WebView | AndroidView + WebView | UIViewRepresentable + WKWebView |
-| Navigation | NavHost | NavigationView |
+
+| Feature           | Android (Compose)       | iOS (SwiftUI)                   |
+|-------------------|-------------------------|---------------------------------|
+| Swipeable screens | HorizontalPager         | TabView                         |
+| Test IDs          | testTag                 | accessibilityIdentifier         |
+| State management  | remember/mutableStateOf | @State                          |
+| Shared state      | ViewModel               | @EnvironmentObject              |
+| WebView           | AndroidView + WebView   | UIViewRepresentable + WKWebView |
+| Navigation        | NavHost                 | NavigationView                  |
 
 ### Key Design Decisions:
+
 - Used `@EnvironmentObject` for `AppState` instead of ViewModels (simpler for demo)
 - Mock API calls instead of real networking (can be swapped easily)
 - Skipped CoreData/SwiftData (not needed for demo)
@@ -240,6 +255,7 @@ Home Screen
 ## 🧪 Testing
 
 The app is ready for:
+
 - Manual testing on simulators/devices
 - Appium/XCUITest automation (all elements have accessibility IDs)
 - Observe SDK integration (next phase)

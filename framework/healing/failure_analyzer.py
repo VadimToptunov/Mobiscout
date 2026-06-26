@@ -4,12 +4,12 @@ Failure analyzer
 Analyzes test failures to detect broken selectors.
 """
 
-from dataclasses import dataclass
-from typing import List, Optional, Dict
-from pathlib import Path
-from enum import Enum
-import xml.etree.ElementTree as ET
 import re
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import List, Optional, Dict, Any
 
 
 class FailureType(Enum):
@@ -39,6 +39,28 @@ class SelectorFailure:
     def selector_tuple(self) -> tuple:
         """Return selector as tuple (type, value)"""
         return (self.selector_type, self.selector_value)
+
+    @property
+    def selector(self) -> str:
+        """Return selector as string"""
+        return f"{self.selector_type}={self.selector_value}"
+
+    @property
+    def element_info(self) -> Dict[str, Any]:
+        """Return element info dictionary"""
+        return {
+            "selector_type": self.selector_type,
+            "selector_value": self.selector_value,
+            "element_name": self.element_name,
+            "page_object_class": self.page_object_class
+        }
+
+    @property
+    def page_source(self) -> Optional[str]:
+        """Return page source content if available"""
+        if self.page_source_path and self.page_source_path.exists():
+            return self.page_source_path.read_text()
+        return None
 
 
 class FailureAnalyzer:
@@ -85,10 +107,32 @@ class FailureAnalyzer:
             for suite in suites:
                 self._analyze_suite(suite)
 
-        except Exception as e:
+        except (OSError, ET.ParseError) as e:
             print(f"Error parsing JUnit XML: {e}")
 
         return self.failures
+
+    def analyze_test_results(self, results_path: Path, screenshot_dir: Optional[Path] = None) -> List[SelectorFailure]:
+        """
+        Analyze test results (auto-detect format)
+
+        Args:
+            results_path: Path to test results file (JUnit XML, pytest output, etc.)
+            screenshot_dir: Optional path to screenshots directory
+
+        Returns:
+            List of detected selector failures
+        """
+        if not results_path.exists():
+            return []
+
+        # Detect format based on extension or content
+        if results_path.suffix == '.xml':
+            return self.analyze_junit_results(results_path)
+        else:
+            # Assume text output
+            content = results_path.read_text()
+            return self.analyze_pytest_output(content)
 
     def _analyze_suite(self, suite: ET.Element):
         """Analyze single test suite"""
@@ -266,7 +310,7 @@ class FailureAnalyzer:
                         if class_match:
                             failure.page_object_class = class_match.group(1)
                         break
-                except Exception:
+                except (OSError, UnicodeDecodeError):
                     continue
 
     def generate_report(self) -> str:

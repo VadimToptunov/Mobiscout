@@ -2,11 +2,11 @@
 Documentation Generator - Auto-generate documentation from code
 """
 
-from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
-from pathlib import Path
-from enum import Enum
 import json
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import List, Any
 
 from framework.documentation.parser import CodeParser, DocstringParser, ModuleDoc
 

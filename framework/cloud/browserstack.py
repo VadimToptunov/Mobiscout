@@ -8,10 +8,11 @@ Provides integration with BrowserStack for:
 - App upload and distribution
 """
 
-import requests
-from typing import List, Dict, Optional, Any
-from pathlib import Path
 import time
+from pathlib import Path
+from typing import List, Dict, Optional, Any
+
+import requests
 
 
 class BrowserStackClient:
@@ -184,12 +185,12 @@ class BrowserStackClient:
         return response.json()
 
     def generate_capabilities(
-        self,
-        device_name: str,
-        os_version: str,
-        app_url: str,
-        project_name: Optional[str] = None,
-        build_name: Optional[str] = None
+            self,
+            device_name: str,
+            os_version: str,
+            app_url: str,
+            project_name: Optional[str] = None,
+            build_name: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate Appium capabilities for BrowserStack
@@ -250,10 +251,10 @@ def create_client_from_env() -> BrowserStackClient:
 
 
 def wait_for_session_completion(
-    client: BrowserStackClient,
-    session_id: str,
-    timeout: int = 3600,
-    poll_interval: int = 10
+        client: BrowserStackClient,
+        session_id: str,
+        timeout: int = 3600,
+        poll_interval: int = 10
 ) -> Dict:
     """
     Wait for a session to complete

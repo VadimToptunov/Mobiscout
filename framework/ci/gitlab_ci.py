@@ -5,7 +5,8 @@ Creates comprehensive GitLab CI pipelines for mobile testing.
 """
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
+
 import yaml
 
 
@@ -18,9 +19,9 @@ class GitLabCIGenerator:
         self.project_name = project_name
 
     def generate_basic_pipeline(
-        self,
-        platforms: List[str] = ['android'],
-        python_version: str = '3.13'
+            self,
+            platforms: Optional[List[str]] = None,
+            python_version: str = '3.13'
     ) -> str:
         """
         Generate basic CI pipeline
@@ -32,7 +33,9 @@ class GitLabCIGenerator:
         Returns:
             YAML pipeline content
         """
-        pipeline = {
+        if platforms is None:
+            platforms = ['android']
+        pipeline: Dict[str, Any] = {
             'stages': ['test', 'report'],
             'image': f'python:{python_version}',
             'before_script': [
@@ -46,27 +49,28 @@ class GitLabCIGenerator:
             job_name = f'test:{platform}'
             pipeline[job_name] = self._generate_test_job(platform)
 
-        return yaml.dump(pipeline, sort_keys=False, default_flow_style=False)
+        result = yaml.dump(pipeline, sort_keys=False, default_flow_style=False)
+        return str(result)
 
     def generate_advanced_pipeline(
-        self,
-        platforms: List[str] = ['android', 'ios'],
-        python_version: str = '3.13',
-        parallel_count: int = 2,
-        use_docker: bool = True
+            self,
+            platforms: Optional[List[str]] = None,
+            python_version: str = '3.13',
+            parallel_count: int = 2,
+            use_docker: bool = True
     ) -> str:
         """
         Generate advanced pipeline with parallel execution and Docker
 
         Args:
-            platforms: List of platforms
+            platforms: List of platforms ('android', 'ios')
             python_version: Python version
-            parallel_count: Number of parallel executions
-            use_docker: Use Docker for execution
-
-        Returns:
-            YAML pipeline content
+            parallel_count: Number of parallel jobs
+            use_docker: Whether to use Docker
         """
+        if platforms is None:
+            platforms = ['android', 'ios']
+
         pipeline = {
             'stages': ['lint', 'test', 'report'],  # Removed 'notify' - not implemented
             'variables': {

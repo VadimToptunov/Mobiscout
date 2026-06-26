@@ -2,10 +2,11 @@
 CLI commands for business logic analysis
 """
 
-import click
+import json
 from pathlib import Path
 from typing import Dict
-import json
+
+import click
 import yaml
 
 
@@ -318,7 +319,7 @@ def testdata(input_file: str) -> None:
                 click.echo(f"      ID Range: {entity_data['start_id']} - {entity_data['end_id']}")
                 click.echo(f"      Source: {entity_data.get('source', 'N/A')}")
                 click.echo("\n      💡 Use in tests:")
-                click.echo(f"         Valid IDs: {entity_data['start_id']}, {entity_data['start_id']+1}, ...")
+                click.echo(f"         Valid IDs: {entity_data['start_id']}, {entity_data['start_id'] + 1}, ...")
                 click.echo(f"         Invalid ID: {entity_data['end_id'] + 100}")
             elif "type" in entity_data:
                 # iOS mock data without ID ranges
@@ -326,7 +327,7 @@ def testdata(input_file: str) -> None:
                 click.echo(f"      Type: {entity_data['type']}")
                 click.echo(f"      Source: {entity_data.get('source', 'N/A')}")
                 click.echo("\n      💡 Use in tests:")
-                click.echo(f"         Use array indices: 0, 1, 2, ... {entity_data['count']-1}")
+                click.echo(f"         Use array indices: 0, 1, 2, ... {entity_data['count'] - 1}")
                 click.echo(f"         Invalid index: {entity_data['count']}")
             else:
                 # Generic mock data

@@ -2,7 +2,8 @@
 
 ## Overview
 
-The **Universal Pre-Trained Model** is a machine learning classifier that works **out-of-the-box** for ANY mobile application, supporting **ALL mobile technologies**:
+The **Universal Pre-Trained Model** is a machine learning classifier that works **out-of-the-box** for ANY mobile
+application, supporting **ALL mobile technologies**:
 
 ### Supported Frameworks & Technologies
 
@@ -22,13 +23,13 @@ The **Universal Pre-Trained Model** is a machine learning classifier that works 
 
 ### Key Benefits
 
- **Zero Setup** - No training data collection needed  
- **Works Immediately** - Pre-trained on 2500+ synthetic samples  
- **ALL Frameworks** - Native, Flutter, React Native  
- **Cross-Platform** - Android & iOS support  
- **High Accuracy** - Target 85%+ element classification accuracy  
- **Framework Agnostic** - Works with any UI framework  
- **Continuously Improving** - Can be fine-tuned with app-specific data
+**Zero Setup** - No training data collection needed  
+**Works Immediately** - Pre-trained on 2500+ synthetic samples  
+**ALL Frameworks** - Native, Flutter, React Native  
+**Cross-Platform** - Android & iOS support  
+**High Accuracy** - Target 85%+ element classification accuracy  
+**Framework Agnostic** - Works with any UI framework  
+**Continuously Improving** - Can be fine-tuned with app-specific data
 
 ---
 
@@ -36,18 +37,18 @@ The **Universal Pre-Trained Model** is a machine learning classifier that works 
 
 The model automatically identifies UI element types:
 
-| Element Type | Examples |
-|--------------|----------|
-| `BUTTON` | Submit, Login, Cancel buttons, FABs |
-| `INPUT` | Text fields, password fields, search boxes |
-| `TEXT` | Labels, descriptions, static text |
-| `CHECKBOX` | Checkboxes, check items |
-| `SWITCH` | Toggle switches, switches |
-| `RADIO` | Radio buttons, radio groups |
-| `IMAGE` | Images, icons, avatars |
-| `LIST` | RecyclerView, ListView, ScrollView, LazyColumn |
-| `WEBVIEW` | Embedded web views |
-| `GENERIC` | Containers, layouts, other views |
+| Element Type | Examples                                       |
+|--------------|------------------------------------------------|
+| `BUTTON`     | Submit, Login, Cancel buttons, FABs            |
+| `INPUT`      | Text fields, password fields, search boxes     |
+| `TEXT`       | Labels, descriptions, static text              |
+| `CHECKBOX`   | Checkboxes, check items                        |
+| `SWITCH`     | Toggle switches, switches                      |
+| `RADIO`      | Radio buttons, radio groups                    |
+| `IMAGE`      | Images, icons, avatars                         |
+| `LIST`       | RecyclerView, ListView, ScrollView, LazyColumn |
+| `WEBVIEW`    | Embedded web views                             |
+| `GENERIC`    | Containers, layouts, other views               |
 
 ---
 
@@ -342,14 +343,14 @@ This ensures the model generalizes well to real applications.
 
 ## Expected Accuracy
 
-| Application Type | Accuracy |
-|------------------|----------|
-| Standard Android app (View/Compose) | 85-90% |
-| Standard iOS app (UIKit/SwiftUI) | 85-90% |
-| Flutter app | 85-90% |
-| React Native app | 80-85% |
-| Apps with custom widgets | 70-80% |
-| After fine-tuning | 90-95% |
+| Application Type                    | Accuracy |
+|-------------------------------------|----------|
+| Standard Android app (View/Compose) | 85-90%   |
+| Standard iOS app (UIKit/SwiftUI)    | 85-90%   |
+| Flutter app                         | 85-90%   |
+| React Native app                    | 80-85%   |
+| Apps with custom widgets            | 70-80%   |
+| After fine-tuning                   | 90-95%   |
 
 **Note:** Rule-based fallback ensures 100% coverage even if ML confidence is low.
 
@@ -367,9 +368,9 @@ ml_models/
 
 ## Summary
 
- **Universal Model** = Zero-setup ML for ANY mobile app  
- **One Command** = `observe ml create-universal-model`  
- **Just Works** = No training, no data, no ML expertise needed  
- **For Teams** = QA engineers can use ML without understanding it  
+**Universal Model** = Zero-setup ML for ANY mobile app  
+**One Command** = `observe ml create-universal-model`  
+**Just Works** = No training, no data, no ML expertise needed  
+**For Teams** = QA engineers can use ML without understanding it
 
 **Your colleagues will thank you!**

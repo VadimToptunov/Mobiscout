@@ -4,11 +4,13 @@ Notification CLI commands
 Commands for sending test notifications to various channels.
 """
 
-import click
-from pathlib import Path
-from typing import Optional
 import json
+from pathlib import Path
+from typing import Any, Dict, Optional
 
+import click
+
+from framework.cli.rich_output import print_header, print_info, print_success, print_error
 from framework.notifications.notifiers import (
     SlackNotifier,
     TeamsNotifier,
@@ -17,8 +19,27 @@ from framework.notifications.notifiers import (
     TestSummary
 )
 from framework.reporting.junit_parser import JUnitParser
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
-from framework.cli.config_commands import load_config, save_config
+
+# Configuration file path
+CONFIG_FILE = Path.home() / '.observe' / 'config.json'
+
+
+def load_config() -> Dict[str, Any]:
+    """Load configuration from file."""
+    if not CONFIG_FILE.exists():
+        return {}
+    try:
+        with open(CONFIG_FILE, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+
+def save_config(config: Dict[str, Any]) -> None:
+    """Save configuration to file."""
+    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f, indent=2)
 
 
 @click.group(name='notify')
@@ -34,11 +55,11 @@ def notify() -> None:
 @click.option('--email-from', help='Sender email address')
 @click.option('--email-to', help='Recipient email addresses (comma-separated)')
 def configure(
-    slack_webhook: Optional[str],
-    teams_webhook: Optional[str],
-    email_smtp: Optional[str],
-    email_from: Optional[str],
-    email_to: Optional[str]
+        slack_webhook: Optional[str],
+        teams_webhook: Optional[str],
+        email_smtp: Optional[str],
+        email_from: Optional[str],
+        email_to: Optional[str]
 ) -> None:
     """Configure notification channels"""
     print_header("Configure Notifications")
@@ -156,12 +177,12 @@ def test(channel: str) -> None:
 @click.option('--build-url', help='URL to CI build')
 @click.option('--platform', help='Platform name (e.g., Android, iOS)')
 def send(
-    junit_path: str,
-    channel: str,
-    title: str,
-    report_url: Optional[str],
-    build_url: Optional[str],
-    platform: Optional[str]
+        junit_path: str,
+        channel: str,
+        title: str,
+        report_url: Optional[str],
+        build_url: Optional[str],
+        platform: Optional[str]
 ) -> None:
     """Send test result notification"""
     print_header("Send Test Notification")
@@ -171,16 +192,17 @@ def send(
     parser = JUnitParser()
     results = parser.parse(Path(junit_path))
 
-    if not results:
+    if not results or not results.tests:
         print_error("No test results found in JUnit XML")
         raise click.Abort()
 
     # Calculate summary
-    total = len(results)
-    passed = len([r for r in results if r.status == 'passed'])
-    failed = len([r for r in results if r.status == 'failed'])
-    skipped = len([r for r in results if r.status == 'skipped'])
-    duration = sum(r.duration for r in results)
+    test_list = results.tests
+    total = len(test_list)
+    passed = len([r for r in test_list if r.status == 'passed'])
+    failed = len([r for r in test_list if r.status == 'failed'])
+    skipped = len([r for r in test_list if r.status == 'skipped'])
+    duration = sum(r.duration for r in test_list)
     pass_rate = (passed / total * 100) if total > 0 else 0
 
     summary = TestSummary(
@@ -299,7 +321,7 @@ def on_healing(healing_results: str, channel: str) -> None:
     # Display results
     for notifier_type, success in results.items():
         if success:
-            print_success(f"✅ {notifier_type}: Sent")   # noqa: F541
+            print_success(f"✅ {notifier_type}: Sent")  # noqa: F541
         else:
             print_error(f"❌ {notifier_type}: Failed")
 

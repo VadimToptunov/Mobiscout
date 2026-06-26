@@ -420,14 +420,14 @@ observe load run tests/test_api.py \
 
 **Load Profiles:**
 
-| Profile | Users | Duration | Use Case |
-|---------|-------|----------|----------|
-| **smoke** | 1 | 60s | Quick sanity check |
-| **light** | 5 | 5 min | Development testing |
-| **medium** | 20 | 10 min | Pre-production |
-| **heavy** | 50 | 15 min | Production load |
-| **stress** | 100 | 30 min | Capacity testing |
-| **spike** | 50 | 5 min | Traffic spikes |
+| Profile    | Users | Duration | Use Case            |
+|------------|-------|----------|---------------------|
+| **smoke**  | 1     | 60s      | Quick sanity check  |
+| **light**  | 5     | 5 min    | Development testing |
+| **medium** | 20    | 10 min   | Pre-production      |
+| **heavy**  | 50    | 15 min   | Production load     |
+| **stress** | 100   | 30 min   | Capacity testing    |
+| **spike**  | 50    | 5 min    | Traffic spikes      |
 
 **Real Example:**
 
@@ -1128,7 +1128,8 @@ def test_checkout():
 
 **Get Help:**
 
-- GitHub Issues: [github.com/VadimToptunov/mobile_test_recorder/issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
+- GitHub
+  Issues: [github.com/VadimToptunov/mobile_test_recorder/issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
 - Documentation: [Full docs](https://mobile-test-recorder.readthedocs.io)
 
 **Contribute:**

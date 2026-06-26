@@ -4,8 +4,9 @@ BDD Generator
 Generates Gherkin feature files and pytest-bdd step definitions.
 """
 
-from typing import List
 from pathlib import Path
+from typing import List
+
 from jinja2 import Template
 
 from framework.model.app_model import Flow
@@ -31,10 +32,11 @@ FEATURE_TEMPLATE = """Feature: {{ flow.name }}
 {% endfor %}
 """
 
-
 STEP_DEFINITIONS_TEMPLATE = """
 from pytest_bdd import scenarios, given, when, then, parsers
-from pages import *
+# Import your page objects explicitly (avoid wildcard imports)
+# Example: from pages.login_page import LoginPage
+# Example: from pages.home_page import HomePage
 
 
 # Load scenarios

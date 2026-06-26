@@ -1,81 +1,93 @@
-#  FinDemo API - Fintech Platform
+# FinDemo API - Fintech Platform
 
 Complete **Revolut/Wise clone** mock backend with multi-currency, exchange, cards, and P2P payments.
 
 ---
 
-##  Features
+## Features
 
-###  Multi-Currency Accounts
+### Multi-Currency Accounts
+
 - Support for **5 major currencies**: USD, EUR, GBP, JPY, CHF
 - Real-time balance tracking per currency
 - Automatic account creation
 - Primary currency setting
 
-###  Currency Exchange
+### Currency Exchange
+
 - Real-time exchange rates
 - Instant currency conversion
 - Low fees (0% for demo)
 - Exchange history tracking
 
-###  Cards
+### Cards
+
 - **Virtual cards** - Instant creation
 - **Physical cards** - For ATM/POS
 - Per-card spending limits
 - Block/unblock functionality
 - Multiple currencies per card
 
-###  P2P Payments
+### P2P Payments
+
 - Send money to contacts
 - Request money from users
 - Split bills
 - Add notes to transactions
 
-###  Transaction History
+### Transaction History
+
 - Detailed transaction log
 - Filter by category (P2P, shopping, food, etc.)
 - Real-time updates
 - Export functionality
 
-###  Contacts Management
+### Contacts Management
+
 - Add/remove contacts
 - Favorite contacts
 - Quick send to favorites
 
-###  KYC Verification
+### KYC Verification
+
 - Document upload simulation
 - Identity verification
 - Status tracking
 
 ---
 
-##  API Endpoints
+## API Endpoints
 
 ### Authentication
+
 ```http
 POST /api/auth/login
 POST /api/auth/register
 ```
 
 ### User Profile
+
 ```http
 GET  /api/user/profile
 PUT  /api/user/profile
 ```
 
 ### Accounts & Balance
+
 ```http
 GET  /api/accounts              # Get all currency accounts
 POST /api/accounts/add          # Add new currency
 ```
 
 ### Currency Exchange
+
 ```http
 GET  /api/exchange/rates        # Get exchange rates
 POST /api/exchange              # Exchange currency
 ```
 
 ### Cards
+
 ```http
 GET  /api/cards                 # Get all cards
 POST /api/cards/create          # Create virtual card
@@ -83,23 +95,27 @@ POST /api/cards/{id}/block      # Block/unblock card
 ```
 
 ### Transactions
+
 ```http
 GET  /api/transactions          # Get history
 ```
 
 ### Payments
+
 ```http
 POST /api/topup                 # Add funds
 POST /api/send                  # Send money
 ```
 
 ### Contacts
+
 ```http
 GET  /api/contacts              # Get contacts
 POST /api/contacts/add          # Add contact
 ```
 
 ### KYC
+
 ```http
 POST /api/kyc/verify            # Submit KYC
 GET  /api/kyc/status            # Check status
@@ -107,14 +123,16 @@ GET  /api/kyc/status            # Check status
 
 ---
 
-##  Setup & Run
+## Setup & Run
 
 ### Requirements
+
 ```bash
 pip install fastapi uvicorn pydantic
 ```
 
 ### Start Server
+
 ```bash
 cd demo-app/mock-backend
 python main.py
@@ -123,14 +141,16 @@ python main.py
 Server will start on `http://localhost:8000`
 
 ### Access Documentation
+
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 
 ---
 
-##  Example Requests
+## Example Requests
 
 ### Login
+
 ```bash
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
@@ -141,11 +161,13 @@ curl -X POST http://localhost:8000/api/auth/login \
 ```
 
 ### Get Multi-Currency Balance
+
 ```bash
 curl http://localhost:8000/api/accounts
 ```
 
 **Response:**
+
 ```json
 {
   "accounts": [
@@ -171,6 +193,7 @@ curl http://localhost:8000/api/accounts
 ```
 
 ### Exchange Currency
+
 ```bash
 curl -X POST http://localhost:8000/api/exchange \
   -H "Content-Type: application/json" \
@@ -182,6 +205,7 @@ curl -X POST http://localhost:8000/api/exchange \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -193,6 +217,7 @@ curl -X POST http://localhost:8000/api/exchange \
 ```
 
 ### Create Virtual Card
+
 ```bash
 curl -X POST http://localhost:8000/api/cards/create \
   -H "Content-Type: application/json" \
@@ -203,11 +228,13 @@ curl -X POST http://localhost:8000/api/cards/create \
 ```
 
 ### Get Transaction History
+
 ```bash
 curl http://localhost:8000/api/transactions?limit=10&category=p2p
 ```
 
 ### Send Money
+
 ```bash
 curl -X POST http://localhost:8000/api/send \
   -H "Content-Type: application/json" \
@@ -221,9 +248,10 @@ curl -X POST http://localhost:8000/api/send \
 
 ---
 
-##  Mock Data
+## Mock Data
 
 ### Default User
+
 ```json
 {
   "email": "john@example.com",
@@ -233,30 +261,34 @@ curl -X POST http://localhost:8000/api/send \
 ```
 
 ### Default Accounts
+
 - **USD**: $1,250.50
 - **EUR**: €850.25
 - **GBP**: £420.00
 
 ### Default Cards
+
 - Physical Card: `**** 1234` (USD)
 - Virtual Card: `**** 5678` (EUR)
 
 ### Default Contacts
+
 - Alice Johnson
 - Bob Smith
 - Carol White
 
 ### Exchange Rates (Mock)
-| From | To  | Rate  |
-|------|-----|-------|
-| USD  | EUR | 0.92  |
-| USD  | GBP | 0.79  |
-| EUR  | USD | 1.09  |
-| GBP  | USD | 1.27  |
+
+| From | To  | Rate |
+|------|-----|------|
+| USD  | EUR | 0.92 |
+| USD  | GBP | 0.79 |
+| EUR  | USD | 1.09 |
+| GBP  | USD | 1.27 |
 
 ---
 
-##  Transaction Categories
+## Transaction Categories
 
 - `p2p` - Person to person
 - `topup` - Account funding
@@ -270,21 +302,23 @@ curl -X POST http://localhost:8000/api/send \
 
 ---
 
-##  Authentication
+## Authentication
 
-**For demo purposes**, authentication is **optional**. 
+**For demo purposes**, authentication is **optional**.
 
 All endpoints work without tokens and default to `user123`.
 
 To use auth:
+
 1. Login to get token
 2. Pass `Authorization: Bearer <token>` header
 
 ---
 
-##  Mobile App Integration
+## Mobile App Integration
 
 ### Android (Retrofit)
+
 ```kotlin
 interface FinDemoApi {
     @GET("api/accounts")
@@ -299,6 +333,7 @@ interface FinDemoApi {
 ```
 
 ### iOS (URLSession)
+
 ```swift
 struct FinDemoAPI {
     let baseURL = "http://localhost:8000"
@@ -316,11 +351,13 @@ struct FinDemoAPI {
 ## 🧪 Testing
 
 ### Health Check
+
 ```bash
 curl http://localhost:8000/
 ```
 
 ### Test Complete Flow
+
 ```bash
 # 1. Login
 curl -X POST http://localhost:8000/api/auth/login \
@@ -344,7 +381,7 @@ curl -X POST http://localhost:8000/api/send \
 
 ---
 
-##  Next Steps
+## Next Steps
 
 1. **Connect Mobile Apps**: Update Android/iOS apps to use new endpoints
 2. **Add Real Data**: Replace mock data with database
@@ -355,9 +392,10 @@ curl -X POST http://localhost:8000/api/send \
 
 ---
 
-##  API Documentation
+## API Documentation
 
 Full interactive documentation available at:
+
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 

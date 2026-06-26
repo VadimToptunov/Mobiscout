@@ -4,11 +4,11 @@ File updater
 Updates Page Object files with healed selectors.
 """
 
-from dataclasses import dataclass
-from typing import Optional, List
-from pathlib import Path
-from datetime import datetime
 import re
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, List
 
 
 @dataclass
@@ -41,12 +41,12 @@ class FileUpdater:
         self.create_backup = create_backup
 
     def update_selector(
-        self,
-        file_path: Path,
-        element_name: str,
-        old_selector: tuple,
-        new_selector: tuple,
-        confidence: float
+            self,
+            file_path: Path,
+            element_name: str,
+            old_selector: tuple,
+            new_selector: tuple,
+            confidence: float
     ) -> UpdateResult:
         """
         Update selector in Page Object file
@@ -93,12 +93,12 @@ class FileUpdater:
             )
 
     def _update_python_file(
-        self,
-        file_path: Path,
-        element_name: str,
-        old_selector: tuple,
-        new_selector: tuple,
-        confidence: float
+            self,
+            file_path: Path,
+            element_name: str,
+            old_selector: tuple,
+            new_selector: tuple,
+            confidence: float
     ) -> UpdateResult:
         """Update Python Page Object file"""
         try:
@@ -112,7 +112,8 @@ class FileUpdater:
 
             # Find and replace selector
             # Pattern: element_name = ("type", "value")
-            old_pattern = f'{element_name}\\s*=\\s*\\(\\s*["\']({old_selector[0]})["\']\\s*,\\s*["\']({re.escape(old_selector[1])})["\']\\s*\\)'
+            # Escape all user-controlled parts to prevent regex injection
+            old_pattern = f'{re.escape(element_name)}\\s*=\\s*\\(\\s*["\']({re.escape(old_selector[0])})["\']\\s*,\\s*["\']({re.escape(old_selector[1])})["\']\\s*\\)'
 
             match = re.search(old_pattern, content)
             if not match:
@@ -151,7 +152,7 @@ class FileUpdater:
                 backup_path=backup_path
             )
 
-        except Exception as e:
+        except (OSError, re.error, UnicodeDecodeError) as e:
             return UpdateResult(
                 success=False,
                 file_path=file_path,
@@ -161,12 +162,12 @@ class FileUpdater:
             )
 
     def _update_kotlin_file(
-        self,
-        file_path: Path,
-        element_name: str,
-        old_selector: tuple,
-        new_selector: tuple,
-        confidence: float
+            self,
+            file_path: Path,
+            element_name: str,
+            old_selector: tuple,
+            new_selector: tuple,
+            confidence: float
     ) -> UpdateResult:
         """Update Kotlin Page Object file"""
         try:
@@ -180,7 +181,8 @@ class FileUpdater:
 
             # Kotlin pattern: val elementName = By.id("value") or MobileBy.AndroidUIAutomator("...")
             # This is simplified - real implementation would handle more patterns
-            old_pattern = f'val\\s+{element_name}\\s*=\\s*.*?"{re.escape(old_selector[1])}"'
+            # Escape element_name to prevent regex injection
+            old_pattern = f'val\\s+{re.escape(element_name)}\\s*=\\s*.*?"{re.escape(old_selector[1])}"'
 
             match = re.search(old_pattern, content)
             if not match:
@@ -224,7 +226,7 @@ class FileUpdater:
                 backup_path=backup_path
             )
 
-        except Exception as e:
+        except (OSError, re.error, UnicodeDecodeError) as e:
             return UpdateResult(
                 success=False,
                 file_path=file_path,
@@ -234,12 +236,12 @@ class FileUpdater:
             )
 
     def _update_swift_file(
-        self,
-        file_path: Path,
-        element_name: str,
-        old_selector: tuple,
-        new_selector: tuple,
-        confidence: float
+            self,
+            file_path: Path,
+            element_name: str,
+            old_selector: tuple,
+            new_selector: tuple,
+            confidence: float
     ) -> UpdateResult:
         """Update Swift Page Object file"""
         try:
@@ -252,7 +254,8 @@ class FileUpdater:
                 backup_path.write_text(content)
 
             # Swift pattern: var elementName: XCUIElement { app.buttons["value"] }
-            old_pattern = f'var\\s+{element_name}.*?"{re.escape(old_selector[1])}"'
+            # Escape element_name to prevent regex injection
+            old_pattern = f'var\\s+{re.escape(element_name)}.*?"{re.escape(old_selector[1])}"'
 
             match = re.search(old_pattern, content, re.DOTALL)
             if not match:
@@ -299,7 +302,7 @@ class FileUpdater:
                 backup_path=backup_path
             )
 
-        except Exception as e:
+        except (OSError, re.error, UnicodeDecodeError) as e:
             return UpdateResult(
                 success=False,
                 file_path=file_path,
@@ -322,8 +325,25 @@ class FileUpdater:
             if not backup_path.exists():
                 return False
 
-            # Get original file path
-            original_path = Path(str(backup_path).split('.bak.')[0])
+            # Validate backup path format to prevent path traversal
+            backup_str = str(backup_path)
+            if '.bak.' not in backup_str:
+                print(f"Error: Invalid backup file format: {backup_path}")
+                return False
+
+            # Get original file path safely
+            original_path = Path(backup_str.split('.bak.')[0])
+
+            # Security check: ensure original path is in same directory as backup
+            # to prevent path traversal attacks
+            if original_path.parent.resolve() != backup_path.parent.resolve():
+                print("Error: Security violation - backup and original not in same directory")
+                return False
+
+            # Validate no path traversal in the original path
+            if '..' in str(original_path):
+                print("Error: Path traversal detected in backup path")
+                return False
 
             # Restore
             content = backup_path.read_text()
@@ -334,13 +354,13 @@ class FileUpdater:
 
             return True
 
-        except Exception as e:
+        except OSError as e:
             print(f"Error restoring backup: {e}")
             return False
 
     def batch_update(
-        self,
-        updates: List[tuple]
+            self,
+            updates: List[tuple]
     ) -> List[UpdateResult]:
         """
         Perform batch updates

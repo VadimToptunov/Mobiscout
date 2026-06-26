@@ -4,8 +4,8 @@ Dashboard data models
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 from enum import Enum
+from typing import Optional
 
 
 class TestStatus(Enum):

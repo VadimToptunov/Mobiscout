@@ -7,9 +7,10 @@ Useful for testing data uploads, model downloads, and feedback collection.
 Run: python ml_server_mock/mock_server.py
 """
 
-from flask import Flask, request, jsonify, send_file
 from datetime import datetime
 from pathlib import Path
+
+from flask import Flask, request, jsonify, send_file
 
 app = Flask(__name__)
 
@@ -184,15 +185,15 @@ def home():
 
 
 if __name__ == '__main__':
-    print("="*60)
+    print("=" * 60)
     print("  🧪 MOBILE OBSERVE ML SERVER (MOCK)")
-    print("="*60)
+    print("=" * 60)
     print("\n✅ Server starting on http://localhost:8000")
     print("\n📝 To use with framework:")
     print("   observe config set ml.upload_endpoint http://localhost:8000/v1/ml/samples")
     print("   observe config set ml.contribute true")
     print("\n🔍 View stats:")
     print("   curl http://localhost:8000/v1/ml/samples/stats")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     app.run(host='0.0.0.0', port=8000, debug=True)

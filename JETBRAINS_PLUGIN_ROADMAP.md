@@ -3,6 +3,7 @@
 ## Vision
 
 Transform `mobile-test-recorder` into a **professional JetBrains IDE plugin** that provides:
+
 - **Interactive UI control** (tap, swipe, type, inspect) within the IDE
 - **Multi-language support** (Python, Java, Kotlin, JS/TS, Go, Ruby)
 - **Multi-backend automation** (Appium v1/v2, Espresso, XCTest, Detox, Maestro, Playwright)
@@ -92,10 +93,12 @@ JetBrains IDE Plugin (Kotlin)
 ## Development Phases (Evening/Weekend Work)
 
 ### **Phase 0: Foundation ✅ COMPLETED (1-2 weeks, 4-6 evenings)**
+
 **Status**: ✅ Merged to master
 **Branch**: `feature/phase0-foundation` (merged)
 
 **Completed**:
+
 - ✅ JSON-RPC 2.0 protocol specification (docs/PROTOCOL.md)
 - ✅ Health check system (framework/health/)
 - ✅ Daemon command for IDE plugin communication (stdio mode)
@@ -103,6 +106,7 @@ JetBrains IDE Plugin (Kotlin)
 - ✅ Protocol testing with manual clients
 
 **Deliverables**:
+
 - Clean, documented CLI API ✅
 - Protocol specification (10 core methods) ✅
 - Basic health check command ✅
@@ -111,10 +115,12 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 1: JetBrains Plugin MVP ✅ COMPLETED (1-2 months, 8-12 evenings)**
+
 **Status**: ✅ Merged to master
 **Branch**: `feature/phase1-ide-plugin-mvp` (merged)
 
 **Completed**:
+
 - ✅ Gradle build configuration (Kotlin + IntelliJ Platform SDK)
 - ✅ plugin.xml with ToolWindow, Settings, Actions
 - ✅ JSON-RPC Client (full async support)
@@ -125,6 +131,7 @@ JetBrains IDE Plugin (Kotlin)
 - ✅ Actions: Start/Stop Daemon, Refresh, Screenshot
 
 **Deliverables**:
+
 - JetBrains plugin installable locally ✅
 - Device list (adb + simctl) ✅
 - XML viewer placeholder ✅
@@ -132,6 +139,7 @@ JetBrains IDE Plugin (Kotlin)
 - Screenshot capture action ✅
 
 **Tech Stack**:
+
 - Kotlin 1.9.21 ✅
 - IntelliJ SDK 2023.2+ ✅
 - Gson for JSON ✅
@@ -139,10 +147,12 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 2: Interactive UI Control ✅ COMPLETED (3-4 weeks, 6-8 evenings)**
+
 **Status**: ✅ Merged to master
 **Branch**: `feature/phase2-interactive-ui` (merged)
 
 **Completed**:
+
 - ✅ DeviceManager for listing Android/iOS devices
 - ✅ Session management (start/stop)
 - ✅ Screenshot capture (adb/simctl)
@@ -153,12 +163,14 @@ JetBrains IDE Plugin (Kotlin)
 - ✅ Auto-refresh after tap
 
 **Deliverables**:
+
 - Live device screen in ToolWindow ✅
 - Clickable element overlay ✅
 - Action execution (tap/swipe/type) ✅
 - Visual feedback ✅
 
 **Tech Stack**:
+
 - BufferedImage + Graphics2D ✅
 - adb exec-out screencap ✅
 - xcrun simctl io screenshot ✅
@@ -167,16 +179,19 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 3: Multi-Backend Abstraction 🚧 IN PROGRESS (1-2 months, 8-12 evenings)**
+
 **Status**: 🚧 Starting now
 **Branch**: `feature/phase3-multi-backend`
 
 **Goals**:
+
 - Stabilize current CLI core
 - Define clear API/DSL contract
 - Implement protocol layer (JSON-RPC)
 - Documentation cleanup
 
 **Deliverables**:
+
 - Clean, documented CLI API
 - Protocol specification
 - Basic health check command
@@ -185,9 +200,11 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 1: JetBrains Plugin MVP (1-2 months, 8-12 evenings)**
+
 **Branch**: `feature/phase1-ide-plugin-mvp`
 
 **Goals**:
+
 - Create basic JetBrains plugin structure
 - Implement ToolWindow with device management
 - UI Tree inspector (Appium XML viewer)
@@ -195,6 +212,7 @@ JetBrains IDE Plugin (Kotlin)
 - Basic CLI integration
 
 **Deliverables**:
+
 - JetBrains plugin installable locally
 - Device list (adb + simctl)
 - XML viewer with element tree
@@ -202,6 +220,7 @@ JetBrains IDE Plugin (Kotlin)
 - Screenshot capture
 
 **Tech Stack**:
+
 - Kotlin (IntelliJ SDK)
 - Swing/JBSplitter for UI
 - ProcessBuilder for CLI calls
@@ -209,21 +228,25 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 2: Interactive UI Control (3-4 weeks, 6-8 evenings)**
+
 **Branch**: `feature/phase2-interactive-ui`
 
 **Goals**:
+
 - Screenshot/video stream in IDE
 - Element overlay on screen
 - Interactive actions: tap, swipe, type, rotate
 - Coordinate mapping
 
 **Deliverables**:
+
 - Live device screen in ToolWindow
 - Clickable element overlay
 - Action execution (tap/swipe/type)
 - Visual feedback
 
 **Tech Stack**:
+
 - scrcpy (Android screen mirroring)
 - simctl io (iOS screenshot streaming)
 - Canvas/Graphics2D for overlay
@@ -231,9 +254,11 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 3: Multi-Backend Abstraction (1-2 months, 8-12 evenings)**
+
 **Branch**: `feature/phase3-multi-backend`
 
 **Goals**:
+
 - Backend adapter interface
 - Appium v1/v2 support
 - Espresso/UIAutomator adapter (Android)
@@ -241,12 +266,14 @@ JetBrains IDE Plugin (Kotlin)
 - Backend switching in UI
 
 **Deliverables**:
+
 - Abstract `MobileAutomationBackend` interface
 - 3+ working adapters
 - Backend selection in Settings
 - Capability-driven feature flags
 
 **Tech Stack**:
+
 - Strategy pattern for adapters
 - Appium (WebDriver protocol)
 - adb/aapt for Espresso
@@ -255,21 +282,25 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 4: Environment Intelligence (2-3 weeks, 4-6 evenings)**
+
 **Branch**: `feature/phase4-environment`
 
 **Goals**:
+
 - Auto-detect Appium version and plugins
 - SDK detection (Android/Xcode)
 - Compatibility warnings
 - Quick actions (install/update commands)
 
 **Deliverables**:
+
 - Environment panel in ToolWindow
 - Version checking
 - Compatibility matrix
 - "Copy install command" actions
 
 **Tech Stack**:
+
 - npm registry API
 - appium plugin list
 - android list sdk / xcode-select
@@ -277,42 +308,50 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 5: Rust Core Integration (2-3 weeks, 6-8 evenings)**
+
 **Branch**: `feature/phase5-rust-core` (already exists, needs polish)
 
 **Goals**:
+
 - Polish existing Rust modules
 - Fix remaining bugs
 - Performance benchmarks
 - Python bindings optimization
 
 **Deliverables**:
+
 - Production-ready Rust core
 - <50ms AST analysis
 - <100ms event correlation
 - Comprehensive tests
 
 **Tech Stack**:
+
 - Rust (pyo3, rayon, regex)
 - Criterion for benchmarks
 
 ---
 
 ### **Phase 6: Smart Selectors & Healing (1-2 months, 8-12 evenings)**
+
 **Branch**: `feature/phase6-smart-selectors`
 
 **Goals**:
+
 - Selector stability scoring
 - Fallback chain generation
 - Element matching (healing)
 - Visual stability indicators in IDE
 
 **Deliverables**:
+
 - Selector scoring (0-100%)
 - Hover hints in code editor
 - Auto-healing suggestions
 - Stability annotations
 
 **Tech Stack**:
+
 - ML (scikit-learn for scoring)
 - Levenshtein distance (element matching)
 - IntelliJ Intention/Inspection API
@@ -320,21 +359,25 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 7: Multi-Language Codegen (1-2 months, 8-12 evenings)**
+
 **Branch**: `feature/phase7-codegen`
 
 **Goals**:
+
 - Abstract action model
 - Language-specific generators
 - Support: Python, Java, Kotlin, JS/TS, Go, Ruby
 - Page Object pattern support
 
 **Deliverables**:
+
 - Unified action DSL
 - 6 language generators
 - Customizable templates
 - POM generation
 
 **Tech Stack**:
+
 - Jinja2 templates
 - Abstract Syntax Trees
 - Language wrappers (PyO3, NAPI-RS, CGO, FFI, JNI)
@@ -342,21 +385,25 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 8: Flow & State Analysis (3-4 weeks, 6-8 evenings)**
+
 **Branch**: `feature/phase8-flow-analysis`
 
 **Goals**:
+
 - Flow graph visualization in IDE
 - State detection and tracking
 - Invariant rule engine
 - Coverage metrics
 
 **Deliverables**:
+
 - Interactive flow graph
 - State transition diagram
 - Invariant violation warnings
 - Test coverage by flow
 
 **Tech Stack**:
+
 - GraphViz/PlantUML for visualization
 - State machine pattern
 - Rule engine (Python)
@@ -364,9 +411,11 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 9: Static Analysis Module (1-2 months, 8-12 evenings)**
+
 **Branch**: `feature/phase9-static-analysis`
 
 **Goals** (when source code available):
+
 - Flow reconstruction from source
 - Security vulnerability detection
 - API call tracing
@@ -374,6 +423,7 @@ JetBrains IDE Plugin (Kotlin)
 - Edge-case detection
 
 **Deliverables**:
+
 - Android (APK/source) analyzer
 - iOS (IPA/source) analyzer
 - Security report in IDE
@@ -381,6 +431,7 @@ JetBrains IDE Plugin (Kotlin)
 - Auto-generated edge-case tests
 
 **Tech Stack**:
+
 - APKTool (Android)
 - class-dump/Hopper (iOS)
 - Semgrep (security rules)
@@ -389,21 +440,25 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 10: LSP & Smart Autocomplete (3-4 weeks, 6-8 evenings)**
+
 **Branch**: `feature/phase10-lsp`
 
 **Goals**:
+
 - Language Server Protocol implementation
 - Flow-aware autocomplete
 - Go-to-screen navigation
 - Inline diagnostics
 
 **Deliverables**:
+
 - LSP server
 - Autocomplete for screens/actions
 - Jump to definition (screen)
 - Real-time validation
 
 **Tech Stack**:
+
 - LSP protocol (JSON-RPC)
 - IntelliJ LSP client
 - Custom DSL parser
@@ -411,15 +466,18 @@ JetBrains IDE Plugin (Kotlin)
 ---
 
 ### **Phase 11: PRO Features & Monetization (1-2 months, 8-12 evenings)**
+
 **Branch**: `feature/phase11-pro-features`
 
 **Goals**:
+
 - License key system (offline)
 - PRO feature gating
 - Enterprise policies
 - Audit reports
 
 **Deliverables**:
+
 - License activation UI
 - Feature flags by tier
 - Team policy engine
@@ -427,25 +485,27 @@ JetBrains IDE Plugin (Kotlin)
 
 **Monetization Tiers**:
 
-| Feature | Free | PRO | Enterprise |
-|---------|------|-----|------------|
-| Device control | ✅ | ✅ | ✅ |
-| UI Inspector | ✅ | ✅ | ✅ |
-| Basic recording | ✅ | ✅ | ✅ |
-| Smart selectors | ❌ | ✅ | ✅ |
-| Healing | ❌ | ✅ | ✅ |
-| Multi-language | ❌ | ✅ | ✅ |
-| Flow analysis | ❌ | ✅ | ✅ |
-| Static analysis | ❌ | ❌ | ✅ |
-| Security audit | ❌ | ❌ | ✅ |
-| Team policies | ❌ | ❌ | ✅ |
+| Feature         | Free | PRO | Enterprise |
+|-----------------|------|-----|------------|
+| Device control  | ✅    | ✅   | ✅          |
+| UI Inspector    | ✅    | ✅   | ✅          |
+| Basic recording | ✅    | ✅   | ✅          |
+| Smart selectors | ❌    | ✅   | ✅          |
+| Healing         | ❌    | ✅   | ✅          |
+| Multi-language  | ❌    | ✅   | ✅          |
+| Flow analysis   | ❌    | ✅   | ✅          |
+| Static analysis | ❌    | ❌   | ✅          |
+| Security audit  | ❌    | ❌   | ✅          |
+| Team policies   | ❌    | ❌   | ✅          |
 
 **Pricing** (one-time purchase):
+
 - **Individual**: $79 (PRO features)
 - **Team** (5 seats): $299
 - **Enterprise**: $1,499 (includes static analysis + support)
 
 **Tech Stack**:
+
 - RSA licensing
 - Hardware fingerprinting
 - JetBrains Marketplace integration
@@ -455,27 +515,32 @@ JetBrains IDE Plugin (Kotlin)
 ## Technology Stack
 
 ### **Core**
+
 - **Rust**: High-performance modules (AST, correlation, file I/O)
 - **Python**: ML layer, CLI orchestration
 - **Kotlin**: JetBrains plugin
 
 ### **IDE Integration**
+
 - IntelliJ Platform SDK
 - Swing/JavaFX for UI
 - LSP protocol
 
 ### **Mobile Automation**
+
 - Appium (WebDriver)
 - adb / xcrun
 - scrcpy / simctl
 - Espresso / XCTest
 
 ### **ML & Analytics**
+
 - scikit-learn (Random Forest)
 - NetworkX (flow graphs)
 - SpaCy (NLP, if needed)
 
 ### **Build & Distribution**
+
 - Gradle (plugin build)
 - Cargo (Rust)
 - Poetry (Python)
@@ -489,24 +554,25 @@ JetBrains IDE Plugin (Kotlin)
 ### **Business Model**: Sell Once, Use Forever
 
 1. **Individual License**: $79
-   - Smart selectors
-   - Multi-language codegen
-   - Flow analysis
-   - Healing hints
-   
+    - Smart selectors
+    - Multi-language codegen
+    - Flow analysis
+    - Healing hints
+
 2. **Team License**: $299 (5 seats)
-   - All PRO features
-   - Shared flow models
-   - Team policies
+    - All PRO features
+    - Shared flow models
+    - Team policies
 
 3. **Enterprise License**: $1,499
-   - All PRO features
-   - Static analysis
-   - Security audit
-   - Priority email support (1 year)
-   - Custom integrations
+    - All PRO features
+    - Static analysis
+    - Security audit
+    - Priority email support (1 year)
+    - Custom integrations
 
 ### **Distribution**:
+
 - JetBrains Marketplace (primary)
 - Direct sales (Gumroad / Stripe for Enterprise)
 - No recurring subscriptions
@@ -514,6 +580,7 @@ JetBrains IDE Plugin (Kotlin)
 - Updates included (for 1 year)
 
 ### **Support Model**:
+
 - Documentation + video tutorials (free)
 - Community forum (free)
 - Email support (Enterprise only, 1 year)
@@ -539,6 +606,7 @@ JetBrains IDE Plugin (Kotlin)
 ## Success Metrics
 
 ### **Technical**:
+
 - AST analysis: <50ms
 - Event correlation: <100ms
 - Selector healing: >85% success rate
@@ -546,6 +614,7 @@ JetBrains IDE Plugin (Kotlin)
 - No memory leaks
 
 ### **Business** (Year 1):
+
 - 1,000 free users
 - 50 PRO licenses ($3,950)
 - 5 team licenses ($1,495)
@@ -553,6 +622,7 @@ JetBrains IDE Plugin (Kotlin)
 - **Total**: ~$8,500 first year
 
 ### **Year 2+**:
+
 - 10,000 free users
 - 200 PRO licenses
 - 20 team licenses
@@ -580,4 +650,5 @@ JetBrains IDE Plugin (Kotlin)
 - **Ship**: Release early, iterate based on feedback
 - **Monetize**: As soon as Phase 6 (smart selectors) is done
 
-**Remember**: This is a marathon, not a sprint. Quality > speed. Each phase should be production-ready before moving to the next.
+**Remember**: This is a marathon, not a sprint. Quality > speed. Each phase should be production-ready before moving to
+the next.

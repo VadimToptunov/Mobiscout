@@ -7,8 +7,8 @@ Multi-dimensional analysis of mobile applications:
 - Visual regression detection
 """
 
-from .security_analyzer import SecurityAnalyzer, SecurityIssue
 from .performance_analyzer import PerformanceAnalyzer, PerformanceMetrics
+from .security_analyzer import SecurityAnalyzer, SecurityIssue
 from .visual_analyzer import VisualAnalyzer, VisualDiff
 
 __all__ = [

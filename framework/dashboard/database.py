@@ -5,9 +5,9 @@ Uses SQLite for simplicity.
 """
 
 import sqlite3
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime, timedelta
 
 from .models import (
     TestResult, TestHealth, HealedSelector,
@@ -27,10 +27,29 @@ class DashboardDB:
         """
         self.db_path = db_path
         self.conn = None
+        import threading
+        self._lock = threading.Lock()  # Thread safety for shared connection
         self._init_db()
+
+    def __enter__(self):
+        """Context manager entry"""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - ensure connection is closed"""
+        self.close()
+        return False
+
+    def __del__(self):
+        """Destructor - ensure connection is closed"""
+        try:
+            self.close()
+        except Exception:
+            pass  # Ignore errors during cleanup
 
     def _init_db(self):
         """Initialize database schema"""
+        # Use check_same_thread=False with explicit locking for thread safety
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
 
@@ -38,36 +57,89 @@ class DashboardDB:
 
         # Test results table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS test_results (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                status TEXT NOT NULL,
-                duration REAL,
-                timestamp TEXT NOT NULL,
-                file_path TEXT,
-                error_message TEXT
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS test_results
+                       (
+                           id
+                           TEXT
+                           PRIMARY
+                           KEY,
+                           name
+                           TEXT
+                           NOT
+                           NULL,
+                           status
+                           TEXT
+                           NOT
+                           NULL,
+                           duration
+                           REAL,
+                           timestamp
+                           TEXT
+                           NOT
+                           NULL,
+                           file_path
+                           TEXT,
+                           error_message
+                           TEXT
+                       )
+                       """)
 
         # Healed selectors table
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS healed_selectors (
-                id TEXT PRIMARY KEY,
-                test_name TEXT NOT NULL,
-                element_name TEXT,
-                file_path TEXT NOT NULL,
-                old_selector_type TEXT NOT NULL,
-                old_selector_value TEXT NOT NULL,
-                new_selector_type TEXT NOT NULL,
-                new_selector_value TEXT NOT NULL,
-                confidence REAL,
-                strategy TEXT,
-                status TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                test_runs_after INTEGER DEFAULT 0,
-                test_passes_after INTEGER DEFAULT 0
-            )
-        """)
+                       CREATE TABLE IF NOT EXISTS healed_selectors
+                       (
+                           id
+                           TEXT
+                           PRIMARY
+                           KEY,
+                           test_name
+                           TEXT
+                           NOT
+                           NULL,
+                           element_name
+                           TEXT,
+                           file_path
+                           TEXT
+                           NOT
+                           NULL,
+                           old_selector_type
+                           TEXT
+                           NOT
+                           NULL,
+                           old_selector_value
+                           TEXT
+                           NOT
+                           NULL,
+                           new_selector_type
+                           TEXT
+                           NOT
+                           NULL,
+                           new_selector_value
+                           TEXT
+                           NOT
+                           NULL,
+                           confidence
+                           REAL,
+                           strategy
+                           TEXT,
+                           status
+                           TEXT
+                           NOT
+                           NULL,
+                           timestamp
+                           TEXT
+                           NOT
+                           NULL,
+                           test_runs_after
+                           INTEGER
+                           DEFAULT
+                           0,
+                           test_passes_after
+                           INTEGER
+                           DEFAULT
+                           0
+                       )
+                       """)
 
         # Create indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_results_name ON test_results(name)")
@@ -94,10 +166,10 @@ class DashboardDB:
         self.conn.commit()
 
     def get_test_results(
-        self,
-        limit: int = 100,
-        status: Optional[TestStatus] = None,
-        since: Optional[datetime] = None
+            self,
+            limit: int = 100,
+            status: Optional[TestStatus] = None,
+            since: Optional[datetime] = None
     ) -> List[TestResult]:
         """Get test results"""
         cursor = self.conn.cursor()
@@ -138,17 +210,16 @@ class DashboardDB:
 
         cursor = self.conn.cursor()
         cursor.execute("""
-            SELECT
-                name,
-                COUNT(*) as total_runs,
-                SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END) as passed,
-                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
-                AVG(duration) as avg_duration,
-                MAX(CASE WHEN status = 'failed' THEN timestamp ELSE NULL END) as last_failure
-            FROM test_results
-            WHERE timestamp >= ?
-            GROUP BY name
-        """, (since.isoformat(),))
+                       SELECT name,
+                              COUNT(*)                                                      as total_runs,
+                              SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END)            as passed,
+                              SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END)            as failed,
+                              AVG(duration)                                                 as avg_duration,
+                              MAX(CASE WHEN status = 'failed' THEN timestamp ELSE NULL END) as last_failure
+                       FROM test_results
+                       WHERE timestamp >= ?
+                       GROUP BY name
+                       """, (since.isoformat(),))
 
         health_list = []
         for row in cursor.fetchall():
@@ -208,8 +279,8 @@ class DashboardDB:
         self.conn.commit()
 
     def get_healed_selectors(
-        self,
-        status: Optional[HealingStatus] = None
+            self,
+            status: Optional[HealingStatus] = None
     ) -> List[HealedSelector]:
         """Get healed selectors"""
         cursor = self.conn.cursor()
@@ -244,9 +315,9 @@ class DashboardDB:
         return selectors
 
     def update_selector_status(
-        self,
-        selector_id: str,
-        status: HealingStatus
+            self,
+            selector_id: str,
+            status: HealingStatus
     ) -> bool:
         """Update selector status"""
         cursor = self.conn.cursor()

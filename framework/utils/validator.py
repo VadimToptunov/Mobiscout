@@ -16,11 +16,11 @@ class ValidationError(Exception):
 
 
 def validate_path(
-    path: Path,
-    must_exist: bool = True,
-    must_be_dir: bool = False,
-    must_be_file: bool = False,
-    create_if_missing: bool = False,
+        path: Path,
+        must_exist: bool = True,
+        must_be_dir: bool = False,
+        must_be_file: bool = False,
+        create_if_missing: bool = False,
 ) -> Path:
     """
     Validate a filesystem path.
@@ -61,9 +61,9 @@ def validate_path(
 
 
 def validate_project_structure(
-    project_path: Path,
-    required_files: Optional[List[str]] = None,
-    required_dirs: Optional[List[str]] = None,
+        project_path: Path,
+        required_files: Optional[List[str]] = None,
+        required_dirs: Optional[List[str]] = None,
 ) -> Tuple[bool, List[str]]:
     """
     Validate that a project has the expected structure.

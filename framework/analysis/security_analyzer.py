@@ -2,13 +2,18 @@
 Security analyzer for mobile applications
 
 Analyzes apps for common security issues and vulnerabilities.
+
+STEP 7: Paid Modules Enhancement - Security Analyzer Refactoring
 """
 
+import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import List, Dict
 from pathlib import Path
-import re
+from typing import List, Dict
+
+logger = logging.getLogger(__name__)
 
 
 class SeverityLevel(Enum):
@@ -134,8 +139,9 @@ class SecurityAnalyzer:
                                     recommendation="Use environment variables or secure storage",
                                     cwe_id="CWE-798"
                                 ))
-                except Exception:
-                    pass
+                except (OSError, UnicodeDecodeError) as e:
+                    # Skip files that can't be read or decoded
+                    logger.debug(f"Could not read file {file}: {e}")
 
     def _check_network_security_config(self) -> None:
         """Check Android network security configuration"""
@@ -164,8 +170,8 @@ class SecurityAnalyzer:
                     recommendation="Disable cleartext traffic and use HTTPS only",
                     cwe_id="CWE-319"
                 ))
-        except Exception:
-            pass
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"Could not read network security config: {e}")
 
     def _check_exported_components(self) -> None:
         """Check for exported Android components"""
@@ -185,8 +191,8 @@ class SecurityAnalyzer:
                     file=manifest.relative_to(self.project_root),
                     recommendation="Review exported components and add permissions if needed"
                 ))
-        except Exception:
-            pass
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"Could not read Android manifest: {e}")
 
     def _check_weak_cryptography(self) -> None:
         """Check for weak cryptographic algorithms"""
@@ -212,8 +218,8 @@ class SecurityAnalyzer:
                                 recommendation=f"Use SHA-256 or better instead of {algorithm}",
                                 cwe_id="CWE-327"
                             ))
-            except Exception:
-                pass
+            except (OSError, UnicodeDecodeError) as e:
+                logger.debug(f"Could not read file {file}: {e}")
 
     def _check_debug_flags(self) -> None:
         """Check for debug flags in production builds"""
@@ -236,8 +242,8 @@ class SecurityAnalyzer:
                     file=gradle_file.relative_to(self.project_root),
                     recommendation="Disable debuggable flag for release builds"
                 ))
-        except Exception:
-            pass
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"Could not read Gradle file: {e}")
 
     def _check_info_plist(self) -> None:
         """Check iOS Info.plist security settings"""
@@ -258,8 +264,8 @@ class SecurityAnalyzer:
                     file=info_plist.relative_to(self.project_root),
                     recommendation="Enable ATS and use HTTPS only"
                 ))
-        except Exception:
-            pass
+        except (OSError, UnicodeDecodeError) as e:
+            logger.warning(f"Could not read Info.plist: {e}")
 
     def _check_keychain_usage(self) -> None:
         """Check iOS Keychain usage"""
@@ -279,8 +285,8 @@ class SecurityAnalyzer:
                         file=file.relative_to(self.project_root),
                         recommendation="Use kSecAttrAccessibleWhenUnlocked or better"
                     ))
-            except Exception:
-                pass
+            except (OSError, UnicodeDecodeError) as e:
+                logger.debug(f"Could not read file {file}: {e}")
 
     def generate_report(self) -> str:
         """Generate security analysis report"""

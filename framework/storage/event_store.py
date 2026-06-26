@@ -4,12 +4,11 @@ Event Store - SQLite-based storage for observation events
 Stores events collected by Observe SDK for later analysis and code generation.
 """
 
-import sqlite3
 import json
-
-from pathlib import Path
-from typing import List, Optional, Dict, Any
+import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
+from typing import List, Optional, Dict, Any, Generator
 
 
 class EventStore:
@@ -31,56 +30,156 @@ class EventStore:
         """Initialize database schema"""
         with self._get_connection() as conn:
             conn.executescript("""
-                CREATE TABLE IF NOT EXISTS sessions (
-                    session_id TEXT PRIMARY KEY,
-                    start_time INTEGER NOT NULL,
-                    device_model TEXT,
-                    os_version TEXT,
-                    app_version TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
+                               CREATE TABLE IF NOT EXISTS sessions
+                               (
+                                   session_id
+                                   TEXT
+                                   PRIMARY
+                                   KEY,
+                                   start_time
+                                   INTEGER
+                                   NOT
+                                   NULL,
+                                   device_model
+                                   TEXT,
+                                   os_version
+                                   TEXT,
+                                   app_version
+                                   TEXT,
+                                   created_at
+                                   TIMESTAMP
+                                   DEFAULT
+                                   CURRENT_TIMESTAMP
+                               );
 
-                CREATE TABLE IF NOT EXISTS events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    event_type TEXT NOT NULL,
-                    timestamp INTEGER NOT NULL,
-                    screen TEXT,
-                    data TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
-                );
+                               CREATE TABLE IF NOT EXISTS events
+                               (
+                                   id
+                                   INTEGER
+                                   PRIMARY
+                                   KEY
+                                   AUTOINCREMENT,
+                                   session_id
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   event_type
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   timestamp
+                                   INTEGER
+                                   NOT
+                                   NULL,
+                                   screen
+                                   TEXT,
+                                   data
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   created_at
+                                   TIMESTAMP
+                                   DEFAULT
+                                   CURRENT_TIMESTAMP,
+                                   FOREIGN
+                                   KEY
+                               (
+                                   session_id
+                               ) REFERENCES sessions
+                               (
+                                   session_id
+                               )
+                                   );
 
-                CREATE INDEX IF NOT EXISTS idx_session_id ON events(session_id);
-                CREATE INDEX IF NOT EXISTS idx_event_type ON events(event_type);
-                CREATE INDEX IF NOT EXISTS idx_screen ON events(screen);
-                CREATE INDEX IF NOT EXISTS idx_timestamp ON events(timestamp);
+                               CREATE INDEX IF NOT EXISTS idx_session_id ON events(session_id);
+                               CREATE INDEX IF NOT EXISTS idx_event_type ON events(event_type);
+                               CREATE INDEX IF NOT EXISTS idx_screen ON events(screen);
+                               CREATE INDEX IF NOT EXISTS idx_timestamp ON events(timestamp);
 
-                CREATE TABLE IF NOT EXISTS screens (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    screen_name TEXT NOT NULL,
-                    visit_count INTEGER DEFAULT 1,
-                    first_visit INTEGER NOT NULL,
-                    last_visit INTEGER NOT NULL,
-                    UNIQUE(session_id, screen_name),
-                    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
-                );
+                               CREATE TABLE IF NOT EXISTS screens
+                               (
+                                   id
+                                   INTEGER
+                                   PRIMARY
+                                   KEY
+                                   AUTOINCREMENT,
+                                   session_id
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   screen_name
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   visit_count
+                                   INTEGER
+                                   DEFAULT
+                                   1,
+                                   first_visit
+                                   INTEGER
+                                   NOT
+                                   NULL,
+                                   last_visit
+                                   INTEGER
+                                   NOT
+                                   NULL,
+                                   UNIQUE
+                               (
+                                   session_id,
+                                   screen_name
+                               ),
+                                   FOREIGN KEY
+                               (
+                                   session_id
+                               ) REFERENCES sessions
+                               (
+                                   session_id
+                               )
+                                   );
 
-                CREATE TABLE IF NOT EXISTS flows (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    from_screen TEXT NOT NULL,
-                    to_screen TEXT NOT NULL,
-                    count INTEGER DEFAULT 1,
-                    avg_duration REAL,
-                    UNIQUE(session_id, from_screen, to_screen),
-                    FOREIGN KEY (session_id) REFERENCES sessions(session_id)
-                );
-            """)
+                               CREATE TABLE IF NOT EXISTS flows
+                               (
+                                   id
+                                   INTEGER
+                                   PRIMARY
+                                   KEY
+                                   AUTOINCREMENT,
+                                   session_id
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   from_screen
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   to_screen
+                                   TEXT
+                                   NOT
+                                   NULL,
+                                   count
+                                   INTEGER
+                                   DEFAULT
+                                   1,
+                                   avg_duration
+                                   REAL,
+                                   UNIQUE
+                               (
+                                   session_id,
+                                   from_screen,
+                                   to_screen
+                               ),
+                                   FOREIGN KEY
+                               (
+                                   session_id
+                               ) REFERENCES sessions
+                               (
+                                   session_id
+                               )
+                                   );
+                               """)
 
     @contextmanager
-    def _get_connection(self):
+    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
         """Get database connection with context manager"""
         conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
@@ -125,9 +224,9 @@ class EventStore:
 
             # Insert event
             conn.execute("""
-                INSERT INTO events (session_id, event_type, timestamp, screen, data)
-                VALUES (?, ?, ?, ?, ?)
-            """, (session_id, event_type, timestamp, screen, json.dumps(event)))
+                         INSERT INTO events (session_id, event_type, timestamp, screen, data)
+                         VALUES (?, ?, ?, ?, ?)
+                         """, (session_id, event_type, timestamp, screen, json.dumps(event)))
 
             # Update screens and flows
             if event_type == 'navigation':
@@ -142,15 +241,15 @@ class EventStore:
 
         if not result:
             conn.execute("""
-                INSERT INTO sessions (session_id, start_time, device_model, os_version, app_version)
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                session_id,
-                event.get('timestamp', 0),
-                event.get('deviceModel', 'unknown'),
-                event.get('osVersion', 'unknown'),
-                event.get('appVersion', 'unknown')
-            ))
+                         INSERT INTO sessions (session_id, start_time, device_model, os_version, app_version)
+                         VALUES (?, ?, ?, ?, ?)
+                         """, (
+                             session_id,
+                             event.get('timestamp', 0),
+                             event.get('deviceModel', 'unknown'),
+                             event.get('osVersion', 'unknown'),
+                             event.get('appVersion', 'unknown')
+                         ))
 
     def _get_event_type(self, event: Dict[str, Any]) -> str:
         """Determine event type from event data"""
@@ -174,41 +273,41 @@ class EventStore:
         if to_screen:
             # Update screen visit
             conn.execute("""
-                INSERT INTO screens (session_id, screen_name, visit_count, first_visit, last_visit)
-                VALUES (?, ?, 1, ?, ?)
-                ON CONFLICT(session_id, screen_name) DO UPDATE SET
-                    visit_count = visit_count + 1,
-                    last_visit = ?
-            """, (session_id, to_screen, timestamp, timestamp, timestamp))
+                         INSERT INTO screens (session_id, screen_name, visit_count, first_visit, last_visit)
+                         VALUES (?, ?, 1, ?, ?) ON CONFLICT(session_id, screen_name) DO
+                         UPDATE SET
+                             visit_count = visit_count + 1,
+                             last_visit = ?
+                         """, (session_id, to_screen, timestamp, timestamp, timestamp))
 
         if from_screen and to_screen:
             # Update flow
             conn.execute("""
-                INSERT INTO flows (session_id, from_screen, to_screen, count)
-                VALUES (?, ?, ?, 1)
-                ON CONFLICT(session_id, from_screen, to_screen) DO UPDATE SET
-                    count = count + 1
-            """, (session_id, from_screen, to_screen))
+                         INSERT INTO flows (session_id, from_screen, to_screen, count)
+                         VALUES (?, ?, ?, 1) ON CONFLICT(session_id, from_screen, to_screen) DO
+                         UPDATE SET
+                             count = count + 1
+                         """, (session_id, from_screen, to_screen))
 
     def get_sessions(self) -> List[Dict[str, Any]]:
         """Get all sessions"""
         with self._get_connection() as conn:
             rows = conn.execute("""
-                SELECT s.*, COUNT(e.id) as event_count
-                FROM sessions s
-                LEFT JOIN events e ON s.session_id = e.session_id
-                GROUP BY s.session_id
-                ORDER BY s.start_time DESC
-            """).fetchall()
+                                SELECT s.*, COUNT(e.id) as event_count
+                                FROM sessions s
+                                         LEFT JOIN events e ON s.session_id = e.session_id
+                                GROUP BY s.session_id
+                                ORDER BY s.start_time DESC
+                                """).fetchall()
 
             return [dict(row) for row in rows]
 
     def get_events(
-        self,
-        session_id: Optional[str] = None,
-        event_type: Optional[str] = None,
-        screen: Optional[str] = None,
-        limit: int = 100
+            self,
+            session_id: Optional[str] = None,
+            event_type: Optional[str] = None,
+            screen: Optional[str] = None,
+            limit: int = 100
     ) -> List[Dict[str, Any]]:
         """Query events with filters"""
         query = "SELECT * FROM events WHERE 1=1"
@@ -244,10 +343,11 @@ class EventStore:
         """Get all screens visited in session"""
         with self._get_connection() as conn:
             rows = conn.execute("""
-                SELECT * FROM screens
-                WHERE session_id = ?
-                ORDER BY visit_count DESC
-            """, (session_id,)).fetchall()
+                                SELECT *
+                                FROM screens
+                                WHERE session_id = ?
+                                ORDER BY visit_count DESC
+                                """, (session_id,)).fetchall()
 
             return [dict(row) for row in rows]
 
@@ -255,10 +355,11 @@ class EventStore:
         """Get all navigation flows in session"""
         with self._get_connection() as conn:
             rows = conn.execute("""
-                SELECT * FROM flows
-                WHERE session_id = ?
-                ORDER BY count DESC
-            """, (session_id,)).fetchall()
+                                SELECT *
+                                FROM flows
+                                WHERE session_id = ?
+                                ORDER BY count DESC
+                                """, (session_id,)).fetchall()
 
             return [dict(row) for row in rows]
 
@@ -303,10 +404,10 @@ class EventStore:
             # Event counts by type
             event_counts = {}
             rows = conn.execute("""
-                SELECT event_type, COUNT(*) as count
-                FROM events {query_suffix}
-                GROUP BY event_type
-            """, params).fetchall()
+                                SELECT event_type, COUNT(*) as count
+                                FROM events {query_suffix}
+                                GROUP BY event_type
+                                """, params).fetchall()
 
             for row in rows:
                 event_counts[row['event_type']] = row['count']

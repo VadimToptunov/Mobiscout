@@ -2,6 +2,7 @@
 Device providers (stubs for now, will be implemented later)
 """
 
+
 # Placeholder for future implementation
 
 

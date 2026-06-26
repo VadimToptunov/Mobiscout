@@ -4,9 +4,6 @@ Advanced Selector Strategies
 Provides intelligent selector generation and optimization.
 """
 
-from framework.selectors.selector_optimizer import SelectorOptimizer
-from framework.selectors.selector_scorer import SelectorScorer
-from framework.selectors.selector_builder import SelectorBuilder as LegacySelectorBuilder
 from framework.selectors.advanced_selector import (
     AdvancedSelector,
     AdvancedSelectorEngine,
@@ -19,6 +16,9 @@ from framework.selectors.advanced_selector import (
     by_class,
     contains_text,
 )
+from framework.selectors.selector_builder import SelectorBuilder as LegacySelectorBuilder
+from framework.selectors.selector_optimizer import SelectorOptimizer
+from framework.selectors.selector_scorer import SelectorScorer
 
 __all__ = [
     "SelectorOptimizer",

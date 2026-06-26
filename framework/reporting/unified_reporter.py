@@ -4,12 +4,12 @@ Unified test reporter
 Aggregates test results from multiple sources and generates comprehensive reports.
 """
 
+import json
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
-import json
-from datetime import datetime
 
 
 class ReportFormat(Enum):
@@ -101,7 +101,7 @@ class UnifiedReporter:
                 print(f"Warning: Failed to parse {junit_file}: {e}")
 
     def generate_report(
-        self, output_path: Path, format: ReportFormat = ReportFormat.HTML, title: str = "Test Report"
+            self, output_path: Path, format: ReportFormat = ReportFormat.HTML, title: str = "Test Report"
     ) -> None:
         """
         Generate test report

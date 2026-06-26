@@ -4,11 +4,14 @@ Model Builder
 Automatically builds AppModel from observed events and correlations.
 """
 
-from typing import Dict, List, Optional, Set, Any
-from datetime import datetime
 import logging
+from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Optional, Set, Any
 
+from framework.config.settings import Settings
+from framework.correlation import CorrelationResult, EventCorrelator
+from framework.ml.self_learning import SelfLearningCollector
 from framework.model.app_model import (
     AppModel,
     AppModelMeta,
@@ -24,10 +27,7 @@ from framework.model.app_model import (
     StateMachine,
     StateTransition,
 )
-from framework.correlation import CorrelationResult, EventCorrelator
 from framework.storage.event_store import EventStore
-from framework.ml.self_learning import SelfLearningCollector
-from framework.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 settings = Settings()
@@ -42,11 +42,11 @@ class ModelBuilder:
     """
 
     def __init__(
-        self,
-        event_store: Optional[EventStore] = None,
-        use_ml_classifier: bool = False,
-        ml_model_path: Optional[Path] = None,
-        enable_self_learning: bool = True,
+            self,
+            event_store: Optional[EventStore] = None,
+            use_ml_classifier: bool = False,
+            ml_model_path: Optional[Path] = None,
+            enable_self_learning: bool = True,
     ):
         """
         Initialize model builder
@@ -89,11 +89,11 @@ class ModelBuilder:
                 self.use_ml_classifier = False
 
     def build_from_session(
-        self,
-        session_id: str,
-        app_version: str,
-        platform: Platform = Platform.ANDROID,
-        correlation_result: Optional[CorrelationResult] = None,
+            self,
+            session_id: str,
+            app_version: str,
+            platform: Platform = Platform.ANDROID,
+            correlation_result: Optional[CorrelationResult] = None,
     ) -> AppModel:
         """
         Build AppModel from a recorded session
@@ -142,14 +142,14 @@ class ModelBuilder:
         )
 
     def build_from_events(
-        self,
-        app_version: str,
-        platform: Platform,
-        session_id: str,
-        ui_events: List[Dict[str, Any]],
-        api_events: List[Dict[str, Any]],
-        nav_events: List[Dict[str, Any]],
-        correlation_result: Optional[CorrelationResult] = None,
+            self,
+            app_version: str,
+            platform: Platform,
+            session_id: str,
+            ui_events: List[Dict[str, Any]],
+            api_events: List[Dict[str, Any]],
+            nav_events: List[Dict[str, Any]],
+            correlation_result: Optional[CorrelationResult] = None,
     ) -> AppModel:
         """
         Build AppModel from event lists
@@ -665,7 +665,11 @@ class ModelBuilder:
                 schema["response"] = response_body
 
             api_call = APICall(
-                name=key, method=method.upper(), endpoint=endpoint, schema=schema, triggers_state_change=None
+                name=key,
+                method=method.upper(),
+                endpoint=endpoint,
+                request_schema=schema,
+                triggers_state_change=None
             )
 
             api_calls[key] = api_call
@@ -738,7 +742,7 @@ class ModelBuilder:
         return flows
 
     def _build_state_machine(
-        self, nav_events: List[Dict[str, Any]], correlation_result: Optional[CorrelationResult]
+            self, nav_events: List[Dict[str, Any]], correlation_result: Optional[CorrelationResult]
     ) -> Optional[StateMachine]:
         """
         Build state machine from navigation events
@@ -841,7 +845,7 @@ class ModelBuilder:
                 "enabled": True,  # Assume enabled if interacted with
                 "bounds": {
                     "width": 100,  # Placeholder
-                    "height": 50   # Placeholder
+                    "height": 50  # Placeholder
                 },
                 "element_type": element.type.value if hasattr(element.type, 'value') else str(element.type),
                 "children": []

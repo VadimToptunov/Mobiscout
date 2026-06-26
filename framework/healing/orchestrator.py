@@ -5,14 +5,14 @@ Coordinates the healing process from failure detection to file update.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional
 from pathlib import Path
+from typing import List, Optional
 
-from .failure_analyzer import FailureAnalyzer, SelectorFailure
-from .selector_discovery import SelectorDiscovery
 from .element_matcher import ElementMatcher, MatchResult
+from .failure_analyzer import FailureAnalyzer, SelectorFailure
 from .file_updater import FileUpdater, UpdateResult
 from .git_integration import GitIntegration
+from .selector_discovery import SelectorDiscovery
 
 
 @dataclass
@@ -32,10 +32,10 @@ class HealingOrchestrator:
     """
 
     def __init__(
-        self,
-        repo_path: Path,
-        ml_model_path: Optional[Path] = None,
-        min_confidence: float = 0.7
+            self,
+            repo_path: Path,
+            ml_model_path: Optional[Path] = None,
+            min_confidence: float = 0.7
     ):
         """
         Initialize healing orchestrator
@@ -55,11 +55,11 @@ class HealingOrchestrator:
         self.git_integration = GitIntegration(repo_path)
 
     def analyze_failures(
-        self,
-        junit_path: Path,
-        screenshots_dir: Optional[Path] = None,
-        page_source_dir: Optional[Path] = None,
-        page_objects_dir: Optional[Path] = None
+            self,
+            junit_path: Path,
+            screenshots_dir: Optional[Path] = None,
+            page_source_dir: Optional[Path] = None,
+            page_objects_dir: Optional[Path] = None
     ) -> List[SelectorFailure]:
         """
         Analyze test failures
@@ -88,9 +88,9 @@ class HealingOrchestrator:
         return failures
 
     def heal_failure(
-        self,
-        failure: SelectorFailure,
-        dry_run: bool = False
+            self,
+            failure: SelectorFailure,
+            dry_run: bool = False
     ) -> HealingResult:
         """
         Heal a single failure
@@ -177,11 +177,11 @@ class HealingOrchestrator:
         )
 
     def heal_all(
-        self,
-        failures: List[SelectorFailure],
-        dry_run: bool = False,
-        auto_commit: bool = False,
-        branch_name: Optional[str] = None
+            self,
+            failures: List[SelectorFailure],
+            dry_run: bool = False,
+            auto_commit: bool = False,
+            branch_name: Optional[str] = None
     ) -> List[HealingResult]:
         """
         Heal all failures
@@ -210,9 +210,9 @@ class HealingOrchestrator:
         return results
 
     def _commit_healings(
-        self,
-        results: List[HealingResult],
-        branch_name: Optional[str]
+            self,
+            results: List[HealingResult],
+            branch_name: Optional[str]
     ):
         """Commit healed selectors to git"""
         updated_files = [
@@ -249,8 +249,8 @@ class HealingOrchestrator:
         self.git_integration.save_healing_metadata(healing_details)
 
     def generate_report(
-        self,
-        results: List[HealingResult]
+            self,
+            results: List[HealingResult]
     ) -> str:
         """Generate comprehensive healing report"""
         total = len(results)
@@ -261,7 +261,7 @@ class HealingOrchestrator:
         report.append("=" * 80)
         report.append("")
         report.append(f"Total failures: {total}")
-        report.append(f"Successfully healed: {successful} ({successful/total*100:.1f}%)")
+        report.append(f"Successfully healed: {successful} ({successful / total * 100:.1f}%)")
         report.append(f"Failed to heal: {total - successful}")
         report.append("")
         report.append("=" * 80)

@@ -4,14 +4,14 @@ Notification providers
 Send test result notifications via various channels.
 """
 
+import smtplib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Dict, List, Optional
 
 import requests
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 
 @dataclass
@@ -140,7 +140,7 @@ class SlackNotifier(Notifier):
 
             return True
 
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError, OSError) as e:
             print(f"Error sending Slack notification: {e}")
             return False
 
@@ -226,7 +226,7 @@ class TeamsNotifier(Notifier):
 
             return True
 
-        except Exception as e:
+        except (requests.RequestException, KeyError, ValueError, OSError) as e:
             print(f"Error sending Teams notification: {e}")
             return False
 
@@ -237,14 +237,14 @@ class EmailNotifier(Notifier):
     """
 
     def __init__(
-        self,
-        smtp_host: str,
-        smtp_port: int,
-        sender_email: str,
-        recipients: List[str],
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        use_tls: bool = True
+            self,
+            smtp_host: str,
+            smtp_port: int,
+            sender_email: str,
+            recipients: List[str],
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+            use_tls: bool = True
     ):
         """
         Initialize email notifier
@@ -349,7 +349,7 @@ class EmailNotifier(Notifier):
 
             return True
 
-        except Exception as e:
+        except (smtplib.SMTPException, OSError, ValueError) as e:
             print(f"Error sending email notification: {e}")
             return False
 

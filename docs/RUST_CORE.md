@@ -6,7 +6,8 @@
 
 ## 🎯 Goal
 
-Rewrite CPU-intensive components in Rust for **10-100x** performance improvement while keeping Python's rich ML ecosystem.
+Rewrite CPU-intensive components in Rust for **10-100x** performance improvement while keeping Python's rich ML
+ecosystem.
 
 ---
 
@@ -245,9 +246,9 @@ mobile_test_recorder/
    ```
 
 2. **Add complexity metrics**
-   - Cyclomatic complexity
-   - Cognitive complexity
-   - Nesting depth
+    - Cyclomatic complexity
+    - Cognitive complexity
+    - Nesting depth
 
 3. **Parallel directory processing**
 
@@ -302,12 +303,12 @@ mobile_test_recorder/
 
 ## 📊 Expected Performance Improvements
 
-| Component | Python (current) | Rust (expected) | Speedup |
-|-----------|------------------|-----------------|---------|
-| AST Analysis (1000 files) | 45s | 0.5s | **90x** |
-| Event Correlation (10K events) | 8s | 0.5s | **16x** |
-| Business Logic (100 files) | 12s | 0.5s | **24x** |
-| Total Pipeline | 65s | 1.5s | **43x** |
+| Component                      | Python (current) | Rust (expected) | Speedup |
+|--------------------------------|------------------|-----------------|---------|
+| AST Analysis (1000 files)      | 45s              | 0.5s            | **90x** |
+| Event Correlation (10K events) | 8s               | 0.5s            | **16x** |
+| Business Logic (100 files)     | 12s              | 0.5s            | **24x** |
+| Total Pipeline                 | 65s              | 1.5s            | **43x** |
 
 ---
 

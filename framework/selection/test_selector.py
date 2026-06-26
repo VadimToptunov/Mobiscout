@@ -4,11 +4,11 @@ Test selector based on code changes
 Selects tests to run based on file changes and dependencies.
 """
 
+import ast
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import List, Set, Dict
-import ast
-from enum import Enum
 
 from .change_analyzer import FileChange, ChangeType
 
@@ -52,9 +52,9 @@ class TestSelector:
         self._dependency_cache: Dict[Path, Set[Path]] = {}
 
     def select_tests(
-        self,
-        changes: List[FileChange],
-        selection_strategy: str = "smart"
+            self,
+            changes: List[FileChange],
+            selection_strategy: str = "smart"
     ) -> List[TestImpact]:
         """
         Select tests to run based on changes
@@ -106,9 +106,9 @@ class TestSelector:
             # relative =  # Unusedpath.relative_to(self.test_root)
             name = path.name
             return (
-                name.startswith('test_') or
-                name.endswith('_test.py') or
-                'test' in path.parts
+                    name.startswith('test_') or
+                    name.endswith('_test.py') or
+                    'test' in path.parts
             )
         except ValueError:
             return False
@@ -136,7 +136,7 @@ class TestSelector:
                         for item in node.body:
                             if isinstance(item, ast.FunctionDef) and item.name.startswith('test_'):
                                 tests.append(f"{node.name}.{item.name}")
-        except Exception:
+        except (OSError, SyntaxError, UnicodeDecodeError):
             pass
 
         self._test_cache[test_file] = tests
@@ -251,10 +251,10 @@ class TestSelector:
                         test_names = self._get_tests_from_file(test_file)
                         tests.extend([(test_file, name) for name in test_names])
 
-                except Exception:
+                except (OSError, SyntaxError, UnicodeDecodeError):
                     continue
 
-        except Exception:
+        except (ValueError, OSError):
             pass
 
         return tests

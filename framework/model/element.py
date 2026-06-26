@@ -3,6 +3,7 @@ UI Element and Action models.
 """
 
 from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 from .enums import ElementType, ActionType, TestPriority

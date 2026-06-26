@@ -4,9 +4,8 @@ JUnit XML parser
 Parses JUnit XML test results.
 """
 
-from pathlib import Path
-
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 from .unified_reporter import TestResult, TestSuite
 

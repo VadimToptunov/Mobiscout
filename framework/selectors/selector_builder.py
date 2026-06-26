@@ -5,6 +5,7 @@ Builds optimal selectors from element attributes.
 """
 
 from typing import Dict, List, Optional
+
 from framework.model.app_model import Selector, Platform
 from framework.selectors.selector_scorer import SelectorScorer
 
@@ -20,10 +21,10 @@ class SelectorBuilder:
         self.scorer = SelectorScorer()
 
     def build_selector(
-        self,
-        element_id: str,
-        attributes: Dict[str, str],
-        platform: Platform = Platform.ANDROID
+            self,
+            element_id: str,
+            attributes: Dict[str, str],
+            platform: Platform = Platform.ANDROID
     ) -> Selector:
         """
         Build optimal selector from element attributes
@@ -93,9 +94,9 @@ class SelectorBuilder:
         )
 
     def _build_platform_selector(
-        self,
-        attributes: Dict[str, str],
-        platform: str
+            self,
+            attributes: Dict[str, str],
+            platform: str
     ) -> Optional[Dict[str, str]]:
         """Build selector for specific platform"""
 
@@ -198,9 +199,9 @@ class SelectorBuilder:
         return strategies[0][0]
 
     def _build_fallback_chain(
-        self,
-        attributes: Dict[str, str],
-        primary_strategy: str
+            self,
+            attributes: Dict[str, str],
+            primary_strategy: str
     ) -> List[str]:
         """Build fallback strategy chain"""
 

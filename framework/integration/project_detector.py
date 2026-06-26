@@ -9,12 +9,11 @@ Scans existing test automation projects to understand:
 - Test coverage
 """
 
+import ast
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional, Set
-import ast
-
-import json
 
 
 @dataclass
@@ -236,7 +235,7 @@ class ProjectDetector:
                         for item in node.body:
                             if isinstance(item, ast.FunctionDef) and item.name.startswith("test_"):
                                 count += 1
-            except Exception as e:
+            except (OSError, SyntaxError, UnicodeDecodeError) as e:
                 print(f"Warning: Could not parse {test_file}: {e}")
                 continue
 
@@ -288,7 +287,7 @@ class ProjectDetector:
                         if isinstance(node, ast.ClassDef):
                             if node.name in base_candidates:
                                 return node.name
-                except Exception:
+                except (OSError, SyntaxError, UnicodeDecodeError):
                     continue
 
         # Check if BasePage is imported in other files
@@ -300,7 +299,7 @@ class ProjectDetector:
                         return candidate
                     if "import base_page" in content and candidate in content:
                         return candidate
-            except Exception:
+            except (OSError, UnicodeDecodeError):
                 continue
 
         return None

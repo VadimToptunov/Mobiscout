@@ -11,10 +11,10 @@ Future: Kotlin/Java AST parsing, Swift AST parsing.
 """
 
 import ast
+import logging
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional, Any, Union
-from dataclasses import dataclass, field
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 RUST_AVAILABLE = False
 try:
     from observe_core import RustAstAnalyzer, ComplexityMetrics as RustComplexityMetrics
+
     RUST_AVAILABLE = True
     logger.info("✅ Rust core available - using high-performance backend")
 except ImportError:
@@ -144,10 +145,10 @@ class ASTAnalyzer:
 
         # Count lines
         if (
-            hasattr(node, "end_lineno")
-            and hasattr(node, "lineno")
-            and node.end_lineno is not None
-            and node.lineno is not None
+                hasattr(node, "end_lineno")
+                and hasattr(node, "lineno")
+                and node.end_lineno is not None
+                and node.lineno is not None
         ):
             loc = node.end_lineno - node.lineno + 1
         else:

@@ -4,11 +4,11 @@ Selector discovery
 Discovers alternative selectors for elements when original selector fails.
 """
 
-from dataclasses import dataclass
-from typing import List, Dict, Optional
-from pathlib import Path
-from enum import Enum
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from typing import List, Dict, Optional
 
 
 class SelectorStrategy(Enum):
@@ -48,9 +48,9 @@ class SelectorDiscovery:
         self.alternatives: List[AlternativeSelector] = []
 
     def discover_from_page_source(
-        self,
-        page_source_path: Path,
-        original_selector: tuple
+            self,
+            page_source_path: Path,
+            original_selector: tuple
     ) -> List[AlternativeSelector]:
         """
         Discover alternative selectors from page source XML
@@ -79,7 +79,7 @@ class SelectorDiscovery:
             # Sort by confidence
             self.alternatives.sort(key=lambda x: x.confidence, reverse=True)
 
-        except Exception as e:
+        except (ET.ParseError, ValueError, TypeError) as e:
             print(f"Error parsing page source: {e}")
 
         return self.alternatives
@@ -225,7 +225,7 @@ class SelectorDiscovery:
         return None
 
     def filter_by_attributes(
-        selfquired_attributes: Dict[str, str]
+            self, required_attributes: Dict[str, str]
     ) -> List[AlternativeSelector]:
         """
         Filter alternatives by matching attributes
@@ -241,9 +241,9 @@ class SelectorDiscovery:
         return filtered
 
     def boost_confidence_by_context(
-        self,
-        screen_name: Optional[str] = None,
-        nearby_text: Optional[List[str]] = None
+            self,
+            screen_name: Optional[str] = None,
+            nearby_text: Optional[List[str]] = None
     ):
         """
         Adjust confidence scores based on context

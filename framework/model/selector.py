@@ -3,6 +3,7 @@ Selector model for cross-platform element location.
 """
 
 from typing import List, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 from .enums import SelectorStability

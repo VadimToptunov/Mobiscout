@@ -11,8 +11,8 @@ Abstract interface for different mobile automation backends:
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
+from typing import Dict, Any, List, Optional
 
 
 @dataclass
@@ -34,15 +34,15 @@ class BackendCapability:
 
 class MobileAutomationBackend(ABC):
     """Abstract base class for mobile automation backends."""
-    
+
     @abstractmethod
     def get_capabilities(self) -> BackendCapability:
         """Return backend capabilities."""
         pass
-    
+
     @abstractmethod
-    def start_session(self, device_id: str, app_path: Optional[str] = None, 
-                     capabilities: Optional[Dict[str, Any]] = None) -> str:
+    def start_session(self, device_id: str, app_path: Optional[str] = None,
+                      capabilities: Optional[Dict[str, Any]] = None) -> str:
         """
         Start automation session.
         
@@ -50,12 +50,12 @@ class MobileAutomationBackend(ABC):
             session_id: Unique session identifier
         """
         pass
-    
+
     @abstractmethod
     def stop_session(self, session_id: str) -> None:
         """Stop automation session."""
         pass
-    
+
     @abstractmethod
     def get_screenshot(self, session_id: str) -> bytes:
         """
@@ -65,7 +65,7 @@ class MobileAutomationBackend(ABC):
             PNG image bytes
         """
         pass
-    
+
     @abstractmethod
     def get_ui_tree(self, session_id: str) -> str:
         """
@@ -75,23 +75,23 @@ class MobileAutomationBackend(ABC):
             XML or JSON string representing UI hierarchy
         """
         pass
-    
+
     @abstractmethod
     def tap(self, session_id: str, x: int, y: int) -> None:
         """Tap at coordinates."""
         pass
-    
+
     @abstractmethod
-    def swipe(self, session_id: str, start_x: int, start_y: int, 
+    def swipe(self, session_id: str, start_x: int, start_y: int,
               end_x: int, end_y: int, duration_ms: int = 300) -> None:
         """Swipe gesture."""
         pass
-    
+
     @abstractmethod
     def type_text(self, session_id: str, text: str, element_id: Optional[str] = None) -> None:
         """Type text into element or active field."""
         pass
-    
+
     @abstractmethod
     def find_element(self, session_id: str, strategy: str, value: str) -> Optional[str]:
         """
@@ -105,7 +105,7 @@ class MobileAutomationBackend(ABC):
             element_id or None
         """
         pass
-    
+
     @abstractmethod
     def get_element_bounds(self, session_id: str, element_id: str) -> Dict[str, int]:
         """
@@ -119,21 +119,21 @@ class MobileAutomationBackend(ABC):
 
 class BackendFactory:
     """Factory for creating backend instances."""
-    
+
     _backends: Dict[str, type] = {}
-    
+
     @classmethod
-    def register(cls, name: str, backend_class: type):
+    def register(cls, name: str, backend_class: type) -> None:
         """Register a backend implementation."""
         cls._backends[name] = backend_class
-    
+
     @classmethod
-    def create(cls, name: str, **kwargs) -> MobileAutomationBackend:
+    def create(cls, name: str, **kwargs: Any) -> MobileAutomationBackend:
         """Create backend instance by name."""
         if name not in cls._backends:
             raise ValueError(f"Unknown backend: {name}. Available: {list(cls._backends.keys())}")
         return cls._backends[name](**kwargs)
-    
+
     @classmethod
     def list_backends(cls) -> List[str]:
         """List available backend names."""

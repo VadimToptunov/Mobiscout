@@ -4,12 +4,12 @@ Git integration
 Manages git operations for healed selectors.
 """
 
-from dataclasses import dataclass
-from typing import List, Optional
-from pathlib import Path
-from datetime import datetime
-import subprocess
 import json
+import subprocess
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
 
 @dataclass
@@ -37,10 +37,10 @@ class GitIntegration:
         self.repo_path = repo_path
 
     def commit_healing(
-        self,
-        updated_files: List[Path],
-        healing_details: List[dict],
-        branch_name: Optional[str] = None
+            self,
+            updated_files: List[Path],
+            healing_details: List[dict],
+            branch_name: Optional[str] = None
     ) -> Optional[GitCommitInfo]:
         """
         Commit healed selectors to git
@@ -76,7 +76,7 @@ class GitIntegration:
                 message=commit_message
             )
 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, ValueError) as e:
             print(f"Git commit failed: {e}")
             return None
 
@@ -159,8 +159,8 @@ class GitIntegration:
         return "\n".join(lines)
 
     def create_diff_report(
-        self,
-        updated_files: List[Path]
+            self,
+            updated_files: List[Path]
     ) -> str:
         """
         Generate diff report for updated files
@@ -192,7 +192,7 @@ class GitIntegration:
 
             return "".join(all_diffs) if all_diffs else "No changes detected"
 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, ValueError) as e:
             return f"Error generating diff: {e}"
 
     def revert_commit(self, commit_hash: str) -> bool:
@@ -214,13 +214,13 @@ class GitIntegration:
             )
             return True
 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             print(f"Revert failed: {e}")
             return False
 
     def get_healing_history(
-        self,
-        limit: int = 10
+            self,
+            limit: int = 10
     ) -> List[GitCommitInfo]:
         """
         Get history of healing commits
@@ -273,7 +273,7 @@ class GitIntegration:
 
             return commits
 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError, ValueError) as e:
             print(f"Error getting history: {e}")
             return []
 
@@ -290,13 +290,13 @@ class GitIntegration:
 
             return len(result.stdout.strip()) == 0
 
-        except Exception:
+        except (subprocess.SubprocessError, OSError):
             return False
 
     def save_healing_metadata(
-        self,
-        healing_details: List[dict],
-        output_path: Optional[Path] = None
+            self,
+            healing_details: List[dict],
+            output_path: Optional[Path] = None
     ):
         """
         Save healing metadata to JSON file
@@ -313,7 +313,7 @@ class GitIntegration:
         if output_path.exists():
             try:
                 metadata = json.loads(output_path.read_text())
-            except Exception:
+            except (json.JSONDecodeError, OSError):
                 metadata = []
 
         # Add new entries

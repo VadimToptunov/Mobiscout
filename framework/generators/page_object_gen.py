@@ -4,8 +4,9 @@ Page Object Generator
 Generates Page Object classes from App Model screens.
 """
 
-from typing import List
 from pathlib import Path
+from typing import List
+
 from jinja2 import Template
 
 from framework.model.app_model import Screen
@@ -112,7 +113,7 @@ class {{ class_name }}:
                 fallback_index=fallback_index,
                 platform=platform
             )
-        except Exception as e:
+        except (AttributeError, TypeError, ValueError, OSError) as e:
             # Don't fail test if reporting fails
             print(f"[SelectorHealer] Failed to report fallback: {e}")
 

@@ -1,16 +1,18 @@
-#  Regula KYC Integration Guide
+# Regula KYC Integration Guide
 
 ## Overview
 
-FinDemo integrates **Regula Document Reader SDK** for KYC (Know Your Customer) verification. This allows users to scan and verify identity documents like passports, driver's licenses, and ID cards.
+FinDemo integrates **Regula Document Reader SDK** for KYC (Know Your Customer) verification. This allows users to scan
+and verify identity documents like passports, driver's licenses, and ID cards.
 
 ---
 
-##  Dependencies
+## Dependencies
 
 ### Gradle Configuration
 
 **settings.gradle.kts:**
+
 ```kotlin
 maven {
     url = uri("https://maven.regulaforensics.com/RegulaDocumentReader")
@@ -18,6 +20,7 @@ maven {
 ```
 
 **app/build.gradle.kts:**
+
 ```kotlin
 implementation("com.regula.documentreader:api:7.6.+@aar") {
     isTransitive = true
@@ -31,9 +34,10 @@ implementation("androidx.camera:camera-view:1.3.1")
 
 ---
 
-##  Features
+## Features
 
 ### KYC Screen Capabilities:
+
 1. **Document Scanning** - Uses device camera to scan documents
 2. **MRZ Reading** - Reads Machine Readable Zone
 3. **Data Extraction** - Extracts name, document number, etc.
@@ -42,7 +46,7 @@ implementation("androidx.camera:camera-view:1.3.1")
 
 ---
 
-##  Usage
+## Usage
 
 ### 1. Initialize SDK
 
@@ -104,7 +108,7 @@ val documentNumber = results.getTextFieldValueByType(
 
 ---
 
-##  User Flow
+## User Flow
 
 ```
 Login → KYC Screen → Scan Document → Home Screen
@@ -113,27 +117,32 @@ Login → KYC Screen → Scan Document → Home Screen
 ```
 
 **Navigation:**
+
 1. User logs in successfully
 2. Navigated to KYC screen
 3. Can either:
-   - Scan document (camera opens)
-   - Skip for now (demo mode)
+    - Scan document (camera opens)
+    - Skip for now (demo mode)
 4. After successful scan or skip → Home screen
 
 ---
 
-##  License
+## License
 
 ### Trial Mode (Current):
+
 - SDK works in trial mode without license
 - May have watermarks or limited features
 - Sufficient for development and testing
 
 ### Production License:
+
 To get production license:
+
 1. Contact Regula Forensics: https://regulaforensics.com
 2. Obtain license file
 3. Add to project:
+
 ```kotlin
 val config = DocReaderConfig(license)
 DocumentReader.Instance().initializeReader(context, config, callback)
@@ -141,18 +150,19 @@ DocumentReader.Instance().initializeReader(context, config, callback)
 
 ---
 
-##  UI Components
+## UI Components
 
 ### KYC Screen Layout:
+
 - **Title**: "Identity Verification"
 - **Description**: Instructions for user
 - **Status Icon**: Shows verification state
 - **Scan Button**: Starts document scanning
-  - Test tag: `scan_document_button`
+    - Test tag: `scan_document_button`
 - **Complete Button**: Appears after successful scan
-  - Test tag: `complete_kyc_button`
+    - Test tag: `complete_kyc_button`
 - **Skip Button**: For demo/testing
-  - Test tag: `skip_kyc_button`
+    - Test tag: `skip_kyc_button`
 
 ---
 
@@ -181,6 +191,7 @@ DocumentReader.Instance().initializeReader(context, config, callback)
    ```
 
 ### Test Tags:
+
 ```kotlin
 // Screen
 "kyc_screen"
@@ -193,11 +204,12 @@ DocumentReader.Instance().initializeReader(context, config, callback)
 
 ---
 
-##  Permissions
+## Permissions
 
 ### Required Permissions:
 
 **AndroidManifest.xml:**
+
 ```xml
 <uses-permission android:name="android.permission.CAMERA" />
 <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -205,7 +217,9 @@ DocumentReader.Instance().initializeReader(context, config, callback)
 ```
 
 ### Runtime Permission Handling:
+
 Handled automatically by KYCScreen using:
+
 ```kotlin
 val cameraPermissionLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.RequestPermission()
@@ -218,9 +232,10 @@ val cameraPermissionLauncher = rememberLauncherForActivityResult(
 
 ---
 
-##  Supported Documents
+## Supported Documents
 
 Regula SDK supports:
+
 - **Passports** (all countries)
 - **ID Cards**
 - **Driver's Licenses**
@@ -229,6 +244,7 @@ Regula SDK supports:
 - **And 10,000+ other document types**
 
 ### Scanning Modes:
+
 - **MRZ** (Machine Readable Zone) - Default
 - **BARCODE** - 1D/2D barcodes
 - **OCR** - Optical Character Recognition
@@ -236,22 +252,28 @@ Regula SDK supports:
 
 ---
 
-##  Troubleshooting
+## Troubleshooting
 
 ### Issue 1: SDK Fails to Initialize
+
 **Solution:**
+
 - Check internet connection (SDK may download data)
 - Verify Maven repository is accessible
 - Check logs for specific error
 
 ### Issue 2: Camera Not Opening
+
 **Solution:**
+
 - Verify camera permission granted
 - Check device has camera
 - Try on real device (emulator may not work)
 
 ### Issue 3: No Results from Scanning
+
 **Solution:**
+
 - Ensure good lighting
 - Hold document flat
 - Try different document
@@ -259,7 +281,7 @@ Regula SDK supports:
 
 ---
 
-##  Resources
+## Resources
 
 - [Regula Documentation](https://docs.regulaforensics.com/)
 - [Android Integration Guide](https://docs.regulaforensics.com/android)
@@ -268,9 +290,10 @@ Regula SDK supports:
 
 ---
 
-##  Notes for Observe SDK
+## Notes for Observe SDK
 
 ### Events to Capture:
+
 ```json
 {
   "event": "kyc_scan_started",
@@ -293,7 +316,9 @@ Regula SDK supports:
 ```
 
 ### Test Generation:
+
 KYC screen will generate:
+
 - Camera permission tests
 - Document scanning tests
 - Skip functionality tests

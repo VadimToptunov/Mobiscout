@@ -46,23 +46,81 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Tool Window -->
-        <toolWindow id="Mobile Test Recorder" anchor="right" factoryClass="com.mobiletest.recorder.ui.MTRToolWindowFactory" icon="/icons/mtr-icon.svg"/>
+        <toolWindow id="Mobile Test Recorder" anchor="right"
+                    factoryClass="com.mobiletest.recorder.ui.MTRToolWindowFactory" icon="/icons/mtr-icon.svg"/>
 
         <!-- Settings -->
-        <applicationConfigurable id="com.mobiletest.recorder.settings" displayName="Mobile Test Recorder" instance="com.mobiletest.recorder.settings.MTRSettingsConfigurable"/>
+        <applicationConfigurable id="com.mobiletest.recorder.settings" displayName="Mobile Test Recorder"
+                                 instance="com.mobiletest.recorder.settings.MTRSettingsConfigurable"/>
 
-        <!-- Application Service -->
+        <!-- Application Services -->
         <applicationService serviceImplementation="com.mobiletest.recorder.services.MTRDaemonService"/>
+        <applicationService serviceImplementation="com.mobiletest.recorder.settings.MTRSettings"/>
+    </extensions>
+
+    <!-- Notification Group -->
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Observe Framework" displayType="BALLOON"/>
     </extensions>
 
     <actions>
         <!-- Main Toolbar Actions -->
         <group id="MTR.ToolbarActions" text="Mobile Test Recorder" popup="false">
-            <action id="MTR.StartDaemon" class="com.mobiletest.recorder.actions.StartDaemonAction" text="Start Daemon" description="Start mobile-test-recorder daemon" icon="AllIcons.Actions.Execute"/>
-            <action id="MTR.StopDaemon" class="com.mobiletest.recorder.actions.StopDaemonAction" text="Stop Daemon" description="Stop daemon" icon="AllIcons.Actions.Suspend"/>
+            <action id="MTR.StartDaemon" class="com.mobiletest.recorder.actions.StartDaemonAction" text="Start Daemon"
+                    description="Start mobile-test-recorder daemon" icon="AllIcons.Actions.Execute"/>
+            <action id="MTR.StopDaemon" class="com.mobiletest.recorder.actions.StopDaemonAction" text="Stop Daemon"
+                    description="Stop daemon" icon="AllIcons.Actions.Suspend"/>
             <separator/>
-            <action id="MTR.RefreshDevices" class="com.mobiletest.recorder.actions.RefreshDevicesAction" text="Refresh Devices" description="Refresh device list" icon="AllIcons.Actions.Refresh"/>
-            <action id="MTR.CaptureScreenshot" class="com.mobiletest.recorder.actions.CaptureScreenshotAction" text="Capture Screenshot" description="Capture device screenshot" icon="AllIcons.Actions.Menu_saveall"/>
+            <action id="MTR.RefreshDevices" class="com.mobiletest.recorder.actions.RefreshDevicesAction"
+                    text="Refresh Devices" description="Refresh device list" icon="AllIcons.Actions.Refresh"/>
+            <action id="MTR.CaptureScreenshot" class="com.mobiletest.recorder.actions.CaptureScreenshotAction"
+                    text="Capture Screenshot" description="Capture device screenshot"
+                    icon="AllIcons.Actions.Menu_saveall"/>
+        </group>
+
+        <!-- STEP 11: Enhanced Actions -->
+        <group id="MTR.ObserveActions" text="Observe Framework" popup="true" icon="AllIcons.General.GearPlain">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+
+            <action id="MTR.SetupWizard" class="com.mobiletest.recorder.actions.SetupWizardAction"
+                    text="Setup Wizard..." description="Run the initial setup wizard"
+                    icon="AllIcons.General.Settings"/>
+            <separator/>
+
+            <action id="MTR.SecurityScan" class="com.mobiletest.recorder.actions.SecurityScanAction"
+                    text="Security Scan" description="Scan project for security vulnerabilities"
+                    icon="AllIcons.Nodes.SecurityRole"/>
+
+            <action id="MTR.GenerateTest" class="com.mobiletest.recorder.actions.GenerateTestAction"
+                    text="Generate Test from Page Object" description="Generate test from selected Page Object"
+                    icon="AllIcons.Actions.IntentionBulbGrey"/>
+
+            <action id="MTR.HealSelector" class="com.mobiletest.recorder.actions.HealSelectorAction"
+                    text="Heal Selector" description="Get AI-powered selector healing suggestions"
+                    icon="AllIcons.Actions.QuickfixBulb">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt H"/>
+            </action>
+
+            <action id="MTR.FuzzTest" class="com.mobiletest.recorder.actions.FuzzTestAction"
+                    text="Run Fuzz Test" description="Run fuzzing test on UI element"
+                    icon="AllIcons.Actions.Lightning"/>
+
+            <separator/>
+
+            <action id="MTR.StartDaemon2" class="com.mobiletest.recorder.actions.StartDaemonAction"
+                    text="Start Observe Daemon" description="Start the Observe framework daemon"
+                    icon="AllIcons.Actions.Execute"/>
+            <action id="MTR.StopDaemon2" class="com.mobiletest.recorder.actions.StopDaemonAction"
+                    text="Stop Observe Daemon" description="Stop the Observe framework daemon"
+                    icon="AllIcons.Actions.Suspend"/>
+        </group>
+
+        <!-- Editor Context Menu -->
+        <group id="MTR.EditorPopupMenu" text="Observe">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <separator/>
+            <reference ref="MTR.HealSelector"/>
+            <reference ref="MTR.GenerateTest"/>
         </group>
     </actions>
 </idea-plugin>

@@ -8,7 +8,8 @@ or manual labeling interface.
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
+
 from framework.model.app_model import ElementType
 
 logger = logging.getLogger(__name__)
@@ -136,7 +137,7 @@ class TrainingDataGenerator:
         return ElementType.GENERIC
 
     def generate_synthetic_dataset(
-        self, num_samples: int = 1000, output_path: Path = Path("training_data/synthetic_elements.json")
+            self, num_samples: int = 1000, output_path: Path = Path("training_data/synthetic_elements.json")
     ):
         """
         Generate synthetic training dataset with labeled examples.
@@ -205,6 +206,42 @@ class TrainingDataGenerator:
         logger.info(f"Generated {num_samples} synthetic training samples at {output_path}")
 
         return output_path
+
+    def generate_from_app_model(
+            self,
+            app_model: Dict[str, Any],
+            output_path: Optional[Path] = None
+    ) -> Path:
+        """
+        Generate training data from app model.
+
+        Args:
+            app_model: Application model with screens and elements
+            output_path: Output file path
+
+        Returns:
+            Path to generated training data
+        """
+        path = output_path or Path("ml_models/app_training_data.json")
+        training_data = []
+
+        # Extract elements from app model
+        screens = app_model.get("screens", [])
+        for screen in screens:
+            elements = screen.get("elements", [])
+            for element in elements:
+                # Add element type label based on heuristics
+                element_type = self._infer_element_type(element)
+                element["element_type"] = element_type.value
+                training_data.append(element)
+
+        # Save to file
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(training_data, f, indent=2)
+
+        logger.info(f"Generated {len(training_data)} samples from app model at {path}")
+        return path
 
     def save_labeled_data(self, labeled_events: List[Dict[str, Any]], output_path: Path):
         """Save labeled training data to file."""

@@ -10,9 +10,9 @@ Unified test reporter supporting multiple formats:
 - Test execution analytics
 """
 
-from .unified_reporter import UnifiedReporter, ReportFormat
-from .junit_parser import JUnitParser
 from .allure_generator import AllureGenerator
+from .base_reporter import BaseReporter, ReportFormat as BaseReportFormat, ReportMetadata
+from .junit_parser import JUnitParser
 from .report_generator import (
     ReportGenerator,
     HTMLReportGenerator,
@@ -22,6 +22,7 @@ from .report_generator import (
     TestResult,
     TestStatus,
 )
+from .unified_reporter import UnifiedReporter, ReportFormat
 
 __all__ = [
     "UnifiedReporter",
@@ -35,4 +36,7 @@ __all__ = [
     "TestSuiteResult",
     "TestResult",
     "TestStatus",
+    "BaseReporter",
+    "BaseReportFormat",
+    "ReportMetadata",
 ]

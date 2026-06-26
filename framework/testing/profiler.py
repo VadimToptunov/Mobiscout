@@ -2,18 +2,16 @@
 Performance Profiler - CPU, memory, and execution profiling
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Callable
-from pathlib import Path
 import cProfile
-import pstats
 import io
-import tracemalloc
-import time
 import json
+import pstats
+import time
+import tracemalloc
+from dataclasses import dataclass
 from datetime import datetime
-
-from framework.execution.test_runner import TestRunner
+from pathlib import Path
+from typing import Dict, Any, List, Optional, Callable
 
 
 @dataclass
@@ -60,10 +58,10 @@ class PerformanceProfiler:
         self.memory_snapshots: List[tracemalloc.Snapshot] = []
 
     def profile_test(
-        self,
-        test_path: Path,
-        test_function: Callable[[], Any],
-        progress_callback: Optional[Callable[[str], None]] = None,
+            self,
+            test_path: Path,
+            test_function: Callable[[], Any],
+            progress_callback: Optional[Callable[[str], None]] = None,
     ) -> ProfileResult:
         """Profile a test function"""
         start_time = datetime.now()
@@ -85,7 +83,7 @@ class PerformanceProfiler:
         try:
             test_function()
             success = True
-        except Exception as e:
+        except (RuntimeError, OSError, ValueError, AttributeError, TypeError) as e:
             if progress_callback:
                 progress_callback(f"Test failed: {e}")
             success = False
@@ -133,7 +131,7 @@ class PerformanceProfiler:
         ps.print_stats(self.config.top_functions)
 
         # Parse stats
-        stats = ps.stats
+        stats = ps.stats  # type: ignore[attr-defined]  # pstats.Stats has dynamic attrs
         top_functions = []
 
         for func, (cc, nc, tt, ct, callers) in list(stats.items())[:self.config.top_functions]:
@@ -150,7 +148,7 @@ class PerformanceProfiler:
 
         return {
             "top_functions": top_functions,
-            "total_calls": ps.total_calls,
+            "total_calls": ps.total_calls,  # type: ignore[attr-defined]
             "sort_by": self.config.sort_by,
             "raw_output": s.getvalue(),
         }
@@ -183,12 +181,12 @@ class PerformanceProfiler:
         }
 
     def compare_profiles(
-        self,
-        baseline: ProfileResult,
-        current: ProfileResult,
+            self,
+            baseline: ProfileResult,
+            current: ProfileResult,
     ) -> Dict[str, Any]:
         """Compare two profile results"""
-        comparison = {
+        comparison: Dict[str, Any] = {
             "baseline": {
                 "test_path": baseline.test_path,
                 "duration": baseline.duration_seconds,

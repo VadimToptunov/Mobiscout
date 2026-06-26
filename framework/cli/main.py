@@ -5,39 +5,42 @@ Simplified main module that imports command groups from separate modules.
 """
 
 import click
-from framework import __version__
-from framework.ml.self_learning import ModelUpdater
 
+from framework import __version__
+from framework.cli import ml_selflearn_commands
+from framework.cli.a11y_commands import a11y
 # Import command groups
 from framework.cli.business_logic_commands import business
+from framework.cli.fuzz_commands import fuzz
+from framework.cli.license_commands import license
+from framework.cli.verify_commands import verify
+from framework.cli.ci_commands import ci
+from framework.cli.config_commands import config
+from framework.cli.daemon_commands import daemon_command
+from framework.cli.dashboard_commands import dashboard
+from framework.cli.data_commands import data
+from framework.cli.device_commands import devices
+from framework.cli.docs_commands import docs
+from framework.cli.doctor_command import doctor
+from framework.cli.execute_commands import execute
+from framework.cli.generate_commands import generate
+from framework.cli.healing_commands import heal
+from framework.cli.load_commands import load
+from framework.cli.ml_commands import ml
+from framework.cli.mock_commands import mock
+from framework.cli.notify_commands import notify
+from framework.cli.observability_commands import observe_ as observability
+from framework.cli.parallel_commands import parallel
+from framework.cli.perf_commands import perf
 from framework.cli.project_commands import project
 from framework.cli.record_commands import record
-from framework.cli.generate_commands import generate
-from framework.cli.dashboard_commands import dashboard
-from framework.cli.healing_commands import heal
-from framework.cli.device_commands import devices
-from framework.cli.ml_commands import ml
-from framework.cli import ml_selflearn_commands
-from framework.cli.security_commands import security
-from framework.cli.perf_commands import perf
-from framework.cli.selection_commands import select
-from framework.cli.config_commands import config
-from framework.cli.notify_commands import notify
-from framework.cli.visual_commands import visual
-from framework.cli.data_commands import data
-from framework.cli.execute_commands import execute
-from framework.cli.mock_commands import mock
-from framework.cli.selector_commands import selector
-from framework.cli.parallel_commands import parallel
-from framework.cli.ci_commands import ci
-from framework.cli.doctor_command import doctor
 from framework.cli.report_commands import report
-from framework.cli.observability_commands import observe_ as observability
-from framework.cli.a11y_commands import a11y
-from framework.cli.load_commands import load
-from framework.cli.docs_commands import docs
-from framework.cli.daemon_commands import daemon_command
 from framework.cli.rich_output import print_banner
+from framework.cli.security_commands import security
+from framework.cli.selection_commands import select
+from framework.cli.selector_commands import selector
+from framework.cli.visual_commands import visual
+from framework.ml.self_learning import ModelUpdater
 
 
 def _check_ml_updates() -> None:
@@ -60,7 +63,7 @@ def _check_ml_updates() -> None:
                     # Check if last check was today
                     if last_check_date.date() == datetime.datetime.now().date():
                         should_check = False
-            except Exception:
+            except (OSError, json.JSONDecodeError, KeyError, ValueError):
                 pass  # If error reading, just check anyway
 
         if should_check:
@@ -75,7 +78,7 @@ def _check_ml_updates() -> None:
                 click.echo(f"\n💡 New ML model available: v{update['version']}")
                 click.echo("   Run: observe ml update-model")
 
-    except Exception:
+    except (OSError, ImportError, KeyError, ValueError):
         pass  # Silently fail - don't interrupt user workflow
 
 
@@ -122,6 +125,9 @@ cli.add_command(a11y)
 cli.add_command(load)
 cli.add_command(docs)
 cli.add_command(daemon_command, name="daemon")
+cli.add_command(fuzz)
+cli.add_command(license)
+cli.add_command(verify)
 
 # Add self-learning ML commands as subgroup
 ml.add_command(ml_selflearn_commands.check_updates)

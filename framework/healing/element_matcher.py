@@ -5,8 +5,8 @@ Uses ML model to match correct element from alternatives.
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Dict
 from pathlib import Path
+from typing import List, Optional, Dict
 
 from .selector_discovery import AlternativeSelector
 
@@ -44,18 +44,18 @@ class ElementMatcher:
     def _load_ml_model(self):
         """Load ML model from Phase 4"""
         try:
-            from framework.ml.element_classifier import UniversalElementClassifier
-            self.ml_model = UniversalElementClassifier()
+            from framework.ml.element_classifier import ElementClassifier
+            self.ml_model = ElementClassifier()
             self.ml_model.load_model(self.ml_model_path)
-        except Exception as e:
+        except (ImportError, OSError, ValueError) as e:
             print(f"Warning: Could not load ML model: {e}")
             self.ml_model = None
 
     def find_best_match(
-        self,
-        alternatives: List[AlternativeSelector],
-        expected_element_type: Optional[str] = None,
-        context: Optional[Dict] = None
+            self,
+            alternatives: List[AlternativeSelector],
+            expected_element_type: Optional[str] = None,
+            context: Optional[Dict] = None
     ) -> Optional[MatchResult]:
         """
         Find best matching selector from alternatives
@@ -86,10 +86,10 @@ class ElementMatcher:
         return None
 
     def _score_alternative(
-        self,
-        alternative: AlternativeSelector,
-        expected_element_type: Optional[str],
-        context: Optional[Dict]
+            self,
+            alternative: AlternativeSelector,
+            expected_element_type: Optional[str],
+            context: Optional[Dict]
     ) -> Optional[MatchResult]:
         """Score a single alternative"""
 
@@ -123,9 +123,9 @@ class ElementMatcher:
         )
 
     def _get_ml_confidence(
-        self,
-        alternative: AlternativeSelector,
-        expected_type: Optional[str]
+            self,
+            alternative: AlternativeSelector,
+            expected_type: Optional[str]
     ) -> float:
         """Get confidence from ML model"""
         if not self.ml_model:
@@ -147,7 +147,7 @@ class ElementMatcher:
                 # Type mismatch - lower confidence
                 return prediction['confidence'] * 0.5
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, AttributeError) as e:
             print(f"ML prediction error: {e}")
             return 0.0
 
@@ -166,10 +166,10 @@ class ElementMatcher:
         }
 
     def _apply_context_boost(
-        self,
-        confidence: float,
-        alternative: AlternativeSelector,
-        context: Dict
+            self,
+            confidence: float,
+            alternative: AlternativeSelector,
+            context: Dict
     ) -> float:
         """Apply context-based confidence boost"""
         boosted = confidence
@@ -189,11 +189,11 @@ class ElementMatcher:
         return boosted
 
     def _generate_reasoning(
-        self,
-        alternative: AlternativeSelector,
-        base_conf: float,
-        ml_conf: float,
-        combined: float
+            self,
+            alternative: AlternativeSelector,
+            base_conf: float,
+            ml_conf: float,
+            combined: float
     ) -> str:
         """Generate human-readable reasoning"""
         reasoning = []
@@ -216,9 +216,9 @@ class ElementMatcher:
         return " | ".join(reasoning)
 
     def validate_match(
-        self,
-        match: MatchResult,
-        min_confidence: float = 0.7
+            self,
+            match: MatchResult,
+            min_confidence: float = 0.7
     ) -> bool:
         """
         Validate if match is confident enough

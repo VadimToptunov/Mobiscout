@@ -4,17 +4,18 @@ Healing CLI commands
 Commands for self-healing test maintenance.
 """
 
-import click
 from pathlib import Path
 from typing import Optional
 
-from framework.healing.orchestrator import HealingOrchestrator
-from framework.healing.failure_analyzer import FailureAnalyzer
-from framework.dashboard.database import DashboardDB
-from framework.dashboard.models import HealingStatus
-from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress
+import click
 from rich.console import Console
 from rich.table import Table
+
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress
+from framework.dashboard.database import DashboardDB
+from framework.dashboard.models import HealingStatus
+from framework.healing.failure_analyzer import FailureAnalyzer
+from framework.healing.orchestrator import HealingOrchestrator
 
 console = Console()
 
@@ -322,8 +323,8 @@ def history(repo: str, limit: int) -> None:
             table.add_row(
                 selector.timestamp.strftime("%Y-%m-%d %H:%M"),
                 selector.test_name,
-                selector.old_selector,
-                selector.new_selector,
+                f"{selector.old_selector_type}:{selector.old_selector_value}",
+                f"{selector.new_selector_type}:{selector.new_selector_value}",
                 f"{status_emoji} {selector.status.value}"
             )
 

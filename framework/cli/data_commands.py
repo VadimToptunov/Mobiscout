@@ -4,15 +4,15 @@ Test Data CLI commands
 Commands for generating and managing test data.
 """
 
-import click
+import json
 from pathlib import Path
 from typing import Optional
-import json
 
-from framework.data.generator import TestDataGenerator
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
+import click
 from rich.console import Console
 
+from framework.cli.rich_output import print_header, print_info, print_success, print_error
+from framework.data.generator import TestDataGenerator
 
 console = Console()
 

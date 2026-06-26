@@ -5,6 +5,7 @@ Data structures for static analysis results.
 """
 
 from typing import Dict, List, Optional, Any
+
 from pydantic import BaseModel, Field
 
 

@@ -8,8 +8,8 @@ from typing import Callable, Any, Type, Tuple
 
 import click
 
-from .logger import get_logger
 from framework.cli.rich_output import print_error, print_warning
+from .logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -40,8 +40,8 @@ class IntegrationError(RecorderError):
 
 
 def handle_cli_errors(
-    exit_on_error: bool = True,
-    show_traceback: bool = False,
+        exit_on_error: bool = True,
+        show_traceback: bool = False,
 ) -> Callable:
     """
     Decorator for CLI commands to handle errors gracefully.
@@ -57,6 +57,7 @@ def handle_cli_errors(
             # Command logic
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -110,15 +111,16 @@ def handle_cli_errors(
                     raise click.Abort()
 
         return wrapper
+
     return decorator
 
 
 def safe_file_operation(
-    operation: Callable,
-    *args: Any,
-    error_message: str = "File operation failed",
-    default: Any = None,
-    **kwargs: Any,
+        operation: Callable,
+        *args: Any,
+        error_message: str = "File operation failed",
+        default: Any = None,
+        **kwargs: Any,
 ) -> Tuple[bool, Any]:
     """
     Safely execute a file operation with error handling.
@@ -155,9 +157,9 @@ def safe_file_operation(
 
 
 def validate_and_raise(
-    condition: bool,
-    message: str,
-    error_class: Type[RecorderError] = ValidationError,
+        condition: bool,
+        message: str,
+        error_class: Type[RecorderError] = ValidationError,
 ) -> None:
     """
     Validate a condition and raise an error if it fails.

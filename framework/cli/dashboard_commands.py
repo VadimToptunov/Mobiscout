@@ -4,17 +4,18 @@ Dashboard CLI commands
 Commands for running and managing the test maintenance dashboard.
 """
 
-import click
+import threading
+import time
+import webbrowser
 from pathlib import Path
 from typing import Optional
-import webbrowser
-import time
-import threading
 
-from framework.dashboard.server import DashboardServer
-from framework.dashboard.database import DashboardDB
-from framework.reporting.junit_parser import JUnitParser
+import click
+
 from framework.cli.rich_output import print_header, print_info, print_success, print_error
+from framework.dashboard.database import DashboardDB
+from framework.dashboard.server import DashboardServer
+from framework.reporting.junit_parser import JUnitParser
 
 
 @click.group(name='dashboard')
@@ -83,21 +84,14 @@ def import_results(junit_path: str, repo: str) -> None:
         parser = JUnitParser()
         results = parser.parse(junit_file)
 
-        print_info(f"Found {len(results)} test results")
+        print_info(f"Found {len(results.tests)} test results")
 
         # Import into database
         db = DashboardDB(db_path)
 
         imported = 0
-        for result in results:
-            db.add_test_result(
-                test_id=result.test_id,
-                test_name=result.name,
-                status=result.status,
-                duration=result.duration,
-                error_message=result.error_message or None,
-                screenshot_path=None
-            )
+        for result in results.tests:
+            db.add_test_result(result)
             imported += 1
 
         print_success(f"✅ Imported {imported} test results")
@@ -150,10 +144,10 @@ def stats(repo: str, days: int) -> None:
         print_info("")
         print_success("📊 Test Statistics:")
         print_info(f"  Total tests:    {total_tests}")
-        print_info(f"  ✅ Passing:      {passing} ({passing/total_tests*100:.1f}%)")
-        print_info(f"  ❌ Failing:      {failing} ({failing/total_tests*100:.1f}%)")
-        print_info(f"  ⚠️  Flaky:        {flaky} ({flaky/total_tests*100:.1f}%)")
-        print_info(f"  Avg pass rate:  {avg_pass_rate*100:.1f}%")
+        print_info(f"  ✅ Passing:      {passing} ({passing / total_tests * 100:.1f}%)")
+        print_info(f"  ❌ Failing:      {failing} ({failing / total_tests * 100:.1f}%)")
+        print_info(f"  ⚠️  Flaky:        {flaky} ({flaky / total_tests * 100:.1f}%)")
+        print_info(f"  Avg pass rate:  {avg_pass_rate * 100:.1f}%")
         print_info("")
         print_success("🔧 Healing Statistics:")
         print_info(f"  Pending:        {pending_selectors}")
@@ -222,6 +216,8 @@ test_flaky {flaky}
 # TYPE test_pass_rate gauge
 test_pass_rate {avg_pass_rate}
 """
+        else:
+            content = ""
 
         if output:
             Path(output).write_text(content)

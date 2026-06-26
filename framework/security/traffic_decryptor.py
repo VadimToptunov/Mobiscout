@@ -8,12 +8,12 @@ SECURITY WARNING:
 This tool can decrypt encrypted traffic! Use only for testing purposes.
 """
 
-import json
 import base64
+import json
+import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, List
-from dataclasses import dataclass
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class TrafficDecryptor:
             # Load keys from file
             return self.load_keys_from_file(local_path)
 
-        except Exception as e:
+        except (subprocess.SubprocessError, OSError) as e:
             logger.error(f"Error pulling keys from device: {e}")
             return False
 
@@ -142,7 +142,7 @@ class TrafficDecryptor:
             logger.info(f"Loaded {len(self.tls_keys)} TLS keys and device keys from {keys_file}")
             return True
 
-        except Exception as e:
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             logger.error(f"Failed to load crypto keys: {e}")
             return False
 
@@ -193,7 +193,7 @@ class TrafficDecryptor:
             logger.info(f"Loaded {len(self.tls_keys)} TLS keys from NSS key log")
             return True
 
-        except Exception as e:
+        except (OSError, ValueError) as e:
             logger.error(f"Failed to load NSS key log: {e}")
             return False
 
@@ -294,7 +294,7 @@ class TrafficDecryptor:
         except ImportError:
             logger.error("cryptography library not installed. Install with: pip install cryptography")
             return None
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, UnicodeDecodeError) as e:
             logger.error(f"Failed to decrypt request body for session {session_id}: {e}")
             return None
 
@@ -336,7 +336,7 @@ class TrafficDecryptor:
             logger.info(f"Exported {len(self.tls_keys)} TLS keys to {output_file}")
             return True
 
-        except Exception as e:
+        except OSError as e:
             logger.error(f"Failed to export Wireshark keys: {e}")
             return False
 
@@ -384,6 +384,6 @@ def pull_keys_from_device(session_id: str, package_name: str = "com.findemo") ->
         logger.info(f"Successfully pulled keys to {local_path}")
         return local_path
 
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError) as e:
         logger.error(f"Error pulling keys: {e}")
         return None

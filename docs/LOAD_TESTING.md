@@ -5,6 +5,7 @@ Comprehensive load testing and performance profiling capabilities for mobile tes
 ## Features
 
 ### 🔥 Load Testing
+
 - **Predefined Profiles**: smoke, light, medium, heavy, stress, spike
 - **Virtual Users**: Simulate concurrent user load
 - **Ramp-up Control**: Gradual user spawning
@@ -14,6 +15,7 @@ Comprehensive load testing and performance profiling capabilities for mobile tes
 - **Fail-Fast Mode**: Stop on critical errors
 
 ### 🔬 Performance Profiling
+
 - **CPU Profiling**: Identify performance bottlenecks
 - **Memory Profiling**: Track memory allocations
 - **Time Profiling**: Measure execution time
@@ -64,14 +66,14 @@ observe load compare baseline_profile.json current_profile.json
 
 ## Load Profiles
 
-| Profile | Users | Duration | Ramp-up | Description |
-|---------|-------|----------|---------|-------------|
-| **smoke** | 1 | 60s | 0s | Quick sanity check |
-| **light** | 5 | 300s | 30s | Light load testing |
-| **medium** | 20 | 600s | 60s | Medium load testing |
-| **heavy** | 50 | 900s | 120s | Heavy load testing |
-| **stress** | 100 | 1800s | 300s | Stress testing |
-| **spike** | 50 | 300s | 0s | Sudden traffic spike |
+| Profile    | Users | Duration | Ramp-up | Description          |
+|------------|-------|----------|---------|----------------------|
+| **smoke**  | 1     | 60s      | 0s      | Quick sanity check   |
+| **light**  | 5     | 300s     | 30s     | Light load testing   |
+| **medium** | 20    | 600s     | 60s     | Medium load testing  |
+| **heavy**  | 50    | 900s     | 120s    | Heavy load testing   |
+| **stress** | 100   | 1800s    | 300s    | Stress testing       |
+| **spike**  | 50    | 300s     | 0s      | Sudden traffic spike |
 
 List all profiles:
 
@@ -275,6 +277,7 @@ Watch CPU, memory, and network during load tests.
 ### 4. Set Realistic Goals
 
 Define performance targets:
+
 - Response time < 2s for 95% of requests
 - Throughput > 100 tests/sec
 - Error rate < 1%
@@ -346,6 +349,7 @@ breakpoint_profile = LoadProfile(
 ### High Failure Rate
 
 If tests fail frequently:
+
 1. Check device availability
 2. Increase think time between iterations
 3. Reduce concurrent users
@@ -354,6 +358,7 @@ If tests fail frequently:
 ### Memory Issues
 
 If profiler shows high memory usage:
+
 1. Look for memory leaks in test code
 2. Clear caches between iterations
 3. Reduce concurrent workers
@@ -361,6 +366,7 @@ If profiler shows high memory usage:
 ### Timeouts
 
 If tests timeout:
+
 1. Increase timeout value
 2. Reduce load intensity
 3. Check device performance

@@ -5,6 +5,7 @@ Record and replay HTTP API responses for faster, more reliable mobile testing.
 ## Overview
 
 API Mocking allows you to:
+
 - **Record** real API responses during test execution
 - **Replay** recorded responses without hitting real servers
 - **Generate** mocks from Swagger/OpenAPI specifications
@@ -107,6 +108,7 @@ print(f"Hit rate: {stats['hit_rate']}")
 ### 1. Flexible Matching
 
 **Fuzzy matching** (default):
+
 - Matches only method and URL
 - Ignores request body differences
 - Good for most use cases
@@ -116,6 +118,7 @@ observe mock replay my-session --fuzzy
 ```
 
 **Strict matching**:
+
 - Matches method, URL, AND request body
 - Useful for POST/PUT requests with different payloads
 
@@ -207,11 +210,13 @@ stats = mocker.stop()
 ### 1. Fast Test Execution
 
 **Without mocking:**
+
 ```
 Test suite: 10 tests × 5 API calls × 150ms = 7.5 seconds
 ```
 
 **With mocking:**
+
 ```
 Test suite: 10 tests × 5 API calls × 1ms = 50ms (150x faster!)
 ```
@@ -219,6 +224,7 @@ Test suite: 10 tests × 5 API calls × 1ms = 50ms (150x faster!)
 ### 2. Offline Testing
 
 Test your app without network access:
+
 - No internet required
 - No backend dependencies
 - Works on airplanes, trains, etc.
@@ -226,6 +232,7 @@ Test your app without network access:
 ### 3. CI/CD Isolation
 
 Prevent flaky tests from backend issues:
+
 - Backend is down? Tests still pass
 - API changes? Tests still work
 - Network issues? No problem
@@ -233,6 +240,7 @@ Prevent flaky tests from backend issues:
 ### 4. Backend Not Ready
 
 Start testing before the backend is complete:
+
 - Generate mocks from Swagger spec
 - Test UI/UX independently
 - Validate integration points early
@@ -240,6 +248,7 @@ Start testing before the backend is complete:
 ### 5. Rate Limiting
 
 Avoid hitting API rate limits during development:
+
 - Record once, replay unlimited times
 - No more "429 Too Many Requests"
 - Faster iteration cycles
@@ -360,30 +369,31 @@ def scrub_response(response_body):
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `observe mock record <session>` | Start recording API calls |
-| `observe mock replay <session>` | Replay recorded calls |
-| `observe mock list` | List all sessions |
-| `observe mock inspect <session>` | View session details |
-| `observe mock delete <session>` | Delete a session |
-| `observe mock export <session> -o file.json` | Export session |
-| `observe mock import file.json` | Import session |
-| `observe mock from-swagger spec.yaml <session>` | Generate from Swagger |
-| `observe mock rewrite-urls <session> old new` | Rewrite URLs |
+| Command                                         | Description               |
+|-------------------------------------------------|---------------------------|
+| `observe mock record <session>`                 | Start recording API calls |
+| `observe mock replay <session>`                 | Replay recorded calls     |
+| `observe mock list`                             | List all sessions         |
+| `observe mock inspect <session>`                | View session details      |
+| `observe mock delete <session>`                 | Delete a session          |
+| `observe mock export <session> -o file.json`    | Export session            |
+| `observe mock import file.json`                 | Import session            |
+| `observe mock from-swagger spec.yaml <session>` | Generate from Swagger     |
+| `observe mock rewrite-urls <session> old new`   | Rewrite URLs              |
 
 ### Options
 
-| Option | Description |
-|--------|-------------|
-| `--strict/--fuzzy` | Strict or fuzzy matching (replay) |
-| `--port <port>` | Mock server port (default: 8888) |
-| `--appium-server <url>` | Appium server to proxy |
-| `--output/-o <path>` | Output file path (export) |
+| Option                  | Description                       |
+|-------------------------|-----------------------------------|
+| `--strict/--fuzzy`      | Strict or fuzzy matching (replay) |
+| `--port <port>`         | Mock server port (default: 8888)  |
+| `--appium-server <url>` | Appium server to proxy            |
+| `--output/-o <path>`    | Output file path (export)         |
 
 ## Roadmap
 
 ### Phase 1 (Current)
+
 - ✅ Core recording/replay
 - ✅ Storage system
 - ✅ CLI commands
@@ -391,6 +401,7 @@ def scrub_response(response_body):
 - ✅ URL rewriting
 
 ### Phase 2 (Future)
+
 - 🔄 HTTP proxy server
 - 🔄 Appium integration
 - 🔄 Charles Proxy import
@@ -398,6 +409,7 @@ def scrub_response(response_body):
 - 🔄 Request/response filtering
 
 ### Phase 3 (Future)
+
 - 📋 GraphQL support
 - 📋 WebSocket mocking
 - 📋 gRPC support
@@ -471,6 +483,7 @@ mocker.record_response(
 **Problem**: `Mock miss: GET /users`
 
 **Solution**:
+
 1. Check URL matches exactly (including trailing slash)
 2. Use `--fuzzy` mode if request bodies differ
 3. Verify session has recorded mocks: `observe mock inspect my-session`
@@ -480,6 +493,7 @@ mocker.record_response(
 **Problem**: Replay is slow despite mocking
 
 **Solution**:
+
 1. Check latency simulation settings
 2. Verify mocks are being hit: check `cache_hits` in stats
 3. Reduce latency in mock files if needed
@@ -489,6 +503,7 @@ mocker.record_response(
 **Problem**: Some requests not mocked
 
 **Solution**:
+
 1. Record a complete test session
 2. Check for dynamic URLs (timestamps, IDs)
 3. Use URL rewriting if base URL changed

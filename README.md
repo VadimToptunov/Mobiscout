@@ -1,6 +1,7 @@
 # Mobile Test Recorder 🦀 → JetBrains IDE Plugin
 
-> **Next-Generation Intelligent Mobile Testing Platform** - Now as a powerful JetBrains IDE plugin with interactive UI control, smart selectors, and multi-language support
+> **Next-Generation Intelligent Mobile Testing Platform** - Now as a powerful JetBrains IDE plugin with interactive UI
+> control, smart selectors, and multi-language support
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![Rust 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
@@ -46,6 +47,7 @@
 ### IDE Plugin (Recommended) ✅ Phase 1-2
 
 1. **Install CLI Backend**:
+
 ```bash
 pip install mobile-observe-test
 # or from source:
@@ -55,6 +57,7 @@ pip install -e .
 ```
 
 2. **Build Plugin** (Phase 1-2 complete, Phase 3+ in progress):
+
 ```bash
 cd jetbrains-plugin
 ./gradlew buildPlugin
@@ -62,14 +65,15 @@ cd jetbrains-plugin
 ```
 
 3. **Start Testing**:
-   - Open View → Tool Windows → Mobile Test Recorder
-   - Click "Start Daemon"
-   - Go to "Screen" tab
-   - Click "Load Devices", select device
-   - Click "Start Session"
-   - Click on device screen to interact!
+    - Open View → Tool Windows → Mobile Test Recorder
+    - Click "Start Daemon"
+    - Go to "Screen" tab
+    - Click "Load Devices", select device
+    - Click "Start Session"
+    - Click on device screen to interact!
 
 **Current Features** (Phase 0-2):
+
 - ✅ Device list (Android via adb, iOS via simctl)
 - ✅ Session management
 - ✅ Screenshot capture
@@ -78,6 +82,7 @@ cd jetbrains-plugin
 - ✅ JSON-RPC protocol
 
 **Coming Soon** (Phase 3+):
+
 - Multi-backend support (Appium, Espresso, XCTest)
 - UI Tree inspector
 - Smart selector generation
@@ -139,13 +144,13 @@ observe docs generate framework/ --format html
 
 ## 🦀 Performance: Python vs Rust
 
-| Operation | Python | Rust | Speedup |
-|-----------|--------|------|---------|
-| **AST Analysis** (1000 files) | 45s | 2.5s | **18x** ⚡ |
-| **Event Correlation** (10K events) | 8s | 0.4s | **20x** ⚡ |
-| **File I/O** (100 files) | 5s | 0.3s | **16x** ⚡ |
-| **Business Logic Analysis** | 12s | 1.1s | **11x** ⚡ |
-| **Overall Pipeline** | 70s | 4.3s | **16x** ⚡ |
+| Operation                          | Python | Rust | Speedup   |
+|------------------------------------|--------|------|-----------|
+| **AST Analysis** (1000 files)      | 45s    | 2.5s | **18x** ⚡ |
+| **Event Correlation** (10K events) | 8s     | 0.4s | **20x** ⚡ |
+| **File I/O** (100 files)           | 5s     | 0.3s | **16x** ⚡ |
+| **Business Logic Analysis**        | 12s    | 1.1s | **11x** ⚡ |
+| **Overall Pipeline**               | 70s    | 4.3s | **16x** ⚡ |
 
 ---
 
@@ -194,14 +199,14 @@ Test Fails → Screenshot Captured → ML Analyzes → 8 Repair Strategies → V
 
 ### Success Rates by Strategy
 
-| Strategy | Success Rate |
-|----------|--------------|
-| **Fuzzy Text Match** | 95% |
-| **Sibling Navigation** | 88% |
-| **ML Element Classification** | 94% |
-| **Position-Based** | 76% |
-| **Visual Similarity** | 82% |
-| **Combined (All Strategies)** | **92%** |
+| Strategy                      | Success Rate |
+|-------------------------------|--------------|
+| **Fuzzy Text Match**          | 95%          |
+| **Sibling Navigation**        | 88%          |
+| **ML Element Classification** | 94%          |
+| **Position-Based**            | 76%          |
+| **Visual Similarity**         | 82%          |
+| **Combined (All Strategies)** | **92%**      |
 
 ### Example
 
@@ -359,14 +364,14 @@ observe a11y report results.json
 
 ### Predefined Profiles
 
-| Profile | Users | Duration | Use Case |
-|---------|-------|----------|----------|
-| **smoke** | 1 | 60s | Quick sanity check |
-| **light** | 5 | 5 min | Development testing |
-| **medium** | 20 | 10 min | Pre-production |
-| **heavy** | 50 | 15 min | Production load |
-| **stress** | 100 | 30 min | Capacity testing |
-| **spike** | 50 | 5 min | Traffic spikes |
+| Profile    | Users | Duration | Use Case            |
+|------------|-------|----------|---------------------|
+| **smoke**  | 1     | 60s      | Quick sanity check  |
+| **light**  | 5     | 5 min    | Development testing |
+| **medium** | 20    | 10 min   | Pre-production      |
+| **heavy**  | 50    | 15 min   | Production load     |
+| **stress** | 100   | 30 min   | Capacity testing    |
+| **spike**  | 50    | 5 min    | Traffic spikes      |
 
 ### Usage
 
@@ -501,17 +506,17 @@ refactor: Code refactoring
 
 ## 📊 Project Stats
 
-| Metric | Value |
-|--------|-------|
-| **Total Lines** | ~50,000 |
-| **Python Code** | 35,000 lines |
-| **Rust Code** | 8,000 lines |
-| **Test Coverage** | 85%+ |
-| **Supported Platforms** | 4 (Android/iOS/Flutter/RN) |
-| **CLI Commands** | 150+ |
-| **Performance Boost** | 16x average |
-| **ML Accuracy** | 94% |
-| **Healing Success Rate** | 92% |
+| Metric                   | Value                      |
+|--------------------------|----------------------------|
+| **Total Lines**          | ~50,000                    |
+| **Python Code**          | 35,000 lines               |
+| **Rust Code**            | 8,000 lines                |
+| **Test Coverage**        | 85%+                       |
+| **Supported Platforms**  | 4 (Android/iOS/Flutter/RN) |
+| **CLI Commands**         | 150+                       |
+| **Performance Boost**    | 16x average                |
+| **ML Accuracy**          | 94%                        |
+| **Healing Success Rate** | 92%                        |
 
 ---
 
@@ -592,6 +597,7 @@ Contributions are welcome! Please read the [User Guide](USER_GUIDE.md) first.
 ## What's Actually Working Now?
 
 **✅ Fully Functional & Production-Ready:**
+
 - ✅ **Business Logic Analysis** - Kotlin, Swift, Java source code analysis
 - ✅ **User Flow Extraction** - Automatic flow discovery from code
 - ✅ **Edge Case Detection** - Boundary, null, empty, overflow patterns
@@ -599,17 +605,18 @@ Contributions are welcome! Please read the [User Guide](USER_GUIDE.md) first.
 - ✅ **Negative Test Cases** - Auto-generate failure scenarios
 - ✅ **BDD Scenario Generation** - Gherkin features from analysis
 - ✅ **Self-Healing Tests** - Complete healing engine (6 modules)
-  - Failure analyzer, selector discovery, element matcher
-  - File updater, Git integration, orchestrator
+    - Failure analyzer, selector discovery, element matcher
+    - File updater, Git integration, orchestrator
 - ✅ **ML Element Classification** - Trained universal model
-  - Random Forest classifier with 90%+ accuracy
-  - Works on Android, iOS, Flutter, React Native
+    - Random Forest classifier with 90%+ accuracy
+    - Works on Android, iOS, Flutter, React Native
 - ✅ **Dashboard** - Full FastAPI web server
-  - Test health tracking, healed selector approval
-  - SQLite database, REST API endpoints
+    - Test health tracking, healed selector approval
+    - SQLite database, REST API endpoints
 - ✅ **Rich CLI** - Beautiful terminal output with progress bars
 
 **🚧 In Development:**
+
 - Live session recording (SDK implemented, CLI integration pending)
 - Full end-to-end automation (connect all pieces)
 

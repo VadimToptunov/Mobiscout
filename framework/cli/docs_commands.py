@@ -2,14 +2,14 @@
 CLI Commands - Documentation generation
 """
 
-import click
 from pathlib import Path
+
+import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from framework.documentation import DocGenerator, DocConfig, DocFormat
-
 
 console = Console()
 
@@ -42,14 +42,14 @@ def docs() -> None:
 @click.option("--no-toc", is_flag=True, help="Disable table of contents")
 @click.option("--theme", default="default", help="Documentation theme")
 def generate(
-    source_dir: str,
-    output: str,
-    format: str,
-    title: str,
-    include_private: bool,
-    include_source: bool,
-    no_toc: bool,
-    theme: str,
+        source_dir: str,
+        output: str,
+        format: str,
+        title: str,
+        include_private: bool,
+        include_source: bool,
+        no_toc: bool,
+        theme: str,
 ) -> None:
     """Generate documentation from source code"""
     console.print(Panel.fit("📚 Documentation Generator", style="bold cyan"))
@@ -77,9 +77,9 @@ def generate(
     generator = DocGenerator(config)
 
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
     ) as progress:
         task = progress.add_task("Generating documentation...", total=None)
         generator.generate()
@@ -125,7 +125,7 @@ def analyze(source_dir: str) -> None:
                 # Count lines
                 with open(file_path) as f:
                     total_lines += len(f.readlines())
-            except Exception:
+            except (OSError, SyntaxError, UnicodeDecodeError):
                 pass
 
     # Display results
@@ -147,7 +147,6 @@ def inspect(file_path: str) -> None:
     """Inspect a Python file"""
     from framework.documentation.parser import CodeParser
     from rich.table import Table
-    from rich.syntax import Syntax
 
     console.print(Panel.fit(f"🔬 File Inspection: {file_path}", style="bold cyan"))
 
@@ -258,7 +257,7 @@ def coverage(source_dir: str, output: str | None) -> None:
                         "total": file_total,
                     })
 
-            except Exception:
+            except (OSError, SyntaxError, UnicodeDecodeError):
                 pass
 
     # Overall coverage

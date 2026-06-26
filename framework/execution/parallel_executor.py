@@ -4,14 +4,14 @@ Parallel test executor
 Executes tests in parallel across multiple workers/devices.
 """
 
+import concurrent.futures
+import subprocess
+import time
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Callable
-from pathlib import Path
 from datetime import datetime
 from enum import Enum
-import subprocess
-import concurrent.futures
-import time
+from pathlib import Path
+from typing import List, Dict, Optional, Callable
 
 from .test_sharding import TestCase, TestShard
 
@@ -62,9 +62,9 @@ class ParallelExecutor:
     """
 
     def __init__(
-        self,
-        max_workers: int = 4,
-        pytest_args: List[str] = None
+            self,
+            max_workers: int = 4,
+            pytest_args: List[str] = None
     ):
         """
         Initialize parallel executor
@@ -77,10 +77,10 @@ class ParallelExecutor:
         self.pytest_args = pytest_args or []
 
     def execute_shards(
-        self,
-        shards: List[TestShard],
-        project_root: Path,
-        progress_callback: Optional[Callable[[int, int], None]] = None
+            self,
+            shards: List[TestShard],
+            project_root: Path,
+            progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> List[ShardResult]:
         """
         Execute test shards in parallel
@@ -159,12 +159,12 @@ class ParallelExecutor:
 
         # Build pytest command for specific test
         cmd = [
-            'pytest',
-            str(test.file),
-            '-k', test.name,
-            '--tb=short',
-            '-v'
-        ] + self.pytest_args
+                  'pytest',
+                  str(test.file),
+                  '-k', test.name,
+                  '--tb=short',
+                  '-v'
+              ] + self.pytest_args
 
         try:
             result = subprocess.run(

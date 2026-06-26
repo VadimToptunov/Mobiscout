@@ -6,10 +6,11 @@ Provides screenshot-based element identification and visual regression testing c
 
 import logging
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List, Dict, Any
+
+import cv2
 import numpy as np
 from PIL import Image
-import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -59,21 +60,20 @@ class VisualDetector:
         if not TESSERACT_AVAILABLE:
             raise RuntimeError("pytesseract not available")
 
-        # Load image
-        image = Image.open(image_path)
+        # Load image with context manager to ensure proper cleanup
+        with Image.open(image_path) as image:
+            # Crop to region if specified
+            if region:
+                x, y, w, h = region
+                image = image.crop((x, y, x + w, y + h))
 
-        # Crop to region if specified
-        if region:
-            x, y, w, h = region
-            image = image.crop((x, y, x + w, y + h))
-
-        # Extract text
-        text = pytesseract.image_to_string(image)
+            # Extract text
+            text = pytesseract.image_to_string(image)
 
         return text.strip()
 
     def find_element_by_image(
-        self, screenshot_path: Path, template_path: Path, threshold: float = 0.8
+            self, screenshot_path: Path, template_path: Path, threshold: float = 0.8
     ) -> Optional[Tuple[int, int, int, int]]:
         """
         Find element in screenshot by template matching.
@@ -140,11 +140,11 @@ class VisualDetector:
 
         if method == "mse":
             # Mean Squared Error (lower is better)
-            mse = np.mean((img1 - img2) ** 2)  # type: ignore[call-overload]
+            mse = float(np.mean((img1 - img2) ** 2))  # type: ignore[call-overload]
             # Normalize to 0-1 (1 = identical)
-            max_mse = 255.0**2
+            max_mse = 255.0 ** 2
             similarity = 1.0 - (mse / max_mse)
-            return float(similarity)
+            return similarity
 
         elif method == "histogram":
             # Histogram comparison
@@ -176,7 +176,7 @@ class VisualDetector:
             raise ValueError(f"Unknown method: {method}")
 
     def detect_visual_changes(
-        self, baseline_path: Path, current_path: Path, threshold: float = 0.95
+            self, baseline_path: Path, current_path: Path, threshold: float = 0.95
     ) -> Tuple[bool, float, Optional[np.ndarray]]:
         """
         Detect visual regression between baseline and current screenshot.
@@ -231,10 +231,110 @@ class VisualDetector:
             bounds: (x, y, width, height)
             output_path: Where to save extracted image
         """
-        image = Image.open(screenshot_path)
-        x, y, w, h = bounds
-        element_image = image.crop((x, y, x + w, y + h))
+        # Use context manager to ensure proper resource cleanup
+        with Image.open(screenshot_path) as image:
+            x, y, w, h = bounds
+            element_image = image.crop((x, y, x + w, y + h))
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        element_image.save(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            element_image.save(output_path)
         logger.debug(f"Element screenshot saved to {output_path}")
+
+    def find_similar_elements(
+            self,
+            screenshot_path: Path,
+            template_path: Path,
+            threshold: float = 0.7,
+            max_results: int = 5
+    ) -> List[Tuple[int, int, int, int, float]]:
+        """
+        Find all elements similar to template in screenshot.
+
+        Args:
+            screenshot_path: Path to full screenshot
+            template_path: Path to element template image
+            threshold: Minimum matching threshold (0.0-1.0)
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of (x, y, width, height, confidence) tuples
+        """
+        screenshot = cv2.imread(str(screenshot_path))
+        template = cv2.imread(str(template_path))
+
+        if screenshot is None or template is None:
+            logger.error("Failed to load images")
+            return []
+
+        # Convert to grayscale
+        screenshot_gray = cv2.cvtColor(screenshot, cv2.COLOR_BGR2GRAY)
+        template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+
+        h, w = template_gray.shape
+
+        # Template matching
+        result = cv2.matchTemplate(screenshot_gray, template_gray, cv2.TM_CCOEFF_NORMED)
+
+        # Find all matches above threshold
+        locations = np.where(result >= threshold)
+        matches = []
+
+        for pt in zip(*locations[::-1]):
+            pt_x, pt_y = int(pt[0]), int(pt[1])
+            confidence = float(result[pt_y, pt_x])
+            matches.append((pt_x, pt_y, w, h, confidence))
+
+        # Sort by confidence and return top results
+        matches.sort(key=lambda x: x[4], reverse=True)
+        return matches[:max_results]
+
+    def find_similar_by_bounds(
+            self,
+            screenshot_path: Path,
+            target_bounds: Tuple[int, int, int, int],
+            similarity_threshold: float = 0.7,
+            max_results: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Find elements similar to a region defined by bounds in a screenshot.
+
+        Args:
+            screenshot_path: Path to the screenshot image
+            target_bounds: Tuple of (x, y, width, height) defining target region
+            similarity_threshold: Minimum similarity threshold (0.0-1.0)
+            max_results: Maximum number of results to return
+
+        Returns:
+            List of dicts with 'x', 'y', 'width', 'height', 'similarity' keys
+        """
+        x, y, width, height = target_bounds
+
+        # Load screenshot
+        screenshot = cv2.imread(str(screenshot_path))
+        if screenshot is None:
+            return []
+
+        # Extract template region from the screenshot at original bounds
+        template = screenshot[y:y + height, x:x + width]
+        if template.size == 0:
+            return []
+
+        # Use template matching to find similar regions
+        result = cv2.matchTemplate(screenshot, template, cv2.TM_CCOEFF_NORMED)
+        locations = np.where(result >= similarity_threshold)
+
+        matches = []
+        for pt in zip(*locations[::-1]):
+            pt_x, pt_y = int(pt[0]), int(pt[1])
+            confidence = float(result[pt_y, pt_x])
+            matches.append({
+                'x': pt_x,
+                'y': pt_y,
+                'width': width,
+                'height': height,
+                'similarity': confidence
+            })
+
+        # Sort by confidence and return top results
+        matches.sort(key=lambda m: m['similarity'], reverse=True)
+        return matches[:max_results]

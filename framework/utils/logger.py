@@ -9,15 +9,14 @@ from typing import Optional
 from rich.console import Console
 from rich.logging import RichHandler
 
-
 _loggers: dict[str, logging.Logger] = {}
 _console = Console(stderr=True)
 
 
 def setup_logging(
-    level: str = "INFO",
-    log_file: Optional[Path] = None,
-    rich_tracebacks: bool = True,
+        level: str = "INFO",
+        log_file: Optional[Path] = None,
+        rich_tracebacks: bool = True,
 ) -> None:
     """
     Setup logging configuration with Rich handler.

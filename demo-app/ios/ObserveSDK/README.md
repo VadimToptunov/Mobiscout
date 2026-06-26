@@ -1,24 +1,24 @@
-#  iOS Observe SDK
+# iOS Observe SDK
 
 Swift framework for capturing UI interactions, navigation, and network events in iOS applications.
 
 ---
 
-##  Overview
+## Overview
 
 The iOS Observe SDK is a lightweight, non-intrusive instrumentation framework that captures:
 
--  **UI Events** - Taps, swipes, text input
--  **Navigation** - Screen transitions and routing
--  **Network** - HTTP requests/responses with correlation
--  **Hierarchy** - UI view tree snapshots
--  **WebView** - Embedded web interactions
+- **UI Events** - Taps, swipes, text input
+- **Navigation** - Screen transitions and routing
+- **Network** - HTTP requests/responses with correlation
+- **Hierarchy** - UI view tree snapshots
+- **WebView** - Embedded web interactions
 
 **Zero impact on production:** Compile-time gated via build schemes.
 
 ---
 
-##  Architecture
+## Architecture
 
 ```
 ObserveSDK
@@ -40,7 +40,7 @@ ObserveSDK
 
 ---
 
-##  Integration
+## Integration
 
 ### 1. Add SDK to Project
 
@@ -77,31 +77,36 @@ struct MyApp: App {
 Create three build configurations:
 
 #### Observe Scheme
+
 - **Preprocessor Flags:** `OBSERVE=1`
 - **Purpose:** Instrumented builds for observation
 - **SDK State:** Active
 
 #### Test Scheme
+
 - **Preprocessor Flags:** None
 - **Purpose:** Clean builds for automation
 - **SDK State:** Disabled
 
 #### Production Scheme
+
 - **Preprocessor Flags:** `PRODUCTION=1`
 - **Purpose:** Release builds
 - **SDK State:** Disabled
 
 ---
 
-##  Configuration
+## Configuration
 
 ### Development (High Detail)
+
 ```swift
 let config = ObserveConfig.development(appVersion: "1.0.0")
 ObserveSDK.shared.initialize(application: UIApplication.shared, config: config)
 ```
 
 ### Custom Configuration
+
 ```swift
 let config = ObserveConfig(
     enabled: true,
@@ -118,6 +123,7 @@ let config = ObserveConfig(
 ```
 
 ### Production (Disabled)
+
 ```swift
 let config = ObserveConfig.production()
 ObserveSDK.shared.initialize(application: UIApplication.shared, config: config)
@@ -125,9 +131,10 @@ ObserveSDK.shared.initialize(application: UIApplication.shared, config: config)
 
 ---
 
-##  Event Types
+## Event Types
 
 ### UI Event
+
 ```swift
 UIEvent(
     timestamp: 1234567890,
@@ -142,6 +149,7 @@ UIEvent(
 ```
 
 ### Navigation Event
+
 ```swift
 NavigationEvent(
     timestamp: 1234567890,
@@ -154,6 +162,7 @@ NavigationEvent(
 ```
 
 ### Network Event
+
 ```swift
 NetworkEvent(
     timestamp: 1234567890,
@@ -172,6 +181,7 @@ NetworkEvent(
 ```
 
 ### Hierarchy Event
+
 ```swift
 HierarchyEvent(
     timestamp: 1234567890,
@@ -183,14 +193,16 @@ HierarchyEvent(
 
 ---
 
-##  Event Export
+## Event Export
 
 Events are automatically exported to:
+
 ```
 Documents/observe/observe_events_<timestamp>.json
 ```
 
 ### Export Format
+
 ```json
 {
   "session_id": "ABC-123-DEF",
@@ -211,6 +223,7 @@ Documents/observe/observe_events_<timestamp>.json
 ```
 
 ### Retrieve Events via ADB
+
 ```bash
 # List files
 xcrun simctl get_app_container <device-id> <bundle-id> data
@@ -223,7 +236,7 @@ Or use Xcode's "Download Container" feature.
 
 ---
 
-##  Accessibility Identifiers
+## Accessibility Identifiers
 
 **Critical for robust selectors!**
 
@@ -241,9 +254,10 @@ TextField("Username", text: $username)
 
 ---
 
-##  SDK Control
+## SDK Control
 
 ### Manual Start/Stop
+
 ```swift
 // Start observation
 ObserveSDK.shared.start()
@@ -256,6 +270,7 @@ ObserveSDK.shared.shutdown()
 ```
 
 ### Check Status
+
 ```swift
 if ObserveSDK.shared.isInitialized() {
     print("SDK initialized")
@@ -267,6 +282,7 @@ if ObserveSDK.shared.isRunning() {
 ```
 
 ### Access Session Info
+
 ```swift
 if let session = ObserveSDK.shared.getSession() {
     print("Session ID: \(session.sessionId)")
@@ -290,6 +306,7 @@ The SDK is designed to be **completely transparent** in test builds:
 ```
 
 **For XCUITest:**
+
 - Use `Test` build configuration
 - SDK is disabled by default
 - No performance overhead
@@ -297,15 +314,17 @@ The SDK is designed to be **completely transparent** in test builds:
 
 ---
 
-##  Privacy & Security
+## Privacy & Security
 
 ### What is Captured:
+
 - UI element identifiers and types
 - Screen names and navigation flows
 - Network URLs and HTTP methods
 - Response codes (NOT full response bodies by default)
 
 ### What is NOT Captured:
+
 - Passwords or sensitive input (unless explicitly configured)
 - PII (Personally Identifiable Information)
 - Full API response payloads (configurable)
@@ -313,36 +332,41 @@ The SDK is designed to be **completely transparent** in test builds:
 - Biometric information
 
 ### Data Storage:
+
 - Events stored locally in app's Documents directory
 - No automatic cloud upload
 - Manual export required
 
 ### Production Safety:
+
 - SDK **disabled** in production by default
 - Compile-time gating prevents accidental activation
 - Zero runtime overhead when disabled
 
 ---
 
-##  Performance Impact
+## Performance Impact
 
 ### When Enabled (Observe Build):
+
 - **CPU Overhead:** ~2-5% during active interaction
 - **Memory Overhead:** ~5-10 MB for event buffer
 - **Disk Usage:** ~1-5 MB per export file
 
 ### When Disabled (Test/Prod):
+
 - **CPU Overhead:** 0%
 - **Memory Overhead:** 0 bytes
 - **Disk Usage:** 0 bytes
 
 ---
 
-##  Troubleshooting
+## Troubleshooting
 
 ### Events Not Captured
 
 **Check:**
+
 1. SDK initialized with `enabled: true`
 2. SDK started (`.start()` called or `autoStart: true`)
 3. Using `OBSERVE` build configuration
@@ -351,6 +375,7 @@ The SDK is designed to be **completely transparent** in test builds:
 ### Export Files Not Found
 
 **Check:**
+
 1. Events exported (buffer size reached or interval elapsed)
 2. Correct Documents path: `<container>/Documents/observe/`
 3. File permissions
@@ -358,27 +383,28 @@ The SDK is designed to be **completely transparent** in test builds:
 ### Network Events Missing
 
 **Check:**
+
 1. `enableNetworkCapture: true` in config
 2. Using `URLSession` for networking (not Alamofire or other)
 3. Custom `URLProtocol` registered
 
 ---
 
-##  Comparison with Android SDK
+## Comparison with Android SDK
 
-| Feature | Android | iOS |
-|---------|---------|-----|
-| UI Observation |  Compose + View |  SwiftUI + UIKit |
-| Navigation |  NavController |  NavigationView |
-| Network |  OkHttp Interceptor |  URLProtocol |
-| Hierarchy |  View tree + Compose semantics |  UIView hierarchy |
-| Export Format | JSON | JSON (identical) |
-| Build Variants | Gradle flavors | Xcode schemes |
-| Test IDs | `testTag` | `accessibilityIdentifier` |
+| Feature        | Android                       | iOS                       |
+|----------------|-------------------------------|---------------------------|
+| UI Observation | Compose + View                | SwiftUI + UIKit           |
+| Navigation     | NavController                 | NavigationView            |
+| Network        | OkHttp Interceptor            | URLProtocol               |
+| Hierarchy      | View tree + Compose semantics | UIView hierarchy          |
+| Export Format  | JSON                          | JSON (identical)          |
+| Build Variants | Gradle flavors                | Xcode schemes             |
+| Test IDs       | `testTag`                     | `accessibilityIdentifier` |
 
 ---
 
-##  Next Steps
+## Next Steps
 
 1. **Integrate SDK** into FinDemo app
 2. **Test observation** on simulator/device
@@ -388,11 +414,12 @@ The SDK is designed to be **completely transparent** in test builds:
 
 ---
 
-##  Status
+## Status
 
 **Current:**  iOS Observe SDK Complete (Phase 3 - Step 2)
 
 **Next:**
+
 - iOS Static Analyzer (Swift/SwiftUI parsing)
 - Cross-platform generator updates
 - End-to-end iOS workflow testing

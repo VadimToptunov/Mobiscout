@@ -2,15 +2,16 @@
 CLI commands for self-learning ML system.
 """
 
-import click
 from pathlib import Path
+
+import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import track
+from rich.table import Table
 
-from framework.ml.self_learning import SelfLearningCollector, ModelUpdater, FeedbackCollector
 from framework.config import ConfigManager
+from framework.ml.self_learning import SelfLearningCollector, ModelUpdater, FeedbackCollector
 
 console = Console()
 

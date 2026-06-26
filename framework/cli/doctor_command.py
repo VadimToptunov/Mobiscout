@@ -2,10 +2,11 @@
 CLI command for system health checks
 """
 
-import click
 import json
 from pathlib import Path
 from typing import Optional
+
+import click
 from rich.console import Console
 
 from framework.health import SystemDoctor

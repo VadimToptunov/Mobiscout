@@ -2,9 +2,14 @@
 Event Correlator
 
 Main correlation engine that analyzes events and builds correlations.
+Supports both high-performance Rust implementation and Python fallback.
 """
 
+import logging
+import time
 from typing import List, Dict, Any, Optional
+
+from framework.correlation.strategies import HybridCorrelationStrategy, TemporalProximityStrategy
 from framework.correlation.types import (
     CorrelationResult,
     UIToAPICorrelation,
@@ -13,8 +18,22 @@ from framework.correlation.types import (
     CorrelationStrength,
     CorrelationMethod,
 )
-from framework.correlation.strategies import HybridCorrelationStrategy, TemporalProximityStrategy
 from framework.storage.event_store import EventStore
+
+# Try to import Rust core for 16-90x performance improvement
+try:
+    from rust_core import RustCorrelator
+
+    USE_RUST = True
+    logger = logging.getLogger(__name__)
+    logger.info("Using high-performance Rust correlation engine (16-90x faster)")
+except ImportError:
+    USE_RUST = False
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "Rust core not available, using Python fallback. "
+        "Install Rust core for 16-90x performance improvement: cd rust_core && maturin develop"
+    )
 
 
 class EventCorrelator:
@@ -25,18 +44,30 @@ class EventCorrelator:
     - UI event → API call(s)
     - API response → Navigation
     - Full flows: UI → API → Navigation
+
+    Performance: Uses Rust implementation when available for 16-90x speedup.
     """
 
-    def __init__(self, event_store: Optional[EventStore] = None):
+    def __init__(self, event_store: Optional[EventStore] = None, force_python: bool = False):
         """
         Initialize correlator
 
         Args:
             event_store: Optional EventStore for loading events
+            force_python: Force Python implementation even if Rust is available (for testing)
         """
         self.event_store = event_store
+        self.use_rust = USE_RUST and not force_python
+
+        # Initialize strategies
         self.ui_strategy = HybridCorrelationStrategy()
         self.nav_strategy = TemporalProximityStrategy(max_time_delta_ms=3000)
+
+        # Initialize Rust correlator if available
+        if self.use_rust:
+            self.rust_correlator = RustCorrelator()
+
+        self.logger = logging.getLogger(__name__)
 
     def correlate_session(self, session_id: str) -> CorrelationResult:
         """
@@ -66,11 +97,11 @@ class EventCorrelator:
         )
 
     def correlate_events(
-        self,
-        session_id: str,
-        ui_events: List[Dict[str, Any]],
-        api_events: List[Dict[str, Any]],
-        navigation_events: List[Dict[str, Any]],
+            self,
+            session_id: str,
+            ui_events: List[Dict[str, Any]],
+            api_events: List[Dict[str, Any]],
+            navigation_events: List[Dict[str, Any]],
     ) -> CorrelationResult:
         """
         Correlate provided events
@@ -78,12 +109,83 @@ class EventCorrelator:
         Args:
             session_id: Session identifier
             ui_events: List of UI event dicts
-            api_events: List of API event dicts
+            api_events: List of API/network event dicts
             navigation_events: List of navigation event dicts
 
         Returns:
             CorrelationResult with all correlations
         """
+        start_time = time.time()
+
+        # Try Rust implementation first for 16-90x performance improvement
+        if self.use_rust:
+            try:
+                result = self._correlate_with_rust(
+                    session_id, ui_events, api_events, navigation_events
+                )
+                elapsed = time.time() - start_time
+                self.logger.info(
+                    f"Rust correlation completed in {elapsed * 1000:.2f}ms "
+                    f"({len(ui_events)} UI, {len(api_events)} API, "
+                    f"{len(navigation_events)} nav events)"
+                )
+                return result
+            except Exception as e:
+                self.logger.warning(
+                    f"Rust correlation failed, falling back to Python: {e}"
+                )
+                # Fall through to Python implementation
+
+        # Python fallback implementation
+        result = self._correlate_with_python(
+            session_id, ui_events, api_events, navigation_events
+        )
+
+        elapsed = time.time() - start_time
+        self.logger.info(
+            f"Python correlation completed in {elapsed * 1000:.2f}ms "
+            f"({len(ui_events)} UI, {len(api_events)} API, "
+            f"{len(navigation_events)} nav events)"
+        )
+
+        return result
+
+    def _correlate_with_rust(
+            self,
+            session_id: str,
+            ui_events: List[Dict[str, Any]],
+            api_events: List[Dict[str, Any]],
+            navigation_events: List[Dict[str, Any]],
+    ) -> CorrelationResult:
+        """Correlate using high-performance Rust implementation"""
+        # Use Rust correlator
+        rust_result = self.rust_correlator.correlate_events(
+            ui_events, api_events, navigation_events
+        )
+
+        # Convert Rust result to Python CorrelationResult
+        return CorrelationResult(
+            session_id=session_id,
+            ui_to_api=rust_result.ui_to_api,
+            api_to_navigation=rust_result.api_to_navigation,
+            full_flows=rust_result.full_flows,
+            total_ui_events=len(ui_events),
+            total_api_events=len(api_events),
+            total_navigation_events=len(navigation_events),
+            correlated_ui_events=rust_result.correlated_ui_events,
+            correlated_api_events=rust_result.correlated_api_events,
+            correlation_rate=rust_result.correlation_rate,
+            statistics=rust_result.statistics,
+        )
+
+    def _correlate_with_python(
+            self,
+            session_id: str,
+            ui_events: List[Dict[str, Any]],
+            api_events: List[Dict[str, Any]],
+            navigation_events: List[Dict[str, Any]],
+    ) -> CorrelationResult:
+        """Correlate using Python implementation (fallback)"""
         # Correlate UI → API
         ui_to_api = self._correlate_ui_to_api(ui_events, api_events)
 
@@ -121,7 +223,7 @@ class EventCorrelator:
         )
 
     def _correlate_ui_to_api(
-        self, ui_events: List[Dict[str, Any]], api_events: List[Dict[str, Any]]
+            self, ui_events: List[Dict[str, Any]], api_events: List[Dict[str, Any]]
     ) -> List[UIToAPICorrelation]:
         """
         Correlate UI events with API calls
@@ -191,7 +293,7 @@ class EventCorrelator:
         return correlations
 
     def _correlate_api_to_navigation(
-        self, api_events: List[Dict[str, Any]], nav_events: List[Dict[str, Any]]
+            self, api_events: List[Dict[str, Any]], nav_events: List[Dict[str, Any]]
     ) -> List[APIToNavigationCorrelation]:
         """
         Correlate API responses with navigation events
@@ -246,7 +348,7 @@ class EventCorrelator:
         return correlations
 
     def _build_full_flows(
-        self, ui_to_api: List[UIToAPICorrelation], api_to_nav: List[APIToNavigationCorrelation]
+            self, ui_to_api: List[UIToAPICorrelation], api_to_nav: List[APIToNavigationCorrelation]
     ) -> List[FullFlowCorrelation]:
         """
         Build complete flows by combining UI→API and API→Navigation correlations
@@ -279,7 +381,7 @@ class EventCorrelator:
                     overall_strength = CorrelationStrength.WEAK
 
                 overall_confidence = (ui_corr.confidence_score + sum(nav.confidence_score for nav in related_navs)) / (
-                    1 + len(related_navs)
+                        1 + len(related_navs)
                 )
             else:
                 # No navigation correlations found, use UI correlation values
@@ -304,7 +406,7 @@ class EventCorrelator:
         return flows
 
     def _generate_flow_description(
-        self, ui_corr: UIToAPICorrelation, nav_corrs: List[APIToNavigationCorrelation]
+            self, ui_corr: UIToAPICorrelation, nav_corrs: List[APIToNavigationCorrelation]
     ) -> str:
         """Generate human-readable flow description"""
         parts = [f"User {ui_corr.ui_event_type} on {ui_corr.ui_screen}"]

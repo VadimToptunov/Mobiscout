@@ -1,10 +1,10 @@
-#  Security Features & Warnings
+# Security Features & Warnings
 
-##  CRITICAL SECURITY WARNING
+## CRITICAL SECURITY WARNING
 
 This SDK includes **DANGEROUS security bypass features** that **DISABLE SSL/TLS protection**!
 
-###  Features That Compromise Security:
+### Features That Compromise Security:
 
 1. **Crypto Key Export** - Exports TLS session keys for traffic decryption
 2. **Certificate Pinning Bypass** - Disables SSL certificate validation
@@ -12,7 +12,7 @@ This SDK includes **DANGEROUS security bypass features** that **DISABLE SSL/TLS 
 
 ---
 
-##  Purpose
+## Purpose
 
 These features are designed for **TEST AUTOMATION ONLY**:
 
@@ -23,23 +23,23 @@ These features are designed for **TEST AUTOMATION ONLY**:
 
 ---
 
-##  Safe Usage
+## Safe Usage
 
 ### ONLY enable in:
 
- **`observe` build variant** - For recording user flows  
- **`test` build variant** - For automated testing  
- **Local development** - For debugging  
+**`observe` build variant** - For recording user flows  
+**`test` build variant** - For automated testing  
+**Local development** - For debugging
 
 ### NEVER enable in:
 
- **`production` build variant** - User-facing app  
- **Release builds** - Distributed to users  
- **App Store submissions** - Will be rejected  
+**`production` build variant** - User-facing app  
+**Release builds** - Distributed to users  
+**App Store submissions** - Will be rejected
 
 ---
 
-##  Configuration
+## Configuration
 
 ### Safe Configuration (Production)
 
@@ -74,7 +74,7 @@ ObserveConfig(
 
 ---
 
-##  What Gets Exported
+## What Gets Exported
 
 ### 1. TLS Session Keys
 
@@ -118,7 +118,7 @@ CLIENT_RANDOM 1234567890abcdef... fedcba0987654321...
 
 ---
 
-##  Using Exported Keys
+## Using Exported Keys
 
 ### Export Keys from Device
 
@@ -151,7 +151,7 @@ adb pull /sdcard/Android/data/com.yourapp/files/observe/crypto/tls_keys_session1
 
 ---
 
-##  Protection Mechanisms
+## Protection Mechanisms
 
 ### Build Variant Guards
 
@@ -186,7 +186,7 @@ if (!BuildConfig.CRYPTO_EXPORT_ENABLED) {
 
 ---
 
-##  Security Audit Checklist
+## Security Audit Checklist
 
 Before releasing to production:
 
@@ -199,7 +199,7 @@ Before releasing to production:
 
 ---
 
-##  Technical Details
+## Technical Details
 
 ### How Certificate Pinning Bypass Works
 
@@ -226,28 +226,28 @@ val clientRandom = getClientRandomMethod?.invoke(session) as ByteArray
 
 ---
 
-##  Performance Impact
+## Performance Impact
 
-| Feature | CPU Overhead | Memory Overhead | Storage |
-|---------|--------------|-----------------|---------|
-| Crypto Key Export | < 1% | ~5 MB | ~1 MB/session |
-| SSL Key Capture | < 2% | ~10 MB | ~2 MB/session |
-| Cert Pinning Bypass | None | None | None |
-
----
-
-##  Risk Assessment
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| Keys leaked to attacker | **HIGH** if enabled in prod | **CRITICAL** | Build variant guards |
-| MITM attack | **HIGH** if pinning bypassed | **HIGH** | Only in test builds |
-| App rejection | **CERTAIN** if in release | **CRITICAL** | Automated checks |
-| User data exposure | **MEDIUM** if misconfigured | **CRITICAL** | Runtime validation |
+| Feature             | CPU Overhead | Memory Overhead | Storage       |
+|---------------------|--------------|-----------------|---------------|
+| Crypto Key Export   | < 1%         | ~5 MB           | ~1 MB/session |
+| SSL Key Capture     | < 2%         | ~10 MB          | ~2 MB/session |
+| Cert Pinning Bypass | None         | None            | None          |
 
 ---
 
-##  References
+## Risk Assessment
+
+| Risk                    | Likelihood                   | Impact       | Mitigation           |
+|-------------------------|------------------------------|--------------|----------------------|
+| Keys leaked to attacker | **HIGH** if enabled in prod  | **CRITICAL** | Build variant guards |
+| MITM attack             | **HIGH** if pinning bypassed | **HIGH**     | Only in test builds  |
+| App rejection           | **CERTAIN** if in release    | **CRITICAL** | Automated checks     |
+| User data exposure      | **MEDIUM** if misconfigured  | **CRITICAL** | Runtime validation   |
+
+---
+
+## References
 
 - [OWASP Mobile Security Testing Guide](https://owasp.org/www-project-mobile-security-testing-guide/)
 - [NSS Key Log Format](https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/Key_Log_Format)
@@ -259,6 +259,7 @@ val clientRandom = getClientRandomMethod?.invoke(session) as ByteArray
 ## 🤝 Support
 
 For security questions or concerns:
+
 - Review this document thoroughly
 - Test in isolated environment
 - Never enable in production

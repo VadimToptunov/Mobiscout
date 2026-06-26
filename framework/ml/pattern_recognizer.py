@@ -5,9 +5,9 @@ Uses clustering and sequential pattern mining to identify frequently used flows.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
 from collections import defaultdict, Counter
 from dataclasses import dataclass
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +58,8 @@ class PatternRecognizer:
         self.detected_anomalies: List[AnomalyDetection] = []
 
     def analyze_flows(
-        self,
-        navigation_events: List[Dict[str, Any]]
+            self,
+            navigation_events: List[Dict[str, Any]]
     ) -> List[FlowPattern]:
         """
         Analyze navigation events to detect common flows.
@@ -93,8 +93,8 @@ class PatternRecognizer:
         return patterns
 
     def _group_by_session(
-        self,
-        events: List[Dict[str, Any]]
+            self,
+            events: List[Dict[str, Any]]
     ) -> Dict[str, List[Dict[str, Any]]]:
         """Group events by session ID."""
         sessions = defaultdict(list)
@@ -125,8 +125,8 @@ class PatternRecognizer:
         return sequence
 
     def _mine_sequential_patterns(
-        self,
-        sequences: List[List[str]]
+            self,
+            sequences: List[List[str]]
     ) -> List[FlowPattern]:
         """
         Mine frequent sequential patterns.
@@ -143,9 +143,9 @@ class PatternRecognizer:
         return patterns
 
     def _find_patterns_of_length(
-        self,
-        sequences: List[List[str]],
-        length: int
+            self,
+            sequences: List[List[str]],
+            length: int
     ) -> List[FlowPattern]:
         """Find all patterns of specific length."""
         pattern_counts = Counter()
@@ -153,7 +153,7 @@ class PatternRecognizer:
         # Count subsequences
         for sequence in sequences:
             for i in range(len(sequence) - length + 1):
-                subsequence = tuple(sequence[i:i+length])
+                subsequence = tuple(sequence[i:i + length])
                 pattern_counts[subsequence] += 1
 
         # Filter by min_support
@@ -180,9 +180,9 @@ class PatternRecognizer:
         return patterns
 
     def _mark_critical_paths(
-        self,
-        patterns: List[FlowPattern],
-        sequences: List[List[str]]
+            self,
+            patterns: List[FlowPattern],
+            sequences: List[List[str]]
     ):
         """Mark patterns that are likely critical paths."""
         # Critical path heuristics:
@@ -215,9 +215,9 @@ class PatternRecognizer:
                 pattern.is_critical = True
 
     def detect_anomalies(
-        self,
-        navigation_events: List[Dict[str, Any]],
-        known_patterns: Optional[List[FlowPattern]] = None
+            self,
+            navigation_events: List[Dict[str, Any]],
+            known_patterns: Optional[List[FlowPattern]] = None
     ) -> List[AnomalyDetection]:
         """
         Detect anomalies in user flows.
@@ -252,9 +252,9 @@ class PatternRecognizer:
         return anomalies
 
     def _detect_dead_ends(
-        self,
-        session_id: str,
-        sequence: List[str]
+            self,
+            session_id: str,
+            sequence: List[str]
     ) -> List[AnomalyDetection]:
         """Detect sessions that end unexpectedly."""
         anomalies = []
@@ -280,9 +280,9 @@ class PatternRecognizer:
         return anomalies
 
     def _detect_loops(
-        self,
-        session_id: str,
-        sequence: List[str]
+            self,
+            session_id: str,
+            sequence: List[str]
     ) -> List[AnomalyDetection]:
         """Detect navigation loops (screen revisited multiple times)."""
         anomalies = []
@@ -305,10 +305,10 @@ class PatternRecognizer:
         return anomalies
 
     def _detect_unusual_paths(
-        self,
-        session_id: str,
-        sequence: List[str],
-        known_patterns: List[FlowPattern]
+            self,
+            session_id: str,
+            sequence: List[str],
+            known_patterns: List[FlowPattern]
     ) -> List[AnomalyDetection]:
         """Detect paths that don't match any known pattern."""
         if not known_patterns:
@@ -338,22 +338,22 @@ class PatternRecognizer:
         return anomalies
 
     def _sequence_contains_pattern(
-        self,
-        sequence: List[str],
-        pattern: List[str]
+            self,
+            sequence: List[str],
+            pattern: List[str]
     ) -> bool:
         """Check if sequence contains pattern as subsequence."""
         pattern_len = len(pattern)
 
         for i in range(len(sequence) - pattern_len + 1):
-            if sequence[i:i+pattern_len] == pattern:
+            if sequence[i:i + pattern_len] == pattern:
                 return True
 
         return False
 
     def suggest_test_scenarios(
-        self,
-        patterns: Optional[List[FlowPattern]] = None
+            self,
+            patterns: Optional[List[FlowPattern]] = None
     ) -> List[Dict[str, Any]]:
         """
         Suggest test scenarios based on detected patterns.

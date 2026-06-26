@@ -4,11 +4,11 @@ Allure report generator
 Generates Allure-compatible JSON results.
 """
 
-from pathlib import Path
-from typing import List
 import json
 import uuid
 from datetime import datetime
+from pathlib import Path
+from typing import List
 
 from .unified_reporter import TestSuite, TestResult
 
@@ -106,6 +106,6 @@ class AllureGenerator:
             if timestamp_str:
                 dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
                 return int(dt.timestamp() * 1000)
-        except Exception:
+        except (ValueError, AttributeError):
             pass
         return int(datetime.now().timestamp() * 1000)

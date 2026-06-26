@@ -137,13 +137,13 @@ selector = AdvancedSelector(
 
 #### Relationship Types
 
-| Relationship | Description | Use Case |
-|--------------|-------------|----------|
-| `PARENT` | Direct parent element | Find container of an element |
-| `CHILD` | Direct child elements | Find inputs inside a form |
-| `SIBLING` | Elements with same parent | Find button next to input |
-| `ANCESTOR` | Any parent up the tree | Find screen containing element |
-| `DESCENDANT` | Any child down the tree | Find all buttons in a layout |
+| Relationship | Description               | Use Case                       |
+|--------------|---------------------------|--------------------------------|
+| `PARENT`     | Direct parent element     | Find container of an element   |
+| `CHILD`      | Direct child elements     | Find inputs inside a form      |
+| `SIBLING`    | Elements with same parent | Find button next to input      |
+| `ANCESTOR`   | Any parent up the tree    | Find screen containing element |
+| `DESCENDANT` | Any child down the tree   | Find all buttons in a layout   |
 
 ### 5. Index Selection
 
@@ -404,6 +404,7 @@ selector = (
 ```
 
 Benefits:
+
 - ✅ Type-safe (IDE autocomplete)
 - ✅ Composable (build from parts)
 - ✅ Testable (unit test each filter)
@@ -431,6 +432,7 @@ Benefits:
 ## Roadmap
 
 ### Phase 1 (Complete)
+
 - ✅ Core selector types
 - ✅ Filter operators
 - ✅ Relationship selectors
@@ -439,6 +441,7 @@ Benefits:
 - ✅ Appium integration
 
 ### Phase 2 (Future)
+
 - 🔄 Visual selectors (by image)
 - 🔄 AI-powered selectors
 - 🔄 Selector recording

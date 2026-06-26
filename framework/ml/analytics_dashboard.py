@@ -6,10 +6,10 @@ test coverage, and selector stability trends.
 """
 
 import logging
+from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
-from datetime import datetime
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 

@@ -2,12 +2,12 @@
 Device pool management for parallel test execution
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
-from enum import Enum
 import threading
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List, Dict, Optional, Any
 
-from .device_manager import Device, DeviceStatus, DeviceType
+from .device_layer import Device, DeviceStatus, DeviceType
 
 
 class PoolStrategy(Enum):
@@ -93,9 +93,18 @@ class DevicePool:
             device = candidates[0] if candidates else None
 
         if device:
-            with self._locks[device.id]:
-                if not self._reserved[device.id]:
-                    self._reserved[device.id] = True
+            # Get lock reference while holding no locks to avoid race
+            device_id = device.id
+            if device_id not in self._locks:
+                return None
+            lock = self._locks[device_id]
+
+            with lock:
+                # Double-check device still exists and is not reserved
+                if device_id not in self._reserved:
+                    return None
+                if not self._reserved[device_id]:
+                    self._reserved[device_id] = True
                     device.status = DeviceStatus.BUSY
                     print(f"  Acquired device: {device.name} ({device.id})")
                     return device
@@ -188,7 +197,11 @@ class DevicePool:
             return None
 
         # Find next device after last used index
-        self._last_used_index = (self._last_used_index + 1) % len(candidates)
+        # Guard against empty list (though checked above, for safety)
+        num_candidates = len(candidates)
+        if num_candidates == 0:
+            return None
+        self._last_used_index = (self._last_used_index + 1) % num_candidates
         return candidates[self._last_used_index]
 
     def _acquire_least_busy(self, candidates: List[Device]) -> Optional[Device]:
@@ -265,7 +278,7 @@ class PoolManager:
             return
 
         print(f"\nDevice Pools ({len(self.pools)}):")
-        print(f"{'='*80}\n")
+        print(f"{'=' * 80}\n")
 
         for name, pool in self.pools.items():
             health = pool.health_check()

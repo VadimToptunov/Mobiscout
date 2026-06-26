@@ -5,6 +5,7 @@ Optimizes and improves existing selectors.
 """
 
 from typing import Dict, List
+
 from framework.model.app_model import Selector, SelectorStability as ModelStability
 
 
@@ -57,8 +58,8 @@ class SelectorOptimizer:
         return optimized_xpath
 
     def analyze_selectors(
-        self,
-        selectors: List[Selector]
+            self,
+            selectors: List[Selector]
     ) -> Dict[str, any]:
         """
         Analyze a collection of selectors
@@ -115,20 +116,20 @@ class SelectorOptimizer:
 
         if low > total * 0.2:
             recommendations.append(
-                f"  {low} low-stability selectors detected ({low/total*100:.1f}%). "
+                f"  {low} low-stability selectors detected ({low / total * 100:.1f}%). "
                 "Add test tags or accessibility IDs to improve stability."
             )
 
         if low + unknown > total * 0.3:
             recommendations.append(
-                f"  {low + unknown} unstable selectors ({(low+unknown)/total*100:.1f}%). "
+                f"  {low + unknown} unstable selectors ({(low + unknown) / total * 100:.1f}%). "
                 "Consider using test IDs, resource IDs, or accessibility IDs."
             )
 
         xpath_count = strategies.get('xpath', 0)
         if xpath_count > total * 0.5:
             recommendations.append(
-                f"  {xpath_count} XPath selectors ({xpath_count/total*100:.1f}%). "
+                f"  {xpath_count} XPath selectors ({xpath_count / total * 100:.1f}%). "
                 "XPath is fragile. Add stable IDs to UI elements."
             )
 
@@ -142,9 +143,9 @@ class SelectorOptimizer:
             'average_stability': round(avg_score, 2),
             'stability_distribution': {
                 'excellent': high,  # Map HIGH to excellent for display
-                'good': medium,     # Map MEDIUM to good
-                'fair': 0,          # Not used (kept for compatibility)
-                'poor': low,        # Map LOW to poor
+                'good': medium,  # Map MEDIUM to good
+                'fair': 0,  # Not used (kept for compatibility)
+                'poor': low,  # Map LOW to poor
                 'fragile': unknown  # Map UNKNOWN to fragile
             },
             'strategy_distribution': strategies,
@@ -152,8 +153,8 @@ class SelectorOptimizer:
         }
 
     def find_duplicate_selectors(
-        self,
-        selectors: List[Selector]
+            self,
+            selectors: List[Selector]
     ) -> List[tuple[str, str]]:
         """
         Find duplicate selectors (same selector for different elements)

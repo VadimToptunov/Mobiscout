@@ -2,12 +2,12 @@
 CLI commands for API Mocking
 """
 
-import click
 from pathlib import Path
+
+import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.progress import track
+from rich.table import Table
 
 from framework.mocking import APIMocker
 

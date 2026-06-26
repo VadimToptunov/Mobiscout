@@ -2,12 +2,13 @@
 Recording session commands for capturing mobile app behavior.
 """
 
-import click
 from pathlib import Path
 from typing import Optional
 
-from framework.utils.logger import get_logger
+import click
+
 from framework.cli.rich_output import print_header, print_success, print_error, print_info
+from framework.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

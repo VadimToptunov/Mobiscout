@@ -4,17 +4,17 @@ Selector Scorer
 Evaluates selector stability and reliability.
 """
 
-from typing import Dict, List
 from enum import Enum
+from typing import Dict, List
 
 
 class SelectorStability(str, Enum):
     """Selector stability levels"""
-    EXCELLENT = "excellent"    # 0.9-1.0 - ID-based, very stable
-    GOOD = "good"              # 0.7-0.9 - Resource ID, accessibility ID
-    FAIR = "fair"              # 0.5-0.7 - Text-based, class+index
-    POOR = "poor"              # 0.3-0.5 - XPath with multiple levels
-    FRAGILE = "fragile"        # 0.0-0.3 - Complex XPath, dynamic attributes
+    EXCELLENT = "excellent"  # 0.9-1.0 - ID-based, very stable
+    GOOD = "good"  # 0.7-0.9 - Resource ID, accessibility ID
+    FAIR = "fair"  # 0.5-0.7 - Text-based, class+index
+    POOR = "poor"  # 0.3-0.5 - XPath with multiple levels
+    FRAGILE = "fragile"  # 0.0-0.3 - Complex XPath, dynamic attributes
 
 
 class SelectorScorer:
@@ -27,21 +27,21 @@ class SelectorScorer:
     def __init__(self):
         # Scoring weights for different selector types
         self.type_scores = {
-            'test_id': 1.0,          # Best: Developer-provided test IDs
+            'test_id': 1.0,  # Best: Developer-provided test IDs
             'accessibility_id': 0.95,  # Excellent: Accessibility identifiers
-            'resource_id': 0.90,      # Excellent: Android resource IDs
-            'id': 0.90,               # Excellent: iOS view IDs
-            'content_desc': 0.75,     # Good: Content descriptions
-            'text': 0.60,             # Fair: Visible text (can change)
-            'class_name': 0.50,       # Fair: Class + attributes
-            'xpath': 0.30,            # Poor: XPath (fragile)
-            'index': 0.20             # Fragile: Position-based
+            'resource_id': 0.90,  # Excellent: Android resource IDs
+            'id': 0.90,  # Excellent: iOS view IDs
+            'content_desc': 0.75,  # Good: Content descriptions
+            'text': 0.60,  # Fair: Visible text (can change)
+            'class_name': 0.50,  # Fair: Class + attributes
+            'xpath': 0.30,  # Poor: XPath (fragile)
+            'index': 0.20  # Fragile: Position-based
         }
 
     def score_selector(
-        self,
-        selector: Dict[str, str],
-        platform: str = "android"
+            self,
+            selector: Dict[str, str],
+            platform: str = "android"
     ) -> float:
         """
         Score a single selector
@@ -141,9 +141,9 @@ class SelectorScorer:
             return SelectorStability.FRAGILE
 
     def recommend_fallbacks(
-        self,
-        primary_selector: Dict[str, str],
-        available_attributes: Dict[str, str]
+            self,
+            primary_selector: Dict[str, str],
+            available_attributes: Dict[str, str]
     ) -> List[Dict[str, str]]:
         """
         Recommend fallback selectors based on available attributes

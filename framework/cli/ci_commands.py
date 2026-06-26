@@ -2,12 +2,14 @@
 CLI commands for CI/CD Integration
 """
 
-import click
 from pathlib import Path
+
+import click
+import yaml
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.syntax import Syntax
+from rich.table import Table
 
 from framework.ci.templates import get_template, get_filename
 
@@ -22,7 +24,8 @@ def ci():
 
 @ci.command()
 @click.argument("ci_system", type=click.Choice(["github", "gitlab", "jenkins", "circleci"]))
-@click.option("--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]), default="basic", help="Template type")
+@click.option("--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]),
+              default="basic", help="Template type")
 @click.option("--output", "-o", type=Path, help="Output file (default: standard location)")
 def init(ci_system: str, template_type: str, output: Path):
     """Initialize CI/CD configuration for your project."""
@@ -61,7 +64,8 @@ def init(ci_system: str, template_type: str, output: Path):
 
         # Show preview
         if click.confirm("\nShow file contents?", default=True):
-            syntax = Syntax(template, "yaml" if ci_system in ["github", "gitlab", "circleci"] else "groovy", theme="monokai", line_numbers=True)
+            syntax = Syntax(template, "yaml" if ci_system in ["github", "gitlab", "circleci"] else "groovy",
+                            theme="monokai", line_numbers=True)
             console.print("\n")
             console.print(syntax)
 
@@ -96,13 +100,14 @@ def list_templates():
         table.add_row(ci_system, template_type, description)
 
     console.print(table)
-    
+
     console.print("\n[dim]Usage: observe ci init <system> --type <template>[/dim]")
 
 
 @ci.command()
 @click.argument("ci_system", type=click.Choice(["github", "gitlab", "jenkins", "circleci"]))
-@click.option("--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]), default="basic")
+@click.option("--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]),
+              default="basic")
 def show(ci_system: str, template_type: str):
     """Show a CI/CD template without saving."""
     try:
@@ -138,16 +143,15 @@ def validate(config_file: Path):
         # Determine CI system from filename
         if ".github" in str(config_file):
             ci_system = "GitHub Actions"
-            import yaml
             with open(config_file) as f:
                 config = yaml.safe_load(f)
-            
+
             # Check if YAML is empty or invalid
             if config is None:
                 console.print("[red]✗[/red] Validation failed!")
                 console.print("[red]Error:[/red] YAML file is empty or invalid")
                 raise SystemExit(1)
-            
+
             # Basic validation
             issues = []
             if "name" not in config:
@@ -159,16 +163,15 @@ def validate(config_file: Path):
 
         elif config_file.name == ".gitlab-ci.yml":
             ci_system = "GitLab CI"
-            import yaml
             with open(config_file) as f:
                 config = yaml.safe_load(f)
-            
+
             # Check if YAML is empty or invalid
             if config is None:
                 console.print("[red]✗[/red] Validation failed!")
                 console.print("[red]Error:[/red] YAML file is empty or invalid")
                 raise SystemExit(1)
-            
+
             issues = []
             if "stages" not in config:
                 issues.append("Missing 'stages' field")
@@ -177,7 +180,7 @@ def validate(config_file: Path):
             ci_system = "Jenkins"
             with open(config_file) as f:
                 content = f.read()
-            
+
             issues = []
             if "pipeline" not in content:
                 issues.append("Missing 'pipeline' block")
@@ -186,16 +189,15 @@ def validate(config_file: Path):
 
         elif ".circleci" in str(config_file):
             ci_system = "CircleCI"
-            import yaml
             with open(config_file) as f:
                 config = yaml.safe_load(f)
-            
+
             # Check if YAML is empty or invalid
             if config is None:
                 console.print("[red]✗[/red] Validation failed!")
                 console.print("[red]Error:[/red] YAML file is empty or invalid")
                 raise SystemExit(1)
-            
+
             issues = []
             if "version" not in config:
                 issues.append("Missing 'version' field")

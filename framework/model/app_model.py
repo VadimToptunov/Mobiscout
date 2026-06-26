@@ -9,17 +9,18 @@ This module defines the semantic model of a mobile application including:
 - Navigation flows
 """
 
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
+from .api import APICall
+from .element import Element, Action
 # Import all model components
 from .enums import Platform, ActionType, ElementType, TestPriority, SelectorStability
-from .selector import Selector
-from .element import Element, Action
-from .api import APICall
-from .screen import Screen, Precondition
 from .flow import Flow, StateMachine, StateTransition
+from .screen import Screen, Precondition
+from .selector import Selector
 
 # Re-export all models for backward compatibility
 __all__ = [

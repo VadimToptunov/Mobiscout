@@ -8,9 +8,8 @@ Note: This is a simplified adapter. Full implementation would require
 running XCUITest and communicating via xcodebuild or custom runner.
 """
 
-from typing import Dict, Any, Optional
 import subprocess
-import json
+from typing import Dict, Any, Optional
 
 from framework.backends import MobileAutomationBackend, BackendCapability
 
@@ -38,7 +37,7 @@ class XCTestBackend(MobileAutomationBackend):
         )
 
     def start_session(
-        self, device_id: str, app_path: Optional[str] = None, capabilities: Optional[Dict[str, Any]] = None
+            self, device_id: str, app_path: Optional[str] = None, capabilities: Optional[Dict[str, Any]] = None
     ) -> str:
         """Start XCTest session (simplified)."""
         import uuid
@@ -100,7 +99,7 @@ class XCTestBackend(MobileAutomationBackend):
         pass
 
     def swipe(
-        self, session_id: str, start_x: int, start_y: int, end_x: int, end_y: int, duration_ms: int = 300
+            self, session_id: str, start_x: int, start_y: int, end_x: int, end_y: int, duration_ms: int = 300
     ) -> None:
         """Swipe (simplified)."""
         # Full implementation would use XCUITest gestures

@@ -5,22 +5,16 @@ Commands for comprehensive project analysis that write results to target
 test projects.
 """
 
-import click
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
-from datetime import datetime
+
+import click
+import yaml  # type: ignore
 from pydantic import ValidationError
 
-import yaml  # type: ignore
-
 from framework.analyzers.business_logic_analyzer import BusinessLogicAnalyzer
-from framework.integration.model_enricher import ProjectIntegrator
-from framework.generators import page_object_gen, api_client_gen, bdd_gen
-from framework.model.app_model import AppModel
-from framework.utils.logger import get_logger, setup_logging
-from framework.utils.sanitizer import sanitize_identifier, sanitize_class_name
-from framework.utils.error_handling import handle_cli_errors, validate_and_raise
 from framework.cli.rich_output import (
     print_header,
     print_success,
@@ -31,6 +25,12 @@ from framework.cli.rich_output import (
     print_summary,
     create_progress,
 )
+from framework.generators import page_object_gen, api_client_gen, bdd_gen
+from framework.integration.model_enricher import ProjectIntegrator
+from framework.model.app_model import AppModel
+from framework.utils.error_handling import handle_cli_errors, validate_and_raise
+from framework.utils.logger import get_logger, setup_logging
+from framework.utils.sanitizer import sanitize_identifier, sanitize_class_name
 
 # Setup logging
 setup_logging(level="INFO")
@@ -228,10 +228,10 @@ def project() -> None:
 )
 @handle_cli_errors(exit_on_error=True)
 def analyze(
-    android_source: Optional[str],
-    ios_source: Optional[str],
-    output_dir: str,
-    format: str,
+        android_source: Optional[str],
+        ios_source: Optional[str],
+        output_dir: str,
+        format: str,
 ) -> None:
     """
     Comprehensive project analysis
@@ -392,11 +392,11 @@ def integrate(analysis: str, project: str, preserve_existing: bool) -> None:
 @click.option("--generate-api-tests/--no-api-tests", default=True, help="Generate API tests")
 @click.option("--generate-features/--no-features", default=True, help="Generate BDD features")
 def generate(
-    project: str,
-    generate_page_objects: bool,
-    generate_tests: bool,
-    generate_api_tests: bool,
-    generate_features: bool,
+        project: str,
+        generate_page_objects: bool,
+        generate_tests: bool,
+        generate_api_tests: bool,
+        generate_features: bool,
 ) -> None:
     """
     Generate complete test suite from enriched model
@@ -647,10 +647,10 @@ class Test{class_name}:
     help="Output directory for analysis results",
 )
 def fullcycle(
-    android_path: Optional[str],
-    ios_path: Optional[str],
-    project: str,
-    output_dir: str,
+        android_path: Optional[str],
+        ios_path: Optional[str],
+        project: str,
+        output_dir: str,
 ) -> None:
     """
     Complete analysis and generation pipeline

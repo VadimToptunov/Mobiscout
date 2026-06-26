@@ -3,6 +3,7 @@ Simple test for AST Analyzer
 """
 
 from pathlib import Path
+
 from framework.analyzers.ast_analyzer import ASTAnalyzer
 
 

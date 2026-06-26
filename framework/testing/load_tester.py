@@ -2,17 +2,17 @@
 Load Testing - Stress testing and performance profiling
 """
 
-from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
-import time
-import statistics
 import json
+import statistics
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Callable
 
+from framework.devices.device_manager import DeviceManager
 from framework.execution.test_runner import TestRunner
-from framework.device.device_manager import DeviceManager
 
 
 @dataclass
@@ -187,7 +187,7 @@ class LoadTester:
                 try:
                     result = future.result(timeout=self.config.timeout_seconds)
                     self.results.append(result)
-                except Exception as e:
+                except (TimeoutError, RuntimeError, OSError, ValueError) as e:
                     self.results.append({
                         "success": False,
                         "error": str(e),
@@ -200,10 +200,10 @@ class LoadTester:
         return self._generate_results(start_time, end_time)
 
     def _run_user_session(
-        self,
-        user_id: int,
-        start_time: datetime,
-        progress_callback: Optional[Callable[[str], None]] = None,
+            self,
+            user_id: int,
+            start_time: datetime,
+            progress_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Run a single user session"""
         profile = self.config.profile
@@ -237,7 +237,7 @@ class LoadTester:
                         f"User {user_id} - Iteration {iteration}: "
                         f"{'PASS' if success else 'FAIL'} ({test_duration:.2f}s)"
                     )
-            except Exception as e:
+            except (RuntimeError, OSError, ValueError, AttributeError) as e:
                 test_duration = time.time() - test_start
                 session_results.append({
                     "success": False,
@@ -269,9 +269,16 @@ class LoadTester:
 
         # Run test
         runner = TestRunner()
-        result = runner.run_test(str(self.config.test_path), device)
+        test_path = Path(self.config.test_path) if self.config.test_path else None
+        result = runner.run_test(
+            test_name=f"load_test_{user_id}",
+            test_path=test_path
+        )
 
-        return result.passed if result else False
+        if result is None:
+            return False
+        from framework.execution.test_runner import TestResultStatus
+        return result.status == TestResultStatus.PASSED
 
     def _has_critical_errors(self) -> bool:
         """Check if there are critical errors"""

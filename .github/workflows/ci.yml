@@ -1,0 +1,300 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  PYTHON_VERSION: '3.13'
+  RUST_VERSION: 'stable'
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 mypy black
+
+      - name: Run Black (code formatter check)
+        run: black --check framework tests
+
+      - name: Run Flake8 (linter)
+        run: |
+          # Stop build on syntax errors or undefined names
+          flake8 framework --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 framework --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+      - name: Run MyPy (type checker)
+        run: mypy framework --ignore-missing-imports --no-error-summary
+        continue-on-error: true
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Run security scanner
+        run: |
+          python -c "
+          from framework.security.config import validate_no_hardcoded_secrets
+          from pathlib import Path
+          import sys
+          
+          issues = []
+          for py_file in Path('framework').rglob('*.py'):
+              code = py_file.read_text()
+              file_issues = validate_no_hardcoded_secrets(code, str(py_file))
+              issues.extend(file_issues)
+          
+          if issues:
+              print('❌ Security issues found:')
+              for issue in issues:
+                  print(f\"  {issue['type']}: {issue['file']}:{issue['line']}\")
+              sys.exit(1)
+          else:
+              print('✅ No hardcoded secrets found')
+          "
+
+      - name: Check for vulnerable dependencies
+        run: |
+          pip install safety
+          safety check --json || true
+
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        python-version: [ '3.13', '3.14' ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-xdist
+          pip install -e .
+
+      - name: Run tests
+        run: |
+          pytest tests/ \
+            --cov=framework \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term \
+            -v \
+            -n auto
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  build-rust:
+    name: Build Rust Core
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          override: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Build Rust core
+        working-directory: rust_core
+        run: |
+          cargo build --release
+          cargo test --release
+
+      - name: Build Python wheel
+        working-directory: rust_core
+        run: maturin build --release
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-wheel-${{ matrix.os }}
+          path: rust_core/target/wheels/*.whl
+
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [ lint, test, build-rust ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y android-tools-adb
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Download Rust wheels
+        uses: actions/download-artifact@v3
+        with:
+          name: rust-wheel-ubuntu-latest
+          path: wheels/
+
+      - name: Install Rust core
+        run: pip install wheels/*.whl || echo "Rust core optional"
+
+      - name: Run integration tests
+        run: |
+          # Start mock backend
+          cd demo-app/mock-backend
+          uvicorn main:app --port 8000 &
+          MOCK_PID=$!
+          cd ../..
+          
+          # Wait for backend to start
+          sleep 5
+          
+          # Run CLI tests
+          observe info
+          observe health
+          
+          # Cleanup
+          kill $MOCK_PID || true
+
+  build-plugin:
+    name: Build JetBrains Plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build plugin
+        working-directory: jetbrains-plugin
+        run: ./gradlew buildPlugin
+
+      - name: Verify plugin
+        working-directory: jetbrains-plugin
+        run: ./gradlew verifyPlugin
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: jetbrains-plugin
+          path: jetbrains-plugin/build/distributions/*.zip
+
+  publish-pypi:
+    name: Publish to PyPI
+    if: github.event_name == 'release'
+    needs: [ lint, test, build-rust, integration-test ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download all wheels
+        uses: actions/download-artifact@v3
+        with:
+          path: wheels/
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: twine upload dist/*
+
+  publish-plugin:
+    name: Publish Plugin to JetBrains Marketplace
+    if: github.event_name == 'release'
+    needs: [ build-plugin ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Publish plugin
+        working-directory: jetbrains-plugin
+        env:
+          JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: ./gradlew publishPlugin

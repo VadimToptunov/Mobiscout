@@ -2,7 +2,8 @@
 
 ## Overview
 
-The Mobile Test Recorder uses a **JSON-RPC 2.0** protocol for communication between the JetBrains IDE plugin (client) and the CLI backend (server). This ensures a clean separation of concerns and allows for future extensibility.
+The Mobile Test Recorder uses a **JSON-RPC 2.0** protocol for communication between the JetBrains IDE plugin (client)
+and the CLI backend (server). This ensures a clean separation of concerns and allows for future extensibility.
 
 ## Transport
 
@@ -48,16 +49,16 @@ Error:
 
 ## Error Codes
 
-| Code | Message | Description |
-|------|---------|-------------|
-| -32700 | Parse error | Invalid JSON |
-| -32600 | Invalid request | Invalid JSON-RPC |
-| -32601 | Method not found | Unknown method |
-| -32602 | Invalid params | Invalid parameters |
-| -32603 | Internal error | Server error |
+| Code   | Message          | Description                |
+|--------|------------------|----------------------------|
+| -32700 | Parse error      | Invalid JSON               |
+| -32600 | Invalid request  | Invalid JSON-RPC           |
+| -32601 | Method not found | Unknown method             |
+| -32602 | Invalid params   | Invalid parameters         |
+| -32603 | Internal error   | Server error               |
 | -32000 | Device not found | Device/simulator not found |
-| -32001 | Session error | Automation session error |
-| -32002 | Backend error | Backend adapter error |
+| -32001 | Session error    | Automation session error   |
+| -32002 | Backend error    | Backend adapter error      |
 
 ## Core Methods
 
@@ -869,4 +870,5 @@ mtr protocol-test --method health/check
 
 ---
 
-This protocol provides a solid foundation for Phase 1-11 of the roadmap and can be extended as needed without breaking changes.
+This protocol provides a solid foundation for Phase 1-11 of the roadmap and can be extended as needed without breaking
+changes.

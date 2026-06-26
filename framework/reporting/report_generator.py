@@ -12,12 +12,12 @@ Features:
 - Customizable templates
 """
 
-from pathlib import Path
-from typing import List, Dict, Any, Optional
+import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import json
+from pathlib import Path
+from typing import List, Dict, Optional
 
 
 class ReportFormat(Enum):
@@ -57,34 +57,34 @@ class TestSuiteResult:
     start_time: datetime = field(default_factory=datetime.now)
     end_time: Optional[datetime] = None
     environment: Dict[str, str] = field(default_factory=dict)
-    
+
     @property
     def duration(self) -> float:
         """Total duration in seconds"""
         if self.end_time:
             return (self.end_time - self.start_time).total_seconds()
         return 0.0
-    
+
     @property
     def total_count(self) -> int:
         return len(self.tests)
-    
+
     @property
     def passed_count(self) -> int:
         return sum(1 for t in self.tests if t.status == TestStatus.PASSED)
-    
+
     @property
     def failed_count(self) -> int:
         return sum(1 for t in self.tests if t.status == TestStatus.FAILED)
-    
+
     @property
     def skipped_count(self) -> int:
         return sum(1 for t in self.tests if t.status == TestStatus.SKIPPED)
-    
+
     @property
     def error_count(self) -> int:
         return sum(1 for t in self.tests if t.status == TestStatus.ERROR)
-    
+
     @property
     def pass_rate(self) -> float:
         """Pass rate as percentage"""
@@ -95,7 +95,7 @@ class TestSuiteResult:
 
 class HTMLReportGenerator:
     """Generate interactive HTML reports"""
-    
+
     HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -291,7 +291,7 @@ class HTMLReportGenerator:
 </body>
 </html>
 """
-    
+
     def generate(self, suite: TestSuiteResult, output_path: Path) -> None:
         """Generate HTML report"""
         # Generate progress bar segments
@@ -314,7 +314,7 @@ class HTMLReportGenerator:
                 f'<div class="progress-segment skipped" style="width: {width}%">'
                 f'{suite.skipped_count}</div>'
             )
-        
+
         # Generate test items
         test_items = []
         for test in suite.tests:
@@ -325,11 +325,11 @@ class HTMLReportGenerator:
                 TestStatus.SKIPPED: "○",
                 TestStatus.ERROR: "!",
             }[test.status]
-            
+
             error_html = ""
             if test.error_message:
                 error_html = f'<div class="test-error">{test.error_message}</div>'
-            
+
             screenshot_html = ""
             if test.screenshot_path and test.screenshot_path.exists():
                 screenshot_html = (
@@ -337,7 +337,7 @@ class HTMLReportGenerator:
                     f'<img src="{test.screenshot_path}" alt="Screenshot" />'
                     f'</div>'
                 )
-            
+
             test_items.append(f"""
             <div class="test-item">
                 <div class="test-status {status_class}">{status_symbol}</div>
@@ -352,7 +352,7 @@ class HTMLReportGenerator:
                 </div>
             </div>
             """)
-        
+
         # Render template
         html = self.HTML_TEMPLATE.format(
             suite_name=suite.name,
@@ -365,7 +365,7 @@ class HTMLReportGenerator:
             progress_segments="".join(progress_segments),
             test_items="".join(test_items),
         )
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
@@ -373,7 +373,7 @@ class HTMLReportGenerator:
 
 class MarkdownReportGenerator:
     """Generate Markdown reports (GitHub/GitLab friendly)"""
-    
+
     def generate(self, suite: TestSuiteResult, output_path: Path) -> None:
         """Generate Markdown report"""
         lines = [
@@ -391,7 +391,7 @@ class MarkdownReportGenerator:
             f"- 📊 **Total:** {suite.total_count}",
             "",
         ]
-        
+
         # Failed tests section
         failed_tests = [t for t in suite.tests if t.status == TestStatus.FAILED]
         if failed_tests:
@@ -399,7 +399,7 @@ class MarkdownReportGenerator:
                 "## ❌ Failed Tests",
                 "",
             ])
-            
+
             for test in failed_tests:
                 lines.append(f"### {test.name}")
                 lines.append("")
@@ -407,14 +407,14 @@ class MarkdownReportGenerator:
                 if test.test_file:
                     lines.append(f"**File:** `{test.test_file}`  ")
                 lines.append("")
-                
+
                 if test.error_message:
                     lines.append("**Error:**")
                     lines.append("```")
                     lines.append(test.error_message)
                     lines.append("```")
                     lines.append("")
-        
+
         # All tests table
         lines.extend([
             "## All Tests",
@@ -422,7 +422,7 @@ class MarkdownReportGenerator:
             "| Status | Test Name | Duration |",
             "|--------|-----------|----------|",
         ])
-        
+
         for test in suite.tests:
             status_icon = {
                 TestStatus.PASSED: "✅",
@@ -430,15 +430,15 @@ class MarkdownReportGenerator:
                 TestStatus.SKIPPED: "⏭️",
                 TestStatus.ERROR: "⚠️",
             }[test.status]
-            
+
             lines.append(
                 f"| {status_icon} | {test.name} | {test.duration:.2f}s |"
             )
-        
+
         lines.append("")
         lines.append("---")
         lines.append("*Generated by Observe Test Framework*")
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
@@ -446,7 +446,7 @@ class MarkdownReportGenerator:
 
 class JSONReportGenerator:
     """Generate JSON reports"""
-    
+
     def generate(self, suite: TestSuiteResult, output_path: Path) -> None:
         """Generate JSON report"""
         data = {
@@ -476,7 +476,7 @@ class JSONReportGenerator:
             ],
             "environment": suite.environment,
         }
-        
+
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -488,19 +488,19 @@ class ReportGenerator:
     
     Supports multiple output formats with a unified interface.
     """
-    
+
     def __init__(self):
         self.generators = {
             ReportFormat.HTML: HTMLReportGenerator(),
             ReportFormat.MARKDOWN: MarkdownReportGenerator(),
             ReportFormat.JSON: JSONReportGenerator(),
         }
-    
+
     def generate(
-        self,
-        suite: TestSuiteResult,
-        output_path: Path,
-        format: ReportFormat = ReportFormat.HTML,
+            self,
+            suite: TestSuiteResult,
+            output_path: Path,
+            format: ReportFormat = ReportFormat.HTML,
     ) -> None:
         """
         Generate report in specified format
@@ -511,12 +511,12 @@ class ReportGenerator:
             format: Report format (HTML/Markdown/JSON)
         """
         generator = self.generators.get(format)
-        
+
         if not generator:
             raise ValueError(f"Unsupported format: {format}")
-        
+
         generator.generate(suite, output_path)
-    
+
     @staticmethod
     def from_junit_xml(xml_path: Path) -> TestSuiteResult:
         """
@@ -529,19 +529,19 @@ class ReportGenerator:
             TestSuiteResult object
         """
         import xml.etree.ElementTree as ET
-        
+
         tree = ET.parse(xml_path)
         root = tree.getroot()
-        
+
         # Get suite name
         suite_name = root.get("name", "Test Suite")
-        
+
         # Parse tests
         tests = []
         for testcase in root.findall(".//testcase"):
             name = testcase.get("name", "Unknown")
             duration = float(testcase.get("time", "0"))
-            
+
             # Determine status
             if testcase.find("failure") is not None:
                 status = TestStatus.FAILED
@@ -557,7 +557,7 @@ class ReportGenerator:
             else:
                 status = TestStatus.PASSED
                 error_message = None
-            
+
             tests.append(TestResult(
                 name=name,
                 status=status,
@@ -565,8 +565,8 @@ class ReportGenerator:
                 error_message=error_message,
                 test_file=testcase.get("classname"),
             ))
-        
+
         suite = TestSuiteResult(name=suite_name, tests=tests)
         suite.end_time = datetime.now()
-        
+
         return suite

@@ -7,9 +7,9 @@ for any Android/iOS application without requiring app-specific training.
 
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Any
 import random
+from pathlib import Path
+from typing import Dict, List, Any, Optional
 
 from framework.model.app_model import ElementType
 
@@ -341,9 +341,9 @@ class UniversalModelBuilder:
         }
 
     def generate_universal_dataset(
-        self,
-        samples_per_type: int = 200,
-        output_path: Path = Path('ml_models/universal_training_data.json')
+            self,
+            samples_per_type: int = 200,
+            output_path: Path = Path('ml_models/universal_training_data.json')
     ) -> Path:
         """
         Generate large universal training dataset.
@@ -383,9 +383,9 @@ class UniversalModelBuilder:
         return output_path
 
     def _create_sample_variation(
-        self,
-        template: Dict[str, Any],
-        element_type: ElementType
+            self,
+            template: Dict[str, Any],
+            element_type: ElementType
     ) -> Dict[str, Any]:
         """Create a sample with random variations."""
         sample = template.copy()
@@ -441,10 +441,28 @@ class UniversalModelBuilder:
         ]
         return random.choice(texts)
 
+    def generate_training_data(
+            self,
+            output_path: Optional[Path] = None,
+            samples_per_type: int = 100
+    ) -> Path:
+        """
+        Generate training data (alias for generate_universal_dataset).
+
+        Args:
+            output_path: Output file path
+            samples_per_type: Number of samples per element type
+
+        Returns:
+            Path to generated dataset
+        """
+        path = output_path or Path('ml_models/training_data.json')
+        return self.generate_universal_dataset(samples_per_type, path)
+
     def train_universal_model(
-        self,
-        dataset_path: Path,
-        output_model_path: Path = Path('ml_models/universal_element_classifier.pkl')
+            self,
+            dataset_path: Path,
+            output_model_path: Path = Path('ml_models/universal_element_classifier.pkl')
     ):
         """
         Train universal model on generated dataset.
@@ -530,22 +548,22 @@ def create_universal_pretrained_model():
         output_model_path=Path('ml_models/universal_element_classifier.pkl')
     )
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print(" UNIVERSAL PRE-TRAINED MODEL CREATED!")
-    print("="*70)
+    print("=" * 70)
     print("Samples: 2500+")
     print(f"Accuracy: {metrics['test_accuracy']:.1%}")
     print("Model: ml_models/universal_element_classifier.pkl")
-    print("="*70)
+    print("=" * 70)
     print("\n SUPPORTS ALL MOBILE TECHNOLOGIES:")
     print("   • Native Android (View, Compose)")
     print("   • Native iOS (UIKit, SwiftUI)")
     print("   • Flutter (Dart)")
     print("   • React Native (JavaScript/TypeScript)")
-    print("="*70)
+    print("=" * 70)
     print("\nThis model works out-of-the-box for ANY mobile application!")
     print("No app-specific training required! ")
-    print("="*70)
+    print("=" * 70)
 
     return Path('ml_models/universal_element_classifier.pkl')
 

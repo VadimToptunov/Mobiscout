@@ -67,6 +67,7 @@ Fixes #issue_number (if applicable)
 ```
 
 **Types:**
+
 - `Add` - New feature
 - `Fix` - Bug fix
 - `Update` - Update existing feature

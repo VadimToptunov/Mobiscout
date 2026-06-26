@@ -4,6 +4,7 @@ Test Business Logic Analyzer v2.0 Features
 """
 
 from pathlib import Path
+
 from framework.analyzers.business_logic_analyzer import (
     BusinessLogicAnalyzer,
     StateMachine,

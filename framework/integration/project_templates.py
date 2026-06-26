@@ -4,7 +4,6 @@ Test project templates and initialization
 Creates new test automation projects with best practices structure.
 """
 
-
 import textwrap
 
 

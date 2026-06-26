@@ -4,14 +4,15 @@ Test Selection CLI commands
 Commands for intelligent test selection based on code changes.
 """
 
-import click
 from pathlib import Path
 
-from framework.selection.test_selector import TestSelector
-from framework.selection.change_analyzer import ChangeAnalyzer, FileChange
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
+import click
 from rich.console import Console
 from rich.table import Table
+
+from framework.cli.rich_output import print_header, print_info, print_success, print_error
+from framework.selection.change_analyzer import ChangeAnalyzer, FileChange
+from framework.selection.test_selector import TestSelector
 
 console = Console()
 
@@ -43,17 +44,18 @@ def auto(since: str, tests_dir: str, output: str) -> None:
 
         # Get changed files using ChangeAnalyzer
         print_info("  • Detecting changed files")
-        changed_files = analyzer.get_changed_files(since_commit=since)
+        base_ref = since if since else "main"
+        changes = analyzer.get_changes(base_ref, "HEAD")
 
-        if not changed_files:
+        if not changes:
             print_success("\n✅ No changes detected - no tests need to run")
             return
 
-        print_info(f"  • Found {len(changed_files)} changed files")
+        print_info(f"  • Found {len(changes)} changed files")
 
         # Select tests
         print_info("  • Selecting affected tests")
-        selected_tests = selector.select_tests(changed_files)
+        selected_tests = selector.select_tests(changes)
 
         if not selected_tests:
             print_info("\n⚠️  No tests affected by changes")

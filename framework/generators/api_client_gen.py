@@ -4,12 +4,12 @@ API Client Generator
 Generates API client classes from App Model API calls.
 """
 
-from typing import List
 from pathlib import Path
+from typing import List
+
 from jinja2 import Template
 
 from framework.model.app_model import APICall
-
 
 API_CLIENT_TEMPLATE = """
 import requests

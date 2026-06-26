@@ -1,52 +1,55 @@
-#  Demo FinTech Application
+# Demo FinTech Application
 
 Simplified fintech application to demonstrate Mobile Observe & Test Framework capabilities.
 
 ---
 
-##  Features
+## Features
 
 ### Core Flows:
+
 1. **Onboarding** (Swipeable screens)
-   - Welcome screen
-   - Features showcase
-   - Get Started
+    - Welcome screen
+    - Features showcase
+    - Get Started
 
 2. **Authentication**
-   - Login
-   - Registration
-   - Forgot password
+    - Login
+    - Registration
+    - Forgot password
 
 3. **Wallet**
-   - Balance display
-   - Transaction history
-   - Quick actions
+    - Balance display
+    - Transaction history
+    - Quick actions
 
 4. **Top-up** (with WebView)
-   - Enter amount
-   - Card details
-   - WebView payment gateway
-   - Success/Failure handling
+    - Enter amount
+    - Card details
+    - WebView payment gateway
+    - Success/Failure handling
 
 5. **Send Money**
-   - Select recipient
-   - Enter amount
-   - Confirmation
-   - Transaction receipt
+    - Select recipient
+    - Enter amount
+    - Confirmation
+    - Transaction receipt
 
 ---
 
-##  Architecture
+## Architecture
 
 ### Tech Stack:
 
 **Android:**
+
 - **Kotlin** - Primary language
 - **Jetpack Compose** - Modern UI
 - **Navigation Component** - Navigation
 - **OkHttp** - Network layer (with Observe SDK interceptor)
 
 **iOS:**
+
 - **Swift** - Primary language
 - **SwiftUI** - Modern UI
 - **NavigationStack** - iOS 16+ navigation
@@ -55,6 +58,7 @@ Simplified fintech application to demonstrate Mobile Observe & Test Framework ca
 ### Build Variants:
 
 **Android:**
+
 ```
 observe  - Instrumented build with Observe SDK
 test     - Clean build for automated testing
@@ -62,6 +66,7 @@ prod     - Production build (with security features)
 ```
 
 **iOS:**
+
 ```
 Observe  - Scheme with Observe SDK
 Test     - Clean scheme for automated testing
@@ -70,17 +75,19 @@ Release  - Production scheme (future)
 
 ---
 
-##  Getting Started
+## Getting Started
 
 ### Prerequisites:
 
 **Android:**
+
 - Android Studio Hedgehog+ (2023.1.1+)
 - JDK 17
 - Android SDK 34
 - Gradle 8.2+
 
 **iOS:**
+
 - macOS with Xcode 15+
 - iOS 16+ SDK
 - CocoaPods or SPM (optional)
@@ -88,6 +95,7 @@ Release  - Production scheme (future)
 ### Build & Run:
 
 **Android:**
+
 ```bash
 # Clone and navigate
 cd demo-app/android
@@ -104,6 +112,7 @@ adb install app/build/outputs/apk/observe/debug/app-observe-debug.apk
 ```
 
 **iOS:**
+
 ```bash
 # Navigate to iOS project
 cd demo-app/ios/FinDemo
@@ -118,9 +127,10 @@ open FinDemo.xcodeproj
 
 ---
 
-##  Project Structure
+## Project Structure
 
 **Android:**
+
 ```
 android/
  app/
@@ -160,6 +170,7 @@ android/
 ```
 
 **iOS:**
+
 ```
 ios/
  FinDemo/
@@ -199,9 +210,10 @@ ios/
 
 ---
 
-##  Screens Overview
+## Screens Overview
 
 ### 1. Onboarding (ViewPager)
+
 ```kotlin
 OnboardingScreen
  Page 1: Welcome
@@ -211,6 +223,7 @@ OnboardingScreen
 ```
 
 ### 2. Authentication
+
 ```kotlin
 LoginScreen
  Username input
@@ -226,6 +239,7 @@ RegisterScreen
 ```
 
 ### 3. Home
+
 ```kotlin
 HomeScreen
  Balance Card
@@ -236,6 +250,7 @@ HomeScreen
 ```
 
 ### 4. Top-up (with WebView)
+
 ```kotlin
 TopUpScreen
  Amount input
@@ -248,6 +263,7 @@ TopUpScreen
 ```
 
 ### 5. Send Money
+
 ```kotlin
 SendMoneyScreen
  Recipient input
@@ -258,7 +274,7 @@ SendMoneyScreen
 
 ---
 
-##  Configuration
+## Configuration
 
 ### Build Variants
 
@@ -298,6 +314,7 @@ API will be available at: `http://localhost:8000`
 ## 🧪 Testing
 
 ### Manual Testing:
+
 ```bash
 # Install observe build
 ./gradlew installObserveDebug
@@ -306,6 +323,7 @@ API will be available at: `http://localhost:8000`
 ```
 
 ### Automated Testing:
+
 ```bash
 # Install test build
 ./gradlew installTestDebug
@@ -316,28 +334,32 @@ pytest tests/
 
 ---
 
-##  Notes
+## Notes
 
 **General:**
+
 - Both Android and iOS apps have feature parity
 - WebView payment gateway is a mock HTML page
 - All API calls go to mock backend (FastAPI)
 
 **Android:**
+
 - **Observe build** includes SDK and records events
 - **Test build** is clean, without SDK, for automated tests
 - **Prod build** has security features enabled
 
 **iOS:**
+
 - **Observe scheme** includes SDK and records events
 - **Test scheme** is clean for automated tests
 - Event exports to app's Documents directory
 
 ---
 
-##  Troubleshooting
+## Troubleshooting
 
 ### Android Build fails:
+
 ```bash
 # Clean and rebuild
 ./gradlew clean
@@ -345,30 +367,35 @@ pytest tests/
 ```
 
 ### Android SDK not recording:
+
 - Check that observe build is installed (not test)
 - Check logcat: `adb logcat | grep ObserveSDK`
 - Verify events: `adb shell "ls /sdcard/Android/data/com.findemo.observe/files/observe/"`
 
 ### iOS Build fails:
+
 - Clean build folder in Xcode (⌘⇧K)
 - Delete derived data
 - Rebuild
 
 ### iOS SDK not recording:
+
 - Check that Observe scheme is selected
 - Check console logs for ObserveSDK messages
 - Verify events in app's Documents directory
 
 ---
 
-##  Resources
+## Resources
 
 **Android:**
+
 - [Jetpack Compose Docs](https://developer.android.com/jetpack/compose)
 - [Navigation Component](https://developer.android.com/guide/navigation)
 - [WebView](https://developer.android.com/guide/webapps/webview)
 
 **iOS:**
+
 - [SwiftUI Documentation](https://developer.apple.com/documentation/swiftui)
 - [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview)
 - [URLProtocol](https://developer.apple.com/documentation/foundation/urlprotocol)

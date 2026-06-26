@@ -498,12 +498,12 @@ pip install target/wheels/mobile_test_recorder-*.whl
 
 ### Python vs Rust Core
 
-| Operation | Pure Python | Rust Core | Language Overhead |
-|-----------|-------------|-----------|-------------------|
-| AST Analysis (1000 files) | 45s | 2.5s | ~0.1s (PyO3) |
-| Event Correlation (10K) | 8s | 0.4s | ~0.05s |
-| File I/O (100 files) | 5s | 0.3s | ~0.02s |
-| Business Logic Analysis | 12s | 1.1s | ~0.1s |
+| Operation                 | Pure Python | Rust Core | Language Overhead |
+|---------------------------|-------------|-----------|-------------------|
+| AST Analysis (1000 files) | 45s         | 2.5s      | ~0.1s (PyO3)      |
+| Event Correlation (10K)   | 8s          | 0.4s      | ~0.05s            |
+| File I/O (100 files)      | 5s          | 0.3s      | ~0.02s            |
+| Business Logic Analysis   | 12s         | 1.1s      | ~0.1s             |
 
 **Conclusion:** Language binding overhead is negligible (<5%)
 

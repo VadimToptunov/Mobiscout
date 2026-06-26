@@ -4,11 +4,11 @@ Test sharding for parallel execution
 Divides tests into balanced shards for parallel execution.
 """
 
+import hashlib
 from dataclasses import dataclass
-from typing import List, Dict, Any
 from enum import Enum
 from pathlib import Path
-import hashlib
+from typing import List, Dict, Any
 
 
 class ShardStrategy(Enum):
@@ -65,10 +65,10 @@ class TestSharding:
         self.duration_history = duration_history or {}
 
     def create_shards(
-        self,
-        tests: List[TestCase],
-        num_shards: int,
-        strategy: ShardStrategy = ShardStrategy.DURATION_BASED
+            self,
+            tests: List[TestCase],
+            num_shards: int,
+            strategy: ShardStrategy = ShardStrategy.DURATION_BASED
     ) -> List[TestShard]:
         """
         Create test shards

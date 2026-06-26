@@ -30,6 +30,7 @@ observe info
 The framework provides seven main command groups:
 
 ### 1. Business Logic Analysis
+
 ```bash
 # Analyze Android/iOS source code for business rules, edge cases, and patterns
 observe business analyze <source_path> --output analysis.json
@@ -38,6 +39,7 @@ observe business stats analysis.json      # Statistics summary
 ```
 
 ### 2. Project Integration
+
 ```bash
 # Full automation: analyze + generate tests in one command
 observe project fullcycle \
@@ -52,6 +54,7 @@ observe project generate analysis.json --output ./tests/
 ```
 
 ### 3. Dashboard & Analytics
+
 ```bash
 # Start local web dashboard for test results visualization
 observe dashboard start --port 8080
@@ -67,6 +70,7 @@ observe dashboard export --format prometheus --output metrics.txt
 ```
 
 ### 4. Self-Healing Tests
+
 ```bash
 # Analyze test failures and suggest fixes
 observe heal analyze --test-results results/junit.xml
@@ -82,6 +86,7 @@ observe heal stats
 ```
 
 ### 5. Device Management
+
 ```bash
 # List available devices
 observe devices list --platform android
@@ -97,6 +102,7 @@ observe devices pool list
 ```
 
 ### 6. Session Recording
+
 ```bash
 # (Coming soon - SDK integration required)
 observe record start --session-id my-session
@@ -105,6 +111,7 @@ observe record correlate <session_id>
 ```
 
 ### 7. Test Generation
+
 ```bash
 # (Coming soon - generates from recorded sessions)
 observe generate pages --model app-model.json --output tests/pages/
@@ -134,6 +141,7 @@ observe business stats analysis.json
 ```
 
 **Output:**
+
 - User flows discovered
 - Business rules extracted
 - Edge cases identified
@@ -160,6 +168,7 @@ pytest tests/ -v
 ```
 
 **Generated:**
+
 - `tests/pages/` - Page Objects
 - `tests/api/` - API clients
 - `tests/features/` - BDD scenarios (if applicable)
@@ -183,6 +192,7 @@ observe dashboard stats --days 30
 ```
 
 **Dashboard Features:**
+
 - 📊 Test health tracking
 - ⚡ Pass rate trends
 - 🔄 Flaky test detection
@@ -213,6 +223,7 @@ observe heal stats
 ```
 
 **Healing Process:**
+
 1. ✅ Detects broken selectors from test failures
 2. ✅ Finds alternative selectors using ML
 3. ✅ Updates test files automatically
@@ -246,6 +257,7 @@ observe devices pool info android-test-pool
 ```
 
 **Device Strategies:**
+
 - `round-robin` - Distribute tests evenly
 - `least-busy` - Use least busy device
 - `random` - Random device selection
@@ -265,6 +277,7 @@ observe project fullcycle \
 ```
 
 **What happens:**
+
 1. ✅ Analyzes Android source code
 2. ✅ Analyzes iOS source code
 3. ✅ Extracts API contracts
@@ -314,26 +327,27 @@ observe project fullcycle \
 
 ### Business Logic Commands
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `analyze` | Analyze source code | `observe business analyze ./src --output result.json` |
-| `report` | Generate human-readable report | `observe business report result.json` |
-| `stats` | Show statistics summary | `observe business stats result.json` |
+| Command   | Description                    | Example                                               |
+|-----------|--------------------------------|-------------------------------------------------------|
+| `analyze` | Analyze source code            | `observe business analyze ./src --output result.json` |
+| `report`  | Generate human-readable report | `observe business report result.json`                 |
+| `stats`   | Show statistics summary        | `observe business stats result.json`                  |
 
 ### Project Commands
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `analyze` | Analyze project source | `observe project analyze ./src --platform android` |
-| `integrate` | Integrate with existing tests | `observe project integrate analysis.json --framework-path ./tests` |
-| `generate` | Generate test artifacts | `observe project generate analysis.json --output ./tests` |
-| `fullcycle` | Do everything at once | `observe project fullcycle --android-source ./android/src --output ./tests` |
+| Command     | Description                   | Example                                                                     |
+|-------------|-------------------------------|-----------------------------------------------------------------------------|
+| `analyze`   | Analyze project source        | `observe project analyze ./src --platform android`                          |
+| `integrate` | Integrate with existing tests | `observe project integrate analysis.json --framework-path ./tests`          |
+| `generate`  | Generate test artifacts       | `observe project generate analysis.json --output ./tests`                   |
+| `fullcycle` | Do everything at once         | `observe project fullcycle --android-source ./android/src --output ./tests` |
 
 ---
 
 ## Common Use Cases
 
 ### 1. Audit Existing App
+
 ```bash
 # Quick analysis to understand app structure
 observe business analyze ./src --output audit.json
@@ -344,6 +358,7 @@ cat audit-report.txt
 ```
 
 ### 2. Add Tests to Legacy App
+
 ```bash
 # Generate tests from existing codebase
 observe project fullcycle \
@@ -355,6 +370,7 @@ ls -la tests/generated/
 ```
 
 ### 3. API Contract Extraction
+
 ```bash
 # Extract all API endpoints
 observe business analyze ./src --output api-analysis.json
@@ -381,6 +397,7 @@ observe business report api-analysis.json | grep -A 10 "API Contracts"
 **Cause:** Source path doesn't contain Kotlin/Swift/Java files
 
 **Solution:**
+
 ```bash
 # Check if files exist
 find ./src -name "*.kt" -o -name "*.swift" -o -name "*.java"
@@ -395,6 +412,7 @@ observe business analyze ./MyApp/MyApp   # iOS
 **Cause:** Framework not installed in PATH
 
 **Solution:**
+
 ```bash
 # Activate virtual environment
 source .venv/bin/activate
@@ -411,6 +429,7 @@ observe info
 **Cause:** Unsupported file type or parsing error
 
 **Solution:**
+
 ```bash
 # Enable debug logging
 export OBSERVE_LOG_LEVEL=DEBUG
@@ -425,12 +444,14 @@ cat ~/.observe/logs/observe.log
 ## Tips for Best Results
 
 ✅ **Do:**
+
 - Use actual project source code (not compiled binaries)
 - Point to source directories (e.g., `./app/src/main`)
 - Review generated tests before committing
 - Iterate: analyze → review → refine → re-generate
 
 ❌ **Don't:**
+
 - Point to build directories (`./build`, `./out`)
 - Analyze compiled files (`.apk`, `.ipa`)
 - Skip reviewing auto-generated code
@@ -441,6 +462,7 @@ cat ~/.observe/logs/observe.log
 ## Getting Help
 
 ### Quick Help
+
 ```bash
 observe --help                    # All commands
 observe business --help     # Business logic commands
@@ -448,6 +470,7 @@ observe project --help            # Project commands
 ```
 
 ### Resources
+
 - **Documentation:** [USER_GUIDE.md](USER_GUIDE.md) (complete reference)
 - **Examples:** `demo-app/` directory
 - **Issues:** [GitHub Issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)

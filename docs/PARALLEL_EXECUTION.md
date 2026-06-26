@@ -24,21 +24,25 @@ observe parallel run tests/ --workers 4 --pytest-args "-v --tb=short"
 Distribute tests across workers using different strategies:
 
 **Round Robin** (Default)
+
 - Simple distribution: test 1 → worker 1, test 2 → worker 2, etc.
 - Good for tests with similar duration
 
 **Balanced**
+
 - Distributes based on estimated test duration
 - Minimizes total execution time
 - Best for mixed test suites
 
 **By File**
+
 - Keeps tests from same file together
 - Good for test files with shared fixtures
 
 ### 2. Progress Tracking
 
 Real-time progress display with Rich UI:
+
 - Spinner animation
 - Progress bar
 - Time elapsed
@@ -47,6 +51,7 @@ Real-time progress display with Rich UI:
 ### 3. Result Aggregation
 
 Comprehensive result summary:
+
 - Total tests, passed, failed, skipped
 - Pass rate percentage
 - Total duration
@@ -140,6 +145,7 @@ observe parallel benchmark --workers 8 --test-count 500
 ```
 
 Output:
+
 ```
 ╭─ Benchmark Results ─────────────────╮
 │ Strategy    │ Duration │ Speedup    │
@@ -213,25 +219,28 @@ executor = ParallelExecutor(
 
 ### Strategy Comparison
 
-| Strategy | Use Case | Pros | Cons |
-|----------|----------|------|------|
-| **Round Robin** | Uniform tests | Simple, predictable | Poor load balance if tests vary |
-| **Balanced** | Mixed duration | Optimal load balance | Requires duration estimates |
-| **By File** | Shared fixtures | Keeps related tests together | May create unbalanced shards |
+| Strategy        | Use Case        | Pros                         | Cons                            |
+|-----------------|-----------------|------------------------------|---------------------------------|
+| **Round Robin** | Uniform tests   | Simple, predictable          | Poor load balance if tests vary |
+| **Balanced**    | Mixed duration  | Optimal load balance         | Requires duration estimates     |
+| **By File**     | Shared fixtures | Keeps related tests together | May create unbalanced shards    |
 
 ### When to Use Each Strategy
 
 **Round Robin**
+
 - All tests have similar duration
 - Simple test suite
 - No shared state between tests
 
 **Balanced** (Recommended)
+
 - Tests have varying durations
 - Want to minimize total execution time
 - Have test duration history
 
 **By File**
+
 - Tests in same file share expensive fixtures
 - Setup/teardown per file
 - Want to minimize fixture overhead
@@ -252,12 +261,14 @@ executor = ParallelExecutor(
 ### Factors Affecting Performance
 
 **Positive:**
+
 - More workers (up to CPU count)
 - Balanced load distribution
 - Independent tests
 - Fast test execution
 
 **Negative:**
+
 - Shared resources (database, files)
 - Test dependencies
 - Heavy setup/teardown
@@ -374,6 +385,7 @@ observe parallel run tests/ --shard-strategy balanced
 **Cause:** Shared state or race conditions
 
 **Fix:**
+
 - Use unique identifiers per test
 - Avoid global variables
 - Use proper fixtures
@@ -383,6 +395,7 @@ observe parallel run tests/ --shard-strategy balanced
 **Cause:** Unbalanced load or I/O bottlenecks
 
 **Fix:**
+
 ```bash
 # Try balanced strategy
 observe parallel run tests/ --shard-strategy balanced
@@ -396,6 +409,7 @@ observe parallel run tests/ --workers 2
 **Cause:** Tests using same database
 
 **Fix:**
+
 ```python
 # Use unique database per worker
 @pytest.fixture(scope="session")
@@ -406,17 +420,20 @@ def db(worker_id):
 ## Roadmap
 
 ### Phase 1 (Complete)
+
 - ✅ Multi-worker execution
 - ✅ Intelligent sharding
 - ✅ Progress tracking
 - ✅ Result aggregation
 
 ### Phase 2 (In Progress)
+
 - 🔄 Multi-device support
 - 🔄 Device pool management
 - 🔄 Cross-platform distribution
 
 ### Phase 3 (Planned)
+
 - 📋 Test history-based sharding
 - 📋 Automatic retry on failure
 - 📋 Distributed execution dashboard

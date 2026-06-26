@@ -4,15 +4,16 @@ Visual Testing CLI commands
 Commands for visual regression testing.
 """
 
-import click
+import shutil
 from pathlib import Path
 from typing import Optional
-import shutil
+
+import click
+from rich.console import Console
+from rich.table import Table
 
 from framework.analysis.visual_analyzer import VisualAnalyzer
 from framework.cli.rich_output import print_header, print_info, print_success, print_error
-from rich.console import Console
-from rich.table import Table
 
 console = Console()
 
@@ -32,10 +33,10 @@ def visual() -> None:
               help='Difference threshold (0.01 = 1%)')
 @click.option('--output', '-o', type=click.Path(), help='Output HTML report')
 def compare(
-    baseline_dir: str,
-    current_dir: str,
-    threshold: float,
-    output: Optional[str]
+        baseline_dir: str,
+        current_dir: str,
+        threshold: float,
+        output: Optional[str]
 ) -> None:
     """Compare current screenshots against baselines"""
     print_header("Visual Regression Testing")
@@ -113,11 +114,7 @@ def compare(
     # Generate report if requested
     if output and analyzer.diffs:
         report_path = Path(output)
-        report_path.parent.mkdir(parents=True, exist_ok=True)
-
-        report_html = analyzer.generate_html_report()
-        report_path.write_text(report_html)
-
+        analyzer.generate_html_report(report_path)
         print_success(f"\n📄 Report saved: {report_path}")
 
     # Exit code

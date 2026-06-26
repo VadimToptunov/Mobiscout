@@ -4,12 +4,12 @@ Dashboard server
 FastAPI-based web server for test maintenance dashboard.
 """
 
-from fastapi import FastAPI, HTTPException
-
-from fastapi.responses import HTMLResponse, JSONResponse
 from pathlib import Path
 from typing import Optional
+
 import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from .database import DashboardDB
 from .models import TestStatus, HealingStatus, DashboardStats

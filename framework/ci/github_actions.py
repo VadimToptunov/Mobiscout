@@ -6,6 +6,7 @@ Creates comprehensive GitHub Actions workflows for mobile testing.
 
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+
 import yaml
 
 
@@ -18,7 +19,8 @@ class GitHubActionsGenerator:
         self.project_name = project_name
 
     def generate_basic_workflow(
-        self, platforms: List[str] = ["android"], python_version: str = "3.13", triggers: Optional[List[str]] = None
+            self, platforms: Optional[List[str]] = None, python_version: str = "3.13",
+            triggers: Optional[List[str]] = None
     ) -> str:
         """
         Generate basic test workflow
@@ -31,6 +33,8 @@ class GitHubActionsGenerator:
         Returns:
             YAML workflow content
         """
+        if platforms is None:
+            platforms = ["android"]
         if triggers is None:
             triggers = ["push", "pull_request"]
 
@@ -44,28 +48,28 @@ class GitHubActionsGenerator:
         return yaml.dump(workflow, sort_keys=False, default_flow_style=False)
 
     def generate_advanced_workflow(
-        self,
-        platforms: List[str] = ["android", "ios"],
-        python_version: str = "3.13",
-        parallel_count: int = 2,
-        use_browserstack: bool = False,
-        upload_artifacts: bool = True,
-        notify_slack: bool = False,
+            self,
+            platforms: Optional[List[str]] = None,
+            python_version: str = "3.13",
+            parallel_count: int = 2,
+            use_browserstack: bool = False,
+            upload_artifacts: bool = True,
+            notify_slack: bool = False,
     ) -> str:
         """
-        Generate advanced workflow with parallel execution, cloud devices, notifications
+        Generate advanced CI workflow with parallel testing
 
         Args:
-            platforms: List of platforms
+            platforms: List of platforms ('android', 'ios')
             python_version: Python version
-            parallel_count: Number of parallel test executions
-            use_browserstack: Use BrowserStack for testing
-            upload_artifacts: Upload test reports
-            notify_slack: Send Slack notifications
-
-        Returns:
-            YAML workflow content
+            parallel_count: Number of parallel jobs
+            use_browserstack: Whether to use BrowserStack
+            upload_artifacts: Whether to upload test artifacts
+            notify_slack: Whether to send Slack notifications
         """
+        if platforms is None:
+            platforms = ["android", "ios"]
+
         workflow: Dict[str, Any] = {
             "name": f"{self.project_name} - Advanced",
             "on": self._generate_triggers(["push", "pull_request", "schedule"]),

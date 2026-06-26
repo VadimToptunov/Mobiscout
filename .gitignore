@@ -76,15 +76,9 @@ captures/
 
 # Android Studio
 .gradle
-build/
+demo-app/android/build/
 /captures
 .navigation/
-
-# IntelliJ IDEA
-*.iml
-.idea/
-*.iws
-*.ipr
 
 # macOS
 .DS_Store
@@ -96,7 +90,7 @@ build/
 *.xcworkspace/xcuserdata/
 *.xcodeproj/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
-build/
+demo-app/ios/build/
 DerivedData/
 *.moved-aside
 *.pbxuser
@@ -161,4 +155,6 @@ INDIE_MONETIZATION.md
 *MONETIZATION*.md
 BUSINESS_PLAN*.md
 PRICING*.md
+
+inspection_reports/
 

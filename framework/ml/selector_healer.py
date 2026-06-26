@@ -5,9 +5,9 @@ Automatically detects broken selectors and generates alternative strategies.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Dict, List, Optional, Any
 
 from framework.model.app_model import Selector
 
@@ -50,15 +50,21 @@ class SelectorHealer:
         self.healing_history: List[HealingResult] = []
         self.fallback_reports: List[Dict[str, Any]] = []
         self.page_object_updates: List[Dict[str, Any]] = []
+        self.healing_stats: Dict[str, Any] = {
+            "total_healed": 0,
+            "successful": 0,
+            "failed": 0,
+            "by_strategy": {}
+        }
 
     def report_fallback_usage(
-        self,
-        element_name: str,
-        page_object_file: str,
-        primary_selector: str,
-        successful_fallback: str,
-        fallback_index: int,
-        platform: str
+            self,
+            element_name: str,
+            page_object_file: str,
+            primary_selector: str,
+            successful_fallback: str,
+            fallback_index: int,
+            platform: str
     ) -> None:
         """
         Report that a fallback selector was used successfully.
@@ -125,11 +131,11 @@ class SelectorHealer:
         return any(count >= 3 for count in fallback_counts.values())
 
     def update_page_object(
-        self,
-        page_object_file: str,
-        element_name: str,
-        new_primary_selector: str,
-        platform: str
+            self,
+            page_object_file: str,
+            element_name: str,
+            new_primary_selector: str,
+            platform: str
     ) -> bool:
         """
         Update Page Object file with new primary selector.
@@ -213,7 +219,7 @@ class SelectorHealer:
 
             return True
 
-        except Exception as e:
+        except (OSError, re.error, UnicodeDecodeError, ValueError) as e:
             logger.error(f"[SelectorHealer] Failed to update Page Object: {e}")
             return False
 
@@ -254,9 +260,9 @@ class SelectorHealer:
         }
 
     def detect_broken_selector(
-        self,
-        selector: Selector,
-        execution_result: Dict[str, Any]
+            self,
+            selector: Selector,
+            execution_result: Dict[str, Any]
     ) -> bool:
         """
         Detect if selector is broken based on execution result.
@@ -281,10 +287,10 @@ class SelectorHealer:
         return False
 
     def heal_selector(
-        self,
-        broken_selector: Selector,
-        element_context: Dict[str, Any],
-        available_strategies: Optional[List[HealingStrategy]] = None
+            self,
+            broken_selector: Selector,
+            element_context: Dict[str, Any],
+            available_strategies: Optional[List[HealingStrategy]] = None
     ) -> HealingResult:
         """
         Attempt to heal broken selector.
@@ -323,9 +329,9 @@ class SelectorHealer:
         return failed_result
 
     def _prioritize_strategies(
-        self,
-        strategies: List[HealingStrategy],
-        context: Dict[str, Any]
+            self,
+            strategies: List[HealingStrategy],
+            context: Dict[str, Any]
     ) -> List[HealingStrategy]:
         """
         Prioritize healing strategies based on available context.
@@ -380,10 +386,10 @@ class SelectorHealer:
         return [strategy for _, strategy in priorities]
 
     def _try_healing_strategy(
-        self,
-        broken_selector: Selector,
-        context: Dict[str, Any],
-        strategy: HealingStrategy
+            self,
+            broken_selector: Selector,
+            context: Dict[str, Any],
+            strategy: HealingStrategy
     ) -> HealingResult:
         """Try specific healing strategy."""
 
@@ -413,9 +419,9 @@ class SelectorHealer:
             )
 
     def _heal_with_text(
-        self,
-        broken_selector: Selector,
-        context: Dict[str, Any]
+            self,
+            broken_selector: Selector,
+            context: Dict[str, Any]
     ) -> HealingResult:
         """Heal selector using element text."""
         text = context.get('text')
@@ -450,9 +456,9 @@ class SelectorHealer:
         )
 
     def _heal_with_attributes(
-        self,
-        broken_selector: Selector,
-        context: Dict[str, Any]
+            self,
+            broken_selector: Selector,
+            context: Dict[str, Any]
     ) -> HealingResult:
         """Heal selector using element attributes."""
         # Collect available attributes
@@ -497,9 +503,9 @@ class SelectorHealer:
         )
 
     def _heal_with_hierarchy(
-        self,
-        broken_selector: Selector,
-        context: Dict[str, Any]
+            self,
+            broken_selector: Selector,
+            context: Dict[str, Any]
     ) -> HealingResult:
         """Heal selector using parent/sibling hierarchy."""
         parent = context.get('parent')
@@ -543,9 +549,9 @@ class SelectorHealer:
         )
 
     def _heal_with_position(
-        self,
-        broken_selector: Selector,
-        context: Dict[str, Any]
+            self,
+            broken_selector: Selector,
+            context: Dict[str, Any]
     ) -> HealingResult:
         """Heal selector using position (fragile)."""
         position = context.get('position')
@@ -582,9 +588,9 @@ class SelectorHealer:
         )
 
     def _heal_with_visual(
-        self,
-        broken_selector: Selector,
-        context: Dict[str, Any]
+            self,
+            broken_selector: Selector,
+            context: Dict[str, Any]
     ) -> HealingResult:
         """Heal selector using visual recognition (requires screenshot)."""
         screenshot = context.get('screenshot')
@@ -634,7 +640,7 @@ class SelectorHealer:
             x, y, width, height = bounds['x'], bounds['y'], bounds['width'], bounds['height']
 
             # Find similar elements in current screenshot
-            matches = visual_detector.find_similar_elements(
+            matches = visual_detector.find_similar_by_bounds(
                 screenshot_path,
                 target_bounds=(x, y, width, height),
                 similarity_threshold=0.8
@@ -678,7 +684,7 @@ class SelectorHealer:
                 confidence=0.0,
                 reason="VisualDetector not available"
             )
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
             logger.error(f"Visual-based healing failed: {e}")
             self.healing_stats['visual_based']['failures'] += 1
 

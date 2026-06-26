@@ -12,12 +12,12 @@ Features:
 - Code obfuscation verification
 """
 
-from pathlib import Path
-from typing import List, Optional
+import json
+import re
 from dataclasses import dataclass, field
 from enum import Enum
-import re
-import json
+from pathlib import Path
+from typing import List, Optional
 
 
 class SeverityLevel(Enum):

@@ -2,18 +2,19 @@
 CLI commands for Parallel Execution
 """
 
-import click
 from pathlib import Path
 from typing import Optional
+
+import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from rich.table import Table
 
+from framework.devices.device_manager import DeviceManager
+from framework.devices.device_pool import DevicePool, PoolStrategy
 from framework.execution.parallel_executor import ParallelExecutor, TestStatus
 from framework.execution.test_sharding import ShardStrategy, TestCase, TestSharding
-from framework.devices.device_pool import DevicePool, PoolStrategy
-from framework.devices.device_manager import DeviceManager
 
 console = Console()
 
@@ -85,12 +86,12 @@ def run(test_dir: Path, workers: int, shard_strategy: str, pytest_args: str) -> 
     executor = ParallelExecutor(max_workers=workers, pytest_args=pytest_args.split() if pytest_args else [])
 
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        BarColumn(),
-        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-        TimeElapsedColumn(),
-        console=console,
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console,
     ) as progress:
         task = progress.add_task("[cyan]Executing tests...", total=len(shards))
 
@@ -145,7 +146,7 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
     devices = device_manager.get_available_devices()
 
     if platform != "both":
-        devices = [d for d in devices if d.platform.lower() == platform]
+        devices = [d for d in devices if d.get('platform', '').lower() == platform]
 
     if not devices:
         console.print(f"[red]❌ No {platform} devices found[/red]")
@@ -153,10 +154,8 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
 
     console.print(f"[green]✓[/green] Found {len(devices)} device(s)")
 
-    # Create device pool
-    pool = DevicePool(name="test_pool", strategy=PoolStrategy.ROUND_ROBIN)
-    for device in devices:
-        pool.add_device(device)
+    # Note: Device pool requires Device objects, but we have dicts from DeviceManager
+    # This is a display-only operation, so we just show the available devices
 
     # Show devices
     table = Table(title="Available Devices")
@@ -166,7 +165,12 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
     table.add_column("Status")
 
     for device in devices:
-        table.add_row(device.name, device.platform, device.platform_version, str(device.status.value))
+        table.add_row(
+            device.get('name', 'Unknown'),
+            device.get('platform', 'Unknown'),
+            device.get('platform_version', device.get('os_version', 'Unknown')),
+            device.get('status', 'Unknown')
+        )
 
     console.print(table)
 

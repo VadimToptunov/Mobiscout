@@ -4,21 +4,20 @@ Observability CLI Commands
 Commands for metrics export, log tailing, and trace analysis.
 """
 
-import click
+import time
 from pathlib import Path
 from typing import Optional
-import time
 
+import click
 from rich.console import Console
-from rich.table import Table
 from rich.live import Live
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.table import Table
 
 from framework.observability import (
     ObservabilityManager,
 )
-
 
 console = Console()
 

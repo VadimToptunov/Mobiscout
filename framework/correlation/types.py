@@ -6,24 +6,25 @@ Data structures for representing correlations between events.
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
+
 from pydantic import BaseModel, Field
 
 
 class CorrelationStrength(str, Enum):
     """Strength of correlation between events"""
-    STRONG = "strong"      # High confidence (e.g., same correlation_id)
-    MEDIUM = "medium"      # Medium confidence (e.g., temporal + thread match)
-    WEAK = "weak"          # Low confidence (e.g., only temporal proximity)
-    NONE = "none"          # No correlation detected
+    STRONG = "strong"  # High confidence (e.g., same correlation_id)
+    MEDIUM = "medium"  # Medium confidence (e.g., temporal + thread match)
+    WEAK = "weak"  # Low confidence (e.g., only temporal proximity)
+    NONE = "none"  # No correlation detected
 
 
 class CorrelationMethod(str, Enum):
     """Method used to establish correlation"""
     CORRELATION_ID = "correlation_id"  # Explicit correlation ID matching
-    TEMPORAL = "temporal"              # Time-based proximity
-    THREAD = "thread"                  # Same thread/coroutine
-    CAUSALITY = "causality"            # Causal relationship detected
-    HYBRID = "hybrid"                  # Multiple methods combined
+    TEMPORAL = "temporal"  # Time-based proximity
+    THREAD = "thread"  # Same thread/coroutine
+    CAUSALITY = "causality"  # Causal relationship detected
+    HYBRID = "hybrid"  # Multiple methods combined
 
 
 class UIToAPICorrelation(BaseModel):

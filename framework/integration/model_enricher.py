@@ -8,11 +8,11 @@ This module extends mobile-observe-test-framework with:
 4. Backward compatibility
 """
 
+from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional
-from copy import deepcopy
-import yaml
 
+import yaml
 from pydantic import BaseModel
 
 
@@ -188,7 +188,7 @@ class ModelEnricher:
         if discovered.get("android"):
             fallbacks = merged.setdefault("android_fallback", [])
             if discovered["android"] not in fallbacks and discovered["android"] != merged.get(
-                "android"
+                    "android"
             ):
                 fallbacks.append(discovered["android"])
                 self.result.selectors_updated += 1
@@ -246,7 +246,7 @@ class ProjectIntegrator:
         return page_object_files
 
     def extract_elements_from_page_objects(
-        self, page_object_files: List[Path]
+            self, page_object_files: List[Path]
     ) -> Dict[str, List[Dict]]:
         """
         Extract element definitions from existing Page Objects
@@ -287,10 +287,10 @@ class ProjectIntegrator:
         return screens
 
     def integrate(
-        self,
-        analysis_results: Dict,
-        output_path: Optional[Path] = None,
-        preserve_existing: bool = True,
+            self,
+            analysis_results: Dict,
+            output_path: Optional[Path] = None,
+            preserve_existing: bool = True,
     ) -> EnrichmentResult:
         """
         Perform full integration
