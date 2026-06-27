@@ -32,9 +32,7 @@ TARGET_IDS = [t.id for t in available_targets()]
 # on dependency resolution, never on syntax. So we accept those two error
 # classes and treat anything else (';' expected, illegal start, ...) as a real
 # syntax defect in the generated source.
-_JAVAC_DEP_ERROR = re.compile(
-    r"error:\s+(cannot find symbol|package \S+ does not exist)"
-)
+_JAVAC_DEP_ERROR = re.compile(r"error:\s+(cannot find symbol|package \S+ does not exist)")
 
 
 def _java_syntax_ok(java_file: Path) -> None:
@@ -49,11 +47,7 @@ def _java_syntax_ok(java_file: Path) -> None:
     )
     if proc.returncode == 0:
         return  # fully compiled (deps present)
-    bad = [
-        line
-        for line in proc.stderr.splitlines()
-        if "error:" in line and not _JAVAC_DEP_ERROR.search(line)
-    ]
+    bad = [line for line in proc.stderr.splitlines() if "error:" in line and not _JAVAC_DEP_ERROR.search(line)]
     assert not bad, "Generated Java has syntax errors:\n" + "\n".join(bad)
 
 
@@ -63,9 +57,7 @@ def _js_syntax_ok(js_file: Path) -> None:
     node = shutil.which("node")
     if not node:
         pytest.skip("node not available — skipping JS syntax gate")
-    proc = subprocess.run(
-        [node, "--check", str(js_file)], capture_output=True, text=True
-    )
+    proc = subprocess.run([node, "--check", str(js_file)], capture_output=True, text=True)
     assert proc.returncode == 0, "Generated JS has syntax errors:\n" + proc.stderr
 
 
@@ -77,8 +69,7 @@ def _check_golden(rel_path: str, content: str) -> None:
         return
     assert golden.exists(), f"Missing golden file: {golden} (run with UPDATE_GOLDENS=1)"
     assert content == golden.read_text(), (
-        f"Output drifted from golden {rel_path}. "
-        f"If intentional, regenerate with UPDATE_GOLDENS=1."
+        f"Output drifted from golden {rel_path}. " f"If intentional, regenerate with UPDATE_GOLDENS=1."
     )
 
 

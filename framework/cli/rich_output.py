@@ -63,9 +63,9 @@ def print_section(title: str) -> None:
 
 
 def print_table(
-        data: List[Dict[str, Any]],
-        title: Optional[str] = None,
-        columns: Optional[List[str]] = None,
+    data: List[Dict[str, Any]],
+    title: Optional[str] = None,
+    columns: Optional[List[str]] = None,
 ) -> None:
     """
     Print data in a beautiful table.
@@ -125,10 +125,10 @@ def print_tree(data: Dict[str, Any], root_label: str = "Root") -> None:
 
 
 def print_code(
-        code: str,
-        language: str = "python",
-        line_numbers: bool = True,
-        theme: str = "monokai",
+    code: str,
+    language: str = "python",
+    line_numbers: bool = True,
+    theme: str = "monokai",
 ) -> None:
     """
     Print syntax-highlighted code.
@@ -144,9 +144,9 @@ def print_code(
 
 
 def print_summary(
-        title: str,
-        stats: Dict[str, Any],
-        style: str = "cyan",
+    title: str,
+    stats: Dict[str, Any],
+    style: str = "cyan",
 ) -> None:
     """
     Print a summary box with statistics.

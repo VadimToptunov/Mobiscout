@@ -14,6 +14,7 @@ from typing import List, Optional, Dict, Any
 
 class FailureType(Enum):
     """Type of test failure"""
+
     SELECTOR_NOT_FOUND = "selector_not_found"
     TIMEOUT = "timeout"
     ASSERTION_ERROR = "assertion_error"
@@ -23,6 +24,7 @@ class FailureType(Enum):
 @dataclass
 class SelectorFailure:
     """Represents a selector failure"""
+
     test_name: str
     test_file: Path
     selector_type: str  # id, xpath, css, accessibility_id
@@ -52,7 +54,7 @@ class SelectorFailure:
             "selector_type": self.selector_type,
             "selector_value": self.selector_value,
             "element_name": self.element_name,
-            "page_object_class": self.page_object_class
+            "page_object_class": self.page_object_class,
         }
 
     @property
@@ -99,8 +101,8 @@ class FailureAnalyzer:
             root = tree.getroot()
 
             # Handle both <testsuite> and <testsuites> root
-            if root.tag == 'testsuites':
-                suites = root.findall('testsuite')
+            if root.tag == "testsuites":
+                suites = root.findall("testsuite")
             else:
                 suites = [root]
 
@@ -127,7 +129,7 @@ class FailureAnalyzer:
             return []
 
         # Detect format based on extension or content
-        if results_path.suffix == '.xml':
+        if results_path.suffix == ".xml":
             return self.analyze_junit_results(results_path)
         else:
             # Assume text output
@@ -136,25 +138,25 @@ class FailureAnalyzer:
 
     def _analyze_suite(self, suite: ET.Element):
         """Analyze single test suite"""
-        for testcase in suite.findall('testcase'):
+        for testcase in suite.findall("testcase"):
             self._analyze_testcase(testcase)
 
     def _analyze_testcase(self, testcase: ET.Element):
         """Analyze single test case"""
-        test_name = testcase.get('name', 'Unknown')
-        classname = testcase.get('classname', '')
-        test_file = Path(classname.replace('.', '/') + '.py')
+        test_name = testcase.get("name", "Unknown")
+        classname = testcase.get("classname", "")
+        test_file = Path(classname.replace(".", "/") + ".py")
 
         # Check for failures or errors
-        failure = testcase.find('failure')
-        error = testcase.find('error')
+        failure = testcase.find("failure")
+        error = testcase.find("error")
 
         failure_elem = failure if failure is not None else error
         if failure_elem is None:
             return  # Test passed
 
-        error_message = failure_elem.get('message', '')
-        error_text = failure_elem.text or ''
+        error_message = failure_elem.get("message", "")
+        error_text = failure_elem.text or ""
         full_error = f"{error_message}\n{error_text}"
 
         # Check if it's a selector failure
@@ -164,8 +166,8 @@ class FailureAnalyzer:
                 failure = SelectorFailure(
                     test_name=test_name,
                     test_file=test_file,
-                    selector_type=selector_info['type'],
-                    selector_value=selector_info['value'],
+                    selector_type=selector_info["type"],
+                    selector_value=selector_info["value"],
                     failure_type=FailureType.SELECTOR_NOT_FOUND,
                     error_message=error_message,
                 )
@@ -204,16 +206,10 @@ class FailureAnalyzer:
             if match:
                 groups = match.groups()
                 if len(groups) == 2:
-                    return {
-                        'type': groups[0].lower(),
-                        'value': groups[1]
-                    }
+                    return {"type": groups[0].lower(), "value": groups[1]}
                 elif len(groups) == 1:
                     # Assume xpath if only value captured
-                    return {
-                        'type': 'xpath',
-                        'value': groups[0]
-                    }
+                    return {"type": "xpath", "value": groups[0]}
 
         return None
 
@@ -231,31 +227,31 @@ class FailureAnalyzer:
 
         # Parse pytest output for failures
         # This is a simplified version - real implementation would be more robust
-        lines = output.split('\n')
+        lines = output.split("\n")
 
         current_test = None
         error_buffer = []
 
         for line in lines:
             # Detect test start
-            if '::test_' in line or 'FAILED' in line:
+            if "::test_" in line or "FAILED" in line:
                 if current_test and error_buffer:
                     # Process previous test
-                    error_text = '\n'.join(error_buffer)
+                    error_text = "\n".join(error_buffer)
                     if self._is_selector_failure(error_text):
                         selector_info = self._extract_selector_info(error_text)
                         if selector_info:
                             failure = SelectorFailure(
                                 test_name=current_test,
                                 test_file=Path("unknown.py"),
-                                selector_type=selector_info['type'],
-                                selector_value=selector_info['value'],
+                                selector_type=selector_info["type"],
+                                selector_value=selector_info["value"],
                                 failure_type=FailureType.SELECTOR_NOT_FOUND,
                                 error_message=error_text[:200],
                             )
                             self.failures.append(failure)
 
-                current_test = line.split('::')[-1] if '::' in line else None
+                current_test = line.split("::")[-1] if "::" in line else None
                 error_buffer = []
             else:
                 error_buffer.append(line)
@@ -299,14 +295,14 @@ class FailureAnalyzer:
         """
         for failure in self.failures:
             # Search for selector in Page Object files
-            for po_file in page_objects_dir.rglob('*.py'):
+            for po_file in page_objects_dir.rglob("*.py"):
                 try:
                     content = po_file.read_text()
                     # Look for selector definition
                     if failure.selector_value in content:
                         failure.page_object_file = po_file
                         # Try to extract class name
-                        class_match = re.search(r'class\s+(\w+)', content)
+                        class_match = re.search(r"class\s+(\w+)", content)
                         if class_match:
                             failure.page_object_class = class_match.group(1)
                         break

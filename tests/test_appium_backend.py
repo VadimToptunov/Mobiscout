@@ -14,7 +14,7 @@ from framework.core.exceptions import (
     SessionNotFoundError,
     DeviceConnectionError,
     ElementNotFoundError,
-    SessionError
+    SessionError,
 )
 
 
@@ -49,34 +49,29 @@ class TestAppiumBackend:
         assert caps.requires_app_modification is False
         assert caps.execution_speed == "fast"  # Appium 3.x improved
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_detect_appium_version(self, mock_get, backend):
         """Test Appium version detection."""
         mock_response = Mock()
         mock_response.ok = True
-        mock_response.json.return_value = {
-            "value": {
-                "build": {
-                    "version": "3.0.0"
-                }
-            }
-        }
+        mock_response.json.return_value = {"value": {"build": {"version": "3.0.0"}}}
         mock_get.return_value = mock_response
 
         version = backend._detect_appium_version()
         assert version == "3.0.0"
         mock_get.assert_called_once_with("http://localhost:4723/status", timeout=5)
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_detect_appium_version_failure(self, mock_get, backend):
         """Test version detection when server unavailable."""
         import requests
+
         mock_get.side_effect = requests.RequestException("Connection refused")
 
         version = backend._detect_appium_version()
         assert version is None
 
-    @patch('framework.backends.appium_backend.webdriver.Remote')
+    @patch("framework.backends.appium_backend.webdriver.Remote")
     def test_start_session_android(self, mock_webdriver, backend):
         """Test starting Android session."""
         # Mock driver
@@ -85,16 +80,13 @@ class TestAppiumBackend:
         mock_webdriver.return_value = mock_driver
 
         # Start session
-        session_id = backend.start_session(
-            device_id="emulator-5554",
-            app_path="/path/to/app.apk"
-        )
+        session_id = backend.start_session(device_id="emulator-5554", app_path="/path/to/app.apk")
 
         assert session_id == "test-session-123"
         assert "test-session-123" in backend.sessions
         mock_webdriver.assert_called_once()
 
-    @patch('framework.backends.appium_backend.webdriver.Remote')
+    @patch("framework.backends.appium_backend.webdriver.Remote")
     def test_start_session_ios(self, mock_webdriver, backend):
         """Test starting iOS session."""
         # Mock driver
@@ -103,15 +95,12 @@ class TestAppiumBackend:
         mock_webdriver.return_value = mock_driver
 
         # Start session
-        session_id = backend.start_session(
-            device_id="00008030-001234567890001E",
-            app_path="/path/to/app.ipa"
-        )
+        session_id = backend.start_session(device_id="00008030-001234567890001E", app_path="/path/to/app.ipa")
 
         assert session_id == "ios-session-456"
         assert "ios-session-456" in backend.sessions
 
-    @patch('framework.backends.appium_backend.webdriver.Remote')
+    @patch("framework.backends.appium_backend.webdriver.Remote")
     def test_start_session_appium_3_optimizations(self, mock_webdriver, backend):
         """Test Appium 3.x specific optimizations are applied."""
         backend.appium_version = "3.0.0"
@@ -124,12 +113,12 @@ class TestAppiumBackend:
 
         # Verify Appium 3.x capabilities were set
         call_args = mock_webdriver.call_args
-        options = call_args.kwargs['options']
+        options = call_args.kwargs["options"]
 
         # Check that options were configured (Appium 3.x specific)
         assert session_id == "session-789"
 
-    @patch('framework.backends.appium_backend.webdriver.Remote')
+    @patch("framework.backends.appium_backend.webdriver.Remote")
     def test_start_session_server_unavailable(self, mock_webdriver, backend):
         """Test error when Appium server not running."""
         from selenium.common.exceptions import WebDriverException
@@ -141,7 +130,7 @@ class TestAppiumBackend:
 
         assert "not available" in str(exc_info.value)
 
-    @patch('framework.backends.appium_backend.webdriver.Remote')
+    @patch("framework.backends.appium_backend.webdriver.Remote")
     def test_start_session_device_not_found(self, mock_webdriver, backend):
         """Test error when device not found."""
         from selenium.common.exceptions import WebDriverException
@@ -153,7 +142,7 @@ class TestAppiumBackend:
 
         assert "Device not found" in str(exc_info.value)
 
-    @patch('framework.backends.appium_backend.webdriver.Remote')
+    @patch("framework.backends.appium_backend.webdriver.Remote")
     def test_start_session_generic_error(self, mock_webdriver, backend):
         """Test generic session error."""
         from selenium.common.exceptions import WebDriverException
@@ -188,6 +177,7 @@ class TestAppiumBackend:
     def test_stop_session_quit_error(self, backend):
         """Test session stop even if quit() raises error."""
         from selenium.common.exceptions import WebDriverException
+
         mock_driver = Mock()
         mock_driver.quit.side_effect = WebDriverException("quit failed")
         backend.sessions["test-session"] = mock_driver
@@ -229,7 +219,7 @@ class TestAppiumBackend:
         with pytest.raises(SessionNotFoundError):
             backend.get_ui_tree("invalid-session")
 
-    @patch('selenium.webdriver.common.actions.action_builder.ActionBuilder')
+    @patch("selenium.webdriver.common.actions.action_builder.ActionBuilder")
     def test_tap(self, mock_action_builder, backend):
         """Test tap gesture using W3C Actions."""
         mock_driver = Mock()
@@ -379,6 +369,7 @@ class TestAppiumBackend:
 # ============================================================================
 # Negative Tests
 # ============================================================================
+
 
 class TestAppiumBackendNegative:
     """Test negative scenarios and edge cases."""

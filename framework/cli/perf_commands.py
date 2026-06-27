@@ -14,17 +14,17 @@ from framework.cli.rich_output import print_header, print_info, print_success, p
 console = Console()
 
 
-@click.group(name='perf')
+@click.group(name="perf")
 def perf() -> None:
     """⚡ Performance analysis commands"""
     pass
 
 
 @perf.command()
-@click.option('--device', '-d', required=True, help='Device ID to profile')
-@click.option('--app', '-a', required=True, help='App package/bundle ID')
-@click.option('--duration', type=int, default=60, help='Profile duration in seconds')
-@click.option('--output', '-o', type=click.Path(), help='Output file for profile (JSON)')
+@click.option("--device", "-d", required=True, help="Device ID to profile")
+@click.option("--app", "-a", required=True, help="App package/bundle ID")
+@click.option("--duration", type=int, default=60, help="Profile duration in seconds")
+@click.option("--output", "-o", type=click.Path(), help="Output file for profile (JSON)")
 def profile(device: str, app: str, duration: int, output: str) -> None:
     """Profile app performance metrics"""
     print_header("Performance Profiling")
@@ -63,7 +63,7 @@ def profile(device: str, app: str, duration: int, output: str) -> None:
 
 
 @perf.command()
-@click.option('--profile', '-p', required=True, help='Profile ID or file')
+@click.option("--profile", "-p", required=True, help="Profile ID or file")
 def report(profile: str) -> None:
     """Generate performance report"""
     print_header("Performance Report")
@@ -118,7 +118,7 @@ def report(profile: str) -> None:
         if issues:
             print_info(f"\n⚠️  {len(issues)} Performance Issues:")
             for issue in issues[:5]:
-                severity_icon = {'high': '🔴', 'medium': '🟡', 'low': '🔵'}[issue.severity]
+                severity_icon = {"high": "🔴", "medium": "🟡", "low": "🔵"}[issue.severity]
                 print_info(f"  {severity_icon} {issue.description}")
             if len(issues) > 5:
                 print_info(f"  ... and {len(issues) - 5} more")
@@ -131,8 +131,8 @@ def report(profile: str) -> None:
 
 
 @perf.command()
-@click.option('--baseline', '-b', required=True, help='Baseline profile ID')
-@click.option('--current', '-c', required=True, help='Current profile ID')
+@click.option("--baseline", "-b", required=True, help="Baseline profile ID")
+@click.option("--current", "-c", required=True, help="Current profile ID")
 def compare(baseline: str, current: str) -> None:
     """Compare two performance profiles"""
     print_header("Performance Comparison")
@@ -164,7 +164,7 @@ def compare(baseline: str, current: str) -> None:
             ("Memory Usage", "memory_diff", "MB", 20),
             ("CPU Usage", "cpu_diff", "%", 10),
             ("Frame Rate", "fps_diff", "FPS", 5),
-            ("Battery Drain", "battery_diff", "%/hr", 2)
+            ("Battery Drain", "battery_diff", "%/hr", 2),
         ]
 
         for name, key, unit, threshold in metrics:
@@ -177,11 +177,7 @@ def compare(baseline: str, current: str) -> None:
             else:
                 status = f"🔴 Degraded +{value:.1f}{unit}"
 
-            table.add_row(
-                name,
-                f"{value:+.2f} {unit}" if 'FPS' not in unit else f"{value:+.1f} {unit}",
-                status
-            )
+            table.add_row(name, f"{value:+.2f} {unit}" if "FPS" not in unit else f"{value:+.1f} {unit}", status)
 
         console.print(table)
 
@@ -205,5 +201,5 @@ def compare(baseline: str, current: str) -> None:
         raise click.Abort()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     perf()

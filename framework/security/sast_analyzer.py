@@ -30,6 +30,7 @@ import xml.etree.ElementTree as ET
 
 class VulnerabilityType(Enum):
     """SAST vulnerability types"""
+
     # Injection
     SQL_INJECTION = "sql_injection"
     COMMAND_INJECTION = "command_injection"
@@ -75,6 +76,7 @@ class VulnerabilityType(Enum):
 
 class Severity(Enum):
     """Vulnerability severity"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -85,6 +87,7 @@ class Severity(Enum):
 @dataclass
 class TaintSource:
     """Taint analysis source"""
+
     name: str
     location: str
     line_number: int
@@ -94,6 +97,7 @@ class TaintSource:
 @dataclass
 class TaintSink:
     """Taint analysis sink"""
+
     name: str
     location: str
     line_number: int
@@ -103,6 +107,7 @@ class TaintSink:
 @dataclass
 class TaintFlow:
     """Taint flow from source to sink"""
+
     source: TaintSource
     sink: TaintSink
     path: List[str]  # intermediate nodes
@@ -112,6 +117,7 @@ class TaintFlow:
 @dataclass
 class SASTFinding:
     """SAST vulnerability finding"""
+
     vulnerability_type: VulnerabilityType
     severity: Severity
     title: str
@@ -148,6 +154,7 @@ class SASTFinding:
 @dataclass
 class SASTResult:
     """SAST analysis result wrapper for CLI compatibility"""
+
     findings: List[SASTFinding] = field(default_factory=list)
     source_path: str = ""
     language: str = "auto"
@@ -156,6 +163,7 @@ class SASTResult:
 
     def __post_init__(self):
         from datetime import datetime
+
         if not self.scan_time:
             self.scan_time = datetime.now().isoformat()
 
@@ -219,7 +227,6 @@ class TaintAnalyzer:
             "urlopen(": "network",
             "requests.get": "network",
             "requests.post": "network",
-
             # Android/Kotlin
             "getIntent()": "user_input",
             "getExtras()": "user_input",
@@ -227,7 +234,6 @@ class TaintAnalyzer:
             "getQueryParameter": "user_input",
             "getText()": "user_input",
             "getSharedPreferences": "storage",
-
             # iOS/Swift
             "UserDefaults": "storage",
             "UIPasteboard": "user_input",
@@ -242,7 +248,6 @@ class TaintAnalyzer:
             "raw(": VulnerabilityType.SQL_INJECTION,
             "rawQuery(": VulnerabilityType.SQL_INJECTION,
             "execSQL(": VulnerabilityType.SQL_INJECTION,
-
             # Command
             "os.system(": VulnerabilityType.COMMAND_INJECTION,
             "subprocess.call(": VulnerabilityType.COMMAND_INJECTION,
@@ -251,18 +256,15 @@ class TaintAnalyzer:
             "eval(": VulnerabilityType.COMMAND_INJECTION,
             "exec(": VulnerabilityType.COMMAND_INJECTION,
             "Runtime.getRuntime().exec(": VulnerabilityType.COMMAND_INJECTION,
-
             # File
             "open(": VulnerabilityType.PATH_TRAVERSAL,
             "FileInputStream(": VulnerabilityType.PATH_TRAVERSAL,
             "FileOutputStream(": VulnerabilityType.PATH_TRAVERSAL,
-
             # XSS
             "innerHTML": VulnerabilityType.XSS,
             "document.write(": VulnerabilityType.XSS,
             "loadUrl(": VulnerabilityType.XSS,
             "evaluateJavascript(": VulnerabilityType.XSS,
-
             # Logging
             "print(": VulnerabilityType.SENSITIVE_DATA_LOG,
             "Log.d(": VulnerabilityType.SENSITIVE_DATA_LOG,
@@ -270,7 +272,6 @@ class TaintAnalyzer:
             "Log.e(": VulnerabilityType.SENSITIVE_DATA_LOG,
             "NSLog(": VulnerabilityType.SENSITIVE_DATA_LOG,
             "logger.": VulnerabilityType.SENSITIVE_DATA_LOG,
-
             # Deserialization
             "pickle.load(": VulnerabilityType.UNSAFE_DESERIALIZATION,
             "pickle.loads(": VulnerabilityType.UNSAFE_DESERIALIZATION,
@@ -296,7 +297,7 @@ class TaintAnalyzer:
                 for source_pattern, source_type in self.sources.items():
                     if source_pattern in line:
                         # Extract variable name
-                        var_match = re.search(r'(\w+)\s*=', line)
+                        var_match = re.search(r"(\w+)\s*=", line)
                         if var_match:
                             var_name = var_match.group(1)
                             self.tainted_vars[var_name] = TaintSource(
@@ -318,12 +319,14 @@ class TaintAnalyzer:
                                     line_number=i,
                                     sink_type=vuln_type.value,
                                 )
-                                flows.append(TaintFlow(
-                                    source=source,
-                                    sink=sink,
-                                    path=[var_name],
-                                    vulnerability_type=vuln_type,
-                                ))
+                                flows.append(
+                                    TaintFlow(
+                                        source=source,
+                                        sink=sink,
+                                        path=[var_name],
+                                        vulnerability_type=vuln_type,
+                                    )
+                                )
 
         except (OSError, UnicodeDecodeError):
             pass
@@ -369,16 +372,18 @@ class ControlFlowAnalyzer:
                 # Check if there's code after return/raise
                 if i < len(func.body) - 1:
                     next_stmt = func.body[i + 1]
-                    findings.append(SASTFinding(
-                        vulnerability_type=VulnerabilityType.DEAD_CODE,
-                        severity=Severity.INFO,
-                        title="Unreachable code detected",
-                        description=f"Code after return/raise statement in function '{func.name}' is unreachable",
-                        file_path=str(file_path),
-                        line_number=next_stmt.lineno,
-                        recommendation="Remove unreachable code or fix control flow logic",
-                        cwe_id="CWE-561",
-                    ))
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.DEAD_CODE,
+                            severity=Severity.INFO,
+                            title="Unreachable code detected",
+                            description=f"Code after return/raise statement in function '{func.name}' is unreachable",
+                            file_path=str(file_path),
+                            line_number=next_stmt.lineno,
+                            recommendation="Remove unreachable code or fix control flow logic",
+                            cwe_id="CWE-561",
+                        )
+                    )
 
         return findings
 
@@ -389,29 +394,33 @@ class ControlFlowAnalyzer:
         for handler in try_node.handlers:
             # Bare except clause
             if handler.type is None:
-                findings.append(SASTFinding(
-                    vulnerability_type=VulnerabilityType.DEAD_CODE,
-                    severity=Severity.MEDIUM,
-                    title="Bare except clause",
-                    description="Catching all exceptions can hide bugs and make debugging difficult",
-                    file_path=str(file_path),
-                    line_number=handler.lineno,
-                    recommendation="Catch specific exceptions instead of using bare except",
-                    cwe_id="CWE-396",
-                ))
+                findings.append(
+                    SASTFinding(
+                        vulnerability_type=VulnerabilityType.DEAD_CODE,
+                        severity=Severity.MEDIUM,
+                        title="Bare except clause",
+                        description="Catching all exceptions can hide bugs and make debugging difficult",
+                        file_path=str(file_path),
+                        line_number=handler.lineno,
+                        recommendation="Catch specific exceptions instead of using bare except",
+                        cwe_id="CWE-396",
+                    )
+                )
 
             # Empty except block
             if len(handler.body) == 1 and isinstance(handler.body[0], ast.Pass):
-                findings.append(SASTFinding(
-                    vulnerability_type=VulnerabilityType.DEAD_CODE,
-                    severity=Severity.MEDIUM,
-                    title="Empty exception handler",
-                    description="Empty exception handler silently swallows errors",
-                    file_path=str(file_path),
-                    line_number=handler.lineno,
-                    recommendation="Handle the exception or log it, don't silently ignore",
-                    cwe_id="CWE-390",
-                ))
+                findings.append(
+                    SASTFinding(
+                        vulnerability_type=VulnerabilityType.DEAD_CODE,
+                        severity=Severity.MEDIUM,
+                        title="Empty exception handler",
+                        description="Empty exception handler silently swallows errors",
+                        file_path=str(file_path),
+                        line_number=handler.lineno,
+                        recommendation="Handle the exception or log it, don't silently ignore",
+                        cwe_id="CWE-390",
+                    )
+                )
 
         return findings
 
@@ -469,52 +478,58 @@ class CryptoAnalyzer:
                     if algo.lower() in lower_line:
                         # Skip if it's a comment
                         stripped = line.strip()
-                        if stripped.startswith(('#', '//', '/*', '*')):
+                        if stripped.startswith(("#", "//", "/*", "*")):
                             continue
 
-                        findings.append(SASTFinding(
-                            vulnerability_type=VulnerabilityType.WEAK_CRYPTO,
-                            severity=Severity.HIGH,
-                            title=f"Weak cryptographic algorithm: {algo}",
-                            description=desc,
-                            file_path=str(file_path),
-                            line_number=i,
-                            code_snippet=line.strip(),
-                            recommendation=f"Replace {algo} with a stronger algorithm (AES-256, SHA-256, etc.)",
-                            cwe_id=cwe,
-                            owasp_category="M5: Insufficient Cryptography",
-                        ))
+                        findings.append(
+                            SASTFinding(
+                                vulnerability_type=VulnerabilityType.WEAK_CRYPTO,
+                                severity=Severity.HIGH,
+                                title=f"Weak cryptographic algorithm: {algo}",
+                                description=desc,
+                                file_path=str(file_path),
+                                line_number=i,
+                                code_snippet=line.strip(),
+                                recommendation=f"Replace {algo} with a stronger algorithm (AES-256, SHA-256, etc.)",
+                                cwe_id=cwe,
+                                owasp_category="M5: Insufficient Cryptography",
+                            )
+                        )
 
                 # Check insecure random
                 for pattern in self.INSECURE_RANDOM:
                     if pattern.lower() in lower_line:
-                        findings.append(SASTFinding(
-                            vulnerability_type=VulnerabilityType.INSECURE_RANDOM,
-                            severity=Severity.MEDIUM,
-                            title="Insecure random number generator",
-                            description=f"'{pattern}' is not cryptographically secure",
-                            file_path=str(file_path),
-                            line_number=i,
-                            code_snippet=line.strip(),
-                            recommendation="Use secrets module (Python), SecureRandom (Java), or SecRandomCopyBytes (iOS)",
-                            cwe_id="CWE-338",
-                        ))
+                        findings.append(
+                            SASTFinding(
+                                vulnerability_type=VulnerabilityType.INSECURE_RANDOM,
+                                severity=Severity.MEDIUM,
+                                title="Insecure random number generator",
+                                description=f"'{pattern}' is not cryptographically secure",
+                                file_path=str(file_path),
+                                line_number=i,
+                                code_snippet=line.strip(),
+                                recommendation="Use secrets module (Python), SecureRandom (Java), or SecRandomCopyBytes (iOS)",
+                                cwe_id="CWE-338",
+                            )
+                        )
 
                 # Check hardcoded keys
                 for pattern in self.KEY_PATTERNS:
                     if re.search(pattern, line, re.IGNORECASE):
-                        findings.append(SASTFinding(
-                            vulnerability_type=VulnerabilityType.HARDCODED_KEY,
-                            severity=Severity.CRITICAL,
-                            title="Hardcoded cryptographic key",
-                            description="Cryptographic key is hardcoded in source code",
-                            file_path=str(file_path),
-                            line_number=i,
-                            code_snippet=line.strip()[:100],
-                            recommendation="Store keys in secure key management systems or environment variables",
-                            cwe_id="CWE-321",
-                            owasp_category="M10: Insufficient Cryptography",
-                        ))
+                        findings.append(
+                            SASTFinding(
+                                vulnerability_type=VulnerabilityType.HARDCODED_KEY,
+                                severity=Severity.CRITICAL,
+                                title="Hardcoded cryptographic key",
+                                description="Cryptographic key is hardcoded in source code",
+                                file_path=str(file_path),
+                                line_number=i,
+                                code_snippet=line.strip()[:100],
+                                recommendation="Store keys in secure key management systems or environment variables",
+                                cwe_id="CWE-321",
+                                owasp_category="M10: Insufficient Cryptography",
+                            )
+                        )
 
         except (OSError, UnicodeDecodeError):
             pass
@@ -542,21 +557,19 @@ class InsecureAPIAnalyzer:
         "subprocess.call.*shell=True": ("CWE-78", Severity.HIGH, "Shell injection with shell=True"),
         "tempfile.mktemp": ("CWE-377", Severity.MEDIUM, "Race condition in temp file creation"),
         "assert ": ("CWE-617", Severity.LOW, "Assert can be disabled in production"),
-
         # Android/Java
         "setJavaScriptEnabled(true)": ("CWE-79", Severity.HIGH, "JavaScript enabled in WebView"),
         "setAllowFileAccess(true)": ("CWE-200", Severity.HIGH, "File access enabled in WebView"),
         "addJavascriptInterface": ("CWE-749", Severity.CRITICAL, "JavaScript interface injection risk"),
         "MODE_WORLD_READABLE": ("CWE-732", Severity.HIGH, "World-readable file permissions"),
         "MODE_WORLD_WRITEABLE": ("CWE-732", Severity.CRITICAL, "World-writable file permissions"),
-        "allowBackup=\"true\"": ("CWE-530", Severity.MEDIUM, "App backup enabled"),
-        "debuggable=\"true\"": ("CWE-489", Severity.CRITICAL, "Debug mode enabled"),
-        "usesCleartextTraffic=\"true\"": ("CWE-319", Severity.HIGH, "Cleartext traffic allowed"),
+        'allowBackup="true"': ("CWE-530", Severity.MEDIUM, "App backup enabled"),
+        'debuggable="true"': ("CWE-489", Severity.CRITICAL, "Debug mode enabled"),
+        'usesCleartextTraffic="true"': ("CWE-319", Severity.HIGH, "Cleartext traffic allowed"),
         "TrustManager": ("CWE-295", Severity.HIGH, "Custom TrustManager may bypass cert validation"),
         "X509TrustManager": ("CWE-295", Severity.HIGH, "Custom X509TrustManager detected"),
         "HostnameVerifier": ("CWE-297", Severity.HIGH, "Custom HostnameVerifier detected"),
         "ALLOW_ALL_HOSTNAME_VERIFIER": ("CWE-297", Severity.CRITICAL, "All hostnames accepted"),
-
         # iOS/Swift
         "NSAllowsArbitraryLoads": ("CWE-319", Severity.HIGH, "ATS disabled - cleartext allowed"),
         "allowsInvalidSSLCertificate": ("CWE-295", Severity.CRITICAL, "Invalid SSL certificates allowed"),
@@ -576,16 +589,16 @@ class InsecureAPIAnalyzer:
             for i, line in enumerate(lines, 1):
                 # Skip comments
                 stripped = line.strip()
-                if stripped.startswith(('#', '//', '/*', '*', '"""', "'''")):
+                if stripped.startswith(("#", "//", "/*", "*", '"""', "'''")):
                     continue
 
                 for pattern, (cwe, severity, desc) in self.INSECURE_APIS.items():
                     # Use simple string matching for patterns without regex special chars
                     # or regex for patterns with wildcards
                     matched = False
-                    if '*' in pattern or '?' in pattern or '[' in pattern:
+                    if "*" in pattern or "?" in pattern or "[" in pattern:
                         # Escape parentheses for regex matching
-                        escaped_pattern = pattern.replace('(', r'\(').replace(')', r'\)')
+                        escaped_pattern = pattern.replace("(", r"\(").replace(")", r"\)")
                         try:
                             matched = bool(re.search(escaped_pattern, line))
                         except re.error:
@@ -595,18 +608,22 @@ class InsecureAPIAnalyzer:
                         matched = pattern in line
 
                     if matched:
-                        findings.append(SASTFinding(
-                            vulnerability_type=VulnerabilityType.INSECURE_WEBVIEW
-                                if "WebView" in desc or "JavaScript" in desc
-                                else VulnerabilityType.COMMAND_INJECTION,
-                            severity=severity,
-                            title=f"Insecure API usage: {pattern.split('(')[0] if '(' in pattern else pattern}",
-                            description=desc,
-                            file_path=str(file_path),
-                            line_number=i,
-                            code_snippet=line.strip(),
-                            cwe_id=cwe,
-                        ))
+                        findings.append(
+                            SASTFinding(
+                                vulnerability_type=(
+                                    VulnerabilityType.INSECURE_WEBVIEW
+                                    if "WebView" in desc or "JavaScript" in desc
+                                    else VulnerabilityType.COMMAND_INJECTION
+                                ),
+                                severity=severity,
+                                title=f"Insecure API usage: {pattern.split('(')[0] if '(' in pattern else pattern}",
+                                description=desc,
+                                file_path=str(file_path),
+                                line_number=i,
+                                code_snippet=line.strip(),
+                                cwe_id=cwe,
+                            )
+                        )
 
         except (OSError, UnicodeDecodeError):
             pass
@@ -630,106 +647,116 @@ class AndroidManifestAnalyzer:
             root = tree.getroot()
 
             # Namespace
-            ns = {'android': 'http://schemas.android.com/apk/res/android'}
+            ns = {"android": "http://schemas.android.com/apk/res/android"}
 
             # Check application attributes
-            app = root.find('.//application')
+            app = root.find(".//application")
             if app is not None:
                 # Debuggable
-                debuggable = app.get('{http://schemas.android.com/apk/res/android}debuggable')
-                if debuggable == 'true':
-                    findings.append(SASTFinding(
-                        vulnerability_type=VulnerabilityType.DEBUGGABLE,
-                        severity=Severity.CRITICAL,
-                        title="Application is debuggable",
-                        description="android:debuggable='true' allows debugging in production",
-                        file_path=str(manifest_path),
-                        line_number=1,
-                        recommendation="Set android:debuggable='false' for production builds",
-                        cwe_id="CWE-489",
-                        owasp_category="M8: Security Misconfiguration",
-                    ))
+                debuggable = app.get("{http://schemas.android.com/apk/res/android}debuggable")
+                if debuggable == "true":
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.DEBUGGABLE,
+                            severity=Severity.CRITICAL,
+                            title="Application is debuggable",
+                            description="android:debuggable='true' allows debugging in production",
+                            file_path=str(manifest_path),
+                            line_number=1,
+                            recommendation="Set android:debuggable='false' for production builds",
+                            cwe_id="CWE-489",
+                            owasp_category="M8: Security Misconfiguration",
+                        )
+                    )
 
                 # Backup
-                backup = app.get('{http://schemas.android.com/apk/res/android}allowBackup')
-                if backup == 'true' or backup is None:
-                    findings.append(SASTFinding(
-                        vulnerability_type=VulnerabilityType.BACKUP_ENABLED,
-                        severity=Severity.MEDIUM,
-                        title="Application backup enabled",
-                        description="App data can be backed up and potentially extracted",
-                        file_path=str(manifest_path),
-                        line_number=1,
-                        recommendation="Set android:allowBackup='false' unless explicitly needed",
-                        cwe_id="CWE-530",
-                        owasp_category="M9: Insecure Data Storage",
-                    ))
+                backup = app.get("{http://schemas.android.com/apk/res/android}allowBackup")
+                if backup == "true" or backup is None:
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.BACKUP_ENABLED,
+                            severity=Severity.MEDIUM,
+                            title="Application backup enabled",
+                            description="App data can be backed up and potentially extracted",
+                            file_path=str(manifest_path),
+                            line_number=1,
+                            recommendation="Set android:allowBackup='false' unless explicitly needed",
+                            cwe_id="CWE-530",
+                            owasp_category="M9: Insecure Data Storage",
+                        )
+                    )
 
                 # Cleartext traffic
-                cleartext = app.get('{http://schemas.android.com/apk/res/android}usesCleartextTraffic')
-                if cleartext == 'true':
-                    findings.append(SASTFinding(
-                        vulnerability_type=VulnerabilityType.CLEARTEXT_TRANSMISSION,
-                        severity=Severity.HIGH,
-                        title="Cleartext traffic allowed",
-                        description="Application allows unencrypted HTTP traffic",
-                        file_path=str(manifest_path),
-                        line_number=1,
-                        recommendation="Set android:usesCleartextTraffic='false' and use HTTPS",
-                        cwe_id="CWE-319",
-                        owasp_category="M5: Insecure Communication",
-                    ))
+                cleartext = app.get("{http://schemas.android.com/apk/res/android}usesCleartextTraffic")
+                if cleartext == "true":
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.CLEARTEXT_TRANSMISSION,
+                            severity=Severity.HIGH,
+                            title="Cleartext traffic allowed",
+                            description="Application allows unencrypted HTTP traffic",
+                            file_path=str(manifest_path),
+                            line_number=1,
+                            recommendation="Set android:usesCleartextTraffic='false' and use HTTPS",
+                            cwe_id="CWE-319",
+                            owasp_category="M5: Insecure Communication",
+                        )
+                    )
 
             # Check exported components
-            for component_type in ['activity', 'service', 'receiver', 'provider']:
-                for component in root.findall(f'.//{component_type}'):
-                    exported = component.get('{http://schemas.android.com/apk/res/android}exported')
-                    name = component.get('{http://schemas.android.com/apk/res/android}name', 'unknown')
+            for component_type in ["activity", "service", "receiver", "provider"]:
+                for component in root.findall(f".//{component_type}"):
+                    exported = component.get("{http://schemas.android.com/apk/res/android}exported")
+                    name = component.get("{http://schemas.android.com/apk/res/android}name", "unknown")
 
                     # Check intent filters (implicit export)
-                    has_intent_filter = component.find('intent-filter') is not None
+                    has_intent_filter = component.find("intent-filter") is not None
 
-                    if exported == 'true' or (has_intent_filter and exported != 'false'):
+                    if exported == "true" or (has_intent_filter and exported != "false"):
                         # Check for permission protection
-                        permission = component.get('{http://schemas.android.com/apk/res/android}permission')
+                        permission = component.get("{http://schemas.android.com/apk/res/android}permission")
 
                         if not permission:
-                            findings.append(SASTFinding(
-                                vulnerability_type=VulnerabilityType.INSECURE_DEEP_LINK,
-                                severity=Severity.MEDIUM,
-                                title=f"Exported {component_type} without permission",
-                                description=f"{name} is exported but not protected by permission",
-                                file_path=str(manifest_path),
-                                line_number=1,
-                                recommendation=f"Add android:permission to protect the {component_type}",
-                                cwe_id="CWE-926",
-                                owasp_category="M1: Improper Platform Usage",
-                            ))
+                            findings.append(
+                                SASTFinding(
+                                    vulnerability_type=VulnerabilityType.INSECURE_DEEP_LINK,
+                                    severity=Severity.MEDIUM,
+                                    title=f"Exported {component_type} without permission",
+                                    description=f"{name} is exported but not protected by permission",
+                                    file_path=str(manifest_path),
+                                    line_number=1,
+                                    recommendation=f"Add android:permission to protect the {component_type}",
+                                    cwe_id="CWE-926",
+                                    owasp_category="M1: Improper Platform Usage",
+                                )
+                            )
 
             # Check dangerous permissions
             dangerous_permissions = [
-                'android.permission.READ_SMS',
-                'android.permission.RECEIVE_SMS',
-                'android.permission.READ_CONTACTS',
-                'android.permission.READ_CALL_LOG',
-                'android.permission.ACCESS_FINE_LOCATION',
-                'android.permission.RECORD_AUDIO',
-                'android.permission.CAMERA',
+                "android.permission.READ_SMS",
+                "android.permission.RECEIVE_SMS",
+                "android.permission.READ_CONTACTS",
+                "android.permission.READ_CALL_LOG",
+                "android.permission.ACCESS_FINE_LOCATION",
+                "android.permission.RECORD_AUDIO",
+                "android.permission.CAMERA",
             ]
 
-            for perm in root.findall('.//uses-permission'):
-                perm_name = perm.get('{http://schemas.android.com/apk/res/android}name')
+            for perm in root.findall(".//uses-permission"):
+                perm_name = perm.get("{http://schemas.android.com/apk/res/android}name")
                 if perm_name in dangerous_permissions:
-                    findings.append(SASTFinding(
-                        vulnerability_type=VulnerabilityType.CLIPBOARD_DATA,
-                        severity=Severity.INFO,
-                        title=f"Dangerous permission: {perm_name}",
-                        description=f"Application requests sensitive permission: {perm_name}",
-                        file_path=str(manifest_path),
-                        line_number=1,
-                        recommendation="Ensure this permission is necessary and handle data securely",
-                        cwe_id="CWE-250",
-                    ))
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.CLIPBOARD_DATA,
+                            severity=Severity.INFO,
+                            title=f"Dangerous permission: {perm_name}",
+                            description=f"Application requests sensitive permission: {perm_name}",
+                            file_path=str(manifest_path),
+                            line_number=1,
+                            recommendation="Ensure this permission is necessary and handle data securely",
+                            cwe_id="CWE-250",
+                        )
+                    )
 
         except (ET.ParseError, OSError):
             pass
@@ -751,55 +778,61 @@ class IOSPlistAnalyzer:
         try:
             import plistlib
 
-            with open(plist_path, 'rb') as f:
+            with open(plist_path, "rb") as f:
                 plist = plistlib.load(f)
 
             # Check ATS settings
-            ats = plist.get('NSAppTransportSecurity', {})
+            ats = plist.get("NSAppTransportSecurity", {})
 
-            if ats.get('NSAllowsArbitraryLoads', False):
-                findings.append(SASTFinding(
-                    vulnerability_type=VulnerabilityType.CLEARTEXT_TRANSMISSION,
-                    severity=Severity.HIGH,
-                    title="App Transport Security disabled",
-                    description="NSAllowsArbitraryLoads allows cleartext HTTP traffic",
-                    file_path=str(plist_path),
-                    line_number=1,
-                    recommendation="Remove NSAllowsArbitraryLoads and use HTTPS",
-                    cwe_id="CWE-319",
-                    owasp_category="M5: Insecure Communication",
-                ))
+            if ats.get("NSAllowsArbitraryLoads", False):
+                findings.append(
+                    SASTFinding(
+                        vulnerability_type=VulnerabilityType.CLEARTEXT_TRANSMISSION,
+                        severity=Severity.HIGH,
+                        title="App Transport Security disabled",
+                        description="NSAllowsArbitraryLoads allows cleartext HTTP traffic",
+                        file_path=str(plist_path),
+                        line_number=1,
+                        recommendation="Remove NSAllowsArbitraryLoads and use HTTPS",
+                        cwe_id="CWE-319",
+                        owasp_category="M5: Insecure Communication",
+                    )
+                )
 
             # Check URL schemes
-            url_types = plist.get('CFBundleURLTypes', [])
+            url_types = plist.get("CFBundleURLTypes", [])
             for url_type in url_types:
-                schemes = url_type.get('CFBundleURLSchemes', [])
+                schemes = url_type.get("CFBundleURLSchemes", [])
                 for scheme in schemes:
-                    if scheme not in ['http', 'https']:
-                        findings.append(SASTFinding(
-                            vulnerability_type=VulnerabilityType.INSECURE_DEEP_LINK,
-                            severity=Severity.INFO,
-                            title=f"Custom URL scheme: {scheme}",
-                            description="Custom URL schemes should validate input carefully",
-                            file_path=str(plist_path),
-                            line_number=1,
-                            recommendation="Validate all data received via URL scheme",
-                            cwe_id="CWE-939",
-                        ))
+                    if scheme not in ["http", "https"]:
+                        findings.append(
+                            SASTFinding(
+                                vulnerability_type=VulnerabilityType.INSECURE_DEEP_LINK,
+                                severity=Severity.INFO,
+                                title=f"Custom URL scheme: {scheme}",
+                                description="Custom URL schemes should validate input carefully",
+                                file_path=str(plist_path),
+                                line_number=1,
+                                recommendation="Validate all data received via URL scheme",
+                                cwe_id="CWE-939",
+                            )
+                        )
 
             # Check background modes
-            background_modes = plist.get('UIBackgroundModes', [])
-            if 'fetch' in background_modes or 'remote-notification' in background_modes:
-                findings.append(SASTFinding(
-                    vulnerability_type=VulnerabilityType.CLIPBOARD_DATA,
-                    severity=Severity.INFO,
-                    title="Background execution enabled",
-                    description=f"App can execute in background: {background_modes}",
-                    file_path=str(plist_path),
-                    line_number=1,
-                    recommendation="Ensure background tasks handle sensitive data securely",
-                    cwe_id="CWE-200",
-                ))
+            background_modes = plist.get("UIBackgroundModes", [])
+            if "fetch" in background_modes or "remote-notification" in background_modes:
+                findings.append(
+                    SASTFinding(
+                        vulnerability_type=VulnerabilityType.CLIPBOARD_DATA,
+                        severity=Severity.INFO,
+                        title="Background execution enabled",
+                        description=f"App can execute in background: {background_modes}",
+                        file_path=str(plist_path),
+                        line_number=1,
+                        recommendation="Ensure background tasks handle sensitive data securely",
+                        cwe_id="CWE-200",
+                    )
+                )
 
         except (OSError, Exception):
             pass
@@ -830,19 +863,21 @@ class SASTAnalyzer:
         # Taint analysis
         taint_flows = self.taint_analyzer.analyze_file(file_path)
         for flow in taint_flows:
-            findings.append(SASTFinding(
-                vulnerability_type=flow.vulnerability_type,
-                severity=Severity.HIGH,
-                title=f"Tainted data flow to {flow.sink.sink_type}",
-                description=f"User-controlled data flows from {flow.source.name} to {flow.sink.name}",
-                file_path=str(file_path),
-                line_number=flow.sink.line_number,
-                taint_flow=flow,
-                cwe_id="CWE-20",
-            ))
+            findings.append(
+                SASTFinding(
+                    vulnerability_type=flow.vulnerability_type,
+                    severity=Severity.HIGH,
+                    title=f"Tainted data flow to {flow.sink.sink_type}",
+                    description=f"User-controlled data flows from {flow.source.name} to {flow.sink.name}",
+                    file_path=str(file_path),
+                    line_number=flow.sink.line_number,
+                    taint_flow=flow,
+                    cwe_id="CWE-20",
+                )
+            )
 
         # Control flow analysis (Python)
-        if suffix == '.py':
+        if suffix == ".py":
             findings.extend(self.control_flow_analyzer.analyze_python(file_path))
 
         # Cryptographic analysis
@@ -852,35 +887,32 @@ class SASTAnalyzer:
         findings.extend(self.api_analyzer.analyze(file_path))
 
         # Android manifest
-        if file_path.name == 'AndroidManifest.xml':
+        if file_path.name == "AndroidManifest.xml":
             findings.extend(self.android_analyzer.analyze(file_path))
 
         # iOS plist
-        if file_path.name == 'Info.plist':
+        if file_path.name == "Info.plist":
             findings.extend(self.ios_analyzer.analyze(file_path))
 
         return findings
 
     def analyze_directory(
-        self,
-        directory: Path,
-        recursive: bool = True,
-        exclude_patterns: Optional[List[str]] = None
+        self, directory: Path, recursive: bool = True, exclude_patterns: Optional[List[str]] = None
     ) -> List[SASTFinding]:
         """Analyze all files in directory"""
         findings = []
-        exclude = exclude_patterns or ['node_modules', 'venv', '.git', '__pycache__', 'build', 'dist']
+        exclude = exclude_patterns or ["node_modules", "venv", ".git", "__pycache__", "build", "dist"]
 
-        extensions = {'.py', '.java', '.kt', '.swift', '.m', '.h', '.js', '.ts', '.xml', '.plist'}
+        extensions = {".py", ".java", ".kt", ".swift", ".m", ".h", ".js", ".ts", ".xml", ".plist"}
 
         def should_exclude(path: Path) -> bool:
             return any(ex in str(path) for ex in exclude)
 
-        pattern = '**/*' if recursive else '*'
+        pattern = "**/*" if recursive else "*"
 
         for file_path in directory.glob(pattern):
             if file_path.is_file() and not should_exclude(file_path):
-                if file_path.suffix.lower() in extensions or file_path.name in ['AndroidManifest.xml', 'Info.plist']:
+                if file_path.suffix.lower() in extensions or file_path.name in ["AndroidManifest.xml", "Info.plist"]:
                     findings.extend(self.analyze_file(file_path))
 
         return findings
@@ -920,17 +952,19 @@ class SASTAnalyzer:
         sarif = {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
             "version": "2.1.0",
-            "runs": [{
-                "tool": {
-                    "driver": {
-                        "name": "Observe SAST",
-                        "version": "1.0.0",
-                        "informationUri": "https://observe-framework.dev",
-                        "rules": []
-                    }
-                },
-                "results": []
-            }]
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "Observe SAST",
+                            "version": "1.0.0",
+                            "informationUri": "https://observe-framework.dev",
+                            "rules": [],
+                        }
+                    },
+                    "results": [],
+                }
+            ],
         }
 
         rules = {}
@@ -950,29 +984,30 @@ class SASTAnalyzer:
                     },
                     "properties": {
                         "security-severity": str(finding.cvss_score or 7.0),
-                    }
+                    },
                 }
 
-            results.append({
-                "ruleId": rule_id,
-                "level": "error" if finding.severity in [Severity.CRITICAL, Severity.HIGH] else "warning",
-                "message": {"text": finding.description},
-                "locations": [{
-                    "physicalLocation": {
-                        "artifactLocation": {"uri": finding.file_path},
-                        "region": {
-                            "startLine": finding.line_number,
-                            "startColumn": finding.column or 1
+            results.append(
+                {
+                    "ruleId": rule_id,
+                    "level": "error" if finding.severity in [Severity.CRITICAL, Severity.HIGH] else "warning",
+                    "message": {"text": finding.description},
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {"uri": finding.file_path},
+                                "region": {"startLine": finding.line_number, "startColumn": finding.column or 1},
+                            }
                         }
-                    }
-                }]
-            })
+                    ],
+                }
+            )
 
         sarif["runs"][0]["tool"]["driver"]["rules"] = list(rules.values())
         sarif["runs"][0]["results"] = results
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(sarif, f, indent=2)
 
     def analyze(
@@ -982,7 +1017,7 @@ class SASTAnalyzer:
         enable_taint: bool = True,
         enable_crypto: bool = True,
         recursive: bool = True,
-        exclude_patterns: Optional[List[str]] = None
+        exclude_patterns: Optional[List[str]] = None,
     ) -> SASTResult:
         """
         CLI-compatible analyze method that returns SASTResult wrapper.
@@ -1005,22 +1040,21 @@ class SASTAnalyzer:
             findings = self.analyze_file(source_path)
             files_scanned = 1
         elif source_path.is_dir():
-            findings = self.analyze_directory(
-                source_path,
-                recursive=recursive,
-                exclude_patterns=exclude_patterns
-            )
+            findings = self.analyze_directory(source_path, recursive=recursive, exclude_patterns=exclude_patterns)
             # Count files scanned
-            exclude = exclude_patterns or ['node_modules', 'venv', '.git', '__pycache__', 'build', 'dist']
-            extensions = {'.py', '.java', '.kt', '.swift', '.m', '.h', '.js', '.ts', '.xml', '.plist'}
+            exclude = exclude_patterns or ["node_modules", "venv", ".git", "__pycache__", "build", "dist"]
+            extensions = {".py", ".java", ".kt", ".swift", ".m", ".h", ".js", ".ts", ".xml", ".plist"}
 
             def should_exclude(path: Path) -> bool:
                 return any(ex in str(path) for ex in exclude)
 
-            pattern = '**/*' if recursive else '*'
+            pattern = "**/*" if recursive else "*"
             for file_path in source_path.glob(pattern):
                 if file_path.is_file() and not should_exclude(file_path):
-                    if file_path.suffix.lower() in extensions or file_path.name in ['AndroidManifest.xml', 'Info.plist']:
+                    if file_path.suffix.lower() in extensions or file_path.name in [
+                        "AndroidManifest.xml",
+                        "Info.plist",
+                    ]:
                         files_scanned += 1
 
         return SASTResult(
@@ -1119,20 +1153,26 @@ class SASTAnalyzer:
                 <p class="finding-location">{finding.file_path}:{finding.line_number}</p>
 """
                 if finding.code_snippet:
-                    escaped_snippet = finding.code_snippet.replace('<', '&lt;').replace('>', '&gt;')
+                    escaped_snippet = finding.code_snippet.replace("<", "&lt;").replace(">", "&gt;")
                     html_content += f'                <pre class="code-snippet">{escaped_snippet}</pre>\n'
 
                 if finding.recommendation:
-                    html_content += f'                <p><strong>Recommendation:</strong> {finding.recommendation}</p>\n'
+                    html_content += (
+                        f"                <p><strong>Recommendation:</strong> {finding.recommendation}</p>\n"
+                    )
 
                 html_content += '                <div class="metadata">\n'
                 if finding.cwe_id:
-                    html_content += f'                    <span><strong>CWE:</strong> {finding.cwe_id}</span>\n'
+                    html_content += f"                    <span><strong>CWE:</strong> {finding.cwe_id}</span>\n"
                 if finding.owasp_category:
-                    html_content += f'                    <span><strong>OWASP:</strong> {finding.owasp_category}</span>\n'
-                html_content += f'                    <span><strong>Type:</strong> {finding.vulnerability_type.value}</span>\n'
-                html_content += '                </div>\n'
-                html_content += '            </div>\n'
+                    html_content += (
+                        f"                    <span><strong>OWASP:</strong> {finding.owasp_category}</span>\n"
+                    )
+                html_content += (
+                    f"                    <span><strong>Type:</strong> {finding.vulnerability_type.value}</span>\n"
+                )
+                html_content += "                </div>\n"
+                html_content += "            </div>\n"
 
         html_content += """        </div>
     </div>
@@ -1141,5 +1181,5 @@ class SASTAnalyzer:
 """
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(html_content)

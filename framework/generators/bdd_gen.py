@@ -90,7 +90,7 @@ def generate_feature_file(flow: Flow, output_dir: Path) -> Path:
     content = template.render(flow=flow)
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    file_name = flow.name.lower().replace(' ', '_') + '.feature'
+    file_name = flow.name.lower().replace(" ", "_") + ".feature"
     file_path = output_dir / file_name
     file_path.write_text(content)
 
@@ -117,29 +117,26 @@ def generate_step_definitions(flow: Flow, feature_file: str, output_dir: Path) -
     for scenario in flow.scenarios:
         for step in scenario.steps:
             step_data = {
-                'pattern': step.text,
-                'function_name': _step_to_function_name(step.text),
-                'params': 'driver',
-                'description': step.text
+                "pattern": step.text,
+                "function_name": _step_to_function_name(step.text),
+                "params": "driver",
+                "description": step.text,
             }
 
-            if step.keyword == 'Given':
+            if step.keyword == "Given":
                 given_steps.append(step_data)
-            elif step.keyword == 'When':
+            elif step.keyword == "When":
                 when_steps.append(step_data)
-            elif step.keyword == 'Then':
+            elif step.keyword == "Then":
                 then_steps.append(step_data)
 
     template = Template(STEP_DEFINITIONS_TEMPLATE)
     content = template.render(
-        feature_file=feature_file,
-        given_steps=given_steps,
-        when_steps=when_steps,
-        then_steps=then_steps
+        feature_file=feature_file, given_steps=given_steps, when_steps=when_steps, then_steps=then_steps
     )
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    file_name = 'test_' + flow.name.lower().replace(' ', '_') + '.py'
+    file_name = "test_" + flow.name.lower().replace(" ", "_") + ".py"
     file_path = output_dir / file_name
     file_path.write_text(content)
 
@@ -150,9 +147,9 @@ def _step_to_function_name(step_text: str) -> str:
     """Convert step text to valid Python function name"""
     # Remove special characters and convert to snake_case
     name = step_text.lower()
-    name = name.replace("'", "").replace('"', '')
-    name = ''.join(c if c.isalnum() or c == ' ' else '_' for c in name)
-    name = '_'.join(name.split())
+    name = name.replace("'", "").replace('"', "")
+    name = "".join(c if c.isalnum() or c == " " else "_" for c in name)
+    name = "_".join(name.split())
     return name
 
 

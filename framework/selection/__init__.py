@@ -8,8 +8,8 @@ from .change_analyzer import ChangeAnalyzer, FileChange
 from .test_selector import TestSelector, TestImpact
 
 __all__ = [
-    'ChangeAnalyzer',
-    'FileChange',
-    'TestSelector',
-    'TestImpact',
+    "ChangeAnalyzer",
+    "FileChange",
+    "TestSelector",
+    "TestImpact",
 ]

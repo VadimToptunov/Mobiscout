@@ -16,6 +16,7 @@ from typing import List, Dict, Any, Optional
 
 class DataType(Enum):
     """Types of test data"""
+
     USER = "user"
     PRODUCT = "product"
     TRANSACTION = "transaction"
@@ -26,6 +27,7 @@ class DataType(Enum):
 @dataclass
 class User:
     """User test data"""
+
     id: str
     first_name: str
     last_name: str
@@ -40,6 +42,7 @@ class User:
 @dataclass
 class Product:
     """Product test data"""
+
     id: str
     name: str
     description: str
@@ -53,6 +56,7 @@ class Product:
 @dataclass
 class Transaction:
     """Transaction test data"""
+
     id: str
     user_id: str
     amount: float
@@ -66,6 +70,7 @@ class Transaction:
 @dataclass
 class CreditCard:
     """Credit card test data"""
+
     number: str
     cvv: str
     expiry_month: str
@@ -77,6 +82,7 @@ class CreditCard:
 @dataclass
 class Address:
     """Address test data"""
+
     street: str
     city: str
     state: str
@@ -89,35 +95,80 @@ class TestDataGenerator:
 
     # Sample data pools
     FIRST_NAMES = [
-        "John", "Jane", "Michael", "Sarah", "David", "Emily", "Robert", "Lisa",
-        "James", "Mary", "William", "Patricia", "Richard", "Jennifer", "Thomas"
+        "John",
+        "Jane",
+        "Michael",
+        "Sarah",
+        "David",
+        "Emily",
+        "Robert",
+        "Lisa",
+        "James",
+        "Mary",
+        "William",
+        "Patricia",
+        "Richard",
+        "Jennifer",
+        "Thomas",
     ]
 
     LAST_NAMES = [
-        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller",
-        "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez"
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
+        "Hernandez",
+        "Lopez",
+        "Gonzalez",
     ]
 
     CITIES = [
-        "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia",
-        "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville"
+        "New York",
+        "Los Angeles",
+        "Chicago",
+        "Houston",
+        "Phoenix",
+        "Philadelphia",
+        "San Antonio",
+        "San Diego",
+        "Dallas",
+        "San Jose",
+        "Austin",
+        "Jacksonville",
     ]
 
     STATES = ["NY", "CA", "IL", "TX", "AZ", "PA", "FL", "OH", "GA", "NC"]
 
     STREETS = [
-        "Main Street", "Oak Avenue", "Park Road", "Maple Drive", "Cedar Lane",
-        "Pine Street", "Elm Avenue", "Washington Boulevard", "Lincoln Way"
+        "Main Street",
+        "Oak Avenue",
+        "Park Road",
+        "Maple Drive",
+        "Cedar Lane",
+        "Pine Street",
+        "Elm Avenue",
+        "Washington Boulevard",
+        "Lincoln Way",
     ]
 
     PRODUCT_NAMES = [
-        "Premium Widget", "Deluxe Gadget", "Professional Tool", "Standard Kit",
-        "Advanced System", "Basic Package", "Elite Set", "Ultimate Bundle"
+        "Premium Widget",
+        "Deluxe Gadget",
+        "Professional Tool",
+        "Standard Kit",
+        "Advanced System",
+        "Basic Package",
+        "Elite Set",
+        "Ultimate Bundle",
     ]
 
-    PRODUCT_CATEGORIES = [
-        "electronics", "clothing", "home", "sports", "books", "toys", "food", "beauty"
-    ]
+    PRODUCT_CATEGORIES = ["electronics", "clothing", "home", "sports", "books", "toys", "food", "beauty"]
 
     def __init__(self, seed: Optional[int] = None):
         """Initialize generator with optional seed for reproducibility"""
@@ -127,13 +178,13 @@ class TestDataGenerator:
     def _generate_secure_password(self) -> str:
         """Generate a secure test password"""
         # Use environment variable for consistent test passwords, or generate secure random
-        test_password = os.environ.get('TEST_USER_PASSWORD')
+        test_password = os.environ.get("TEST_USER_PASSWORD")
         if test_password:
             return test_password
 
         # Generate secure random password for test data
         chars = string.ascii_letters + string.digits + "!@#$%"
-        password = ''.join(random.choice(chars) for _ in range(12))
+        password = "".join(random.choice(chars) for _ in range(12))
         # Ensure it meets basic requirements
         if not any(c.isupper() for c in password):
             password = password[0].upper() + password[1:]
@@ -157,7 +208,7 @@ class TestDataGenerator:
                 date_of_birth=self._generate_dob(),
                 password=self._generate_secure_password(),
                 status=random.choice(["active", "pending", "suspended"]),
-                metadata={"created_at": datetime.now().isoformat()}
+                metadata={"created_at": datetime.now().isoformat()},
             )
             users.append(user)
 
@@ -178,7 +229,7 @@ class TestDataGenerator:
                 currency="USD",
                 category=category,
                 stock=random.randint(0, 1000),
-                metadata={"sku": self._generate_id("SKU")}
+                metadata={"sku": self._generate_id("SKU")},
             )
             products.append(product)
 
@@ -200,7 +251,7 @@ class TestDataGenerator:
                 type=random.choice(["payment", "refund", "transfer"]),
                 status=random.choice(["completed", "pending", "failed"]),
                 timestamp=self._generate_timestamp(),
-                metadata={"reference": self._generate_id("ref")}
+                metadata={"reference": self._generate_id("ref")},
             )
             transactions.append(transaction)
 
@@ -218,7 +269,7 @@ class TestDataGenerator:
                 expiry_month=f"{random.randint(1, 12):02d}",
                 expiry_year=str(random.randint(2025, 2030)),
                 holder_name=f"{random.choice(self.FIRST_NAMES)} {random.choice(self.LAST_NAMES)}".upper(),
-                type=card_type
+                type=card_type,
             )
             cards.append(card)
 
@@ -233,7 +284,7 @@ class TestDataGenerator:
                 city=random.choice(self.CITIES),
                 state=random.choice(self.STATES),
                 zip_code=f"{random.randint(10000, 99999)}",
-                country="US"
+                country="US",
             )
             addresses.append(address)
 
@@ -241,7 +292,7 @@ class TestDataGenerator:
 
     def _generate_id(self, prefix: str = "") -> str:
         """Generate random ID"""
-        suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=12))
+        suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=12))
         return f"{prefix}_{suffix}" if prefix else suffix
 
     def _generate_email(self, first_name: str, last_name: str) -> str:
@@ -287,12 +338,12 @@ class TestDataGenerator:
 
     def export_json(self, data: List[Any], output_path: str) -> None:
         """Export data to JSON file"""
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json_data = [self._to_dict(item) for item in data]
             json.dump(json_data, f, indent=2)
 
     def _to_dict(self, obj: Any) -> Dict[str, Any]:
         """Convert dataclass to dict"""
-        if hasattr(obj, '__dataclass_fields__'):
+        if hasattr(obj, "__dataclass_fields__"):
             return {k: v for k, v in obj.__dict__.items()}
         return obj

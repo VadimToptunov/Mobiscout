@@ -6,15 +6,7 @@ Tests flow graph building, edge case detection, and state extraction.
 
 import pytest
 
-from framework.flow import (
-    TransitionType,
-    EdgeCaseType,
-    UIAction,
-    FlowNode,
-    FlowEdge,
-    FlowDiscovery,
-    StateExtractor
-)
+from framework.flow import TransitionType, EdgeCaseType, UIAction, FlowNode, FlowEdge, FlowDiscovery, StateExtractor
 
 
 class TestUIAction:
@@ -22,12 +14,7 @@ class TestUIAction:
 
     def test_create_action(self):
         """Test creating UI action"""
-        action = UIAction(
-            action_type="tap",
-            element_id="login_button",
-            element_label="Login",
-            input_value=None
-        )
+        action = UIAction(action_type="tap", element_id="login_button", element_label="Login", input_value=None)
 
         assert action.action_type == "tap"
         assert action.element_id == "login_button"
@@ -36,10 +23,7 @@ class TestUIAction:
     def test_action_with_input(self):
         """Test action with input value"""
         action = UIAction(
-            action_type="input",
-            element_id="username_field",
-            element_label="Username",
-            input_value="testuser"
+            action_type="input", element_id="username_field", element_label="Username", input_value="testuser"
         )
 
         assert action.input_value == "testuser"
@@ -51,9 +35,7 @@ class TestFlowNode:
     def test_create_node(self):
         """Test creating flow node"""
         node = FlowNode(
-            screen_id="login_screen",
-            screen_name="LoginScreen",
-            elements=[{'id': 'btn1', 'type': 'button'}]
+            screen_id="login_screen", screen_name="LoginScreen", elements=[{"id": "btn1", "type": "button"}]
         )
 
         assert node.screen_id == "login_screen"
@@ -64,14 +46,11 @@ class TestFlowNode:
     def test_node_properties(self):
         """Test node with properties"""
         node = FlowNode(
-            screen_id="test",
-            screen_name="Test",
-            elements=[],
-            properties={'has_list': True, 'item_count': 5}
+            screen_id="test", screen_name="Test", elements=[], properties={"has_list": True, "item_count": 5}
         )
 
-        assert node.properties['has_list'] is True
-        assert node.properties['item_count'] == 5
+        assert node.properties["has_list"] is True
+        assert node.properties["item_count"] == 5
 
 
 class TestFlowEdge:
@@ -80,12 +59,7 @@ class TestFlowEdge:
     def test_create_edge(self):
         """Test creating flow edge"""
         action = UIAction("tap", "btn1", "Login")
-        edge = FlowEdge(
-            from_node="login",
-            to_node="home",
-            action=action,
-            transition_type=TransitionType.TAP
-        )
+        edge = FlowEdge(from_node="login", to_node="home", action=action, transition_type=TransitionType.TAP)
 
         assert edge.from_node == "login"
         assert edge.to_node == "home"
@@ -99,7 +73,7 @@ class TestFlowEdge:
             to_node="success",
             action=action,
             transition_type=TransitionType.TAP,
-            api_calls_pattern=["/api/submit", "/api/verify"]
+            api_calls_pattern=["/api/submit", "/api/verify"],
         )
 
         assert len(edge.api_calls_pattern) == 2
@@ -122,9 +96,9 @@ class TestFlowDiscovery:
         discovery = FlowDiscovery()
 
         elements = [
-            {'id': 'username', 'type': 'textfield'},
-            {'id': 'password', 'type': 'textfield'},
-            {'id': 'login_btn', 'type': 'button'}
+            {"id": "username", "type": "textfield"},
+            {"id": "password", "type": "textfield"},
+            {"id": "login_btn", "type": "button"},
         ]
 
         node = discovery.record_screen("login_screen", "LoginScreen", elements)
@@ -138,7 +112,7 @@ class TestFlowDiscovery:
         """Test recording same screen multiple times"""
         discovery = FlowDiscovery()
 
-        elements = [{'id': 'btn1', 'type': 'button'}]
+        elements = [{"id": "btn1", "type": "button"}]
 
         # First visit
         node1 = discovery.record_screen("test", "Test", elements)
@@ -215,7 +189,7 @@ class TestFlowDiscovery:
         """Test edge case detection for error screens"""
         discovery = FlowDiscovery()
 
-        elements = [{'id': 'error_msg', 'type': 'label'}]
+        elements = [{"id": "error_msg", "type": "label"}]
         node = discovery.record_screen("error_screen", "Error Screen", elements)
 
         assert node.is_edge_case
@@ -225,7 +199,7 @@ class TestFlowDiscovery:
         """Test edge case detection for loading screens"""
         discovery = FlowDiscovery()
 
-        elements = [{'id': 'spinner', 'type': 'activity_indicator'}]
+        elements = [{"id": "spinner", "type": "activity_indicator"}]
         node = discovery.record_screen("loading", "Loading Screen", elements)
 
         assert node.is_edge_case
@@ -235,10 +209,7 @@ class TestFlowDiscovery:
         """Test edge case detection for permission dialogs"""
         discovery = FlowDiscovery()
 
-        elements = [
-            {'id': 'allow_btn', 'type': 'button'},
-            {'id': 'deny_btn', 'type': 'button'}
-        ]
+        elements = [{"id": "allow_btn", "type": "button"}, {"id": "deny_btn", "type": "button"}]
         node = discovery.record_screen("perm", "Permission Dialog", elements)
 
         assert node.is_edge_case
@@ -250,7 +221,7 @@ class TestFlowDiscovery:
 
         # Register custom ML hook
         def custom_hook(screen_data):
-            if 'custom' in screen_data['screen_name'].lower():
+            if "custom" in screen_data["screen_name"].lower():
                 return EdgeCaseType.UNEXPECTED_POPUP
             return None
 
@@ -296,13 +267,14 @@ class TestFlowDiscovery:
         assert output.exists()
 
         import json
+
         with open(output) as f:
             data = json.load(f)
 
-        assert 'nodes' in data
-        assert 'edges' in data
-        assert len(data['nodes']) == 2
-        assert len(data['edges']) == 1
+        assert "nodes" in data
+        assert "edges" in data
+        assert len(data["nodes"]) == 2
+        assert len(data["edges"]) == 1
 
     def test_export_to_graphviz(self, tmp_path):
         """Test exporting flow graph to Graphviz"""
@@ -322,10 +294,10 @@ class TestFlowDiscovery:
         with open(output) as f:
             content = f.read()
 
-        assert 'digraph FlowGraph' in content
+        assert "digraph FlowGraph" in content
         assert '"a"' in content
         assert '"b"' in content
-        assert '->' in content
+        assert "->" in content
 
     def test_loop_detection(self):
         """Test detecting loops in flow graph"""
@@ -374,8 +346,8 @@ class TestFlowDiscovery:
         discovery = FlowDiscovery()
 
         # Normal flow
-        discovery.record_screen("login", "Login", [{'id': 'btn', 'type': 'button'}])
-        discovery.record_screen("home", "Home", [{'id': 'btn', 'type': 'button'}])
+        discovery.record_screen("login", "Login", [{"id": "btn", "type": "button"}])
+        discovery.record_screen("home", "Home", [{"id": "btn", "type": "button"}])
 
         # Edge case
         discovery.record_screen("error", "Error Screen", [])
@@ -386,8 +358,8 @@ class TestFlowDiscovery:
         scenarios = discovery.generate_test_scenarios()
 
         assert len(scenarios) > 0
-        assert any(s['type'] == 'critical_path' for s in scenarios)
-        assert any(s['type'] == 'edge_case' for s in scenarios)
+        assert any(s["type"] == "critical_path" for s in scenarios)
+        assert any(s["type"] == "edge_case" for s in scenarios)
 
 
 class TestStateExtractor:
@@ -404,7 +376,7 @@ class TestStateExtractor:
         """Test extracting state machines"""
         discovery = FlowDiscovery()
 
-        discovery.record_screen("login", "Login", [{'id': 'btn', 'type': 'button'}])
+        discovery.record_screen("login", "Login", [{"id": "btn", "type": "button"}])
         discovery.record_screen("loading", "Loading", [])
 
         extractor = StateExtractor(discovery)
@@ -421,8 +393,8 @@ class TestStateExtractor:
         extractor = StateExtractor(discovery)
         states = extractor._extract_screen_states(node)
 
-        assert 'initial' in states
-        assert 'loading' in states
+        assert "initial" in states
+        assert "loading" in states
 
 
 class TestFlowGraphAnalysis:
@@ -437,9 +409,9 @@ class TestFlowGraphAnalysis:
         discovery.record_screen("splash", "Splash", [])
 
         # Main flow
-        discovery.record_screen("login", "Login", [{'id': 'btn', 'type': 'button'}])
-        discovery.record_screen("home", "Home", [{'id': 'btn', 'type': 'button'}])
-        discovery.record_screen("profile", "Profile", [{'id': 'btn', 'type': 'button'}])
+        discovery.record_screen("login", "Login", [{"id": "btn", "type": "button"}])
+        discovery.record_screen("home", "Home", [{"id": "btn", "type": "button"}])
+        discovery.record_screen("profile", "Profile", [{"id": "btn", "type": "button"}])
 
         # Edge cases
         discovery.record_screen("error", "Network Error", [])
@@ -471,12 +443,12 @@ class TestFlowGraphAnalysis:
         graph = complex_flow.build_flow_graph()
         data = graph.to_dict()
 
-        assert 'nodes' in data
-        assert 'edges' in data
-        assert 'entry_points' in data
-        assert 'dead_ends' in data
-        assert 'loops' in data
-        assert 'edge_case_count' in data
+        assert "nodes" in data
+        assert "edges" in data
+        assert "entry_points" in data
+        assert "dead_ends" in data
+        assert "loops" in data
+        assert "edge_case_count" in data
 
 
 class TestTransitionTypes:
@@ -491,7 +463,7 @@ class TestTransitionTypes:
             TransitionType.NAVIGATION,
             TransitionType.BACK,
             TransitionType.DEEP_LINK,
-            TransitionType.AUTOMATIC
+            TransitionType.AUTOMATIC,
         ]
 
         assert len(types) == 7
@@ -510,7 +482,7 @@ class TestEdgeCaseTypes:
             EdgeCaseType.EMPTY_STATE,
             EdgeCaseType.NETWORK_ERROR,
             EdgeCaseType.TIMEOUT,
-            EdgeCaseType.UNEXPECTED_POPUP
+            EdgeCaseType.UNEXPECTED_POPUP,
         ]
 
         assert len(types) == 7

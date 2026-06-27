@@ -16,6 +16,7 @@ from typing import Optional, Dict, Any
 
 class LicenseTier(Enum):
     """License tiers"""
+
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
@@ -25,12 +26,12 @@ class License:
     """License information"""
 
     def __init__(
-            self,
-            key: str,
-            tier: LicenseTier,
-            email: str,
-            expires_at: Optional[datetime] = None,
-            features: Optional[list] = None
+        self,
+        key: str,
+        tier: LicenseTier,
+        email: str,
+        expires_at: Optional[datetime] = None,
+        features: Optional[list] = None,
     ):
         self.key = key
         self.tier = tier
@@ -41,10 +42,17 @@ class License:
     def _default_features(self) -> list:
         """Default features per tier"""
         if self.tier == LicenseTier.ENTERPRISE:
-            return ['ml_healing', 'cloud_devices', 'parallel_execution',
-                    'distributed_execution', 'visual_testing', 'sso', 'audit_logs']
+            return [
+                "ml_healing",
+                "cloud_devices",
+                "parallel_execution",
+                "distributed_execution",
+                "visual_testing",
+                "sso",
+                "audit_logs",
+            ]
         elif self.tier == LicenseTier.PRO:
-            return ['ml_healing', 'cloud_devices', 'parallel_execution']
+            return ["ml_healing", "cloud_devices", "parallel_execution"]
         else:
             return []
 
@@ -68,6 +76,7 @@ class License:
 
 class LicenseValidationError(Exception):
     """Raised when license validation configuration is invalid"""
+
     pass
 
 
@@ -93,7 +102,7 @@ class LicenseValidator:
     def _get_secret(cls) -> Optional[str]:
         """Get HMAC secret from environment. Returns None if not configured."""
         if cls._SECRET is None:
-            cls._SECRET = os.getenv('LICENSE_SECRET')
+            cls._SECRET = os.getenv("LICENSE_SECRET")
         return cls._SECRET
 
     @classmethod
@@ -104,13 +113,13 @@ class LicenseValidator:
 
     # Feature requirements
     FEATURE_TIERS = {
-        'ml_healing': LicenseTier.PRO,
-        'cloud_devices': LicenseTier.PRO,
-        'parallel_execution': LicenseTier.PRO,
-        'distributed_execution': LicenseTier.ENTERPRISE,
-        'visual_testing': LicenseTier.ENTERPRISE,
-        'sso': LicenseTier.ENTERPRISE,
-        'audit_logs': LicenseTier.ENTERPRISE,
+        "ml_healing": LicenseTier.PRO,
+        "cloud_devices": LicenseTier.PRO,
+        "parallel_execution": LicenseTier.PRO,
+        "distributed_execution": LicenseTier.ENTERPRISE,
+        "visual_testing": LicenseTier.ENTERPRISE,
+        "sso": LicenseTier.ENTERPRISE,
+        "audit_logs": LicenseTier.ENTERPRISE,
     }
 
     def __init__(self):
@@ -119,13 +128,13 @@ class LicenseValidator:
 
     def _load_license(self) -> License:
         """Load license from config"""
-        license_file = Path.home() / '.observe' / 'license.json'
+        license_file = Path.home() / ".observe" / "license.json"
 
         if not license_file.exists():
             return License(
-                key='FREE',
+                key="FREE",
                 tier=LicenseTier.FREE,
-                email='',
+                email="",
             )
 
         try:
@@ -133,24 +142,24 @@ class LicenseValidator:
                 data = json.load(f)
 
             # Validate license key
-            if not self._verify_key(data['key'], data['email']):
+            if not self._verify_key(data["key"], data["email"]):
                 print("⚠️  Invalid license key, falling back to FREE tier")
-                return License(key='FREE', tier=LicenseTier.FREE, email='')
+                return License(key="FREE", tier=LicenseTier.FREE, email="")
 
             expires_at = None
-            if data.get('expires_at'):
-                expires_at = datetime.fromisoformat(data['expires_at'])
+            if data.get("expires_at"):
+                expires_at = datetime.fromisoformat(data["expires_at"])
 
             return License(
-                key=data['key'],
-                tier=LicenseTier(data['tier']),
-                email=data['email'],
+                key=data["key"],
+                tier=LicenseTier(data["tier"]),
+                email=data["email"],
                 expires_at=expires_at,
-                features=data.get('features')
+                features=data.get("features"),
             )
         except (OSError, json.JSONDecodeError, KeyError, ValueError) as e:
             print(f"⚠️  Error loading license: {e}")
-            return License(key='FREE', tier=LicenseTier.FREE, email='')
+            return License(key="FREE", tier=LicenseTier.FREE, email="")
 
     def _verify_key(self, key: str, email: str) -> bool:
         """
@@ -173,16 +182,12 @@ class LicenseValidator:
             return False
 
         try:
-            parts = key.split('-')
+            parts = key.split("-")
             if len(parts) < 2:
                 return False
 
             tier = parts[0]
-            expected_hash = hmac.new(
-                secret.encode(),
-                f"{tier}:{email}".encode(),
-                hashlib.sha256
-            ).hexdigest()[:16]
+            expected_hash = hmac.new(secret.encode(), f"{tier}:{email}".encode(), hashlib.sha256).hexdigest()[:16]
 
             return hmac.compare_digest(parts[1], expected_hash)
         except (ValueError, TypeError, KeyError, IndexError):
@@ -228,7 +233,7 @@ class LicenseValidator:
 
     def _show_upgrade_prompt(self, feature: str, required_tier: LicenseTier):
         """Show upgrade prompt with pricing"""
-        feature_nice = feature.replace('_', ' ').title()
+        feature_nice = feature.replace("_", " ").title()
 
         print(f"\n⚡ {feature_nice} is a {required_tier.value.upper()} feature")
         print()
@@ -283,21 +288,21 @@ class LicenseValidator:
             return False
 
         # Extract tier from key
-        tier_str = key.split('-')[0].lower()
+        tier_str = key.split("-")[0].lower()
         tier = LicenseTier(tier_str)
 
         # Save license
-        license_file = Path.home() / '.observe' / 'license.json'
+        license_file = Path.home() / ".observe" / "license.json"
         license_file.parent.mkdir(parents=True, exist_ok=True)
 
         license_data = {
-            'key': key,
-            'tier': tier.value,
-            'email': email,
-            'activated_at': datetime.now().isoformat(),
+            "key": key,
+            "tier": tier.value,
+            "email": email,
+            "activated_at": datetime.now().isoformat(),
         }
 
-        with open(license_file, 'w') as f:
+        with open(license_file, "w") as f:
             json.dump(license_data, f, indent=2)
 
         # Reload license
@@ -311,22 +316,22 @@ class LicenseValidator:
 
     def deactivate(self):
         """Deactivate current license"""
-        license_file = Path.home() / '.observe' / 'license.json'
+        license_file = Path.home() / ".observe" / "license.json"
         if license_file.exists():
             license_file.unlink()
 
-        self.license = License(key='FREE', tier=LicenseTier.FREE, email='')
+        self.license = License(key="FREE", tier=LicenseTier.FREE, email="")
         print("✅ License deactivated")
 
     def status(self) -> Dict[str, Any]:
         """Get license status"""
         return {
-            'tier': self.license.tier.value,
-            'email': self.license.email,
-            'valid': self.license.is_valid(),
-            'expires_at': self.license.expires_at.isoformat() if self.license.expires_at else None,
-            'days_remaining': self.license.days_remaining(),
-            'features': self.license.features,
+            "tier": self.license.tier.value,
+            "email": self.license.email,
+            "valid": self.license.is_valid(),
+            "expires_at": self.license.expires_at.isoformat() if self.license.expires_at else None,
+            "days_remaining": self.license.days_remaining(),
+            "features": self.license.features,
         }
 
 

@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 class ScreenCandidate(BaseModel):
     """Potential screen discovered from source code"""
+
     name: str
     file_path: str
     line_number: int
@@ -22,6 +23,7 @@ class ScreenCandidate(BaseModel):
 
 class UIElementCandidate(BaseModel):
     """Potential UI element discovered from source code"""
+
     id: str
     type: str  # Button, TextField, Text, etc.
     screen: Optional[str] = None
@@ -35,6 +37,7 @@ class UIElementCandidate(BaseModel):
 
 class NavigationCandidate(BaseModel):
     """Navigation route discovered from source code"""
+
     from_screen: Optional[str] = None
     to_screen: str
     route: str
@@ -45,6 +48,7 @@ class NavigationCandidate(BaseModel):
 
 class APIEndpointCandidate(BaseModel):
     """API endpoint discovered from source code"""
+
     method: str  # GET, POST, PUT, DELETE
     path: str
     interface_name: str
@@ -61,6 +65,7 @@ class AnalysisResult(BaseModel):
 
     Contains hypotheses about app structure discovered from source code.
     """
+
     platform: str  # "android" or "ios"
     source_path: str
 

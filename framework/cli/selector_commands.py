@@ -209,7 +209,7 @@ def operators():
 
     operators_list = [
         ("EQUALS", "==", "Exact match", 'text == "Login"'),
-        ("NOT_EQUALS", "!=", "Not equal", 'enabled != False'),
+        ("NOT_EQUALS", "!=", "Not equal", "enabled != False"),
         ("CONTAINS", "contains", "Contains substring", '"Log" in text'),
         ("STARTS_WITH", "starts_with", "Starts with", 'text.startswith("Submit")'),
         ("ENDS_WITH", "ends_with", "Ends with", 'text.endswith("Button")'),
@@ -290,9 +290,7 @@ def benchmark():
         )
         engine.find(selector)
     filter_time = time.time() - start
-    benchmarks.append(
-        ("Class + filter (100x)", f"{filter_time * 1000:.2f}ms", f"{filter_time * 10:.2f}ms per call")
-    )
+    benchmarks.append(("Class + filter (100x)", f"{filter_time * 1000:.2f}ms", f"{filter_time * 10:.2f}ms per call"))
 
     # Fuzzy text search
     start = time.time()

@@ -15,12 +15,13 @@ from typing import Dict, Any, Optional, List, Callable, TypeVar, Generic
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 # ============================================================================
 # File I/O Helpers
 # ============================================================================
+
 
 def read_json_file(file_path: Path) -> Dict[str, Any]:
     """
@@ -39,18 +40,14 @@ def read_json_file(file_path: Path) -> Dict[str, Any]:
     from framework.core.exceptions import FileNotFoundError as CustomFileNotFoundError, SerializationError
 
     if not file_path.exists():
-        raise CustomFileNotFoundError(
-            f"File not found: {file_path}",
-            details={"path": str(file_path)}
-        )
+        raise CustomFileNotFoundError(f"File not found: {file_path}", details={"path": str(file_path)})
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
     except json.JSONDecodeError as e:
         raise SerializationError(
-            f"Invalid JSON in file: {file_path}",
-            details={"path": str(file_path), "error": str(e)}
+            f"Invalid JSON in file: {file_path}", details={"path": str(file_path), "error": str(e)}
         )
 
 
@@ -78,10 +75,7 @@ def write_json_file(file_path: Path, data: Dict[str, Any], pretty: bool = True) 
             else:
                 json.dump(data, f, ensure_ascii=False)
     except (TypeError, ValueError) as e:
-        raise SerializationError(
-            f"Cannot serialize data to JSON",
-            details={"path": str(file_path), "error": str(e)}
-        )
+        raise SerializationError(f"Cannot serialize data to JSON", details={"path": str(file_path), "error": str(e)})
 
 
 def ensure_directory(directory: Path) -> Path:
@@ -102,6 +96,7 @@ def ensure_directory(directory: Path) -> Path:
 # Data Processing Helpers
 # ============================================================================
 
+
 def calculate_statistics(items: List[T], key: Optional[Callable[[T], Any]] = None) -> Dict[str, Any]:
     """
     Calculate statistics for a collection of items.
@@ -114,13 +109,7 @@ def calculate_statistics(items: List[T], key: Optional[Callable[[T], Any]] = Non
         Dictionary with count, and numeric stats if applicable
     """
     if not items:
-        return {
-            "count": 0,
-            "total": 0,
-            "min": None,
-            "max": None,
-            "avg": None
-        }
+        return {"count": 0, "total": 0, "min": None, "max": None, "avg": None}
 
     count = len(items)
 
@@ -134,7 +123,7 @@ def calculate_statistics(items: List[T], key: Optional[Callable[[T], Any]] = Non
                     "total": sum(values),
                     "min": min(values),
                     "max": max(values),
-                    "avg": sum(values) / len(values)
+                    "avg": sum(values) / len(values),
                 }
         except (TypeError, ValueError):
             pass
@@ -168,6 +157,7 @@ def group_by(items: List[T], key: Callable[[T], str]) -> Dict[str, List[T]]:
 # Validation Helpers
 # ============================================================================
 
+
 def validate_file_exists(file_path: Path, file_type: str = "file") -> None:
     """
     Validate that a file exists.
@@ -183,8 +173,7 @@ def validate_file_exists(file_path: Path, file_type: str = "file") -> None:
 
     if not file_path.exists():
         raise CustomFileNotFoundError(
-            f"{file_type.capitalize()} not found: {file_path}",
-            details={"path": str(file_path), "type": file_type}
+            f"{file_type.capitalize()} not found: {file_path}", details={"path": str(file_path), "type": file_type}
         )
 
 
@@ -199,27 +188,19 @@ def validate_directory(directory: Path) -> None:
         FileNotFoundError: If directory doesn't exist
         FileAccessError: If directory is not accessible
     """
-    from framework.core.exceptions import (
-        FileNotFoundError as CustomFileNotFoundError,
-        FileAccessError
-    )
+    from framework.core.exceptions import FileNotFoundError as CustomFileNotFoundError, FileAccessError
 
     if not directory.exists():
-        raise CustomFileNotFoundError(
-            f"Directory not found: {directory}",
-            details={"path": str(directory)}
-        )
+        raise CustomFileNotFoundError(f"Directory not found: {directory}", details={"path": str(directory)})
 
     if not directory.is_dir():
-        raise FileAccessError(
-            f"Path is not a directory: {directory}",
-            details={"path": str(directory)}
-        )
+        raise FileAccessError(f"Path is not a directory: {directory}", details={"path": str(directory)})
 
 
 # ============================================================================
 # Result Reporting Helpers
 # ============================================================================
+
 
 class ResultCollector(Generic[T]):
     """
@@ -270,7 +251,7 @@ class ResultCollector(Generic[T]):
             "success_count": len(self.items),
             "error_count": len(self.errors),
             "warning_count": len(self.warnings),
-            "total": len(self.items) + len(self.errors)
+            "total": len(self.items) + len(self.errors),
         }
 
     def has_errors(self) -> bool:
@@ -282,11 +263,7 @@ class ResultCollector(Generic[T]):
         return len(self.warnings) > 0
 
 
-def print_summary(
-        title: str,
-        stats: Dict[str, Any],
-        verbose: bool = False
-) -> None:
+def print_summary(title: str, stats: Dict[str, Any], verbose: bool = False) -> None:
     """
     Print formatted summary.
 
@@ -314,10 +291,9 @@ def print_summary(
 # Retry Decorator
 # ============================================================================
 
+
 def retry_on_error(
-        max_attempts: int = 3,
-        delay_seconds: float = 1.0,
-        retriable_errors: Optional[tuple] = None
+    max_attempts: int = 3, delay_seconds: float = 1.0, retriable_errors: Optional[tuple] = None
 ) -> Callable:
     """
     Decorator to retry function on specific errors.
@@ -354,8 +330,7 @@ def retry_on_error(
 
                     if attempt < max_attempts:
                         logger.warning(
-                            f"Attempt {attempt}/{max_attempts} failed: {e}. "
-                            f"Retrying in {delay_seconds}s..."
+                            f"Attempt {attempt}/{max_attempts} failed: {e}. " f"Retrying in {delay_seconds}s..."
                         )
                         time.sleep(delay_seconds)
                     else:
@@ -378,10 +353,7 @@ from typing import Iterator
 
 
 @contextmanager
-def handle_errors(
-        operation: str,
-        raise_on_error: bool = True
-) -> Iterator[ResultCollector]:
+def handle_errors(operation: str, raise_on_error: bool = True) -> Iterator[ResultCollector]:
     """
     Context manager for error handling with result collection.
 
@@ -420,6 +392,7 @@ def handle_errors(
 # ============================================================================
 # Progress Tracking
 # ============================================================================
+
 
 class ProgressTracker:
     """Track progress of long-running operations."""

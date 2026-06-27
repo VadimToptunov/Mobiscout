@@ -18,11 +18,12 @@ from framework.core.engine import Language
 @dataclass(frozen=True)
 class Target:
     """An emission target."""
-    id: str                 # stable key, e.g. "python_pytest"
+
+    id: str  # stable key, e.g. "python_pytest"
     language: Language
-    runner: str             # e.g. "pytest", "testng", "webdriverio"
-    binding: str            # client library, e.g. "appium"
-    file_extension: str     # ".py", ".java", ...
+    runner: str  # e.g. "pytest", "testng", "webdriverio"
+    binding: str  # client library, e.g. "appium"
+    file_extension: str  # ".py", ".java", ...
     description: str = ""
 
 
@@ -41,18 +42,14 @@ def register(target: Target, factory: EmitterFactory) -> None:
 
 def get_target(target_id: str) -> Target:
     if target_id not in _REGISTRY:
-        raise KeyError(
-            f"Unknown target '{target_id}'. Available: {', '.join(sorted(_REGISTRY))}"
-        )
+        raise KeyError(f"Unknown target '{target_id}'. Available: {', '.join(sorted(_REGISTRY))}")
     return _REGISTRY[target_id][0]
 
 
 def get_emitter(target_id: str):
     """Instantiate the emitter registered for ``target_id``."""
     if target_id not in _REGISTRY:
-        raise KeyError(
-            f"Unknown target '{target_id}'. Available: {', '.join(sorted(_REGISTRY))}"
-        )
+        raise KeyError(f"Unknown target '{target_id}'. Available: {', '.join(sorted(_REGISTRY))}")
     return _REGISTRY[target_id][1]()
 
 

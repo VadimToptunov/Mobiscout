@@ -89,7 +89,7 @@ def secrets(source_path: Path, output: Optional[Path], format: str) -> None:
             scanner.export_sarif(findings, output)
         else:
             data = [f.to_dict() for f in findings]
-            with open(output, 'w') as f:
+            with open(output, "w") as f:
                 json.dump(data, f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
@@ -232,7 +232,7 @@ def privacy(source_path: Path, regulation: str, output: Optional[Path]) -> None:
 
     if output:
         data = [f.to_dict() for f in findings]
-        with open(output, 'w') as f:
+        with open(output, "w") as f:
             json.dump(data, f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
@@ -328,7 +328,7 @@ def code(source_path: Path, language: str, output: Optional[Path]) -> None:
 
     if output:
         data = [f.to_dict() for f in findings]
-        with open(output, 'w') as f:
+        with open(output, "w") as f:
             json.dump(data, f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
@@ -363,12 +363,12 @@ def full(
     if not validate_path(app_path):
         raise SystemExit(1)
 
-    console.print(Panel.fit(
-        f"Comprehensive Security Analysis\n\n"
-        f"App: {app_name}\n"
-        f"Platform: {platform.upper()}",
-        style="bold red"
-    ))
+    console.print(
+        Panel.fit(
+            f"Comprehensive Security Analysis\n\n" f"App: {app_name}\n" f"Platform: {platform.upper()}",
+            style="bold red",
+        )
+    )
 
     scanner = AdvancedSecurityScanner()
 
@@ -442,7 +442,7 @@ def full(
             console.print(f"\n[green]✓[/green] HTML report: {html_path}")
         else:
             json_path = output / f"{app_name}_security.json"
-            with open(json_path, 'w') as f:
+            with open(json_path, "w") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
             console.print(f"\n[green]✓[/green] JSON report: {json_path}")
 

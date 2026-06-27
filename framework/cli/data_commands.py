@@ -17,19 +17,24 @@ from framework.data.generator import TestDataGenerator
 console = Console()
 
 
-@click.group(name='data')
+@click.group(name="data")
 def data() -> None:
     """📊 Test data management commands"""
     pass
 
 
 @data.command()
-@click.option('--type', '-t', 'data_type',
-              type=click.Choice(['user', 'product', 'transaction', 'card', 'address']),
-              required=True, help='Type of data to generate')
-@click.option('--count', '-c', type=int, default=10, help='Number of records to generate')
-@click.option('--output', '-o', type=click.Path(), required=True, help='Output JSON file')
-@click.option('--seed', '-s', type=int, help='Random seed for reproducibility')
+@click.option(
+    "--type",
+    "-t",
+    "data_type",
+    type=click.Choice(["user", "product", "transaction", "card", "address"]),
+    required=True,
+    help="Type of data to generate",
+)
+@click.option("--count", "-c", type=int, default=10, help="Number of records to generate")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output JSON file")
+@click.option("--seed", "-s", type=int, help="Random seed for reproducibility")
 def generate(data_type: str, count: int, output: str, seed: Optional[int]) -> None:
     """Generate test data"""
     print_header(f"Generate Test Data: {data_type}")
@@ -46,15 +51,15 @@ def generate(data_type: str, count: int, output: str, seed: Optional[int]) -> No
     # Generate data
     print_info("\n🔄 Generating data...")
 
-    if data_type == 'user':
+    if data_type == "user":
         data = generator.generate_users(count)
-    elif data_type == 'product':
+    elif data_type == "product":
         data = generator.generate_products(count)
-    elif data_type == 'transaction':
+    elif data_type == "transaction":
         data = generator.generate_transactions(count)
-    elif data_type == 'card':
+    elif data_type == "card":
         data = generator.generate_cards(count)
-    elif data_type == 'address':
+    elif data_type == "address":
         data = generator.generate_addresses(count)
     else:
         print_error(f"Unknown data type: {data_type}")
@@ -77,7 +82,7 @@ def generate(data_type: str, count: int, output: str, seed: Optional[int]) -> No
 
 
 @data.command()
-@click.argument('file', type=click.Path(exists=True))
+@click.argument("file", type=click.Path(exists=True))
 def inspect(file: str) -> None:
     """Inspect test data file"""
     print_header("Inspect Test Data")
@@ -86,7 +91,7 @@ def inspect(file: str) -> None:
     print_info(f"File: {file_path}")
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -119,8 +124,8 @@ def inspect(file: str) -> None:
 
 
 @data.command()
-@click.argument('files', nargs=-1, type=click.Path(exists=True), required=True)
-@click.option('--output', '-o', type=click.Path(), required=True, help='Output merged file')
+@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output merged file")
 def merge(files: tuple, output: str) -> None:
     """Merge multiple test data files"""
     print_header("Merge Test Data")
@@ -133,7 +138,7 @@ def merge(files: tuple, output: str) -> None:
 
     for file in files:
         try:
-            with open(file, 'r') as f:
+            with open(file, "r") as f:
                 data = json.load(f)
                 if isinstance(data, list):
                     all_data.extend(data)
@@ -147,7 +152,7 @@ def merge(files: tuple, output: str) -> None:
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, 'w') as f:
+    with open(output_path, "w") as f:
         json.dump(all_data, f, indent=2)
 
     print_success(f"\n✅ Merged {len(all_data)} records")
@@ -155,10 +160,10 @@ def merge(files: tuple, output: str) -> None:
 
 
 @data.command()
-@click.argument('file', type=click.Path(exists=True))
-@click.option('--field', '-f', required=True, help='Field to filter by')
-@click.option('--value', '-v', required=True, help='Value to filter for')
-@click.option('--output', '-o', type=click.Path(), required=True, help='Output filtered file')
+@click.argument("file", type=click.Path(exists=True))
+@click.option("--field", "-f", required=True, help="Field to filter by")
+@click.option("--value", "-v", required=True, help="Value to filter for")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output filtered file")
 def filter_data(file: str, field: str, value: str, output: str) -> None:
     """Filter test data by field value"""
     print_header("Filter Test Data")
@@ -167,7 +172,7 @@ def filter_data(file: str, field: str, value: str, output: str) -> None:
     print_info(f"Filter: {field} = {value}")
 
     try:
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -181,7 +186,7 @@ def filter_data(file: str, field: str, value: str, output: str) -> None:
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(filtered, f, indent=2)
 
         print_success(f"\n✅ Filtered {len(filtered)} / {len(data)} records")
@@ -193,20 +198,21 @@ def filter_data(file: str, field: str, value: str, output: str) -> None:
 
 
 @data.command()
-@click.argument('file', type=click.Path(exists=True))
-@click.option('--sample-size', '-n', type=int, required=True, help='Number of records to sample')
-@click.option('--output', '-o', type=click.Path(), required=True, help='Output sampled file')
-@click.option('--seed', '-s', type=int, help='Random seed')
+@click.argument("file", type=click.Path(exists=True))
+@click.option("--sample-size", "-n", type=int, required=True, help="Number of records to sample")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output sampled file")
+@click.option("--seed", "-s", type=int, help="Random seed")
 def sample(file: str, sample_size: int, output: str, seed: Optional[int]) -> None:
     """Sample random subset of test data"""
     print_header("Sample Test Data")
 
     import random
+
     if seed:
         random.seed(seed)
 
     try:
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -224,7 +230,7 @@ def sample(file: str, sample_size: int, output: str, seed: Optional[int]) -> Non
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(sampled, f, indent=2)
 
         print_success(f"\n✅ Sampled {len(sampled)} / {len(data)} records")
@@ -236,7 +242,7 @@ def sample(file: str, sample_size: int, output: str, seed: Optional[int]) -> Non
 
 
 @data.command()
-@click.argument('file', type=click.Path(exists=True))
+@click.argument("file", type=click.Path(exists=True))
 def validate(file: str) -> None:
     """Validate test data format"""
     print_header("Validate Test Data")
@@ -245,7 +251,7 @@ def validate(file: str) -> None:
     print_info(f"File: {file_path}")
 
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -286,5 +292,5 @@ def validate(file: str) -> None:
         raise click.Abort()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     data()

@@ -10,8 +10,8 @@ from framework.core.engine import (
 )
 
 __all__ = [
-    'CoreEngine',
-    'UIElement',
-    'Screen',
-    'Language',
+    "CoreEngine",
+    "UIElement",
+    "Screen",
+    "Language",
 ]

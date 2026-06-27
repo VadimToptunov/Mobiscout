@@ -145,10 +145,10 @@ class ASTAnalyzer:
 
         # Count lines
         if (
-                hasattr(node, "end_lineno")
-                and hasattr(node, "lineno")
-                and node.end_lineno is not None
-                and node.lineno is not None
+            hasattr(node, "end_lineno")
+            and hasattr(node, "lineno")
+            and node.end_lineno is not None
+            and node.lineno is not None
         ):
             loc = node.end_lineno - node.lineno + 1
         else:

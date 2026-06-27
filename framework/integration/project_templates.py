@@ -9,7 +9,8 @@ import textwrap
 
 def get_pytest_ini_template() -> str:
     """pytest.ini template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     [pytest]
     # pytest configuration
     testpaths = tests
@@ -36,12 +37,14 @@ def get_pytest_ini_template() -> str:
     # Warnings
     filterwarnings =
         ignore::DeprecationWarning
-    """).strip()
+    """
+    ).strip()
 
 
 def get_conftest_template() -> str:
     """conftest.py template with common fixtures"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     '''
     Shared pytest fixtures for mobile test automation
 
@@ -113,12 +116,14 @@ def get_conftest_template() -> str:
 
         # Cleanup after test
         # TODO: Delete test user via API
-    """).strip()
+    """
+    ).strip()
 
 
 def get_base_page_template() -> str:
     """Base Page Object template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     '''
     Base Page Object class
 
@@ -197,12 +202,14 @@ def get_base_page_template() -> str:
             '''Scroll to element (platform-specific implementation needed)'''
             # TODO: Implement platform-specific scrolling
             pass
-    """).strip()
+    """
+    ).strip()
 
 
 def get_example_page_template() -> str:
     """Example Page Object template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     '''
     Login Page Object
 
@@ -255,12 +262,14 @@ def get_example_page_template() -> str:
         def get_error_message(self) -> str:
             '''Get error message text'''
             return self.get_text(self.error_message)
-    """).strip()
+    """
+    ).strip()
 
 
 def get_example_test_template() -> str:
     """Example test file template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     '''
     Login functionality tests
 
@@ -305,12 +314,14 @@ def get_example_test_template() -> str:
             assert not login_page.is_login_successful()
             error = login_page.get_error_message()
             assert 'invalid' in error.lower() or 'incorrect' in error.lower()
-    """).strip()
+    """
+    ).strip()
 
 
 def get_api_client_template() -> str:
     """API client utility template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     '''
     API Client utility
 
@@ -356,12 +367,14 @@ def get_api_client_template() -> str:
             '''Delete test user'''
             response = self.session.delete(f'{self.base_url}/users/{user_id}')
             response.raise_for_status()
-    """).strip()
+    """
+    ).strip()
 
 
 def get_readme_template(project_name: str) -> str:
     """README.md template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     # {project_name} - Mobile Test Automation
 
     Automated test suite for {project_name} mobile application.
@@ -486,12 +499,14 @@ def get_readme_template(project_name: str) -> str:
     3. Follow existing naming conventions
     4. Run tests before committing
     5. Update documentation as needed
-    """).strip()
+    """
+    ).strip()
 
 
 def get_gitignore_template() -> str:
     """.gitignore template"""
-    return textwrap.dedent("""
+    return textwrap.dedent(
+        """
     # Python
     __pycache__/
     *.py[cod]
@@ -533,20 +548,21 @@ def get_gitignore_template() -> str:
     data/apps/*.apk
     data/apps/*.ipa
     !data/apps/.gitkeep
-    """).strip()
+    """
+    ).strip()
 
 
 PROJECT_TEMPLATES = {
-    'pytest.ini': get_pytest_ini_template,
-    'tests/conftest.py': get_conftest_template,
-    'page_objects/__init__.py': lambda: '',
-    'page_objects/base_page.py': get_base_page_template,
-    'page_objects/login_page.py': get_example_page_template,
-    'tests/__init__.py': lambda: '',
-    'tests/test_login.py': get_example_test_template,
-    'utilities/__init__.py': lambda: '',
-    'utilities/api_client.py': get_api_client_template,
-    'data/apps/.gitkeep': lambda: '',
-    'reports/.gitkeep': lambda: '',
-    '.gitignore': get_gitignore_template,
+    "pytest.ini": get_pytest_ini_template,
+    "tests/conftest.py": get_conftest_template,
+    "page_objects/__init__.py": lambda: "",
+    "page_objects/base_page.py": get_base_page_template,
+    "page_objects/login_page.py": get_example_page_template,
+    "tests/__init__.py": lambda: "",
+    "tests/test_login.py": get_example_test_template,
+    "utilities/__init__.py": lambda: "",
+    "utilities/api_client.py": get_api_client_template,
+    "data/apps/.gitkeep": lambda: "",
+    "reports/.gitkeep": lambda: "",
+    ".gitignore": get_gitignore_template,
 }

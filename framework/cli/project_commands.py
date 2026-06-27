@@ -228,10 +228,10 @@ def project() -> None:
 )
 @handle_cli_errors(exit_on_error=True)
 def analyze(
-        android_source: Optional[str],
-        ios_source: Optional[str],
-        output_dir: str,
-        format: str,
+    android_source: Optional[str],
+    ios_source: Optional[str],
+    output_dir: str,
+    format: str,
 ) -> None:
     """
     Comprehensive project analysis
@@ -392,11 +392,11 @@ def integrate(analysis: str, project: str, preserve_existing: bool) -> None:
 @click.option("--generate-api-tests/--no-api-tests", default=True, help="Generate API tests")
 @click.option("--generate-features/--no-features", default=True, help="Generate BDD features")
 def generate(
-        project: str,
-        generate_page_objects: bool,
-        generate_tests: bool,
-        generate_api_tests: bool,
-        generate_features: bool,
+    project: str,
+    generate_page_objects: bool,
+    generate_tests: bool,
+    generate_api_tests: bool,
+    generate_features: bool,
 ) -> None:
     """
     Generate complete test suite from enriched model
@@ -647,10 +647,10 @@ class Test{class_name}:
     help="Output directory for analysis results",
 )
 def fullcycle(
-        android_path: Optional[str],
-        ios_path: Optional[str],
-        project: str,
-        output_dir: str,
+    android_path: Optional[str],
+    ios_path: Optional[str],
+    project: str,
+    output_dir: str,
 ) -> None:
     """
     Complete analysis and generation pipeline

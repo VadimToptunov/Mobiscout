@@ -31,6 +31,7 @@ import threading
 
 class DASTTestType(Enum):
     """DAST test types"""
+
     SSL_TLS = "ssl_tls"
     NETWORK = "network"
     API = "api"
@@ -44,6 +45,7 @@ class DASTTestType(Enum):
 
 class DASTSeverity(Enum):
     """DAST finding severity"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -54,6 +56,7 @@ class DASTSeverity(Enum):
 @dataclass
 class NetworkRequest:
     """Captured network request"""
+
     timestamp: datetime
     method: str
     url: str
@@ -68,6 +71,7 @@ class NetworkRequest:
 @dataclass
 class DASTFinding:
     """DAST vulnerability finding"""
+
     test_type: DASTTestType
     severity: DASTSeverity
     title: str
@@ -117,6 +121,7 @@ class DASTFinding:
 @dataclass
 class SSLAnalysisResult:
     """SSL/TLS analysis result"""
+
     findings: List[DASTFinding] = field(default_factory=list)
     protocol: str = ""
     cipher_suite: str = ""
@@ -134,6 +139,7 @@ class SSLAnalysisResult:
 @dataclass
 class DASTResult:
     """DAST analysis result wrapper"""
+
     findings: List[DASTFinding] = field(default_factory=list)
     target: str = ""
     port: int = 443
@@ -152,6 +158,7 @@ class DASTResult:
 @dataclass
 class APITestResult:
     """API security test result"""
+
     findings: List[DASTFinding] = field(default_factory=list)
     base_url: str = ""
     endpoints_tested: int = 0
@@ -172,12 +179,10 @@ class SSLTLSAnalyzer:
     """
 
     # Weak cipher suites
-    WEAK_CIPHERS = {
-        'RC4', 'DES', '3DES', 'MD5', 'NULL', 'EXPORT', 'ANON', 'ADH', 'AECDH'
-    }
+    WEAK_CIPHERS = {"RC4", "DES", "3DES", "MD5", "NULL", "EXPORT", "ANON", "ADH", "AECDH"}
 
     # Deprecated protocols
-    DEPRECATED_PROTOCOLS = ['SSLv2', 'SSLv3', 'TLSv1.0', 'TLSv1.1']
+    DEPRECATED_PROTOCOLS = ["SSLv2", "SSLv3", "TLSv1.0", "TLSv1.1"]
 
     def analyze_host(self, hostname: str, port: int = 443) -> List[DASTFinding]:
         """Analyze SSL/TLS configuration of a host"""
@@ -197,14 +202,16 @@ class SSLTLSAnalyzer:
             findings.extend(self._test_vulnerabilities(hostname, port))
 
         except (socket.error, ssl.SSLError, OSError) as e:
-            findings.append(DASTFinding(
-                test_type=DASTTestType.SSL_TLS,
-                severity=DASTSeverity.INFO,
-                title="SSL/TLS connection failed",
-                description=f"Could not establish SSL/TLS connection: {e}",
-                evidence=str(e),
-                recommendation="Verify the server is accessible and has valid SSL configuration",
-            ))
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.SSL_TLS,
+                    severity=DASTSeverity.INFO,
+                    title="SSL/TLS connection failed",
+                    description=f"Could not establish SSL/TLS connection: {e}",
+                    evidence=str(e),
+                    recommendation="Verify the server is accessible and has valid SSL configuration",
+                )
+            )
 
         return findings
 
@@ -214,8 +221,8 @@ class SSLTLSAnalyzer:
 
         protocols_to_test = [
             (ssl.PROTOCOL_TLSv1, "TLSv1.0"),
-            (ssl.PROTOCOL_TLSv1_1, "TLSv1.1") if hasattr(ssl, 'PROTOCOL_TLSv1_1') else None,
-            (ssl.PROTOCOL_TLSv1_2, "TLSv1.2") if hasattr(ssl, 'PROTOCOL_TLSv1_2') else None,
+            (ssl.PROTOCOL_TLSv1_1, "TLSv1.1") if hasattr(ssl, "PROTOCOL_TLSv1_1") else None,
+            (ssl.PROTOCOL_TLSv1_2, "TLSv1.2") if hasattr(ssl, "PROTOCOL_TLSv1_2") else None,
         ]
 
         for proto_tuple in protocols_to_test:
@@ -232,16 +239,18 @@ class SSLTLSAnalyzer:
                 with socket.create_connection((hostname, port), timeout=5) as sock:
                     with context.wrap_socket(sock, server_hostname=hostname) as ssock:
                         if name in self.DEPRECATED_PROTOCOLS:
-                            findings.append(DASTFinding(
-                                test_type=DASTTestType.SSL_TLS,
-                                severity=DASTSeverity.HIGH if name in ['SSLv2', 'SSLv3'] else DASTSeverity.MEDIUM,
-                                title=f"Deprecated protocol supported: {name}",
-                                description=f"Server supports {name} which is deprecated and insecure",
-                                evidence=f"Successfully connected using {name}",
-                                recommendation=f"Disable {name} and use TLSv1.2 or TLSv1.3 only",
-                                cwe_id="CWE-326",
-                                owasp_category="M5: Insecure Communication",
-                            ))
+                            findings.append(
+                                DASTFinding(
+                                    test_type=DASTTestType.SSL_TLS,
+                                    severity=DASTSeverity.HIGH if name in ["SSLv2", "SSLv3"] else DASTSeverity.MEDIUM,
+                                    title=f"Deprecated protocol supported: {name}",
+                                    description=f"Server supports {name} which is deprecated and insecure",
+                                    evidence=f"Successfully connected using {name}",
+                                    recommendation=f"Disable {name} and use TLSv1.2 or TLSv1.3 only",
+                                    cwe_id="CWE-326",
+                                    owasp_category="M5: Insecure Communication",
+                                )
+                            )
             except (ssl.SSLError, socket.error, OSError):
                 # Protocol not supported - this is good for deprecated ones
                 pass
@@ -266,15 +275,17 @@ class SSLTLSAnalyzer:
                         # Check for weak ciphers
                         for weak in self.WEAK_CIPHERS:
                             if weak in cipher_name.upper():
-                                findings.append(DASTFinding(
-                                    test_type=DASTTestType.SSL_TLS,
-                                    severity=DASTSeverity.HIGH,
-                                    title=f"Weak cipher suite: {cipher_name}",
-                                    description=f"Server uses weak cipher containing {weak}",
-                                    evidence=f"Negotiated cipher: {cipher_name}",
-                                    recommendation="Configure server to use only strong ciphers (AES-GCM, ChaCha20)",
-                                    cwe_id="CWE-327",
-                                ))
+                                findings.append(
+                                    DASTFinding(
+                                        test_type=DASTTestType.SSL_TLS,
+                                        severity=DASTSeverity.HIGH,
+                                        title=f"Weak cipher suite: {cipher_name}",
+                                        description=f"Server uses weak cipher containing {weak}",
+                                        evidence=f"Negotiated cipher: {cipher_name}",
+                                        recommendation="Configure server to use only strong ciphers (AES-GCM, ChaCha20)",
+                                        cwe_id="CWE-327",
+                                    )
+                                )
 
         except (ssl.SSLError, socket.error, OSError):
             pass
@@ -294,55 +305,63 @@ class SSLTLSAnalyzer:
 
                     if cert:
                         # Check expiration
-                        not_after = ssl.cert_time_to_seconds(cert.get('notAfter', ''))
+                        not_after = ssl.cert_time_to_seconds(cert.get("notAfter", ""))
                         days_until_expiry = (not_after - time.time()) / 86400
 
                         if days_until_expiry < 0:
-                            findings.append(DASTFinding(
-                                test_type=DASTTestType.SSL_TLS,
-                                severity=DASTSeverity.CRITICAL,
-                                title="Expired SSL certificate",
-                                description="The SSL certificate has expired",
-                                evidence=f"Certificate expired on {cert.get('notAfter')}",
-                                recommendation="Renew the SSL certificate immediately",
-                                cwe_id="CWE-298",
-                            ))
+                            findings.append(
+                                DASTFinding(
+                                    test_type=DASTTestType.SSL_TLS,
+                                    severity=DASTSeverity.CRITICAL,
+                                    title="Expired SSL certificate",
+                                    description="The SSL certificate has expired",
+                                    evidence=f"Certificate expired on {cert.get('notAfter')}",
+                                    recommendation="Renew the SSL certificate immediately",
+                                    cwe_id="CWE-298",
+                                )
+                            )
                         elif days_until_expiry < 30:
-                            findings.append(DASTFinding(
-                                test_type=DASTTestType.SSL_TLS,
-                                severity=DASTSeverity.MEDIUM,
-                                title="SSL certificate expiring soon",
-                                description=f"Certificate expires in {int(days_until_expiry)} days",
-                                evidence=f"Certificate expires on {cert.get('notAfter')}",
-                                recommendation="Plan to renew the certificate before expiration",
-                                cwe_id="CWE-298",
-                            ))
+                            findings.append(
+                                DASTFinding(
+                                    test_type=DASTTestType.SSL_TLS,
+                                    severity=DASTSeverity.MEDIUM,
+                                    title="SSL certificate expiring soon",
+                                    description=f"Certificate expires in {int(days_until_expiry)} days",
+                                    evidence=f"Certificate expires on {cert.get('notAfter')}",
+                                    recommendation="Plan to renew the certificate before expiration",
+                                    cwe_id="CWE-298",
+                                )
+                            )
 
                         # Check for self-signed
-                        issuer = dict(x[0] for x in cert.get('issuer', []))
-                        subject = dict(x[0] for x in cert.get('subject', []))
+                        issuer = dict(x[0] for x in cert.get("issuer", []))
+                        subject = dict(x[0] for x in cert.get("subject", []))
 
                         if issuer == subject:
-                            findings.append(DASTFinding(
-                                test_type=DASTTestType.SSL_TLS,
-                                severity=DASTSeverity.HIGH,
-                                title="Self-signed certificate",
-                                description="Server uses a self-signed certificate",
-                                evidence=f"Issuer equals Subject: {issuer.get('commonName', 'unknown')}",
-                                recommendation="Use a certificate from a trusted Certificate Authority",
-                                cwe_id="CWE-295",
-                            ))
+                            findings.append(
+                                DASTFinding(
+                                    test_type=DASTTestType.SSL_TLS,
+                                    severity=DASTSeverity.HIGH,
+                                    title="Self-signed certificate",
+                                    description="Server uses a self-signed certificate",
+                                    evidence=f"Issuer equals Subject: {issuer.get('commonName', 'unknown')}",
+                                    recommendation="Use a certificate from a trusted Certificate Authority",
+                                    cwe_id="CWE-295",
+                                )
+                            )
 
         except ssl.SSLCertVerificationError as e:
-            findings.append(DASTFinding(
-                test_type=DASTTestType.SSL_TLS,
-                severity=DASTSeverity.HIGH,
-                title="Certificate verification failed",
-                description=str(e),
-                evidence=str(e),
-                recommendation="Fix the certificate issues or obtain a valid certificate",
-                cwe_id="CWE-295",
-            ))
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.SSL_TLS,
+                    severity=DASTSeverity.HIGH,
+                    title="Certificate verification failed",
+                    description=str(e),
+                    evidence=str(e),
+                    recommendation="Fix the certificate issues or obtain a valid certificate",
+                    cwe_id="CWE-295",
+                )
+            )
         except (socket.error, OSError):
             pass
 
@@ -400,7 +419,7 @@ class APISecurityTester:
         method: str = "GET",
         headers: Optional[Dict[str, str]] = None,
         params: Optional[Dict[str, str]] = None,
-        body: Optional[str] = None
+        body: Optional[str] = None,
     ) -> List[DASTFinding]:
         """Test API endpoint for vulnerabilities"""
         findings = []
@@ -426,11 +445,7 @@ class APISecurityTester:
         return findings
 
     def _test_sql_injection(
-        self,
-        url: str,
-        method: str,
-        headers: Optional[Dict[str, str]],
-        params: Optional[Dict[str, str]]
+        self, url: str, method: str, headers: Optional[Dict[str, str]], params: Optional[Dict[str, str]]
     ) -> List[DASTFinding]:
         """Test for SQL injection vulnerabilities"""
         findings = []
@@ -440,8 +455,14 @@ class APISecurityTester:
         for payload in self.SQL_PAYLOADS:
             # Simulate testing each parameter with payload
             error_patterns = [
-                "sql syntax", "mysql", "sqlite", "postgresql", "oracle",
-                "syntax error", "unclosed quotation", "unterminated string"
+                "sql syntax",
+                "mysql",
+                "sqlite",
+                "postgresql",
+                "oracle",
+                "syntax error",
+                "unclosed quotation",
+                "unterminated string",
             ]
 
             # Simulate response analysis
@@ -453,11 +474,7 @@ class APISecurityTester:
         return findings
 
     def _test_xss(
-        self,
-        url: str,
-        method: str,
-        headers: Optional[Dict[str, str]],
-        params: Optional[Dict[str, str]]
+        self, url: str, method: str, headers: Optional[Dict[str, str]], params: Optional[Dict[str, str]]
     ) -> List[DASTFinding]:
         """Test for XSS vulnerabilities"""
         findings = []
@@ -470,11 +487,7 @@ class APISecurityTester:
         return findings
 
     def _test_path_traversal(
-        self,
-        url: str,
-        method: str,
-        headers: Optional[Dict[str, str]],
-        params: Optional[Dict[str, str]]
+        self, url: str, method: str, headers: Optional[Dict[str, str]], params: Optional[Dict[str, str]]
     ) -> List[DASTFinding]:
         """Test for path traversal vulnerabilities"""
         findings = []
@@ -485,12 +498,7 @@ class APISecurityTester:
 
         return findings
 
-    def _test_auth_bypass(
-        self,
-        url: str,
-        method: str,
-        headers: Optional[Dict[str, str]]
-    ) -> List[DASTFinding]:
+    def _test_auth_bypass(self, url: str, method: str, headers: Optional[Dict[str, str]]) -> List[DASTFinding]:
         """Test for authentication bypass"""
         findings = []
 
@@ -501,12 +509,7 @@ class APISecurityTester:
 
         return findings
 
-    def _test_rate_limiting(
-        self,
-        url: str,
-        method: str,
-        headers: Optional[Dict[str, str]]
-    ) -> List[DASTFinding]:
+    def _test_rate_limiting(self, url: str, method: str, headers: Optional[Dict[str, str]]) -> List[DASTFinding]:
         """Test for rate limiting"""
         findings = []
 
@@ -515,11 +518,7 @@ class APISecurityTester:
 
         return findings
 
-    def _test_cors(
-        self,
-        url: str,
-        headers: Optional[Dict[str, str]]
-    ) -> List[DASTFinding]:
+    def _test_cors(self, url: str, headers: Optional[Dict[str, str]]) -> List[DASTFinding]:
         """Test CORS configuration"""
         findings = []
 
@@ -539,13 +538,13 @@ class NetworkTrafficAnalyzer:
 
     # Sensitive data patterns
     SENSITIVE_PATTERNS = {
-        "credit_card": r'\b(?:\d{4}[-\s]?){3}\d{4}\b',
-        "ssn": r'\b\d{3}-\d{2}-\d{4}\b',
-        "email": r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+        "credit_card": r"\b(?:\d{4}[-\s]?){3}\d{4}\b",
+        "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
+        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
         "api_key": r'\b(?:api[_-]?key|apikey|api_secret)["\s:=]+["\']?[\w\-]{20,}["\']?',
-        "jwt": r'eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+',
-        "password_in_url": r'[?&](?:password|passwd|pwd|pass)=([^&\s]+)',
-        "bearer_token": r'Bearer\s+[\w\-\.]+',
+        "jwt": r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+",
+        "password_in_url": r"[?&](?:password|passwd|pwd|pass)=([^&\s]+)",
+        "bearer_token": r"Bearer\s+[\w\-\.]+",
     }
 
     def __init__(self):
@@ -557,17 +556,19 @@ class NetworkTrafficAnalyzer:
 
         # Check for cleartext transmission
         if not request.is_secure:
-            findings.append(DASTFinding(
-                test_type=DASTTestType.NETWORK,
-                severity=DASTSeverity.HIGH,
-                title="Cleartext HTTP traffic",
-                description=f"Sensitive data transmitted over unencrypted HTTP to {request.url}",
-                evidence=f"HTTP request to {request.url}",
-                recommendation="Use HTTPS for all API communications",
-                request=request,
-                cwe_id="CWE-319",
-                owasp_category="M5: Insecure Communication",
-            ))
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.NETWORK,
+                    severity=DASTSeverity.HIGH,
+                    title="Cleartext HTTP traffic",
+                    description=f"Sensitive data transmitted over unencrypted HTTP to {request.url}",
+                    evidence=f"HTTP request to {request.url}",
+                    recommendation="Use HTTPS for all API communications",
+                    request=request,
+                    cwe_id="CWE-319",
+                    owasp_category="M5: Insecure Communication",
+                )
+            )
 
         # Check for sensitive data in URL
         if request.method == "GET" and request.body:
@@ -589,20 +590,22 @@ class NetworkTrafficAnalyzer:
         parsed = urlparse(request.url)
         query = parsed.query
 
-        sensitive_params = ['password', 'passwd', 'pwd', 'secret', 'token', 'api_key', 'apikey']
+        sensitive_params = ["password", "passwd", "pwd", "secret", "token", "api_key", "apikey"]
 
         for param in sensitive_params:
             if param.lower() in query.lower():
-                findings.append(DASTFinding(
-                    test_type=DASTTestType.DATA_EXPOSURE,
-                    severity=DASTSeverity.HIGH,
-                    title="Sensitive data in URL",
-                    description=f"Parameter '{param}' found in URL query string",
-                    evidence=f"URL contains {param} parameter",
-                    recommendation="Send sensitive data in POST body or headers, not URL",
-                    request=request,
-                    cwe_id="CWE-598",
-                ))
+                findings.append(
+                    DASTFinding(
+                        test_type=DASTTestType.DATA_EXPOSURE,
+                        severity=DASTSeverity.HIGH,
+                        title="Sensitive data in URL",
+                        description=f"Parameter '{param}' found in URL query string",
+                        evidence=f"URL contains {param} parameter",
+                        recommendation="Send sensitive data in POST body or headers, not URL",
+                        request=request,
+                        cwe_id="CWE-598",
+                    )
+                )
 
         return findings
 
@@ -614,31 +617,35 @@ class NetworkTrafficAnalyzer:
         if request.body:
             for name, pattern in self.SENSITIVE_PATTERNS.items():
                 if re.search(pattern, request.body, re.IGNORECASE):
-                    findings.append(DASTFinding(
-                        test_type=DASTTestType.DATA_EXPOSURE,
-                        severity=DASTSeverity.MEDIUM,
-                        title=f"Potential {name.replace('_', ' ')} in request",
-                        description=f"Request body may contain {name.replace('_', ' ')}",
-                        evidence=f"Pattern match for {name}",
-                        recommendation=f"Verify if {name.replace('_', ' ')} needs to be transmitted",
-                        request=request,
-                        cwe_id="CWE-200",
-                    ))
+                    findings.append(
+                        DASTFinding(
+                            test_type=DASTTestType.DATA_EXPOSURE,
+                            severity=DASTSeverity.MEDIUM,
+                            title=f"Potential {name.replace('_', ' ')} in request",
+                            description=f"Request body may contain {name.replace('_', ' ')}",
+                            evidence=f"Pattern match for {name}",
+                            recommendation=f"Verify if {name.replace('_', ' ')} needs to be transmitted",
+                            request=request,
+                            cwe_id="CWE-200",
+                        )
+                    )
 
         # Check response body
         if request.response_body:
             for name, pattern in self.SENSITIVE_PATTERNS.items():
                 if re.search(pattern, request.response_body, re.IGNORECASE):
-                    findings.append(DASTFinding(
-                        test_type=DASTTestType.DATA_EXPOSURE,
-                        severity=DASTSeverity.HIGH,
-                        title=f"Potential {name.replace('_', ' ')} in response",
-                        description=f"Response contains potential {name.replace('_', ' ')}",
-                        evidence=f"Pattern match for {name}",
-                        recommendation="Remove or mask sensitive data in API responses",
-                        request=request,
-                        cwe_id="CWE-200",
-                    ))
+                    findings.append(
+                        DASTFinding(
+                            test_type=DASTTestType.DATA_EXPOSURE,
+                            severity=DASTSeverity.HIGH,
+                            title=f"Potential {name.replace('_', ' ')} in response",
+                            description=f"Response contains potential {name.replace('_', ' ')}",
+                            evidence=f"Pattern match for {name}",
+                            recommendation="Remove or mask sensitive data in API responses",
+                            request=request,
+                            cwe_id="CWE-200",
+                        )
+                    )
 
         return findings
 
@@ -648,27 +655,29 @@ class NetworkTrafficAnalyzer:
 
         # Required security headers
         required_headers = {
-            'Strict-Transport-Security': ('HSTS not set', 'CWE-319'),
-            'X-Content-Type-Options': ('X-Content-Type-Options not set', 'CWE-16'),
-            'X-Frame-Options': ('X-Frame-Options not set (clickjacking risk)', 'CWE-1021'),
-            'Content-Security-Policy': ('CSP not set', 'CWE-693'),
-            'X-XSS-Protection': ('X-XSS-Protection not set', 'CWE-79'),
+            "Strict-Transport-Security": ("HSTS not set", "CWE-319"),
+            "X-Content-Type-Options": ("X-Content-Type-Options not set", "CWE-16"),
+            "X-Frame-Options": ("X-Frame-Options not set (clickjacking risk)", "CWE-1021"),
+            "Content-Security-Policy": ("CSP not set", "CWE-693"),
+            "X-XSS-Protection": ("X-XSS-Protection not set", "CWE-79"),
         }
 
         response_headers = {k.lower(): v for k, v in request.headers.items()} if request.headers else {}
 
         for header, (message, cwe) in required_headers.items():
             if header.lower() not in response_headers:
-                findings.append(DASTFinding(
-                    test_type=DASTTestType.NETWORK,
-                    severity=DASTSeverity.MEDIUM,
-                    title=f"Missing security header: {header}",
-                    description=message,
-                    evidence=f"Header {header} not present in response",
-                    recommendation=f"Add {header} header to response",
-                    request=request,
-                    cwe_id=cwe,
-                ))
+                findings.append(
+                    DASTFinding(
+                        test_type=DASTTestType.NETWORK,
+                        severity=DASTSeverity.MEDIUM,
+                        title=f"Missing security header: {header}",
+                        description=message,
+                        evidence=f"Header {header} not present in response",
+                        recommendation=f"Add {header} header to response",
+                        request=request,
+                        cwe_id=cwe,
+                    )
+                )
 
         return findings
 
@@ -680,11 +689,7 @@ class SessionAnalyzer:
     Tests session handling and authentication.
     """
 
-    def analyze_session(
-        self,
-        session_token: str,
-        cookies: Dict[str, str]
-    ) -> List[DASTFinding]:
+    def analyze_session(self, session_token: str, cookies: Dict[str, str]) -> List[DASTFinding]:
         """Analyze session security"""
         findings = []
 
@@ -702,40 +707,46 @@ class SessionAnalyzer:
 
         # Check token length
         if len(token) < 32:
-            findings.append(DASTFinding(
-                test_type=DASTTestType.SESSION,
-                severity=DASTSeverity.MEDIUM,
-                title="Weak session token",
-                description=f"Session token is only {len(token)} characters",
-                evidence=f"Token length: {len(token)}",
-                recommendation="Use tokens of at least 128 bits (32 hex characters)",
-                cwe_id="CWE-330",
-            ))
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.SESSION,
+                    severity=DASTSeverity.MEDIUM,
+                    title="Weak session token",
+                    description=f"Session token is only {len(token)} characters",
+                    evidence=f"Token length: {len(token)}",
+                    recommendation="Use tokens of at least 128 bits (32 hex characters)",
+                    cwe_id="CWE-330",
+                )
+            )
 
         # Check for sequential tokens
         if token.isdigit():
-            findings.append(DASTFinding(
-                test_type=DASTTestType.SESSION,
-                severity=DASTSeverity.HIGH,
-                title="Predictable session token",
-                description="Session token appears to be numeric/sequential",
-                evidence="Token consists only of digits",
-                recommendation="Use cryptographically secure random token generation",
-                cwe_id="CWE-330",
-            ))
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.SESSION,
+                    severity=DASTSeverity.HIGH,
+                    title="Predictable session token",
+                    description="Session token appears to be numeric/sequential",
+                    evidence="Token consists only of digits",
+                    recommendation="Use cryptographically secure random token generation",
+                    cwe_id="CWE-330",
+                )
+            )
 
         # Check entropy
         unique_chars = len(set(token))
         if unique_chars < len(token) * 0.4:
-            findings.append(DASTFinding(
-                test_type=DASTTestType.SESSION,
-                severity=DASTSeverity.MEDIUM,
-                title="Low entropy session token",
-                description="Session token has low character diversity",
-                evidence=f"Only {unique_chars} unique characters in {len(token)} length token",
-                recommendation="Use cryptographically secure random token generation",
-                cwe_id="CWE-330",
-            ))
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.SESSION,
+                    severity=DASTSeverity.MEDIUM,
+                    title="Low entropy session token",
+                    description="Session token has low character diversity",
+                    evidence=f"Only {unique_chars} unique characters in {len(token)} length token",
+                    recommendation="Use cryptographically secure random token generation",
+                    cwe_id="CWE-330",
+                )
+            )
 
         return findings
 
@@ -767,10 +778,7 @@ class DASTAnalyzer:
         return self.ssl_analyzer.analyze_host(hostname, port)
 
     def analyze_api(
-        self,
-        base_url: str,
-        endpoints: List[Dict[str, Any]],
-        auth_header: Optional[str] = None
+        self, base_url: str, endpoints: List[Dict[str, Any]], auth_header: Optional[str] = None
     ) -> List[DASTFinding]:
         """Analyze API endpoints"""
         findings = []
@@ -779,8 +787,8 @@ class DASTAnalyzer:
 
         for endpoint in endpoints:
             url = f"{base_url}{endpoint.get('path', '')}"
-            method = endpoint.get('method', 'GET')
-            params = endpoint.get('params', {})
+            method = endpoint.get("method", "GET")
+            params = endpoint.get("params", {})
 
             findings.extend(self.api_tester.test_endpoint(url, method, headers, params))
 
@@ -827,7 +835,7 @@ class DASTAnalyzer:
             "findings": [f.to_dict() for f in findings],
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
     def analyze(self, target: str, port: int = 443) -> DASTResult:
@@ -874,7 +882,7 @@ class DASTAnalyzer:
 
                     cert = ssock.getpeercert()
                     if cert:
-                        cert_expiry = cert.get('notAfter', '')
+                        cert_expiry = cert.get("notAfter", "")
         except (socket.error, ssl.SSLError, OSError):
             pass
 
@@ -886,10 +894,7 @@ class DASTAnalyzer:
         )
 
     def test_api(
-        self,
-        base_url: str,
-        headers: Optional[Dict[str, str]] = None,
-        endpoints: Optional[List[Dict[str, Any]]] = None
+        self, base_url: str, headers: Optional[Dict[str, str]] = None, endpoints: Optional[List[Dict[str, Any]]] = None
     ) -> APITestResult:
         """
         Test API endpoints for security vulnerabilities.
@@ -909,16 +914,14 @@ class DASTAnalyzer:
 
         for endpoint in endpoints:
             url = f"{base_url.rstrip('/')}{endpoint.get('path', '/')}"
-            method = endpoint.get('method', 'GET')
-            params = endpoint.get('params', {})
+            method = endpoint.get("method", "GET")
+            params = endpoint.get("params", {})
 
-            endpoint_findings = self.api_tester.test_endpoint(
-                url, method, headers, params
-            )
+            endpoint_findings = self.api_tester.test_endpoint(url, method, headers, params)
 
             # Add endpoint info to findings
             for finding in endpoint_findings:
-                finding.endpoint = endpoint.get('path', '/')
+                finding.endpoint = endpoint.get("path", "/")
                 finding.method = method
 
             findings.extend(endpoint_findings)
@@ -1015,5 +1018,5 @@ class DASTAnalyzer:
 </html>
 """
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(html_content)

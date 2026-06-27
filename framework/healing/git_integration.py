@@ -15,6 +15,7 @@ from typing import List, Optional
 @dataclass
 class GitCommitInfo:
     """Information about a healing commit"""
+
     commit_hash: str
     timestamp: datetime
     files_changed: List[Path]
@@ -37,10 +38,7 @@ class GitIntegration:
         self.repo_path = repo_path
 
     def commit_healing(
-            self,
-            updated_files: List[Path],
-            healing_details: List[dict],
-            branch_name: Optional[str] = None
+        self, updated_files: List[Path], healing_details: List[dict], branch_name: Optional[str] = None
     ) -> Optional[GitCommitInfo]:
         """
         Commit healed selectors to git
@@ -73,7 +71,7 @@ class GitIntegration:
                 timestamp=datetime.now(),
                 files_changed=updated_files,
                 selectors_healed=len(healing_details),
-                message=commit_message
+                message=commit_message,
             )
 
         except (subprocess.SubprocessError, OSError, ValueError) as e:
@@ -83,30 +81,18 @@ class GitIntegration:
     def _create_branch(self, branch_name: str):
         """Create and checkout new branch"""
         result = subprocess.run(
-            ['git', 'checkout', '-b', branch_name],
-            cwd=self.repo_path,
-            capture_output=True,
-            text=True
+            ["git", "checkout", "-b", branch_name], cwd=self.repo_path, capture_output=True, text=True
         )
 
         if result.returncode != 0:
             # Branch might already exist, try to checkout
-            subprocess.run(
-                ['git', 'checkout', branch_name],
-                cwd=self.repo_path,
-                capture_output=True,
-                text=True
-            )
+            subprocess.run(["git", "checkout", branch_name], cwd=self.repo_path, capture_output=True, text=True)
 
     def _git_add(self, file_path: Path):
         """Stage file for commit"""
         relative_path = file_path.relative_to(self.repo_path)
 
-        subprocess.run(
-            ['git', 'add', str(relative_path)],
-            cwd=self.repo_path,
-            check=True
-        )
+        subprocess.run(["git", "add", str(relative_path)], cwd=self.repo_path, check=True)
 
     def _git_commit(self, message: str) -> str:
         """
@@ -116,21 +102,11 @@ class GitIntegration:
             Commit hash
         """
         # Commit
-        subprocess.run(
-            ['git', 'commit', '-m', message],
-            cwd=self.repo_path,
-            check=True,
-            capture_output=True,
-            text=True
-        )
+        subprocess.run(["git", "commit", "-m", message], cwd=self.repo_path, check=True, capture_output=True, text=True)
 
         # Get commit hash
         result = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=self.repo_path,
-            capture_output=True,
-            text=True,
-            check=True
+            ["git", "rev-parse", "HEAD"], cwd=self.repo_path, capture_output=True, text=True, check=True
         )
 
         return result.stdout.strip()
@@ -141,7 +117,7 @@ class GitIntegration:
             "Auto-heal: Fixed broken selectors",
             "",
             f"Healed {len(healing_details)} selector(s) automatically:",
-            ""
+            "",
         ]
 
         for i, detail in enumerate(healing_details, 1):
@@ -158,10 +134,7 @@ class GitIntegration:
 
         return "\n".join(lines)
 
-    def create_diff_report(
-            self,
-            updated_files: List[Path]
-    ) -> str:
+    def create_diff_report(self, updated_files: List[Path]) -> str:
         """
         Generate diff report for updated files
 
@@ -178,10 +151,7 @@ class GitIntegration:
                 relative_path = file_path.relative_to(self.repo_path)
 
                 result = subprocess.run(
-                    ['git', 'diff', str(relative_path)],
-                    cwd=self.repo_path,
-                    capture_output=True,
-                    text=True
+                    ["git", "diff", str(relative_path)], cwd=self.repo_path, capture_output=True, text=True
                 )
 
                 if result.stdout:
@@ -207,10 +177,7 @@ class GitIntegration:
         """
         try:
             subprocess.run(
-                ['git', 'revert', '--no-edit', commit_hash],
-                cwd=self.repo_path,
-                check=True,
-                capture_output=True
+                ["git", "revert", "--no-edit", commit_hash], cwd=self.repo_path, check=True, capture_output=True
             )
             return True
 
@@ -218,10 +185,7 @@ class GitIntegration:
             print(f"Revert failed: {e}")
             return False
 
-    def get_healing_history(
-            self,
-            limit: int = 10
-    ) -> List[GitCommitInfo]:
+    def get_healing_history(self, limit: int = 10) -> List[GitCommitInfo]:
         """
         Get history of healing commits
 
@@ -233,43 +197,41 @@ class GitIntegration:
         """
         try:
             result = subprocess.run(
-                ['git', 'log', '--grep=Auto-heal', f'-{limit}', '--format=%H|%aI|%s'],
+                ["git", "log", "--grep=Auto-heal", f"-{limit}", "--format=%H|%aI|%s"],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             commits = []
-            for line in result.stdout.strip().split('\n'):
+            for line in result.stdout.strip().split("\n"):
                 if not line:
                     continue
 
-                parts = line.split('|', 2)
+                parts = line.split("|", 2)
                 if len(parts) == 3:
                     commit_hash, timestamp_str, message = parts
 
                     # Get files changed
                     files_result = subprocess.run(
-                        ['git', 'show', '--name-only', '--format=', commit_hash],
+                        ["git", "show", "--name-only", "--format=", commit_hash],
                         cwd=self.repo_path,
                         capture_output=True,
-                        text=True
+                        text=True,
                     )
 
-                    files = [
-                        self.repo_path / f
-                        for f in files_result.stdout.strip().split('\n')
-                        if f
-                    ]
+                    files = [self.repo_path / f for f in files_result.stdout.strip().split("\n") if f]
 
-                    commits.append(GitCommitInfo(
-                        commit_hash=commit_hash,
-                        timestamp=datetime.fromisoformat(timestamp_str),
-                        files_changed=files,
-                        selectors_healed=len(files),
-                        message=message
-                    ))
+                    commits.append(
+                        GitCommitInfo(
+                            commit_hash=commit_hash,
+                            timestamp=datetime.fromisoformat(timestamp_str),
+                            files_changed=files,
+                            selectors_healed=len(files),
+                            message=message,
+                        )
+                    )
 
             return commits
 
@@ -281,11 +243,7 @@ class GitIntegration:
         """Check if repository has no uncommitted changes"""
         try:
             result = subprocess.run(
-                ['git', 'status', '--porcelain'],
-                cwd=self.repo_path,
-                capture_output=True,
-                text=True,
-                check=True
+                ["git", "status", "--porcelain"], cwd=self.repo_path, capture_output=True, text=True, check=True
             )
 
             return len(result.stdout.strip()) == 0
@@ -293,11 +251,7 @@ class GitIntegration:
         except (subprocess.SubprocessError, OSError):
             return False
 
-    def save_healing_metadata(
-            self,
-            healing_details: List[dict],
-            output_path: Optional[Path] = None
-    ):
+    def save_healing_metadata(self, healing_details: List[dict], output_path: Optional[Path] = None):
         """
         Save healing metadata to JSON file
 
@@ -306,7 +260,7 @@ class GitIntegration:
             output_path: Where to save (defaults to repo/.healing_metadata.json)
         """
         if output_path is None:
-            output_path = self.repo_path / '.healing_metadata.json'
+            output_path = self.repo_path / ".healing_metadata.json"
 
         # Load existing metadata
         metadata = []
@@ -318,15 +272,17 @@ class GitIntegration:
 
         # Add new entries
         for detail in healing_details:
-            metadata.append({
-                'timestamp': datetime.now().isoformat(),
-                'file': str(detail['file_path']),
-                'element': detail['element_name'],
-                'old_selector': detail['old_selector'],
-                'new_selector': detail['new_selector'],
-                'confidence': detail['confidence'],
-                'strategy': detail['strategy'],
-            })
+            metadata.append(
+                {
+                    "timestamp": datetime.now().isoformat(),
+                    "file": str(detail["file_path"]),
+                    "element": detail["element_name"],
+                    "old_selector": detail["old_selector"],
+                    "new_selector": detail["new_selector"],
+                    "confidence": detail["confidence"],
+                    "strategy": detail["strategy"],
+                }
+            )
 
         # Save
         output_path.write_text(json.dumps(metadata, indent=2))

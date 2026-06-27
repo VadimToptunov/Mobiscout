@@ -23,12 +23,14 @@ from framework.licensing.validator import check_feature
 
 class Platform(Enum):
     """Supported platforms"""
+
     ANDROID = "android"
     IOS = "ios"
 
 
 class DeviceType(Enum):
     """Device types"""
+
     EMULATOR = "emulator"
     SIMULATOR = "simulator"
     REAL = "real"
@@ -37,6 +39,7 @@ class DeviceType(Enum):
 
 class DeviceStatus(Enum):
     """Device status for pool management"""
+
     AVAILABLE = "available"
     BUSY = "busy"
     OFFLINE = "offline"
@@ -46,6 +49,7 @@ class DeviceStatus(Enum):
 @dataclass
 class DeviceCapabilities:
     """Device capabilities"""
+
     platform: Platform
     platform_version: str
     device_name: str
@@ -83,6 +87,7 @@ class DeviceCapabilities:
 @dataclass
 class Screenshot:
     """Screenshot capture"""
+
     timestamp: datetime
     screen_name: str
     file_path: Path
@@ -92,6 +97,7 @@ class Screenshot:
 @dataclass
 class LogEntry:
     """Log entry"""
+
     timestamp: datetime
     level: str
     message: str
@@ -101,6 +107,7 @@ class LogEntry:
 @dataclass
 class APITrace:
     """API call trace"""
+
     timestamp: datetime
     method: str
     url: str
@@ -119,11 +126,11 @@ class DeviceProvider(Protocol):
         """List available devices"""
         ...
 
-    def connect(self, caps: DeviceCapabilities) -> 'Device':
+    def connect(self, caps: DeviceCapabilities) -> "Device":
         """Connect to device"""
         ...
 
-    def disconnect(self, device: 'Device'):
+    def disconnect(self, device: "Device"):
         """Disconnect from device"""
         ...
 
@@ -194,7 +201,7 @@ class Device:
             "type": self.type.value,
             "model": self.model,
             "status": self.status.value,
-            "is_connected": self.is_connected
+            "is_connected": self.is_connected,
         }
 
     @property
@@ -221,11 +228,7 @@ class Device:
         # Capture using driver
         self.driver.save_screenshot(str(file_path))
 
-        screenshot = Screenshot(
-            timestamp=timestamp,
-            screen_name=screen_name,
-            file_path=file_path
-        )
+        screenshot = Screenshot(timestamp=timestamp, screen_name=screen_name, file_path=file_path)
         self.screenshots.append(screenshot)
         return screenshot
 
@@ -241,14 +244,14 @@ class Device:
         """
         logs = []
         try:
-            if hasattr(self.driver, 'get_log'):
+            if hasattr(self.driver, "get_log"):
                 raw_logs = self.driver.get_log(log_type)
                 for entry in raw_logs:
                     log = LogEntry(
-                        timestamp=datetime.fromtimestamp(entry['timestamp'] / 1000),
-                        level=entry.get('level', 'INFO'),
-                        message=entry.get('message', ''),
-                        source=log_type
+                        timestamp=datetime.fromtimestamp(entry["timestamp"] / 1000),
+                        level=entry.get("level", "INFO"),
+                        message=entry.get("message", ""),
+                        source=log_type,
                     )
                     logs.append(log)
                     self.logs.append(log)
@@ -284,7 +287,7 @@ class Device:
         if self._is_connected:
             try:
                 # Check driver is not None before accessing attributes
-                if self.driver is not None and hasattr(self.driver, 'quit'):
+                if self.driver is not None and hasattr(self.driver, "quit"):
                     self.driver.quit()
             except (OSError, RuntimeError):
                 pass
@@ -301,14 +304,15 @@ def _validate_device_id(udid: str) -> bool:
     - iOS: UUID format (e.g., 00008101-0012345A1234001E)
     """
     import re
+
     # Android emulator pattern
-    if re.match(r'^emulator-\d+$', udid):
+    if re.match(r"^emulator-\d+$", udid):
         return True
     # Android device serial (alphanumeric, may include colons for network devices)
-    if re.match(r'^[a-zA-Z0-9.:_-]+$', udid):
+    if re.match(r"^[a-zA-Z0-9.:_-]+$", udid):
         return True
     # iOS UUID pattern
-    if re.match(r'^[A-F0-9-]+$', udid, re.IGNORECASE):
+    if re.match(r"^[A-F0-9-]+$", udid, re.IGNORECASE):
         return True
     return False
 
@@ -333,15 +337,10 @@ class LocalDeviceProvider:
         devices = []
 
         try:
-            result = subprocess.run(
-                ['adb', 'devices', '-l'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["adb", "devices", "-l"], capture_output=True, text=True, timeout=5)
 
-            for line in result.stdout.split('\n')[1:]:
-                if not line.strip() or 'List of devices' in line:
+            for line in result.stdout.split("\n")[1:]:
+                if not line.strip() or "List of devices" in line:
                     continue
 
                 parts = line.split()
@@ -353,33 +352,35 @@ class LocalDeviceProvider:
                         print(f"⚠️  Skipping device with invalid ID format: {udid}")
                         continue
 
-                    device_type = DeviceType.EMULATOR if 'emulator' in udid else DeviceType.REAL
+                    device_type = DeviceType.EMULATOR if "emulator" in udid else DeviceType.REAL
 
                     # Get device properties
                     prop_result = subprocess.run(
-                        ['adb', '-s', udid, 'shell', 'getprop', 'ro.build.version.release'],
+                        ["adb", "-s", udid, "shell", "getprop", "ro.build.version.release"],
                         capture_output=True,
                         text=True,
-                        timeout=5
+                        timeout=5,
                     )
                     version = prop_result.stdout.strip() or "unknown"
 
                     name_result = subprocess.run(
-                        ['adb', '-s', udid, 'shell', 'getprop', 'ro.product.model'],
+                        ["adb", "-s", udid, "shell", "getprop", "ro.product.model"],
                         capture_output=True,
                         text=True,
-                        timeout=5
+                        timeout=5,
                     )
                     name = name_result.stdout.strip() or udid
 
-                    devices.append(DeviceCapabilities(
-                        platform=Platform.ANDROID,
-                        platform_version=version,
-                        device_name=name,
-                        udid=udid,
-                        device_type=device_type,
-                        automation_name="UiAutomator2"
-                    ))
+                    devices.append(
+                        DeviceCapabilities(
+                            platform=Platform.ANDROID,
+                            platform_version=version,
+                            device_name=name,
+                            udid=udid,
+                            device_type=device_type,
+                            automation_name="UiAutomator2",
+                        )
+                    )
         except FileNotFoundError:
             print("⚠️  adb not found. Install Android SDK.")
         except (subprocess.SubprocessError, OSError, subprocess.TimeoutExpired) as e:
@@ -393,28 +394,27 @@ class LocalDeviceProvider:
 
         try:
             result = subprocess.run(
-                ['xcrun', 'simctl', 'list', 'devices', '--json'],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["xcrun", "simctl", "list", "devices", "--json"], capture_output=True, text=True, timeout=5
             )
 
             data = json.loads(result.stdout)
 
-            for version, device_list in data.get('devices', {}).items():
+            for version, device_list in data.get("devices", {}).items():
                 for device in device_list:
-                    if device.get('isAvailable') and device.get('state') == 'Booted':
+                    if device.get("isAvailable") and device.get("state") == "Booted":
                         # Extract iOS version from key like 'iOS 16.0'
-                        ios_version = version.split()[-1] if 'iOS' in version else 'unknown'
+                        ios_version = version.split()[-1] if "iOS" in version else "unknown"
 
-                        devices.append(DeviceCapabilities(
-                            platform=Platform.IOS,
-                            platform_version=ios_version,
-                            device_name=device['name'],
-                            udid=device['udid'],
-                            device_type=DeviceType.SIMULATOR,
-                            automation_name="XCUITest"
-                        ))
+                        devices.append(
+                            DeviceCapabilities(
+                                platform=Platform.IOS,
+                                platform_version=ios_version,
+                                device_name=device["name"],
+                                udid=device["udid"],
+                                device_type=DeviceType.SIMULATOR,
+                                automation_name="XCUITest",
+                            )
+                        )
         except FileNotFoundError:
             # Not on macOS or Xcode not installed
             pass
@@ -434,10 +434,7 @@ class LocalDeviceProvider:
         # Create Appium driver using options (Appium 3.x API)
         options = AppiumOptions()
         options.load_capabilities(caps.to_appium_caps())
-        driver = webdriver.Remote(
-            command_executor='http://localhost:4723',
-            options=options
-        )
+        driver = webdriver.Remote(command_executor="http://localhost:4723", options=options)
 
         return Device(caps, driver)
 
@@ -454,7 +451,7 @@ class CloudDeviceProvider:
     """
 
     def __init__(self, provider: str, username: str, access_key: str):
-        if not check_feature('cloud_devices'):
+        if not check_feature("cloud_devices"):
             raise PermissionError("Cloud devices require PRO or ENTERPRISE license")
 
         self.provider = provider.lower()
@@ -465,11 +462,11 @@ class CloudDeviceProvider:
     def _get_hub_url(self) -> str:
         """Get cloud provider hub URL"""
         urls = {
-            'browserstack': f'https://{self.username}:{self.access_key}@hub-cloud.browserstack.com/wd/hub',
-            'saucelabs': f'https://{self.username}:{self.access_key}@ondemand.saucelabs.com:443/wd/hub',
-            'testingbot': f'https://{self.username}:{self.access_key}@hub.testingbot.com/wd/hub',
+            "browserstack": f"https://{self.username}:{self.access_key}@hub-cloud.browserstack.com/wd/hub",
+            "saucelabs": f"https://{self.username}:{self.access_key}@ondemand.saucelabs.com:443/wd/hub",
+            "testingbot": f"https://{self.username}:{self.access_key}@hub.testingbot.com/wd/hub",
         }
-        return urls.get(self.provider, '')
+        return urls.get(self.provider, "")
 
     def list_devices(self) -> List[DeviceCapabilities]:
         """List available cloud devices"""
@@ -481,14 +478,14 @@ class CloudDeviceProvider:
                 platform_version="13",
                 device_name="Google Pixel 7",
                 udid="cloud_pixel7",
-                device_type=DeviceType.CLOUD
+                device_type=DeviceType.CLOUD,
             ),
             DeviceCapabilities(
                 platform=Platform.IOS,
                 platform_version="16",
                 device_name="iPhone 14",
                 udid="cloud_iphone14",
-                device_type=DeviceType.CLOUD
+                device_type=DeviceType.CLOUD,
             ),
         ]
 
@@ -503,10 +500,7 @@ class CloudDeviceProvider:
         # Create Appium driver using options (Appium 3.x API)
         options = AppiumOptions()
         options.load_capabilities(caps.to_appium_caps())
-        driver = webdriver.Remote(
-            command_executor=self._hub_url,
-            options=options
-        )
+        driver = webdriver.Remote(command_executor=self._hub_url, options=options)
 
         return Device(caps, driver)
 

@@ -11,17 +11,17 @@ from framework.flow.flow_discovery import (
     FlowEdge,
     FlowGraph,
     FlowDiscovery,
-    StateExtractor
+    StateExtractor,
 )
 
 __all__ = [
-    'TransitionType',
-    'EdgeCaseType',
-    'UIAction',
-    'ScreenTransition',
-    'FlowNode',
-    'FlowEdge',
-    'FlowGraph',
-    'FlowDiscovery',
-    'StateExtractor',
+    "TransitionType",
+    "EdgeCaseType",
+    "UIAction",
+    "ScreenTransition",
+    "FlowNode",
+    "FlowEdge",
+    "FlowGraph",
+    "FlowDiscovery",
+    "StateExtractor",
 ]

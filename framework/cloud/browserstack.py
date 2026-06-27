@@ -57,7 +57,7 @@ class BrowserStackClient:
 
         if platform:
             platform_key = "android" if platform.lower() == "android" else "ios"
-            devices = [d for d in devices if d.get('os', '').lower().startswith(platform_key)]
+            devices = [d for d in devices if d.get("os", "").lower().startswith(platform_key)]
 
         return devices
 
@@ -78,14 +78,14 @@ class BrowserStackClient:
 
         print(f"Uploading {app_path.name} to BrowserStack...")
 
-        with open(app_path, 'rb') as f:
-            files = {'file': f}
+        with open(app_path, "rb") as f:
+            files = {"file": f}
             response = self.session.post(url, files=files)
 
         response.raise_for_status()
         data = response.json()
 
-        app_url = data.get('app_url')
+        app_url = data.get("app_url")
         print(f"✓ Upload complete: {app_url}")
 
         return app_url
@@ -101,7 +101,7 @@ class BrowserStackClient:
             List of session dictionaries
         """
         url = f"{self.APP_AUTOMATE_URL}/sessions.json"
-        params = {'limit': limit}
+        params = {"limit": limit}
 
         response = self.session.get(url, params=params)
         response.raise_for_status()
@@ -164,7 +164,7 @@ class BrowserStackClient:
             List of build dictionaries
         """
         url = f"{self.APP_AUTOMATE_URL}/builds.json"
-        params = {'limit': limit}
+        params = {"limit": limit}
 
         response = self.session.get(url, params=params)
         response.raise_for_status()
@@ -185,12 +185,12 @@ class BrowserStackClient:
         return response.json()
 
     def generate_capabilities(
-            self,
-            device_name: str,
-            os_version: str,
-            app_url: str,
-            project_name: Optional[str] = None,
-            build_name: Optional[str] = None
+        self,
+        device_name: str,
+        os_version: str,
+        app_url: str,
+        project_name: Optional[str] = None,
+        build_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generate Appium capabilities for BrowserStack
@@ -206,21 +206,21 @@ class BrowserStackClient:
             Capabilities dictionary
         """
         capabilities = {
-            'browserstack.user': self.username,
-            'browserstack.key': self.access_key,
-            'device': device_name,
-            'os_version': os_version,
-            'app': app_url,
-            'browserstack.debug': True,
-            'browserstack.networkLogs': True,
-            'browserstack.video': True,
+            "browserstack.user": self.username,
+            "browserstack.key": self.access_key,
+            "device": device_name,
+            "os_version": os_version,
+            "app": app_url,
+            "browserstack.debug": True,
+            "browserstack.networkLogs": True,
+            "browserstack.video": True,
         }
 
         if project_name:
-            capabilities['project'] = project_name
+            capabilities["project"] = project_name
 
         if build_name:
-            capabilities['build'] = build_name
+            capabilities["build"] = build_name
 
         return capabilities
 
@@ -238,8 +238,8 @@ def create_client_from_env() -> BrowserStackClient:
     """
     import os
 
-    username = os.getenv('BROWSERSTACK_USERNAME')
-    access_key = os.getenv('BROWSERSTACK_ACCESS_KEY')
+    username = os.getenv("BROWSERSTACK_USERNAME")
+    access_key = os.getenv("BROWSERSTACK_ACCESS_KEY")
 
     if not username or not access_key:
         raise ValueError(
@@ -251,10 +251,7 @@ def create_client_from_env() -> BrowserStackClient:
 
 
 def wait_for_session_completion(
-        client: BrowserStackClient,
-        session_id: str,
-        timeout: int = 3600,
-        poll_interval: int = 10
+    client: BrowserStackClient, session_id: str, timeout: int = 3600, poll_interval: int = 10
 ) -> Dict:
     """
     Wait for a session to complete
@@ -275,9 +272,9 @@ def wait_for_session_completion(
             raise TimeoutError(f"Session {session_id} did not complete within {timeout}s")
 
         session = client.get_session(session_id)
-        status = session.get('status')
+        status = session.get("status")
 
-        if status in ['done', 'error', 'timeout']:
+        if status in ["done", "error", "timeout"]:
             return session
 
         time.sleep(poll_interval)

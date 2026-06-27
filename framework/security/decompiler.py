@@ -33,6 +33,7 @@ import xml.etree.ElementTree as ET
 
 class ProtectionType(Enum):
     """Binary protection types"""
+
     OBFUSCATION = "obfuscation"
     ROOT_DETECTION = "root_detection"
     JAILBREAK_DETECTION = "jailbreak_detection"
@@ -47,6 +48,7 @@ class ProtectionType(Enum):
 
 class BinaryType(Enum):
     """Binary types"""
+
     APK = "apk"
     AAB = "aab"
     IPA = "ipa"
@@ -58,6 +60,7 @@ class BinaryType(Enum):
 @dataclass
 class StringFinding:
     """Extracted string finding"""
+
     value: str
     location: str
     category: str  # url, api_key, password, etc.
@@ -75,6 +78,7 @@ class StringFinding:
 @dataclass
 class ProtectionInfo:
     """Protection mechanism info - for CLI compatibility"""
+
     name: str
     detected: bool
     details: str = ""
@@ -90,6 +94,7 @@ class ProtectionInfo:
 @dataclass
 class NativeLibInfo:
     """Native library info - for CLI compatibility"""
+
     name: str
     path: str
     architectures: List[str] = field(default_factory=list)
@@ -107,6 +112,7 @@ class NativeLibInfo:
 @dataclass
 class SecurityFinding:
     """Security finding from decompilation - for CLI compatibility"""
+
     title: str
     description: str
     severity: str  # critical, high, medium, low
@@ -124,6 +130,7 @@ class SecurityFinding:
 @dataclass
 class DecompileResult:
     """Decompilation result"""
+
     binary_type: BinaryType
     binary_path: str
     output_dir: str
@@ -180,11 +187,13 @@ class DecompileResult:
 
         for ptype in all_types:
             detected = ptype in self.protections
-            infos.append(ProtectionInfo(
-                name=ptype.value.replace("_", " ").title(),
-                detected=detected,
-                details=f"{'Detected' if detected else 'Not found'} in binary analysis",
-            ))
+            infos.append(
+                ProtectionInfo(
+                    name=ptype.value.replace("_", " ").title(),
+                    detected=detected,
+                    details=f"{'Detected' if detected else 'Not found'} in binary analysis",
+                )
+            )
 
         return infos
 
@@ -205,11 +214,13 @@ class DecompileResult:
                 if part in ["arm64-v8a", "armeabi-v7a", "x86", "x86_64", "armeabi"]:
                     arch.append(part)
 
-            infos.append(NativeLibInfo(
-                name=path.name,
-                path=lib_path,
-                architectures=arch if arch else ["unknown"],
-            ))
+            infos.append(
+                NativeLibInfo(
+                    name=path.name,
+                    path=lib_path,
+                    architectures=arch if arch else ["unknown"],
+                )
+            )
 
         return infos
 
@@ -232,7 +243,9 @@ class DecompileResult:
             "receivers": self.receivers,
             "providers": self.providers,
             "native_libs": [lib.to_dict() for lib in self.native_lib_infos],
-            "interesting_strings": [{"value": s.value[:100], "category": s.category, "confidence": s.confidence} for s in self.strings[:50]],
+            "interesting_strings": [
+                {"value": s.value[:100], "category": s.category, "confidence": s.confidence} for s in self.strings[:50]
+            ],
             "protections": [p.to_dict() for p in self.protection_infos],
             "security_findings": [f.to_dict() for f in self.security_findings],
             "hashes": self.hashes,
@@ -250,44 +263,54 @@ class APKDecompiler:
     # Sensitive string patterns
     SENSITIVE_PATTERNS = {
         "url": r'https?://[^\s"\'<>]+',
-        "ip_address": r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
+        "ip_address": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
         "api_key": r'(?:api[_-]?key|apikey|api_secret)["\s:=]+["\']?([\w\-]{20,})["\']?',
-        "aws_key": r'AKIA[0-9A-Z]{16}',
-        "google_api": r'AIza[0-9A-Za-z\-_]{35}',
-        "firebase": r'[a-z0-9-]+\.firebaseio\.com',
+        "aws_key": r"AKIA[0-9A-Z]{16}",
+        "google_api": r"AIza[0-9A-Za-z\-_]{35}",
+        "firebase": r"[a-z0-9-]+\.firebaseio\.com",
         "password": r'(?:password|passwd|pwd)["\s:=]+["\']?([^\s"\']{4,})["\']?',
-        "private_key": r'-----BEGIN (?:RSA |EC )?PRIVATE KEY-----',
-        "jwt": r'eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+',
-        "sql_query": r'(?:SELECT|INSERT|UPDATE|DELETE)\s+.+\s+(?:FROM|INTO|SET)',
+        "private_key": r"-----BEGIN (?:RSA |EC )?PRIVATE KEY-----",
+        "jwt": r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+",
+        "sql_query": r"(?:SELECT|INSERT|UPDATE|DELETE)\s+.+\s+(?:FROM|INTO|SET)",
     }
 
     # Root detection indicators
     ROOT_INDICATORS = [
-        "su", "/system/app/Superuser", "/system/xbin/su",
-        "com.noshufou.android.su", "com.thirdparty.superuser",
-        "eu.chainfire.supersu", "com.koushikdutta.superuser",
-        "com.topjohnwu.magisk", "RootBeer", "RootTools",
-        "isRooted", "checkRoot", "detectRoot"
+        "su",
+        "/system/app/Superuser",
+        "/system/xbin/su",
+        "com.noshufou.android.su",
+        "com.thirdparty.superuser",
+        "eu.chainfire.supersu",
+        "com.koushikdutta.superuser",
+        "com.topjohnwu.magisk",
+        "RootBeer",
+        "RootTools",
+        "isRooted",
+        "checkRoot",
+        "detectRoot",
     ]
 
     # Emulator detection indicators
     EMULATOR_INDICATORS = [
-        "generic", "goldfish", "vbox", "genymotion",
-        "sdk_google_phone", "google_sdk", "Andy",
-        "Emulator", "BlueStacks", "Nox", "isEmulator"
+        "generic",
+        "goldfish",
+        "vbox",
+        "genymotion",
+        "sdk_google_phone",
+        "google_sdk",
+        "Andy",
+        "Emulator",
+        "BlueStacks",
+        "Nox",
+        "isEmulator",
     ]
 
     # Debug detection indicators
-    DEBUG_INDICATORS = [
-        "isDebuggerConnected", "Debug.isDebuggerConnected",
-        "Debugger", "JDWP", "waitForDebugger"
-    ]
+    DEBUG_INDICATORS = ["isDebuggerConnected", "Debug.isDebuggerConnected", "Debugger", "JDWP", "waitForDebugger"]
 
     # Obfuscation indicators
-    OBFUSCATION_INDICATORS = [
-        "proguard", "dexguard", "allatori", "zelix",
-        "stringer", "dasho", "arxan"
-    ]
+    OBFUSCATION_INDICATORS = ["proguard", "dexguard", "allatori", "zelix", "stringer", "dasho", "arxan"]
 
     def decompile(self, apk_path: Path, output_dir: Optional[Path] = None) -> DecompileResult:
         """Decompile APK and extract information"""
@@ -305,7 +328,7 @@ class APKDecompiler:
 
         # Extract APK contents
         extract_dir = output_dir / "extracted"
-        with zipfile.ZipFile(apk_path, 'r') as zf:
+        with zipfile.ZipFile(apk_path, "r") as zf:
             zf.extractall(extract_dir)
 
         # Parse AndroidManifest
@@ -347,7 +370,7 @@ class APKDecompiler:
             metadata={
                 "file_size": apk_path.stat().st_size,
                 "signing_info": self._get_signing_info(apk_path),
-            }
+            },
         )
 
     def _calculate_hashes(self, file_path: Path) -> Dict[str, str]:
@@ -381,46 +404,46 @@ class APKDecompiler:
                 # Binary XML - would need axml parser
                 return info
 
-            ns = {'android': 'http://schemas.android.com/apk/res/android'}
+            ns = {"android": "http://schemas.android.com/apk/res/android"}
 
             # Package info
             info["package"] = root.get("package")
-            info["version_name"] = root.get('{http://schemas.android.com/apk/res/android}versionName')
-            version_code = root.get('{http://schemas.android.com/apk/res/android}versionCode')
+            info["version_name"] = root.get("{http://schemas.android.com/apk/res/android}versionName")
+            version_code = root.get("{http://schemas.android.com/apk/res/android}versionCode")
             info["version_code"] = int(version_code) if version_code else None
 
             # SDK versions
-            uses_sdk = root.find('.//uses-sdk')
+            uses_sdk = root.find(".//uses-sdk")
             if uses_sdk is not None:
-                min_sdk = uses_sdk.get('{http://schemas.android.com/apk/res/android}minSdkVersion')
-                target_sdk = uses_sdk.get('{http://schemas.android.com/apk/res/android}targetSdkVersion')
+                min_sdk = uses_sdk.get("{http://schemas.android.com/apk/res/android}minSdkVersion")
+                target_sdk = uses_sdk.get("{http://schemas.android.com/apk/res/android}targetSdkVersion")
                 info["min_sdk"] = int(min_sdk) if min_sdk else None
                 info["target_sdk"] = int(target_sdk) if target_sdk else None
 
             # Permissions
-            for perm in root.findall('.//uses-permission'):
-                perm_name = perm.get('{http://schemas.android.com/apk/res/android}name')
+            for perm in root.findall(".//uses-permission"):
+                perm_name = perm.get("{http://schemas.android.com/apk/res/android}name")
                 if perm_name:
                     info["permissions"].append(perm_name)
 
             # Components
-            for activity in root.findall('.//activity'):
-                name = activity.get('{http://schemas.android.com/apk/res/android}name')
+            for activity in root.findall(".//activity"):
+                name = activity.get("{http://schemas.android.com/apk/res/android}name")
                 if name:
                     info["activities"].append(name)
 
-            for service in root.findall('.//service'):
-                name = service.get('{http://schemas.android.com/apk/res/android}name')
+            for service in root.findall(".//service"):
+                name = service.get("{http://schemas.android.com/apk/res/android}name")
                 if name:
                     info["services"].append(name)
 
-            for receiver in root.findall('.//receiver'):
-                name = receiver.get('{http://schemas.android.com/apk/res/android}name')
+            for receiver in root.findall(".//receiver"):
+                name = receiver.get("{http://schemas.android.com/apk/res/android}name")
                 if name:
                     info["receivers"].append(name)
 
-            for provider in root.findall('.//provider'):
-                name = provider.get('{http://schemas.android.com/apk/res/android}name')
+            for provider in root.findall(".//provider"):
+                name = provider.get("{http://schemas.android.com/apk/res/android}name")
                 if name:
                     info["providers"].append(name)
 
@@ -445,15 +468,17 @@ class APKDecompiler:
         if res_dir.exists():
             for xml_file in res_dir.rglob("*.xml"):
                 try:
-                    content = xml_file.read_text(errors='ignore')
+                    content = xml_file.read_text(errors="ignore")
                     for category, pattern in self.SENSITIVE_PATTERNS.items():
                         for match in re.finditer(pattern, content, re.IGNORECASE):
-                            strings.append(StringFinding(
-                                value=match.group(0),
-                                location=str(xml_file),
-                                category=category,
-                                confidence=0.7,
-                            ))
+                            strings.append(
+                                StringFinding(
+                                    value=match.group(0),
+                                    location=str(xml_file),
+                                    category=category,
+                                    confidence=0.7,
+                                )
+                            )
                 except (OSError, UnicodeDecodeError):
                     pass
 
@@ -468,19 +493,21 @@ class APKDecompiler:
             content = dex_path.read_bytes()
 
             # Extract ASCII strings
-            ascii_strings = re.findall(rb'[\x20-\x7e]{4,}', content)
+            ascii_strings = re.findall(rb"[\x20-\x7e]{4,}", content)
 
             for s in ascii_strings:
                 try:
-                    decoded = s.decode('utf-8')
+                    decoded = s.decode("utf-8")
                     for category, pattern in self.SENSITIVE_PATTERNS.items():
                         if re.search(pattern, decoded, re.IGNORECASE):
-                            strings.append(StringFinding(
-                                value=decoded,
-                                location=str(dex_path),
-                                category=category,
-                                confidence=0.8,
-                            ))
+                            strings.append(
+                                StringFinding(
+                                    value=decoded,
+                                    location=str(dex_path),
+                                    category=category,
+                                    confidence=0.8,
+                                )
+                            )
                             break
                 except UnicodeDecodeError:
                     pass
@@ -501,11 +528,7 @@ class APKDecompiler:
 
         return libs
 
-    def _detect_protections(
-        self,
-        extract_dir: Path,
-        strings: List[StringFinding]
-    ) -> List[ProtectionType]:
+    def _detect_protections(self, extract_dir: Path, strings: List[StringFinding]) -> List[ProtectionType]:
         """Detect binary protections"""
         protections = []
 
@@ -542,10 +565,7 @@ class APKDecompiler:
         try:
             # Try using apksigner if available
             result = subprocess.run(
-                ["apksigner", "verify", "--print-certs", str(apk_path)],
-                capture_output=True,
-                text=True,
-                timeout=30
+                ["apksigner", "verify", "--print-certs", str(apk_path)], capture_output=True, text=True, timeout=30
             )
             if result.returncode == 0:
                 info["signed"] = True
@@ -561,9 +581,7 @@ class APKDecompiler:
         """Run apktool for decompilation"""
         try:
             result = subprocess.run(
-                ["apktool", "d", "-f", "-o", str(output_dir), str(apk_path)],
-                capture_output=True,
-                timeout=300
+                ["apktool", "d", "-f", "-o", str(output_dir), str(apk_path)], capture_output=True, timeout=300
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
@@ -572,11 +590,7 @@ class APKDecompiler:
     def _run_jadx(self, apk_path: Path, output_dir: Path) -> bool:
         """Run jadx for Java decompilation"""
         try:
-            result = subprocess.run(
-                ["jadx", "-d", str(output_dir), str(apk_path)],
-                capture_output=True,
-                timeout=600
-            )
+            result = subprocess.run(["jadx", "-d", str(output_dir), str(apk_path)], capture_output=True, timeout=600)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
             return False
@@ -593,16 +607,23 @@ class IPAAnalyzer:
     SENSITIVE_PATTERNS = {
         "url": r'https?://[^\s"\'<>]+',
         "api_key": r'(?:api[_-]?key|apikey|api_secret)["\s:=]+["\']?([\w\-]{20,})["\']?',
-        "bundle_id": r'[a-zA-Z0-9\-\.]+\.[a-zA-Z0-9\-\.]+',
-        "entitlement": r'<key>([^<]+)</key>',
+        "bundle_id": r"[a-zA-Z0-9\-\.]+\.[a-zA-Z0-9\-\.]+",
+        "entitlement": r"<key>([^<]+)</key>",
     }
 
     # Jailbreak detection indicators
     JAILBREAK_INDICATORS = [
-        "cydia", "substrate", "jailbreak", "JailBroken",
-        "/Applications/Cydia.app", "/Library/MobileSubstrate",
-        "/bin/bash", "/usr/sbin/sshd", "/etc/apt",
-        "isJailbroken", "detectJailbreak"
+        "cydia",
+        "substrate",
+        "jailbreak",
+        "JailBroken",
+        "/Applications/Cydia.app",
+        "/Library/MobileSubstrate",
+        "/bin/bash",
+        "/usr/sbin/sshd",
+        "/etc/apt",
+        "isJailbroken",
+        "detectJailbreak",
     ]
 
     def analyze(self, ipa_path: Path, output_dir: Optional[Path] = None) -> DecompileResult:
@@ -620,7 +641,7 @@ class IPAAnalyzer:
 
         # Extract IPA
         extract_dir = output_dir / "extracted"
-        with zipfile.ZipFile(ipa_path, 'r') as zf:
+        with zipfile.ZipFile(ipa_path, "r") as zf:
             zf.extractall(extract_dir)
 
         # Find the .app bundle
@@ -683,7 +704,7 @@ class IPAAnalyzer:
                 "minimum_os": info_plist.get("MinimumOSVersion"),
                 "device_family": info_plist.get("UIDeviceFamily"),
                 "ats_settings": info_plist.get("NSAppTransportSecurity", {}),
-            }
+            },
         )
 
     def _calculate_hashes(self, file_path: Path) -> Dict[str, str]:
@@ -701,7 +722,8 @@ class IPAAnalyzer:
         """Parse Info.plist"""
         try:
             import plistlib
-            with open(plist_path, 'rb') as f:
+
+            with open(plist_path, "rb") as f:
                 return plistlib.load(f)
         except (OSError, Exception):
             return {}
@@ -714,19 +736,21 @@ class IPAAnalyzer:
             content = binary_path.read_bytes()
 
             # Extract ASCII strings
-            ascii_strings = re.findall(rb'[\x20-\x7e]{4,}', content)
+            ascii_strings = re.findall(rb"[\x20-\x7e]{4,}", content)
 
             for s in ascii_strings:
                 try:
-                    decoded = s.decode('utf-8')
+                    decoded = s.decode("utf-8")
                     for category, pattern in self.SENSITIVE_PATTERNS.items():
                         if re.search(pattern, decoded, re.IGNORECASE):
-                            strings.append(StringFinding(
-                                value=decoded,
-                                location=str(binary_path),
-                                category=category,
-                                confidence=0.8,
-                            ))
+                            strings.append(
+                                StringFinding(
+                                    value=decoded,
+                                    location=str(binary_path),
+                                    category=category,
+                                    confidence=0.8,
+                                )
+                            )
                             break
                 except UnicodeDecodeError:
                     pass
@@ -775,7 +799,7 @@ class NativeLibAnalyzer:
             content = so_path.read_bytes()
 
             # Check ELF magic
-            if content[:4] != b'\x7fELF':
+            if content[:4] != b"\x7fELF":
                 return info
 
             # Check architecture
@@ -784,12 +808,7 @@ class NativeLibAnalyzer:
 
             # Check for security features using readelf if available
             try:
-                result = subprocess.run(
-                    ["readelf", "-d", str(so_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
+                result = subprocess.run(["readelf", "-d", str(so_path)], capture_output=True, text=True, timeout=30)
                 if result.returncode == 0:
                     # Check for RELRO
                     if "BIND_NOW" in result.stdout:
@@ -802,12 +821,7 @@ class NativeLibAnalyzer:
                         info["protections"].append("STACK_CANARY")
 
                 # Check for PIE
-                result = subprocess.run(
-                    ["readelf", "-h", str(so_path)],
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
+                result = subprocess.run(["readelf", "-h", str(so_path)], capture_output=True, text=True, timeout=30)
                 if "DYN" in result.stdout:
                     info["protections"].append("PIE")
 
@@ -815,7 +829,7 @@ class NativeLibAnalyzer:
                 pass
 
             # Extract strings for analysis
-            strings = re.findall(rb'[\x20-\x7e]{4,}', content)
+            strings = re.findall(rb"[\x20-\x7e]{4,}", content)
             info["string_count"] = len(strings)
 
         except OSError:
@@ -886,33 +900,39 @@ class Decompiler:
         for perm in result.permissions:
             if perm in dangerous_permissions:
                 name, severity = dangerous_permissions[perm]
-                findings.append(SecurityFinding(
-                    title=f"Dangerous Permission: {name}",
-                    description=f"App requests {perm}",
-                    severity=severity,
-                    location="AndroidManifest.xml",
-                ))
+                findings.append(
+                    SecurityFinding(
+                        title=f"Dangerous Permission: {name}",
+                        description=f"App requests {perm}",
+                        severity=severity,
+                        location="AndroidManifest.xml",
+                    )
+                )
 
         # Check for exported components without permissions
         for activity in result.activities:
             if ".MainActivity" not in activity:
-                findings.append(SecurityFinding(
-                    title=f"Exported Activity: {activity.split('.')[-1]}",
-                    description="Activity may be exported and accessible by other apps",
-                    severity="low",
-                    location="AndroidManifest.xml",
-                ))
+                findings.append(
+                    SecurityFinding(
+                        title=f"Exported Activity: {activity.split('.')[-1]}",
+                        description="Activity may be exported and accessible by other apps",
+                        severity="low",
+                        location="AndroidManifest.xml",
+                    )
+                )
 
         # Check for sensitive strings
         sensitive_categories = ["api_key", "password", "private_key", "aws_key"]
         for string in result.strings:
             if string.category in sensitive_categories:
-                findings.append(SecurityFinding(
-                    title=f"Sensitive String: {string.category}",
-                    description=f"Found {string.category} in binary",
-                    severity="high",
-                    location=string.location,
-                ))
+                findings.append(
+                    SecurityFinding(
+                        title=f"Sensitive String: {string.category}",
+                        description=f"Found {string.category} in binary",
+                        severity="high",
+                        location=string.location,
+                    )
+                )
 
         # Check for missing protections
         expected_protections = [
@@ -923,12 +943,14 @@ class Decompiler:
 
         for prot in expected_protections:
             if prot not in result.protections:
-                findings.append(SecurityFinding(
-                    title=f"Missing Protection: {prot.value.replace('_', ' ').title()}",
-                    description=f"{prot.value.replace('_', ' ').title()} not detected in binary",
-                    severity="medium",
-                    location="Binary analysis",
-                ))
+                findings.append(
+                    SecurityFinding(
+                        title=f"Missing Protection: {prot.value.replace('_', ' ').title()}",
+                        description=f"{prot.value.replace('_', ' ').title()} not detected in binary",
+                        severity="medium",
+                        location="Binary analysis",
+                    )
+                )
 
         return findings
 
@@ -942,14 +964,14 @@ class Decompiler:
 
         try:
             if binary_path.suffix.lower() == ".apk":
-                with zipfile.ZipFile(binary_path, 'r') as zf:
+                with zipfile.ZipFile(binary_path, "r") as zf:
                     # Extract strings from DEX files
                     for name in zf.namelist():
                         if name.endswith(".dex"):
                             content = zf.read(name)
                             strings.extend(self._extract_strings_from_bytes(content, name, min_length))
             elif binary_path.suffix.lower() == ".ipa":
-                with zipfile.ZipFile(binary_path, 'r') as zf:
+                with zipfile.ZipFile(binary_path, "r") as zf:
                     for name in zf.namelist():
                         if "/Payload/" in name and not name.endswith("/"):
                             try:
@@ -966,32 +988,27 @@ class Decompiler:
 
         return strings
 
-    def _extract_strings_from_bytes(
-        self,
-        content: bytes,
-        location: str,
-        min_length: int
-    ) -> List[StringFinding]:
+    def _extract_strings_from_bytes(self, content: bytes, location: str, min_length: int) -> List[StringFinding]:
         """Extract strings from bytes"""
         strings = []
 
         # Patterns for categorization
         patterns = {
             "url": r'https?://[^\s"\'<>]+',
-            "ip_address": r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
+            "ip_address": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
             "api_key": r'(?:api[_-]?key|apikey)["\s:=]+["\']?([\w\-]{16,})["\']?',
-            "email": r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
+            "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
             "password": r'(?:password|passwd|pwd)["\s:=]+["\']?([^\s"\']{4,})["\']?',
             "token": r'(?:token|secret)["\s:=]+["\']?([\w\-]{16,})["\']?',
         }
 
         # Extract ASCII strings
-        ascii_pattern = rb'[\x20-\x7e]{' + str(min_length).encode() + rb',}'
+        ascii_pattern = rb"[\x20-\x7e]{" + str(min_length).encode() + rb",}"
         raw_strings = re.findall(ascii_pattern, content)
 
         for raw in raw_strings[:1000]:  # Limit to prevent excessive processing
             try:
-                decoded = raw.decode('utf-8')
+                decoded = raw.decode("utf-8")
 
                 # Categorize string
                 category = "other"
@@ -1001,12 +1018,14 @@ class Decompiler:
                         break
 
                 if category != "other":  # Only include categorized strings
-                    strings.append(StringFinding(
-                        value=decoded,
-                        location=location,
-                        category=category,
-                        confidence=0.7,
-                    ))
+                    strings.append(
+                        StringFinding(
+                            value=decoded,
+                            location=location,
+                            category=category,
+                            confidence=0.7,
+                        )
+                    )
 
             except UnicodeDecodeError:
                 pass
@@ -1017,5 +1036,5 @@ class Decompiler:
         """Export analysis report"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(result.to_dict(), f, indent=2)

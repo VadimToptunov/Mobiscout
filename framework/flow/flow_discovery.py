@@ -21,6 +21,7 @@ from typing import List, Dict, Any, Optional, Tuple, Callable
 
 class TransitionType(Enum):
     """Types of screen transitions"""
+
     TAP = "tap"
     SWIPE = "swipe"
     INPUT = "input"
@@ -32,6 +33,7 @@ class TransitionType(Enum):
 
 class EdgeCaseType(Enum):
     """Types of edge cases detected"""
+
     ERROR_SCREEN = "error_screen"
     LOADING_SCREEN = "loading_screen"
     PERMISSION_DIALOG = "permission_dialog"
@@ -44,6 +46,7 @@ class EdgeCaseType(Enum):
 @dataclass
 class UIAction:
     """User action on UI"""
+
     action_type: str
     element_id: Optional[str]
     element_label: Optional[str]
@@ -56,6 +59,7 @@ class UIAction:
 @dataclass
 class ScreenTransition:
     """Transition between screens"""
+
     from_screen: str
     to_screen: str
     action: UIAction
@@ -68,6 +72,7 @@ class ScreenTransition:
 @dataclass
 class FlowNode:
     """Node in flow graph (screen)"""
+
     screen_id: str
     screen_name: str
     elements: List[Dict[str, Any]]
@@ -82,6 +87,7 @@ class FlowNode:
 @dataclass
 class FlowEdge:
     """Edge in flow graph (transition)"""
+
     from_node: str
     to_node: str
     action: UIAction
@@ -94,6 +100,7 @@ class FlowEdge:
 @dataclass
 class FlowGraph:
     """Complete flow graph"""
+
     nodes: Dict[str, FlowNode]
     edges: List[FlowEdge]
     entry_points: List[str]
@@ -104,26 +111,32 @@ class FlowGraph:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
-            'nodes': {k: {
-                'screen_id': v.screen_id,
-                'screen_name': v.screen_name,
-                'visit_count': v.visit_count,
-                'is_edge_case': v.is_edge_case,
-                'edge_case_type': v.edge_case_type.value if v.edge_case_type else None,
-                'element_count': len(v.elements)
-            } for k, v in self.nodes.items()},
-            'edges': [{
-                'from': e.from_node,
-                'to': e.to_node,
-                'action': e.action.action_type,
-                'type': e.transition_type.value,
-                'count': e.count,
-                'avg_duration_ms': e.avg_duration_ms
-            } for e in self.edges],
-            'entry_points': self.entry_points,
-            'dead_ends': self.dead_ends,
-            'loops': self.loops,
-            'edge_case_count': len(self.edge_cases)
+            "nodes": {
+                k: {
+                    "screen_id": v.screen_id,
+                    "screen_name": v.screen_name,
+                    "visit_count": v.visit_count,
+                    "is_edge_case": v.is_edge_case,
+                    "edge_case_type": v.edge_case_type.value if v.edge_case_type else None,
+                    "element_count": len(v.elements),
+                }
+                for k, v in self.nodes.items()
+            },
+            "edges": [
+                {
+                    "from": e.from_node,
+                    "to": e.to_node,
+                    "action": e.action.action_type,
+                    "type": e.transition_type.value,
+                    "count": e.count,
+                    "avg_duration_ms": e.avg_duration_ms,
+                }
+                for e in self.edges
+            ],
+            "entry_points": self.entry_points,
+            "dead_ends": self.dead_ends,
+            "loops": self.loops,
+            "edge_case_count": len(self.edge_cases),
         }
 
 
@@ -173,16 +186,11 @@ class FlowDiscovery:
             node.last_seen = datetime.now()
         else:
             # Create new node
-            node = FlowNode(
-                screen_id=screen_id,
-                screen_name=screen_name,
-                elements=elements,
-                visit_count=1
-            )
+            node = FlowNode(screen_id=screen_id, screen_name=screen_name, elements=elements, visit_count=1)
 
             # Check for edge cases using ML hooks
             for hook in self.ml_hooks:
-                edge_case_type = hook({'screen_name': screen_name, 'elements': elements})
+                edge_case_type = hook({"screen_name": screen_name, "elements": elements})
                 if edge_case_type:
                     node.is_edge_case = True
                     node.edge_case_type = edge_case_type
@@ -198,12 +206,12 @@ class FlowDiscovery:
         return node
 
     def record_transition(
-            self,
-            from_screen: str,
-            to_screen: str,
-            action: UIAction,
-            duration_ms: float,
-            api_calls: List[Dict[str, Any]] = None
+        self,
+        from_screen: str,
+        to_screen: str,
+        action: UIAction,
+        duration_ms: float,
+        api_calls: List[Dict[str, Any]] = None,
     ):
         """
         Record a screen transition
@@ -225,7 +233,7 @@ class FlowDiscovery:
             action=action,
             transition_type=transition_type,
             duration_ms=duration_ms,
-            api_calls=api_calls or []
+            api_calls=api_calls or [],
         )
         self.transitions.append(transition)
 
@@ -235,14 +243,14 @@ class FlowDiscovery:
             edge.count += 1
             edge.avg_duration_ms = (edge.avg_duration_ms * (edge.count - 1) + duration_ms) / edge.count
         else:
-            api_pattern = [call.get('endpoint', '') for call in (api_calls or [])]
+            api_pattern = [call.get("endpoint", "") for call in (api_calls or [])]
             edge = FlowEdge(
                 from_node=from_screen,
                 to_node=to_screen,
                 action=action,
                 transition_type=transition_type,
                 avg_duration_ms=duration_ms,
-                api_calls_pattern=api_pattern
+                api_calls_pattern=api_pattern,
             )
             self.edges.append(edge)
 
@@ -273,57 +281,58 @@ class FlowDiscovery:
             entry_points=entry_points,
             dead_ends=dead_ends,
             loops=loops,
-            edge_cases=edge_cases
+            edge_cases=edge_cases,
         )
 
     def export_to_json(self, output_path: Path):
         """Export flow graph to JSON"""
         graph = self.build_flow_graph()
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(graph.to_dict(), f, indent=2)
 
     def export_to_graphviz(self, output_path: Path):
         """Export flow graph to Graphviz DOT format"""
         graph = self.build_flow_graph()
 
-        dot = ['digraph FlowGraph {']
-        dot.append('  rankdir=LR;')
-        dot.append('  node [shape=box, style=rounded];')
-        dot.append('')
+        dot = ["digraph FlowGraph {"]
+        dot.append("  rankdir=LR;")
+        dot.append("  node [shape=box, style=rounded];")
+        dot.append("")
 
         # Nodes
         for node_id, node in graph.nodes.items():
-            color = 'red' if node.is_edge_case else 'lightblue'
+            color = "red" if node.is_edge_case else "lightblue"
             label = f"{node.screen_name}\\n({node.visit_count} visits)"
             dot.append(f'  "{node_id}" [label="{label}", fillcolor={color}, style=filled];')
 
-        dot.append('')
+        dot.append("")
 
         # Edges
         for edge in graph.edges:
             label = f"{edge.action.action_type}\\n({edge.count}x)"
             dot.append(f'  "{edge.from_node}" -> "{edge.to_node}" [label="{label}"];')
 
-        dot.append('}')
+        dot.append("}")
 
-        with open(output_path, 'w') as f:
-            f.write('\n'.join(dot))
+        with open(output_path, "w") as f:
+            f.write("\n".join(dot))
 
-    def _detect_edge_case(self, screen_name: str, elements: List[Dict[str, Any]]) -> Tuple[
-        bool, Optional[EdgeCaseType]]:
+    def _detect_edge_case(
+        self, screen_name: str, elements: List[Dict[str, Any]]
+    ) -> Tuple[bool, Optional[EdgeCaseType]]:
         """Simple heuristic edge case detection"""
         screen_lower = screen_name.lower()
 
         # Error screens
-        if any(keyword in screen_lower for keyword in ['error', 'failed', 'crash']):
+        if any(keyword in screen_lower for keyword in ["error", "failed", "crash"]):
             return True, EdgeCaseType.ERROR_SCREEN
 
         # Loading screens
-        if any(keyword in screen_lower for keyword in ['loading', 'progress', 'wait']):
+        if any(keyword in screen_lower for keyword in ["loading", "progress", "wait"]):
             return True, EdgeCaseType.LOADING_SCREEN
 
         # Permission dialogs
-        if any(keyword in screen_lower for keyword in ['permission', 'allow', 'grant']):
+        if any(keyword in screen_lower for keyword in ["permission", "allow", "grant"]):
             return True, EdgeCaseType.PERMISSION_DIALOG
 
         # Empty states
@@ -331,7 +340,7 @@ class FlowDiscovery:
             return True, EdgeCaseType.EMPTY_STATE
 
         # Network errors
-        if any(keyword in screen_lower for keyword in ['network', 'offline', 'connection']):
+        if any(keyword in screen_lower for keyword in ["network", "offline", "connection"]):
             return True, EdgeCaseType.NETWORK_ERROR
 
         return False, None
@@ -340,13 +349,13 @@ class FlowDiscovery:
         """Classify transition type based on action and screens"""
         action_type = action.action_type.lower()
 
-        if 'tap' in action_type or 'click' in action_type:
+        if "tap" in action_type or "click" in action_type:
             return TransitionType.TAP
-        elif 'swipe' in action_type:
+        elif "swipe" in action_type:
             return TransitionType.SWIPE
-        elif 'input' in action_type or 'type' in action_type:
+        elif "input" in action_type or "type" in action_type:
             return TransitionType.INPUT
-        elif 'back' in action_type:
+        elif "back" in action_type:
             return TransitionType.BACK
         elif from_screen == to_screen:
             return TransitionType.AUTOMATIC
@@ -356,9 +365,7 @@ class FlowDiscovery:
     def _find_edge(self, from_node: str, to_node: str, action_type: str) -> Optional[FlowEdge]:
         """Find existing edge"""
         for edge in self.edges:
-            if (edge.from_node == from_node and
-                    edge.to_node == to_node and
-                    edge.action.action_type == action_type):
+            if edge.from_node == from_node and edge.to_node == to_node and edge.action.action_type == action_type:
                 return edge
         return None
 
@@ -406,7 +413,7 @@ class FlowDiscovery:
         sorted_paths = sorted(path_freq.items(), key=lambda x: x[1], reverse=True)
 
         # Return top 10 paths
-        return [path.split('->') for path, _ in sorted_paths[:10]]
+        return [path.split("->") for path, _ in sorted_paths[:10]]
 
     def get_untested_transitions(self) -> List[Tuple[str, str]]:
         """Get screen transitions that haven't been tested"""
@@ -416,7 +423,7 @@ class FlowDiscovery:
         possible = set()
         for screen_id, node in self.nodes.items():
             for element in node.elements:
-                if element.get('enabled') and element.get('type') in ['button', 'link']:
+                if element.get("enabled") and element.get("type") in ["button", "link"]:
                     # This element could potentially navigate somewhere
                     # In practice, we'd need to track which elements lead where
                     pass
@@ -429,32 +436,33 @@ class FlowDiscovery:
 
         # Critical paths
         for path in self.get_critical_paths():
-            scenarios.append({
-                'type': 'critical_path',
-                'path': path,
-                'priority': 'high',
-                'description': f"Test critical path: {' -> '.join(path)}"
-            })
+            scenarios.append(
+                {
+                    "type": "critical_path",
+                    "path": path,
+                    "priority": "high",
+                    "description": f"Test critical path: {' -> '.join(path)}",
+                }
+            )
 
         # Edge cases
         for node in self.nodes.values():
             if node.is_edge_case:
-                scenarios.append({
-                    'type': 'edge_case',
-                    'screen': node.screen_name,
-                    'edge_case_type': node.edge_case_type.value if node.edge_case_type else 'unknown',
-                    'priority': 'medium',
-                    'description': f"Test edge case: {node.screen_name}"
-                })
+                scenarios.append(
+                    {
+                        "type": "edge_case",
+                        "screen": node.screen_name,
+                        "edge_case_type": node.edge_case_type.value if node.edge_case_type else "unknown",
+                        "priority": "medium",
+                        "description": f"Test edge case: {node.screen_name}",
+                    }
+                )
 
         # Loops
         for loop in self._detect_loops()[:5]:  # Top 5 loops
-            scenarios.append({
-                'type': 'loop',
-                'path': loop,
-                'priority': 'low',
-                'description': f"Test loop: {' -> '.join(loop)}"
-            })
+            scenarios.append(
+                {"type": "loop", "path": loop, "priority": "low", "description": f"Test loop: {' -> '.join(loop)}"}
+            )
 
         return scenarios
 
@@ -481,24 +489,26 @@ class StateExtractor:
         for node in graph.nodes.values():
             states = self._extract_screen_states(node)
             if states:
-                state_machines.append({
-                    'screen': node.screen_name,
-                    'states': states,
-                    'transitions': self._extract_state_transitions(node.screen_id)
-                })
+                state_machines.append(
+                    {
+                        "screen": node.screen_name,
+                        "states": states,
+                        "transitions": self._extract_state_transitions(node.screen_id),
+                    }
+                )
 
         return state_machines
 
     def _extract_screen_states(self, node: FlowNode) -> List[str]:
         """Extract states for a screen"""
         # Common UI states
-        states = ['initial', 'loading']
+        states = ["initial", "loading"]
 
         if node.is_edge_case:
-            states.append('error')
+            states.append("error")
 
         if node.visit_count > 10:
-            states.append('loaded')
+            states.append("loaded")
 
         return states
 
@@ -509,6 +519,6 @@ class StateExtractor:
         # Build transitions from edges
         for edge in self.flow_discovery.edges:
             if edge.from_node == screen_id:
-                transitions['loaded'].append(edge.to_node)
+                transitions["loaded"].append(edge.to_node)
 
         return dict(transitions)

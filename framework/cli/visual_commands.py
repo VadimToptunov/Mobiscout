@@ -18,26 +18,18 @@ from framework.cli.rich_output import print_header, print_info, print_success, p
 console = Console()
 
 
-@click.group(name='visual')
+@click.group(name="visual")
 def visual() -> None:
     """👁️  Visual regression testing commands"""
     pass
 
 
 @visual.command()
-@click.option('--baseline-dir', '-b', type=click.Path(), default='./visual_baselines',
-              help='Baseline images directory')
-@click.option('--current-dir', '-c', type=click.Path(exists=True), required=True,
-              help='Current screenshots directory')
-@click.option('--threshold', '-t', type=float, default=0.01,
-              help='Difference threshold (0.01 = 1%)')
-@click.option('--output', '-o', type=click.Path(), help='Output HTML report')
-def compare(
-        baseline_dir: str,
-        current_dir: str,
-        threshold: float,
-        output: Optional[str]
-) -> None:
+@click.option("--baseline-dir", "-b", type=click.Path(), default="./visual_baselines", help="Baseline images directory")
+@click.option("--current-dir", "-c", type=click.Path(exists=True), required=True, help="Current screenshots directory")
+@click.option("--threshold", "-t", type=float, default=0.01, help="Difference threshold (0.01 = 1%)")
+@click.option("--output", "-o", type=click.Path(), help="Output HTML report")
+def compare(baseline_dir: str, current_dir: str, threshold: float, output: Optional[str]) -> None:
     """Compare current screenshots against baselines"""
     print_header("Visual Regression Testing")
 
@@ -57,7 +49,7 @@ def compare(
     analyzer = VisualAnalyzer(baseline_dir=baseline_path)
 
     # Find all current screenshots
-    current_screenshots = list(current_path.glob('*.png'))
+    current_screenshots = list(current_path.glob("*.png"))
 
     if not current_screenshots:
         print_error(f"No screenshots found in {current_path}")
@@ -73,11 +65,7 @@ def compare(
     for screenshot in current_screenshots:
         screen_name = screenshot.stem  # filename without extension
 
-        diff = analyzer.compare_screenshots(
-            screen_name=screen_name,
-            current_image=screenshot,
-            threshold=threshold
-        )
+        diff = analyzer.compare_screenshots(screen_name=screen_name, current_image=screenshot, threshold=threshold)
 
         if diff is None:
             # No baseline exists
@@ -128,10 +116,10 @@ def compare(
 
 
 @visual.command()
-@click.option('--screenshots-dir', '-s', type=click.Path(exists=True), required=True,
-              help='Directory containing screenshots')
-@click.option('--output', '-o', type=click.Path(), default='./visual_baselines',
-              help='Output directory for baselines')
+@click.option(
+    "--screenshots-dir", "-s", type=click.Path(exists=True), required=True, help="Directory containing screenshots"
+)
+@click.option("--output", "-o", type=click.Path(), default="./visual_baselines", help="Output directory for baselines")
 def capture(screenshots_dir: str, output: str) -> None:
     """Capture baseline screenshots"""
     print_header("Capture Visual Baselines")
@@ -140,7 +128,7 @@ def capture(screenshots_dir: str, output: str) -> None:
     output_path = Path(output)
 
     # Find all screenshots
-    screenshots = list(screenshots_path.glob('*.png'))
+    screenshots = list(screenshots_path.glob("*.png"))
 
     if not screenshots:
         print_error(f"No PNG screenshots found in {screenshots_path}")
@@ -166,11 +154,11 @@ def capture(screenshots_dir: str, output: str) -> None:
 
 
 @visual.command()
-@click.argument('screen_name')
-@click.option('--baseline-dir', '-b', type=click.Path(), default='./visual_baselines',
-              help='Baseline images directory')
-@click.option('--current-image', '-c', type=click.Path(exists=True), required=True,
-              help='Current screenshot to approve')
+@click.argument("screen_name")
+@click.option("--baseline-dir", "-b", type=click.Path(), default="./visual_baselines", help="Baseline images directory")
+@click.option(
+    "--current-image", "-c", type=click.Path(exists=True), required=True, help="Current screenshot to approve"
+)
 def approve(screen_name: str, baseline_dir: str, current_image: str) -> None:
     """Approve current screenshot as new baseline"""
     print_header(f"Approve Visual Change: {screen_name}")
@@ -194,8 +182,7 @@ def approve(screen_name: str, baseline_dir: str, current_image: str) -> None:
 
 
 @visual.command()
-@click.option('--baseline-dir', '-b', type=click.Path(), default='./visual_baselines',
-              help='Baseline images directory')
+@click.option("--baseline-dir", "-b", type=click.Path(), default="./visual_baselines", help="Baseline images directory")
 def list_baselines(baseline_dir: str) -> None:
     """List all baseline screenshots"""
     print_header("Visual Baselines")
@@ -207,7 +194,7 @@ def list_baselines(baseline_dir: str) -> None:
         print_info("\nCreate with: observe visual capture --screenshots-dir ./screenshots")
         return
 
-    baselines = list(baseline_path.glob('*.png'))
+    baselines = list(baseline_path.glob("*.png"))
 
     if not baselines:
         print_info(f"No baselines found in {baseline_path}")
@@ -225,7 +212,8 @@ def list_baselines(baseline_dir: str) -> None:
         modified = baseline.stat().st_mtime
 
         from datetime import datetime
-        modified_str = datetime.fromtimestamp(modified).strftime('%Y-%m-%d %H:%M')
+
+        modified_str = datetime.fromtimestamp(modified).strftime("%Y-%m-%d %H:%M")
 
         table.add_row(baseline.stem, f"{size_kb:.1f} KB", modified_str)
 
@@ -233,10 +221,9 @@ def list_baselines(baseline_dir: str) -> None:
 
 
 @visual.command()
-@click.argument('screen_name')
-@click.option('--baseline-dir', '-b', type=click.Path(), default='./visual_baselines',
-              help='Baseline images directory')
-@click.confirmation_option(prompt='Delete this baseline?')
+@click.argument("screen_name")
+@click.option("--baseline-dir", "-b", type=click.Path(), default="./visual_baselines", help="Baseline images directory")
+@click.confirmation_option(prompt="Delete this baseline?")
 def delete(screen_name: str, baseline_dir: str) -> None:
     """Delete a baseline screenshot"""
     print_header(f"Delete Baseline: {screen_name}")
@@ -252,9 +239,8 @@ def delete(screen_name: str, baseline_dir: str) -> None:
 
 
 @visual.command()
-@click.option('--baseline-dir', '-b', type=click.Path(), default='./visual_baselines',
-              help='Baseline images directory')
-@click.confirmation_option(prompt='Delete ALL baselines?')
+@click.option("--baseline-dir", "-b", type=click.Path(), default="./visual_baselines", help="Baseline images directory")
+@click.confirmation_option(prompt="Delete ALL baselines?")
 def reset(baseline_dir: str) -> None:
     """Delete all baselines"""
     print_header("Reset Visual Baselines")
@@ -265,7 +251,7 @@ def reset(baseline_dir: str) -> None:
         print_info("No baselines directory found")
         return
 
-    baselines = list(baseline_path.glob('*.png'))
+    baselines = list(baseline_path.glob("*.png"))
 
     if not baselines:
         print_info("No baselines to delete")
@@ -278,10 +264,8 @@ def reset(baseline_dir: str) -> None:
 
 
 @visual.command()
-@click.option('--baseline-dir', '-b', type=click.Path(), default='./visual_baselines',
-              help='Baseline images directory')
-@click.option('--threshold', '-t', type=float, default=0.01,
-              help='Difference threshold')
+@click.option("--baseline-dir", "-b", type=click.Path(), default="./visual_baselines", help="Baseline images directory")
+@click.option("--threshold", "-t", type=float, default=0.01, help="Difference threshold")
 def config_info(baseline_dir: str, threshold: float) -> None:
     """Show visual testing configuration"""
     print_header("Visual Testing Configuration")
@@ -292,7 +276,7 @@ def config_info(baseline_dir: str, threshold: float) -> None:
     print_info(f"Threshold: {threshold * 100}%")
 
     if baseline_path.exists():
-        baselines = list(baseline_path.glob('*.png'))
+        baselines = list(baseline_path.glob("*.png"))
         print_info(f"Baselines count: {len(baselines)}")
         print_success("✅ Directory exists")
     else:
@@ -305,5 +289,5 @@ def config_info(baseline_dir: str, threshold: float) -> None:
     print_info("  3. observe visual approve <screen> --current-image ./new_screenshots/screen.png")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     visual()

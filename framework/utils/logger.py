@@ -14,9 +14,9 @@ _console = Console(stderr=True)
 
 
 def setup_logging(
-        level: str = "INFO",
-        log_file: Optional[Path] = None,
-        rich_tracebacks: bool = True,
+    level: str = "INFO",
+    log_file: Optional[Path] = None,
+    rich_tracebacks: bool = True,
 ) -> None:
     """
     Setup logging configuration with Rich handler.
@@ -42,11 +42,7 @@ def setup_logging(
 
     if log_file:
         file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            )
-        )
+        file_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
         logging.getLogger().addHandler(file_handler)
 
 

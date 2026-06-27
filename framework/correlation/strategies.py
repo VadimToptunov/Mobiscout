@@ -13,9 +13,7 @@ class CorrelationStrategy:
     """Base class for correlation strategies"""
 
     def correlate(
-            self,
-            ui_event: Dict[str, Any],
-            api_event: Dict[str, Any]
+        self, ui_event: Dict[str, Any], api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
         """
         Check if two events are correlated
@@ -35,20 +33,13 @@ class CorrelationIDStrategy(CorrelationStrategy):
     """
 
     def correlate(
-            self,
-            ui_event: Dict[str, Any],
-            api_event: Dict[str, Any]
+        self, ui_event: Dict[str, Any], api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
-        ui_corr_id = ui_event.get('correlationId') or ui_event.get('correlation_id')
-        api_corr_id = api_event.get('correlationId') or api_event.get('correlation_id')
+        ui_corr_id = ui_event.get("correlationId") or ui_event.get("correlation_id")
+        api_corr_id = api_event.get("correlationId") or api_event.get("correlation_id")
 
         if ui_corr_id and api_corr_id and ui_corr_id == api_corr_id:
-            return (
-                True,
-                CorrelationStrength.STRONG,
-                [CorrelationMethod.CORRELATION_ID],
-                1.0
-            )
+            return (True, CorrelationStrength.STRONG, [CorrelationMethod.CORRELATION_ID], 1.0)
 
         return (False, CorrelationStrength.NONE, [], 0.0)
 
@@ -68,13 +59,11 @@ class TemporalProximityStrategy(CorrelationStrategy):
         self.max_time_delta_ms = max_time_delta_ms
 
     def correlate(
-            self,
-            ui_event: Dict[str, Any],
-            api_event: Dict[str, Any]
+        self, ui_event: Dict[str, Any], api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
-        ui_time = ui_event.get('timestamp', 0)
-        api_time = api_event.get('timestamp', 0)
+        ui_time = ui_event.get("timestamp", 0)
+        api_time = api_event.get("timestamp", 0)
 
         # API should happen AFTER UI event
         time_delta = api_time - ui_time
@@ -95,12 +84,7 @@ class TemporalProximityStrategy(CorrelationStrategy):
             strength = CorrelationStrength.WEAK
             confidence *= 0.5  # Lower confidence for distant events
 
-        return (
-            True,
-            strength,
-            [CorrelationMethod.TEMPORAL],
-            confidence
-        )
+        return (True, strength, [CorrelationMethod.TEMPORAL], confidence)
 
 
 class ThreadCorrelationStrategy(CorrelationStrategy):
@@ -111,13 +95,11 @@ class ThreadCorrelationStrategy(CorrelationStrategy):
     """
 
     def correlate(
-            self,
-            ui_event: Dict[str, Any],
-            api_event: Dict[str, Any]
+        self, ui_event: Dict[str, Any], api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
-        ui_thread = ui_event.get('threadId') or ui_event.get('thread_id')
-        api_thread = api_event.get('threadId') or api_event.get('thread_id')
+        ui_thread = ui_event.get("threadId") or ui_event.get("thread_id")
+        api_thread = api_event.get("threadId") or api_event.get("thread_id")
 
         if not ui_thread or not api_thread:
             return (False, CorrelationStrength.NONE, [], 0.0)
@@ -127,7 +109,7 @@ class ThreadCorrelationStrategy(CorrelationStrategy):
                 True,
                 CorrelationStrength.MEDIUM,
                 [CorrelationMethod.THREAD],
-                0.7  # Medium confidence - thread correlation alone is not conclusive
+                0.7,  # Medium confidence - thread correlation alone is not conclusive
             )
 
         return (False, CorrelationStrength.NONE, [], 0.0)
@@ -141,25 +123,18 @@ class ScreenContextStrategy(CorrelationStrategy):
     """
 
     def correlate(
-            self,
-            ui_event: Dict[str, Any],
-            api_event: Dict[str, Any]
+        self, ui_event: Dict[str, Any], api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
-        ui_screen = ui_event.get('screen')
-        api_screen = api_event.get('screen')
+        ui_screen = ui_event.get("screen")
+        api_screen = api_event.get("screen")
 
         if not ui_screen or not api_screen:
             return (False, CorrelationStrength.NONE, [], 0.0)
 
         if ui_screen == api_screen:
             # Same screen - provides context but not conclusive
-            return (
-                True,
-                CorrelationStrength.WEAK,
-                [CorrelationMethod.CAUSALITY],
-                0.4
-            )
+            return (True, CorrelationStrength.WEAK, [CorrelationMethod.CAUSALITY], 0.4)
 
         return (False, CorrelationStrength.NONE, [], 0.0)
 
@@ -176,22 +151,18 @@ class HybridCorrelationStrategy(CorrelationStrategy):
             CorrelationIDStrategy(),
             TemporalProximityStrategy(),
             ThreadCorrelationStrategy(),
-            ScreenContextStrategy()
+            ScreenContextStrategy(),
         ]
 
     def correlate(
-            self,
-            ui_event: Dict[str, Any],
-            api_event: Dict[str, Any]
+        self, ui_event: Dict[str, Any], api_event: Dict[str, Any]
     ) -> tuple[bool, CorrelationStrength, List[CorrelationMethod], float]:
 
         correlations = []
         methods = []
 
         for strategy in self.strategies:
-            is_correlated, strength, strategy_methods, confidence = strategy.correlate(
-                ui_event, api_event
-            )
+            is_correlated, strength, strategy_methods, confidence = strategy.correlate(ui_event, api_event)
 
             if is_correlated:
                 correlations.append((strength, confidence))
@@ -216,9 +187,4 @@ class HybridCorrelationStrategy(CorrelationStrategy):
         else:
             overall_strength = CorrelationStrength.WEAK
 
-        return (
-            True,
-            overall_strength,
-            methods,
-            min(1.0, total_confidence)
-        )
+        return (True, overall_strength, methods, min(1.0, total_confidence))

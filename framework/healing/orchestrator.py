@@ -18,6 +18,7 @@ from .selector_discovery import SelectorDiscovery
 @dataclass
 class HealingResult:
     """Complete result of healing operation"""
+
     failure: SelectorFailure
     alternatives_found: int
     best_match: Optional[MatchResult]
@@ -31,12 +32,7 @@ class HealingOrchestrator:
     Orchestrates the complete healing process
     """
 
-    def __init__(
-            self,
-            repo_path: Path,
-            ml_model_path: Optional[Path] = None,
-            min_confidence: float = 0.7
-    ):
+    def __init__(self, repo_path: Path, ml_model_path: Optional[Path] = None, min_confidence: float = 0.7):
         """
         Initialize healing orchestrator
 
@@ -55,11 +51,11 @@ class HealingOrchestrator:
         self.git_integration = GitIntegration(repo_path)
 
     def analyze_failures(
-            self,
-            junit_path: Path,
-            screenshots_dir: Optional[Path] = None,
-            page_source_dir: Optional[Path] = None,
-            page_objects_dir: Optional[Path] = None
+        self,
+        junit_path: Path,
+        screenshots_dir: Optional[Path] = None,
+        page_source_dir: Optional[Path] = None,
+        page_objects_dir: Optional[Path] = None,
     ) -> List[SelectorFailure]:
         """
         Analyze test failures
@@ -87,11 +83,7 @@ class HealingOrchestrator:
 
         return failures
 
-    def heal_failure(
-            self,
-            failure: SelectorFailure,
-            dry_run: bool = False
-    ) -> HealingResult:
+    def heal_failure(self, failure: SelectorFailure, dry_run: bool = False) -> HealingResult:
         """
         Heal a single failure
 
@@ -110,13 +102,12 @@ class HealingOrchestrator:
                 best_match=None,
                 update_result=None,
                 success=False,
-                error_message="No page source available"
+                error_message="No page source available",
             )
 
         # Discover alternative selectors
         alternatives = self.selector_discovery.discover_from_page_source(
-            failure.page_source_path,
-            failure.selector_tuple
+            failure.page_source_path, failure.selector_tuple
         )
 
         if not alternatives:
@@ -126,14 +117,12 @@ class HealingOrchestrator:
                 best_match=None,
                 update_result=None,
                 success=False,
-                error_message="No alternative selectors found"
+                error_message="No alternative selectors found",
             )
 
         # Find best match using ML
         best_match = self.element_matcher.find_best_match(
-            alternatives,
-            expected_element_type=None,
-            context={'screen_name': failure.test_name}
+            alternatives, expected_element_type=None, context={"screen_name": failure.test_name}
         )
 
         if not best_match:
@@ -143,7 +132,7 @@ class HealingOrchestrator:
                 best_match=None,
                 update_result=None,
                 success=False,
-                error_message="No suitable match found"
+                error_message="No suitable match found",
             )
 
         # Check confidence threshold
@@ -154,7 +143,7 @@ class HealingOrchestrator:
                 best_match=best_match,
                 update_result=None,
                 success=False,
-                error_message=f"Confidence too low: {best_match.combined_confidence:.2f} < {self.min_confidence}"
+                error_message=f"Confidence too low: {best_match.combined_confidence:.2f} < {self.min_confidence}",
             )
 
         # Update file (if not dry run)
@@ -165,7 +154,7 @@ class HealingOrchestrator:
                 failure.element_name or "unknown_element",
                 failure.selector_tuple,
                 best_match.selector.selector_tuple,
-                best_match.combined_confidence
+                best_match.combined_confidence,
             )
 
         return HealingResult(
@@ -173,15 +162,15 @@ class HealingOrchestrator:
             alternatives_found=len(alternatives),
             best_match=best_match,
             update_result=update_result,
-            success=True if dry_run else (update_result.success if update_result else False)
+            success=True if dry_run else (update_result.success if update_result else False),
         )
 
     def heal_all(
-            self,
-            failures: List[SelectorFailure],
-            dry_run: bool = False,
-            auto_commit: bool = False,
-            branch_name: Optional[str] = None
+        self,
+        failures: List[SelectorFailure],
+        dry_run: bool = False,
+        auto_commit: bool = False,
+        branch_name: Optional[str] = None,
     ) -> List[HealingResult]:
         """
         Heal all failures
@@ -209,36 +198,26 @@ class HealingOrchestrator:
 
         return results
 
-    def _commit_healings(
-            self,
-            results: List[HealingResult],
-            branch_name: Optional[str]
-    ):
+    def _commit_healings(self, results: List[HealingResult], branch_name: Optional[str]):
         """Commit healed selectors to git"""
-        updated_files = [
-            r.update_result.file_path
-            for r in results
-            if r.update_result
-        ]
+        updated_files = [r.update_result.file_path for r in results if r.update_result]
 
         healing_details = []
         for r in results:
             if r.update_result and r.best_match:
-                healing_details.append({
-                    'file_path': r.update_result.file_path,
-                    'element_name': r.failure.element_name or 'unknown',
-                    'old_selector': r.update_result.old_selector,
-                    'new_selector': r.update_result.new_selector,
-                    'confidence': r.best_match.combined_confidence,
-                    'strategy': r.best_match.selector.strategy.value
-                })
+                healing_details.append(
+                    {
+                        "file_path": r.update_result.file_path,
+                        "element_name": r.failure.element_name or "unknown",
+                        "old_selector": r.update_result.old_selector,
+                        "new_selector": r.update_result.new_selector,
+                        "confidence": r.best_match.combined_confidence,
+                        "strategy": r.best_match.selector.strategy.value,
+                    }
+                )
 
         # Commit
-        commit_info = self.git_integration.commit_healing(
-            updated_files,
-            healing_details,
-            branch_name
-        )
+        commit_info = self.git_integration.commit_healing(updated_files, healing_details, branch_name)
 
         if commit_info:
             print(f"\nCommitted: {commit_info.commit_hash[:8]}")
@@ -248,20 +227,19 @@ class HealingOrchestrator:
         # Save metadata
         self.git_integration.save_healing_metadata(healing_details)
 
-    def generate_report(
-            self,
-            results: List[HealingResult]
-    ) -> str:
+    def generate_report(self, results: List[HealingResult]) -> str:
         """Generate comprehensive healing report"""
         total = len(results)
         successful = len([r for r in results if r.success])
+        # Guard against division by zero when there are no failures to heal.
+        success_pct = (successful / total * 100) if total else 0.0
 
         report = ["=" * 80]
         report.append("HEALING REPORT")
         report.append("=" * 80)
         report.append("")
         report.append(f"Total failures: {total}")
-        report.append(f"Successfully healed: {successful} ({successful / total * 100:.1f}%)")
+        report.append(f"Successfully healed: {successful} ({success_pct:.1f}%)")
         report.append(f"Failed to heal: {total - successful}")
         report.append("")
         report.append("=" * 80)

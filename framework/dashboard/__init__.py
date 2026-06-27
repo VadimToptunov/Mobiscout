@@ -8,8 +8,8 @@ from .models import TestResult, HealedSelector, TestHealth
 from .server import DashboardServer
 
 __all__ = [
-    'DashboardServer',
-    'TestResult',
-    'HealedSelector',
-    'TestHealth',
+    "DashboardServer",
+    "TestResult",
+    "HealedSelector",
+    "TestHealth",
 ]

@@ -16,32 +16,37 @@ logger = get_logger(__name__)
 
 class RecorderError(Exception):
     """Base exception for Mobile Test Recorder errors."""
+
     pass
 
 
 class ValidationError(RecorderError):
     """Raised when validation fails."""
+
     pass
 
 
 class AnalysisError(RecorderError):
     """Raised when analysis fails."""
+
     pass
 
 
 class GenerationError(RecorderError):
     """Raised when code generation fails."""
+
     pass
 
 
 class IntegrationError(RecorderError):
     """Raised when project integration fails."""
+
     pass
 
 
 def handle_cli_errors(
-        exit_on_error: bool = True,
-        show_traceback: bool = False,
+    exit_on_error: bool = True,
+    show_traceback: bool = False,
 ) -> Callable:
     """
     Decorator for CLI commands to handle errors gracefully.
@@ -116,11 +121,11 @@ def handle_cli_errors(
 
 
 def safe_file_operation(
-        operation: Callable,
-        *args: Any,
-        error_message: str = "File operation failed",
-        default: Any = None,
-        **kwargs: Any,
+    operation: Callable,
+    *args: Any,
+    error_message: str = "File operation failed",
+    default: Any = None,
+    **kwargs: Any,
 ) -> Tuple[bool, Any]:
     """
     Safely execute a file operation with error handling.
@@ -157,9 +162,9 @@ def safe_file_operation(
 
 
 def validate_and_raise(
-        condition: bool,
-        message: str,
-        error_class: Type[RecorderError] = ValidationError,
+    condition: bool,
+    message: str,
+    error_class: Type[RecorderError] = ValidationError,
 ) -> None:
     """
     Validate a condition and raise an error if it fails.

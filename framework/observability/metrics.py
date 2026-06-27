@@ -22,6 +22,7 @@ from typing import Dict, Any, Optional, List
 
 class MetricType(Enum):
     """Metric types"""
+
     COUNTER = "counter"
     GAUGE = "gauge"
     HISTOGRAM = "histogram"
@@ -31,6 +32,7 @@ class MetricType(Enum):
 @dataclass
 class Metric:
     """Single metric"""
+
     name: str
     type: MetricType
     value: float
@@ -42,7 +44,7 @@ class Metric:
 class MetricsCollector:
     """
     Collect and export metrics in Prometheus format
-    
+
     Example metrics:
     - test_duration_seconds
     - test_failures_total
@@ -55,11 +57,11 @@ class MetricsCollector:
         self.histograms: Dict[str, List[float]] = {}
 
     def inc_counter(
-            self,
-            name: str,
-            value: float = 1.0,
-            labels: Optional[Dict[str, str]] = None,
-            help_text: str = "",
+        self,
+        name: str,
+        value: float = 1.0,
+        labels: Optional[Dict[str, str]] = None,
+        help_text: str = "",
     ) -> None:
         """Increment counter metric"""
         key = self._make_key(name, labels or {})
@@ -76,11 +78,11 @@ class MetricsCollector:
             )
 
     def set_gauge(
-            self,
-            name: str,
-            value: float,
-            labels: Optional[Dict[str, str]] = None,
-            help_text: str = "",
+        self,
+        name: str,
+        value: float,
+        labels: Optional[Dict[str, str]] = None,
+        help_text: str = "",
     ) -> None:
         """Set gauge metric"""
         key = self._make_key(name, labels or {})
@@ -94,11 +96,11 @@ class MetricsCollector:
         )
 
     def observe_histogram(
-            self,
-            name: str,
-            value: float,
-            labels: Optional[Dict[str, str]] = None,
-            help_text: str = "",
+        self,
+        name: str,
+        value: float,
+        labels: Optional[Dict[str, str]] = None,
+        help_text: str = "",
     ) -> None:
         """Record histogram observation"""
         key = self._make_key(name, labels or {})
@@ -126,7 +128,7 @@ class MetricsCollector:
     def export_prometheus(self, output_path: Optional[Path] = None) -> str:
         """
         Export metrics in Prometheus format
-        
+
         Returns:
             Prometheus-formatted metrics string
         """
@@ -193,7 +195,7 @@ class MetricsCollector:
 class StructuredLogger:
     """
     Structured JSON logger for production
-    
+
     Features:
     - JSON output
     - Context fields
@@ -214,10 +216,10 @@ class StructuredLogger:
         self.context = {}
 
     def log(
-            self,
-            level: str,
-            message: str,
-            **kwargs: Any,
+        self,
+        level: str,
+        message: str,
+        **kwargs: Any,
     ) -> None:
         """Log structured message"""
         entry = {
@@ -253,7 +255,7 @@ class StructuredLogger:
 class TracingContext:
     """
     OpenTelemetry-compatible tracing context
-    
+
     Simplified tracing for test execution flows.
     """
 
@@ -266,6 +268,7 @@ class TracingContext:
     def _generate_trace_id() -> str:
         """Generate random trace ID"""
         import uuid
+
         return str(uuid.uuid4())
 
     def start_span(self, name: str, **attributes: Any) -> str:
@@ -321,7 +324,7 @@ class TracingContext:
 class ObservabilityManager:
     """
     Central observability manager
-    
+
     Coordinates metrics, logging, and tracing.
     """
 
@@ -361,10 +364,10 @@ class ObservabilityManager:
             self.tracing.start_span("test_execution", test_name=test_name)
 
     def record_test_end(
-            self,
-            test_name: str,
-            status: str,
-            duration: float,
+        self,
+        test_name: str,
+        status: str,
+        duration: float,
     ) -> None:
         """Record test completion"""
         self.metrics.inc_counter(

@@ -154,9 +154,7 @@ class BusinessLogicAnalyzer:
         """Detect if project is Android or iOS."""
         if list(self.project_path.rglob("*.swift")):
             return "ios"
-        elif list(self.project_path.rglob("*.kt")) or list(
-                self.project_path.rglob("*.java")
-        ):
+        elif list(self.project_path.rglob("*.kt")) or list(self.project_path.rglob("*.java")):
             return "android"
         else:
             return "unknown"
@@ -169,9 +167,7 @@ class BusinessLogicAnalyzer:
                 AndroidBusinessAnalyzer,
             )
 
-            self._android_analyzer = AndroidBusinessAnalyzer(
-                self.project_path, self.analysis
-            )
+            self._android_analyzer = AndroidBusinessAnalyzer(self.project_path, self.analysis)
         return self._android_analyzer
 
     @property
@@ -189,9 +185,7 @@ class BusinessLogicAnalyzer:
         if self._edge_case_detector is None:
             from framework.analyzers.edge_case_detector import EdgeCaseDetector
 
-            self._edge_case_detector = EdgeCaseDetector(
-                self.project_path, self.analysis
-            )
+            self._edge_case_detector = EdgeCaseDetector(self.project_path, self.analysis)
         return self._edge_case_detector
 
     def analyze(self) -> BusinessLogicAnalysis:

@@ -13,6 +13,7 @@ from typing import List, Dict, Any
 
 class ShardStrategy(Enum):
     """Strategy for sharding tests"""
+
     ROUND_ROBIN = "round_robin"  # Simple round-robin distribution
     FILE_BASED = "file_based"  # Group by file
     DURATION_BASED = "duration_based"  # Balance by historical duration
@@ -22,6 +23,7 @@ class ShardStrategy(Enum):
 @dataclass
 class TestCase:
     """Represents a test case"""
+
     file: Path
     name: str
     estimated_duration: float = 1.0  # seconds
@@ -37,6 +39,7 @@ class TestCase:
 @dataclass
 class TestShard:
     """Represents a shard of tests"""
+
     shard_id: int
     total_shards: int
     tests: List[TestCase]
@@ -65,10 +68,7 @@ class TestSharding:
         self.duration_history = duration_history or {}
 
     def create_shards(
-            self,
-            tests: List[TestCase],
-            num_shards: int,
-            strategy: ShardStrategy = ShardStrategy.DURATION_BASED
+        self, tests: List[TestCase], num_shards: int, strategy: ShardStrategy = ShardStrategy.DURATION_BASED
     ) -> List[TestShard]:
         """
         Create test shards
@@ -86,10 +86,7 @@ class TestSharding:
 
         if num_shards >= len(tests):
             # One test per shard
-            return [
-                TestShard(shard_id=i, total_shards=num_shards, tests=[test])
-                for i, test in enumerate(tests)
-            ]
+            return [TestShard(shard_id=i, total_shards=num_shards, tests=[test]) for i, test in enumerate(tests)]
 
         if strategy == ShardStrategy.ROUND_ROBIN:
             return self._shard_round_robin(tests, num_shards)
@@ -104,8 +101,7 @@ class TestSharding:
 
     def _shard_round_robin(self, tests: List[TestCase], num_shards: int) -> List[TestShard]:
         """Simple round-robin distribution"""
-        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[])
-                  for i in range(num_shards)]
+        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[]) for i in range(num_shards)]
 
         for i, test in enumerate(tests):
             shard_id = i % num_shards
@@ -123,15 +119,10 @@ class TestSharding:
             by_file[test.file].append(test)
 
         # Sort files by total estimated duration (descending)
-        files_sorted = sorted(
-            by_file.items(),
-            key=lambda x: sum(t.estimated_duration for t in x[1]),
-            reverse=True
-        )
+        files_sorted = sorted(by_file.items(), key=lambda x: sum(t.estimated_duration for t in x[1]), reverse=True)
 
         # Initialize shards
-        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[])
-                  for i in range(num_shards)]
+        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[]) for i in range(num_shards)]
 
         # Assign files to shards (greedy algorithm - smallest duration first)
         for file_path, file_tests in files_sorted:
@@ -153,8 +144,7 @@ class TestSharding:
         tests_sorted = sorted(tests, key=lambda t: t.estimated_duration, reverse=True)
 
         # Initialize shards
-        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[])
-                  for i in range(num_shards)]
+        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[]) for i in range(num_shards)]
 
         # Assign tests to shards (greedy - smallest duration first)
         for test in tests_sorted:
@@ -165,8 +155,7 @@ class TestSharding:
 
     def _shard_by_hash(self, tests: List[TestCase], num_shards: int) -> List[TestShard]:
         """Consistent hashing for stable shard assignment"""
-        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[])
-                  for i in range(num_shards)]
+        shards = [TestShard(shard_id=i, total_shards=num_shards, tests=[]) for i in range(num_shards)]
 
         for test in tests:
             # Hash test name to determine shard
@@ -235,15 +224,15 @@ class TestSharding:
         avg_duration = total_duration / len(shards) if shards else 0
 
         return {
-            'total_shards': len(shards),
-            'total_tests': sum(counts),
-            'total_estimated_duration': total_duration,
-            'average_shard_duration': avg_duration,
-            'min_shard_duration': min(durations) if durations else 0,
-            'max_shard_duration': max(durations) if durations else 0,
-            'duration_std_dev': self._std_dev(durations),
-            'imbalance_ratio': (max(durations) - min(durations)) / avg_duration if avg_duration > 0 else 0,
-            'average_tests_per_shard': sum(counts) / len(shards) if shards else 0,
+            "total_shards": len(shards),
+            "total_tests": sum(counts),
+            "total_estimated_duration": total_duration,
+            "average_shard_duration": avg_duration,
+            "min_shard_duration": min(durations) if durations else 0,
+            "max_shard_duration": max(durations) if durations else 0,
+            "duration_std_dev": self._std_dev(durations),
+            "imbalance_ratio": (max(durations) - min(durations)) / avg_duration if avg_duration > 0 else 0,
+            "average_tests_per_shard": sum(counts) / len(shards) if shards else 0,
         }
 
     def _std_dev(self, values: List[float]) -> float:
@@ -253,4 +242,4 @@ class TestSharding:
 
         mean = sum(values) / len(values)
         variance = sum((x - mean) ** 2 for x in values) / len(values)
-        return variance ** 0.5
+        return variance**0.5

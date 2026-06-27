@@ -37,9 +37,7 @@ class JsCucumberEmitter(Emitter):
         slug = _kebab(model.name)
         # (registry key, JS array literal of primary + fallbacks)
         locators = [(key, selector_array(sel)) for key, sel in collect_targets(model)]
-        steps = self.env.get_template("steps.js.j2").render(
-            model=model, locators=locators
-        )
+        steps = self.env.get_template("steps.js.j2").render(model=model, locators=locators)
         return {
             f"{slug}.feature": render_feature(model),
             f"{slug}.steps.js": steps,

@@ -272,10 +272,7 @@ def generate_page_object(screen: Screen, output_dir: Path) -> Path:
 
     # Render template
     template = Template(PAGE_OBJECT_TEMPLATE)
-    content = template.render(
-        screen=screen,
-        class_name=class_name
-    )
+    content = template.render(screen=screen, class_name=class_name)
 
     # Write to file
     output_dir.mkdir(parents=True, exist_ok=True)

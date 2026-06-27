@@ -13,6 +13,7 @@ from typing import List, Set, Optional
 
 class ChangeType(Enum):
     """Type of file change"""
+
     ADDED = "added"
     MODIFIED = "modified"
     DELETED = "deleted"
@@ -22,6 +23,7 @@ class ChangeType(Enum):
 @dataclass
 class FileChange:
     """Represents a file change"""
+
     path: Path
     change_type: ChangeType
     old_path: Optional[Path] = None  # For renamed files
@@ -44,10 +46,7 @@ class ChangeAnalyzer:
         self.repo_path = repo_path
 
     def get_changes(
-            self,
-            base_branch: str = "main",
-            target_branch: str = "HEAD",
-            include_untracked: bool = False
+        self, base_branch: str = "main", target_branch: str = "HEAD", include_untracked: bool = False
     ) -> List[FileChange]:
         """
         Get list of changed files
@@ -69,49 +68,41 @@ class ChangeAnalyzer:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
-            for line in result.stdout.strip().split('\n'):
+            for line in result.stdout.strip().split("\n"):
                 if not line:
                     continue
 
-                parts = line.split('\t')
+                parts = line.split("\t")
                 status = parts[0]
 
-                if status.startswith('M'):
+                if status.startswith("M"):
                     # Modified
                     file_path = Path(parts[1])
                     stats = self._get_file_stats(file_path, base_branch, target_branch)
-                    changes.append(FileChange(
-                        path=file_path,
-                        change_type=ChangeType.MODIFIED,
-                        lines_added=stats['added'],
-                        lines_deleted=stats['deleted']
-                    ))
-                elif status.startswith('A'):
+                    changes.append(
+                        FileChange(
+                            path=file_path,
+                            change_type=ChangeType.MODIFIED,
+                            lines_added=stats["added"],
+                            lines_deleted=stats["deleted"],
+                        )
+                    )
+                elif status.startswith("A"):
                     # Added
                     file_path = Path(parts[1])
-                    changes.append(FileChange(
-                        path=file_path,
-                        change_type=ChangeType.ADDED
-                    ))
-                elif status.startswith('D'):
+                    changes.append(FileChange(path=file_path, change_type=ChangeType.ADDED))
+                elif status.startswith("D"):
                     # Deleted
                     file_path = Path(parts[1])
-                    changes.append(FileChange(
-                        path=file_path,
-                        change_type=ChangeType.DELETED
-                    ))
-                elif status.startswith('R'):
+                    changes.append(FileChange(path=file_path, change_type=ChangeType.DELETED))
+                elif status.startswith("R"):
                     # Renamed
                     old_path = Path(parts[1])
                     new_path = Path(parts[2])
-                    changes.append(FileChange(
-                        path=new_path,
-                        change_type=ChangeType.RENAMED,
-                        old_path=old_path
-                    ))
+                    changes.append(FileChange(path=new_path, change_type=ChangeType.RENAMED, old_path=old_path))
 
             # Include staged changes
             if target_branch == "HEAD":
@@ -129,10 +120,7 @@ class ChangeAnalyzer:
         return changes
 
     def get_changed_files(
-            self,
-            base_branch: str = "main",
-            target_branch: str = "HEAD",
-            since_commit: Optional[str] = None
+        self, base_branch: str = "main", target_branch: str = "HEAD", since_commit: Optional[str] = None
     ) -> List[Path]:
         """
         Get list of changed file paths (simplified interface)
@@ -150,12 +138,7 @@ class ChangeAnalyzer:
         changes = self.get_changes(base_branch, target_branch)
         return [change.path for change in changes]
 
-    def _get_file_stats(
-            self,
-            file_path: Path,
-            base_branch: str,
-            target_branch: str
-    ) -> dict:
+    def _get_file_stats(self, file_path: Path, base_branch: str, target_branch: str) -> dict:
         """Get added/deleted line counts for a file"""
         try:
             result = subprocess.run(
@@ -163,19 +146,19 @@ class ChangeAnalyzer:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
             if result.stdout.strip():
-                parts = result.stdout.strip().split('\t')
+                parts = result.stdout.strip().split("\t")
                 return {
-                    'added': int(parts[0]) if parts[0] != '-' else 0,
-                    'deleted': int(parts[1]) if parts[1] != '-' else 0
+                    "added": int(parts[0]) if parts[0] != "-" else 0,
+                    "deleted": int(parts[1]) if parts[1] != "-" else 0,
                 }
         except (subprocess.SubprocessError, OSError, ValueError):
             pass
 
-        return {'added': 0, 'deleted': 0}
+        return {"added": 0, "deleted": 0}
 
     def _get_staged_changes(self) -> List[FileChange]:
         """Get staged changes"""
@@ -187,31 +170,22 @@ class ChangeAnalyzer:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
-            for line in result.stdout.strip().split('\n'):
+            for line in result.stdout.strip().split("\n"):
                 if not line:
                     continue
 
-                parts = line.split('\t')
+                parts = line.split("\t")
                 status = parts[0]
 
-                if status.startswith('M'):
-                    changes.append(FileChange(
-                        path=Path(parts[1]),
-                        change_type=ChangeType.MODIFIED
-                    ))
-                elif status.startswith('A'):
-                    changes.append(FileChange(
-                        path=Path(parts[1]),
-                        change_type=ChangeType.ADDED
-                    ))
-                elif status.startswith('D'):
-                    changes.append(FileChange(
-                        path=Path(parts[1]),
-                        change_type=ChangeType.DELETED
-                    ))
+                if status.startswith("M"):
+                    changes.append(FileChange(path=Path(parts[1]), change_type=ChangeType.MODIFIED))
+                elif status.startswith("A"):
+                    changes.append(FileChange(path=Path(parts[1]), change_type=ChangeType.ADDED))
+                elif status.startswith("D"):
+                    changes.append(FileChange(path=Path(parts[1]), change_type=ChangeType.DELETED))
         except (subprocess.SubprocessError, OSError):
             pass
 
@@ -227,15 +201,12 @@ class ChangeAnalyzer:
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
             )
 
-            for line in result.stdout.strip().split('\n'):
+            for line in result.stdout.strip().split("\n"):
                 if line:
-                    changes.append(FileChange(
-                        path=Path(line),
-                        change_type=ChangeType.ADDED
-                    ))
+                    changes.append(FileChange(path=Path(line), change_type=ChangeType.ADDED))
         except (subprocess.SubprocessError, OSError):
             pass
 
@@ -249,11 +220,7 @@ class ChangeAnalyzer:
                 directories.add(change.path.parent)
         return directories
 
-    def filter_by_extension(
-            self,
-            changes: List[FileChange],
-            extensions: List[str]
-    ) -> List[FileChange]:
+    def filter_by_extension(self, changes: List[FileChange], extensions: List[str]) -> List[FileChange]:
         """
         Filter changes by file extension
 
@@ -264,7 +231,4 @@ class ChangeAnalyzer:
         Returns:
             Filtered changes
         """
-        return [
-            change for change in changes
-            if change.path.suffix in extensions
-        ]
+        return [change for change in changes if change.path.suffix in extensions]

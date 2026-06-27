@@ -43,36 +43,38 @@ def info() -> None:
     info = manager.get_license_info()
 
     tier_colors = {
-        'free': 'dim',
-        'pro': 'cyan',
-        'enterprise': 'gold1',
-        'trial': 'magenta',
+        "free": "dim",
+        "pro": "cyan",
+        "enterprise": "gold1",
+        "trial": "magenta",
     }
 
-    tier = info['tier']
-    color = tier_colors.get(tier, 'white')
+    tier = info["tier"]
+    color = tier_colors.get(tier, "white")
 
-    console.print(Panel.fit(
-        f"[{color} bold]{tier.upper()}[/{color} bold] License",
-        title="Observe Framework License",
-        border_style=color,
-    ))
+    console.print(
+        Panel.fit(
+            f"[{color} bold]{tier.upper()}[/{color} bold] License",
+            title="Observe Framework License",
+            border_style=color,
+        )
+    )
 
     table = Table(show_header=False)
     table.add_column("Key", style="cyan")
     table.add_column("Value", style="white")
 
-    table.add_row("Status", "[green]Valid[/green]" if info['valid'] else "[red]Invalid[/red]")
+    table.add_row("Status", "[green]Valid[/green]" if info["valid"] else "[red]Invalid[/red]")
     table.add_row("Tier", f"[{color}]{tier.upper()}[/{color}]")
 
-    if info.get('email'):
-        table.add_row("Email", info['email'])
+    if info.get("email"):
+        table.add_row("Email", info["email"])
 
-    if info.get('organization'):
-        table.add_row("Organization", info['organization'])
+    if info.get("organization"):
+        table.add_row("Organization", info["organization"])
 
-    if info.get('expires_at'):
-        days_left = info.get('days_until_expiry', 0)
+    if info.get("expires_at"):
+        days_left = info.get("days_until_expiry", 0)
         if days_left and days_left > 30:
             expiry_style = "green"
         elif days_left and days_left > 7:
@@ -82,14 +84,14 @@ def info() -> None:
         table.add_row("Expires", f"[{expiry_style}]{info['expires_at']}[/{expiry_style}]")
         table.add_row("Days Left", f"[{expiry_style}]{days_left}[/{expiry_style}]")
 
-    table.add_row("Max Users", str(info.get('max_users', 1)))
-    table.add_row("Max Devices", str(info.get('max_devices', 5)))
+    table.add_row("Max Users", str(info.get("max_users", 1)))
+    table.add_row("Max Devices", str(info.get("max_devices", 5)))
 
     console.print(table)
 
     # Show enabled features
     console.print("\n[bold]Enabled Features:[/bold]")
-    features = info.get('features', [])
+    features = info.get("features", [])
     if features:
         for feature in features:
             console.print(f"  [green]✓[/green] {feature.replace('_', ' ').title()}")
@@ -123,8 +125,8 @@ def usage() -> None:
     table.add_row("Sessions", f"{stats.get('session_count', 0):,}")
     table.add_row("Total Runtime", f"{stats.get('total_runtime_hours', 0):.1f} hours")
 
-    if stats.get('last_used'):
-        table.add_row("Last Used", stats['last_used'])
+    if stats.get("last_used"):
+        table.add_row("Last Used", stats["last_used"])
 
     console.print(table)
 
@@ -150,7 +152,7 @@ def activate(license_key: str, email: str) -> None:
         console.print(f"  Tier: [bold]{info['tier'].upper()}[/bold]")
         console.print(f"  Email: {email}")
 
-        if info.get('expires_at'):
+        if info.get("expires_at"):
             console.print(f"  Expires: {info['expires_at']}")
     else:
         console.print("[red]✗[/red] Failed to activate license")
@@ -169,10 +171,12 @@ def upgrade(trial: bool) -> None:
         observe license upgrade
     """
     if trial:
-        console.print(Panel.fit(
-            "🎁 Start Your 7-Day PRO Trial",
-            style="bold magenta",
-        ))
+        console.print(
+            Panel.fit(
+                "🎁 Start Your 7-Day PRO Trial",
+                style="bold magenta",
+            )
+        )
         console.print()
         console.print("Get full access to PRO features for 7 days, no credit card required!")
         console.print()
@@ -294,26 +298,26 @@ def check(feature_name: str) -> None:
 
     # Map string to FeatureFlag
     feature_map = {
-        'core_engine': FeatureFlag.CORE_ENGINE,
-        'local_devices': FeatureFlag.LOCAL_DEVICES,
-        'basic_test_gen': FeatureFlag.BASIC_TEST_GEN,
-        'self_healing': FeatureFlag.SELF_HEALING,
-        'flow_discovery': FeatureFlag.FLOW_DISCOVERY,
-        'ml_inference': FeatureFlag.ML_INFERENCE,
-        'cloud_devices': FeatureFlag.CLOUD_DEVICES,
-        'parallel_execution': FeatureFlag.PARALLEL_EXECUTION,
-        'advanced_ml': FeatureFlag.ADVANCED_ML,
-        'api_mocking': FeatureFlag.API_MOCKING,
-        'load_testing': FeatureFlag.LOAD_TESTING,
-        'priority_support': FeatureFlag.PRIORITY_SUPPORT,
-        'ml_training': FeatureFlag.ML_TRAINING,
-        'custom_models': FeatureFlag.CUSTOM_MODELS,
-        'distributed_execution': FeatureFlag.DISTRIBUTED_EXECUTION,
-        'sso_ldap': FeatureFlag.SSO_LDAP,
-        'on_premise': FeatureFlag.ON_PREMISE,
-        'dedicated_support': FeatureFlag.DEDICATED_SUPPORT,
-        'security_scanning': FeatureFlag.SECURITY_SCANNING,
-        'performance_profiling': FeatureFlag.PERFORMANCE_PROFILING,
+        "core_engine": FeatureFlag.CORE_ENGINE,
+        "local_devices": FeatureFlag.LOCAL_DEVICES,
+        "basic_test_gen": FeatureFlag.BASIC_TEST_GEN,
+        "self_healing": FeatureFlag.SELF_HEALING,
+        "flow_discovery": FeatureFlag.FLOW_DISCOVERY,
+        "ml_inference": FeatureFlag.ML_INFERENCE,
+        "cloud_devices": FeatureFlag.CLOUD_DEVICES,
+        "parallel_execution": FeatureFlag.PARALLEL_EXECUTION,
+        "advanced_ml": FeatureFlag.ADVANCED_ML,
+        "api_mocking": FeatureFlag.API_MOCKING,
+        "load_testing": FeatureFlag.LOAD_TESTING,
+        "priority_support": FeatureFlag.PRIORITY_SUPPORT,
+        "ml_training": FeatureFlag.ML_TRAINING,
+        "custom_models": FeatureFlag.CUSTOM_MODELS,
+        "distributed_execution": FeatureFlag.DISTRIBUTED_EXECUTION,
+        "sso_ldap": FeatureFlag.SSO_LDAP,
+        "on_premise": FeatureFlag.ON_PREMISE,
+        "dedicated_support": FeatureFlag.DEDICATED_SUPPORT,
+        "security_scanning": FeatureFlag.SECURITY_SCANNING,
+        "performance_profiling": FeatureFlag.PERFORMANCE_PROFILING,
     }
 
     feature = feature_map.get(feature_name.lower())
@@ -335,9 +339,12 @@ def check(feature_name: str) -> None:
 
         # Determine required tier
         pro_features = [
-            FeatureFlag.CLOUD_DEVICES, FeatureFlag.PARALLEL_EXECUTION,
-            FeatureFlag.ADVANCED_ML, FeatureFlag.API_MOCKING,
-            FeatureFlag.LOAD_TESTING, FeatureFlag.PRIORITY_SUPPORT,
+            FeatureFlag.CLOUD_DEVICES,
+            FeatureFlag.PARALLEL_EXECUTION,
+            FeatureFlag.ADVANCED_ML,
+            FeatureFlag.API_MOCKING,
+            FeatureFlag.LOAD_TESTING,
+            FeatureFlag.PRIORITY_SUPPORT,
         ]
         if feature in pro_features:
             console.print("  Required tier: [cyan]PRO[/cyan]")
@@ -358,14 +365,11 @@ def deactivate() -> None:
     manager = get_license_manager()
     info = manager.get_license_info()
 
-    if info['tier'] == 'free':
+    if info["tier"] == "free":
         console.print("[dim]Already on FREE tier[/dim]")
         return
 
-    if click.confirm(
-        f"Are you sure you want to deactivate your {info['tier'].upper()} license?",
-        default=False
-    ):
+    if click.confirm(f"Are you sure you want to deactivate your {info['tier'].upper()} license?", default=False):
         # Reset to free license
         manager.license = manager._create_free_license()
         manager.save_license()

@@ -24,6 +24,7 @@ from typing import Dict, Any, List, Optional, Set
 
 class VerificationLevel(Enum):
     """Verification severity levels"""
+
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"
@@ -32,6 +33,7 @@ class VerificationLevel(Enum):
 
 class VerificationCategory(Enum):
     """Verification categories"""
+
     SYNTAX = "syntax"
     IMPORTS = "imports"
     STRUCTURE = "structure"
@@ -43,6 +45,7 @@ class VerificationCategory(Enum):
 @dataclass
 class VerificationIssue:
     """A single verification issue"""
+
     level: VerificationLevel
     category: VerificationCategory
     message: str
@@ -66,6 +69,7 @@ class VerificationIssue:
 @dataclass
 class VerificationResult:
     """Results of verification"""
+
     language: str
     file_path: str
     success: bool
@@ -139,14 +143,16 @@ class PythonVerifier(LanguageVerifier):
             try:
                 tree = ast.parse(content)
             except SyntaxError as e:
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.ERROR,
-                    category=VerificationCategory.SYNTAX,
-                    message=f"Syntax error: {e.msg}",
-                    file_path=str(file_path),
-                    line_number=e.lineno or 0,
-                    column=e.offset or 0,
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.ERROR,
+                        category=VerificationCategory.SYNTAX,
+                        message=f"Syntax error: {e.msg}",
+                        file_path=str(file_path),
+                        line_number=e.lineno or 0,
+                        column=e.offset or 0,
+                    )
+                )
                 return VerificationResult(
                     language=self.language,
                     file_path=str(file_path),
@@ -177,12 +183,14 @@ class PythonVerifier(LanguageVerifier):
             )
 
         except (OSError, UnicodeDecodeError) as e:
-            issues.append(VerificationIssue(
-                level=VerificationLevel.ERROR,
-                category=VerificationCategory.SYNTAX,
-                message=f"Failed to read file: {e}",
-                file_path=str(file_path),
-            ))
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
             return VerificationResult(
                 language=self.language,
                 file_path=str(file_path),
@@ -199,21 +207,23 @@ class PythonVerifier(LanguageVerifier):
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    found_imports.add(alias.name.split('.')[0])
+                    found_imports.add(alias.name.split(".")[0])
             elif isinstance(node, ast.ImportFrom):
                 if node.module:
-                    found_imports.add(node.module.split('.')[0])
+                    found_imports.add(node.module.split(".")[0])
 
         # Check if it's a test file
         if file_path.name.startswith("test_"):
             if "pytest" not in found_imports and "unittest" not in found_imports:
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.WARNING,
-                    category=VerificationCategory.IMPORTS,
-                    message="Test file missing test framework import (pytest or unittest)",
-                    file_path=str(file_path),
-                    suggestion="Add 'import pytest' at the top of the file",
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.WARNING,
+                        category=VerificationCategory.IMPORTS,
+                        message="Test file missing test framework import (pytest or unittest)",
+                        file_path=str(file_path),
+                        suggestion="Add 'import pytest' at the top of the file",
+                    )
+                )
 
         return issues
 
@@ -234,25 +244,29 @@ class PythonVerifier(LanguageVerifier):
         # Check if test file has tests
         if file_path.name.startswith("test_"):
             if not test_functions and not test_classes:
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.WARNING,
-                    category=VerificationCategory.STRUCTURE,
-                    message="Test file has no test functions or classes",
-                    file_path=str(file_path),
-                    suggestion="Add test functions starting with 'test_' prefix",
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.WARNING,
+                        category=VerificationCategory.STRUCTURE,
+                        message="Test file has no test functions or classes",
+                        file_path=str(file_path),
+                        suggestion="Add test functions starting with 'test_' prefix",
+                    )
+                )
 
         # Check for empty test functions
         for func in test_functions:
             if len(func.body) == 1 and isinstance(func.body[0], ast.Pass):
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.WARNING,
-                    category=VerificationCategory.STRUCTURE,
-                    message=f"Empty test function: {func.name}",
-                    file_path=str(file_path),
-                    line_number=func.lineno,
-                    suggestion="Implement the test or add pytest.skip() with reason",
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.WARNING,
+                        category=VerificationCategory.STRUCTURE,
+                        message=f"Empty test function: {func.name}",
+                        file_path=str(file_path),
+                        line_number=func.lineno,
+                        suggestion="Implement the test or add pytest.skip() with reason",
+                    )
+                )
 
         return issues
 
@@ -266,31 +280,35 @@ class PythonVerifier(LanguageVerifier):
             if re.search(xpath_pattern, line):
                 # Check for fragile XPath patterns
                 if "/div[" in line or "/span[" in line:
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.SELECTORS,
-                        message="Potentially fragile XPath using index-based selection",
-                        file_path=str(file_path),
-                        line_number=i,
-                        suggestion="Use accessibility_id or resource-id instead",
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.SELECTORS,
+                            message="Potentially fragile XPath using index-based selection",
+                            file_path=str(file_path),
+                            line_number=i,
+                            suggestion="Use accessibility_id or resource-id instead",
+                        )
+                    )
 
         # Check for deprecated selectors
         deprecated_patterns = [
-            (r'find_element_by_\w+', "find_element_by_* is deprecated, use find_element(By.*, ...)"),
-            (r'find_elements_by_\w+', "find_elements_by_* is deprecated, use find_elements(By.*, ...)"),
+            (r"find_element_by_\w+", "find_element_by_* is deprecated, use find_element(By.*, ...)"),
+            (r"find_elements_by_\w+", "find_elements_by_* is deprecated, use find_elements(By.*, ...)"),
         ]
 
         for i, line in enumerate(content.splitlines(), 1):
             for pattern, message in deprecated_patterns:
                 if re.search(pattern, line):
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.COMPATIBILITY,
-                        message=message,
-                        file_path=str(file_path),
-                        line_number=i,
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.COMPATIBILITY,
+                            message=message,
+                            file_path=str(file_path),
+                            line_number=i,
+                        )
+                    )
 
         return issues
 
@@ -301,28 +319,32 @@ class PythonVerifier(LanguageVerifier):
         # Check for sleep calls
         for i, line in enumerate(content.splitlines(), 1):
             if "time.sleep(" in line or "sleep(" in line:
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.INFO,
-                    category=VerificationCategory.BEST_PRACTICES,
-                    message="Using time.sleep() - consider using explicit waits instead",
-                    file_path=str(file_path),
-                    line_number=i,
-                    suggestion="Use WebDriverWait with expected_conditions",
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.INFO,
+                        category=VerificationCategory.BEST_PRACTICES,
+                        message="Using time.sleep() - consider using explicit waits instead",
+                        file_path=str(file_path),
+                        line_number=i,
+                        suggestion="Use WebDriverWait with expected_conditions",
+                    )
+                )
 
         # Check for missing docstrings
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
                 if node.name.startswith("test_") or node.name.startswith("Test"):
                     if not ast.get_docstring(node):
-                        issues.append(VerificationIssue(
-                            level=VerificationLevel.SUGGESTION,
-                            category=VerificationCategory.BEST_PRACTICES,
-                            message=f"Missing docstring for {node.name}",
-                            file_path=str(file_path),
-                            line_number=node.lineno,
-                            suggestion="Add a docstring describing the test purpose",
-                        ))
+                        issues.append(
+                            VerificationIssue(
+                                level=VerificationLevel.SUGGESTION,
+                                category=VerificationCategory.BEST_PRACTICES,
+                                message=f"Missing docstring for {node.name}",
+                                file_path=str(file_path),
+                                line_number=node.lineno,
+                                suggestion="Add a docstring describing the test purpose",
+                            )
+                        )
 
         return issues
 
@@ -364,12 +386,14 @@ class KotlinVerifier(LanguageVerifier):
             )
 
         except (OSError, UnicodeDecodeError) as e:
-            issues.append(VerificationIssue(
-                level=VerificationLevel.ERROR,
-                category=VerificationCategory.SYNTAX,
-                message=f"Failed to read file: {e}",
-                file_path=str(file_path),
-            ))
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
             return VerificationResult(
                 language=self.language,
                 file_path=str(file_path),
@@ -383,12 +407,14 @@ class KotlinVerifier(LanguageVerifier):
 
         if "Test" in file_path.name or "test" in file_path.name.lower():
             if "org.junit" not in content and "kotlin.test" not in content:
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.WARNING,
-                    category=VerificationCategory.IMPORTS,
-                    message="Test file missing JUnit or kotlin.test import",
-                    file_path=str(file_path),
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.WARNING,
+                        category=VerificationCategory.IMPORTS,
+                        message="Test file missing JUnit or kotlin.test import",
+                        file_path=str(file_path),
+                    )
+                )
 
         return issues
 
@@ -399,12 +425,14 @@ class KotlinVerifier(LanguageVerifier):
         # Check for @Test annotations
         if "Test" in file_path.name:
             if "@Test" not in content and "@ParameterizedTest" not in content:
-                issues.append(VerificationIssue(
-                    level=VerificationLevel.WARNING,
-                    category=VerificationCategory.STRUCTURE,
-                    message="Test file has no @Test annotations",
-                    file_path=str(file_path),
-                ))
+                issues.append(
+                    VerificationIssue(
+                        level=VerificationLevel.WARNING,
+                        category=VerificationCategory.STRUCTURE,
+                        message="Test file has no @Test annotations",
+                        file_path=str(file_path),
+                    )
+                )
 
         return issues
 
@@ -416,14 +444,16 @@ class KotlinVerifier(LanguageVerifier):
             # Check for deprecated patterns
             if "findElement(" in line and "By.xpath" in line:
                 if "//div[" in line or "//span[" in line:
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.SELECTORS,
-                        message="Fragile XPath selector",
-                        file_path=str(file_path),
-                        line_number=i,
-                        suggestion="Use By.id or MobileBy.AccessibilityId",
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.SELECTORS,
+                            message="Fragile XPath selector",
+                            file_path=str(file_path),
+                            line_number=i,
+                            suggestion="Use By.id or MobileBy.AccessibilityId",
+                        )
+                    )
 
         return issues
 
@@ -449,33 +479,39 @@ class SwiftVerifier(LanguageVerifier):
             # Check imports
             if "XCTest" in file_path.name or "Test" in file_path.name:
                 if "import XCTest" not in content:
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.IMPORTS,
-                        message="Test file missing XCTest import",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.IMPORTS,
+                            message="Test file missing XCTest import",
+                            file_path=str(file_path),
+                        )
+                    )
 
             # Check for XCTestCase subclass
             if "Test" in file_path.name:
                 if "XCTestCase" not in content:
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.STRUCTURE,
-                        message="Test class should inherit from XCTestCase",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.STRUCTURE,
+                            message="Test class should inherit from XCTestCase",
+                            file_path=str(file_path),
+                        )
+                    )
 
             # Check for test methods
-            test_pattern = r'func\s+test\w+\s*\('
+            test_pattern = r"func\s+test\w+\s*\("
             if "Test" in file_path.name:
                 if not re.search(test_pattern, content):
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.STRUCTURE,
-                        message="No test methods found (should start with 'test')",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.STRUCTURE,
+                            message="No test methods found (should start with 'test')",
+                            file_path=str(file_path),
+                        )
+                    )
 
             success = not any(i.level == VerificationLevel.ERROR for i in issues)
 
@@ -487,12 +523,14 @@ class SwiftVerifier(LanguageVerifier):
             )
 
         except (OSError, UnicodeDecodeError) as e:
-            issues.append(VerificationIssue(
-                level=VerificationLevel.ERROR,
-                category=VerificationCategory.SYNTAX,
-                message=f"Failed to read file: {e}",
-                file_path=str(file_path),
-            ))
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
             return VerificationResult(
                 language=self.language,
                 file_path=str(file_path),
@@ -525,24 +563,28 @@ class JavaScriptVerifier(LanguageVerifier):
             if is_test_file:
                 frameworks = ["jest", "mocha", "jasmine", "vitest"]
                 if not any(f in content.lower() for f in ["describe(", "it(", "test("]):
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.STRUCTURE,
-                        message="Test file has no test cases",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.STRUCTURE,
+                            message="Test file has no test cases",
+                            file_path=str(file_path),
+                        )
+                    )
 
             # Check for async/await without proper handling
             for i, line in enumerate(content.splitlines(), 1):
-                if "async " in line and "await" not in content[content.find(line):]:
+                if "async " in line and "await" not in content[content.find(line) :]:
                     if "test(" in line or "it(" in line:
-                        issues.append(VerificationIssue(
-                            level=VerificationLevel.INFO,
-                            category=VerificationCategory.BEST_PRACTICES,
-                            message="Async test without await",
-                            file_path=str(file_path),
-                            line_number=i,
-                        ))
+                        issues.append(
+                            VerificationIssue(
+                                level=VerificationLevel.INFO,
+                                category=VerificationCategory.BEST_PRACTICES,
+                                message="Async test without await",
+                                file_path=str(file_path),
+                                line_number=i,
+                            )
+                        )
 
             success = not any(i.level == VerificationLevel.ERROR for i in issues)
 
@@ -554,12 +596,14 @@ class JavaScriptVerifier(LanguageVerifier):
             )
 
         except (OSError, UnicodeDecodeError) as e:
-            issues.append(VerificationIssue(
-                level=VerificationLevel.ERROR,
-                category=VerificationCategory.SYNTAX,
-                message=f"Failed to read file: {e}",
-                file_path=str(file_path),
-            ))
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
             return VerificationResult(
                 language=self.language,
                 file_path=str(file_path),
@@ -592,31 +636,37 @@ class GoVerifier(LanguageVerifier):
             if is_test_file:
                 # Check for testing import
                 if '"testing"' not in content:
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.IMPORTS,
-                        message="Test file missing testing package import",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.IMPORTS,
+                            message="Test file missing testing package import",
+                            file_path=str(file_path),
+                        )
+                    )
 
                 # Check for test functions
                 if "func Test" not in content:
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.WARNING,
-                        category=VerificationCategory.STRUCTURE,
-                        message="No test functions found",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.WARNING,
+                            category=VerificationCategory.STRUCTURE,
+                            message="No test functions found",
+                            file_path=str(file_path),
+                        )
+                    )
 
                 # Check for *testing.T parameter
-                test_func_pattern = r'func\s+Test\w+\s*\(\s*\w+\s+\*testing\.T\s*\)'
+                test_func_pattern = r"func\s+Test\w+\s*\(\s*\w+\s+\*testing\.T\s*\)"
                 if "func Test" in content and not re.search(test_func_pattern, content):
-                    issues.append(VerificationIssue(
-                        level=VerificationLevel.ERROR,
-                        category=VerificationCategory.STRUCTURE,
-                        message="Test function missing *testing.T parameter",
-                        file_path=str(file_path),
-                    ))
+                    issues.append(
+                        VerificationIssue(
+                            level=VerificationLevel.ERROR,
+                            category=VerificationCategory.STRUCTURE,
+                            message="Test function missing *testing.T parameter",
+                            file_path=str(file_path),
+                        )
+                    )
 
             success = not any(i.level == VerificationLevel.ERROR for i in issues)
 
@@ -628,12 +678,14 @@ class GoVerifier(LanguageVerifier):
             )
 
         except (OSError, UnicodeDecodeError) as e:
-            issues.append(VerificationIssue(
-                level=VerificationLevel.ERROR,
-                category=VerificationCategory.SYNTAX,
-                message=f"Failed to read file: {e}",
-                file_path=str(file_path),
-            ))
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
             return VerificationResult(
                 language=self.language,
                 file_path=str(file_path),
@@ -667,22 +719,26 @@ class RubyVerifier(LanguageVerifier):
                 # Check for RSpec
                 if "_spec.rb" in file_path.name:
                     if "RSpec" not in content and "describe" not in content:
-                        issues.append(VerificationIssue(
-                            level=VerificationLevel.WARNING,
-                            category=VerificationCategory.IMPORTS,
-                            message="RSpec spec file missing RSpec or describe block",
-                            file_path=str(file_path),
-                        ))
+                        issues.append(
+                            VerificationIssue(
+                                level=VerificationLevel.WARNING,
+                                category=VerificationCategory.IMPORTS,
+                                message="RSpec spec file missing RSpec or describe block",
+                                file_path=str(file_path),
+                            )
+                        )
 
                 # Check for Minitest
                 if "_test.rb" in file_path.name:
                     if "Minitest" not in content and "class" not in content:
-                        issues.append(VerificationIssue(
-                            level=VerificationLevel.WARNING,
-                            category=VerificationCategory.IMPORTS,
-                            message="Minitest file missing test class",
-                            file_path=str(file_path),
-                        ))
+                        issues.append(
+                            VerificationIssue(
+                                level=VerificationLevel.WARNING,
+                                category=VerificationCategory.IMPORTS,
+                                message="Minitest file missing test class",
+                                file_path=str(file_path),
+                            )
+                        )
 
             success = not any(i.level == VerificationLevel.ERROR for i in issues)
 
@@ -694,12 +750,14 @@ class RubyVerifier(LanguageVerifier):
             )
 
         except (OSError, UnicodeDecodeError) as e:
-            issues.append(VerificationIssue(
-                level=VerificationLevel.ERROR,
-                category=VerificationCategory.SYNTAX,
-                message=f"Failed to read file: {e}",
-                file_path=str(file_path),
-            ))
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
             return VerificationResult(
                 language=self.language,
                 file_path=str(file_path),
@@ -733,10 +791,7 @@ class MultiLanguageVerifier:
         return None
 
     def verify_directory(
-        self,
-        directory: Path,
-        recursive: bool = True,
-        exclude_patterns: Optional[List[str]] = None
+        self, directory: Path, recursive: bool = True, exclude_patterns: Optional[List[str]] = None
     ) -> List[VerificationResult]:
         """Verify all files in a directory"""
         results = []
@@ -795,5 +850,5 @@ class MultiLanguageVerifier:
             "results": [r.to_dict() for r in results],
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2)

@@ -19,19 +19,25 @@ from framework.ml.universal_model import UniversalModelBuilder
 console = Console()
 
 
-@click.group(name='ml')
+@click.group(name="ml")
 def ml() -> None:
     """🤖 Machine Learning commands for element classification"""
     pass
 
 
 @ml.command()
-@click.option('--training-data', '-t', 'training_data_path', required=True,
-              type=click.Path(exists=True), help='Path to training data (JSON)')
-@click.option('--output', '-o', 'output_path', required=True,
-              type=click.Path(), help='Output path for trained model (.pkl)')
-@click.option('--test-split', default=0.2, type=float,
-              help='Test set size (0.0-1.0)')
+@click.option(
+    "--training-data",
+    "-t",
+    "training_data_path",
+    required=True,
+    type=click.Path(exists=True),
+    help="Path to training data (JSON)",
+)
+@click.option(
+    "--output", "-o", "output_path", required=True, type=click.Path(), help="Output path for trained model (.pkl)"
+)
+@click.option("--test-split", default=0.2, type=float, help="Test set size (0.0-1.0)")
 def train(training_data_path: str, output_path: str, test_split: float) -> None:
     """Train element classifier model"""
     print_header("Training Element Classifier")
@@ -45,7 +51,7 @@ def train(training_data_path: str, output_path: str, test_split: float) -> None:
 
     try:
         # Load training data
-        with open(training_file, 'r') as f:
+        with open(training_file, "r") as f:
             training_data = json.load(f)
 
         print_info("Loaded " + str(len(training_data)) + " training examples")
@@ -71,10 +77,12 @@ def train(training_data_path: str, output_path: str, test_split: float) -> None:
 
 
 @ml.command()
-@click.option('--model', '-m', 'model_path', required=True,
-              type=click.Path(exists=True), help='Path to trained model (.pkl)')
-@click.option('--test-data', '-t', 'test_data_path', required=True,
-              type=click.Path(exists=True), help='Path to test data (JSON)')
+@click.option(
+    "--model", "-m", "model_path", required=True, type=click.Path(exists=True), help="Path to trained model (.pkl)"
+)
+@click.option(
+    "--test-data", "-t", "test_data_path", required=True, type=click.Path(exists=True), help="Path to test data (JSON)"
+)
 def evaluate(model_path: str, test_data_path: str) -> None:
     """Evaluate model accuracy on test data"""
     print_header("Evaluating Model")
@@ -94,7 +102,7 @@ def evaluate(model_path: str, test_data_path: str) -> None:
             raise click.Abort()
 
         # Load test data
-        with open(test_file, 'r') as f:
+        with open(test_file, "r") as f:
             test_data = json.load(f)
 
         print_info("Loaded " + str(len(test_data)) + " test examples")
@@ -110,18 +118,18 @@ def evaluate(model_path: str, test_data_path: str) -> None:
             task = progress.add_task("Evaluating...", total=total)
 
             for item in test_data:
-                element_type, confidence = classifier.predict(item['features'])
-                expected_type = item.get('element_type', item.get('type'))
+                element_type, confidence = classifier.predict(item["features"])
+                expected_type = item.get("element_type", item.get("type"))
 
                 if element_type.value == expected_type or element_type.name == expected_type:
                     correct += 1
 
                 # Track by type
                 if expected_type not in predictions_by_type:
-                    predictions_by_type[expected_type] = {'correct': 0, 'total': 0}
-                predictions_by_type[expected_type]['total'] += 1
+                    predictions_by_type[expected_type] = {"correct": 0, "total": 0}
+                predictions_by_type[expected_type]["total"] += 1
                 if element_type.value == expected_type or element_type.name == expected_type:
-                    predictions_by_type[expected_type]['correct'] += 1
+                    predictions_by_type[expected_type]["correct"] += 1
 
                 progress.advance(task)
 
@@ -140,13 +148,8 @@ def evaluate(model_path: str, test_data_path: str) -> None:
             table.add_column("Accuracy", style="bold")
 
             for elem_type, stats in sorted(predictions_by_type.items()):
-                type_accuracy = stats['correct'] / stats['total'] if stats['total'] > 0 else 0
-                table.add_row(
-                    elem_type,
-                    str(stats['correct']),
-                    str(stats['total']),
-                    f"{type_accuracy:.1%}"
-                )
+                type_accuracy = stats["correct"] / stats["total"] if stats["total"] > 0 else 0
+                table.add_row(elem_type, str(stats["correct"]), str(stats["total"]), f"{type_accuracy:.1%}")
 
             console.print(table)
 
@@ -156,10 +159,10 @@ def evaluate(model_path: str, test_data_path: str) -> None:
 
 
 @ml.command()
-@click.option('--model', '-m', 'model_path', required=True,
-              type=click.Path(exists=True), help='Path to trained model (.pkl)')
-@click.option('--element', '-e', 'element_data', required=True,
-              help='Element data as JSON string or file path')
+@click.option(
+    "--model", "-m", "model_path", required=True, type=click.Path(exists=True), help="Path to trained model (.pkl)"
+)
+@click.option("--element", "-e", "element_data", required=True, help="Element data as JSON string or file path")
 def predict(model_path: str, element_data: str) -> None:
     """Predict element type for given element data"""
     print_header("Element Type Prediction")
@@ -177,7 +180,7 @@ def predict(model_path: str, element_data: str) -> None:
 
         # Parse element data
         if Path(element_data).exists():
-            with open(element_data, 'r') as f:
+            with open(element_data, "r") as f:
                 element = json.load(f)
         else:
             element = json.loads(element_data)
@@ -205,11 +208,9 @@ def predict(model_path: str, element_data: str) -> None:
         raise click.Abort()
 
 
-@ml.command(name='create-universal-model')
-@click.option('--output', '-o', 'output_path', required=True,
-              type=click.Path(), help='Output path for model (.pkl)')
-@click.option('--samples-per-type', default=1000, type=int,
-              help='Number of synthetic samples per element type')
+@ml.command(name="create-universal-model")
+@click.option("--output", "-o", "output_path", required=True, type=click.Path(), help="Output path for model (.pkl)")
+@click.option("--samples-per-type", default=1000, type=int, help="Number of synthetic samples per element type")
 def create_universal_model(output_path: str, samples_per_type: int) -> None:
     """Create universal pre-trained model for any mobile app"""
     print_header("Creating Universal Model")
@@ -228,7 +229,8 @@ def create_universal_model(output_path: str, samples_per_type: int) -> None:
 
         # Load the training data from the generated file
         import json
-        with open(training_data_path, 'r') as f:
+
+        with open(training_data_path, "r") as f:
             training_data = json.load(f)
 
         print_info(f"Generated {len(training_data)} training samples")
@@ -258,11 +260,13 @@ def create_universal_model(output_path: str, samples_per_type: int) -> None:
         raise click.Abort()
 
 
-@ml.command(name='generate-training-data')
-@click.option('--app-model', '-a', 'app_model_path', required=True,
-              type=click.Path(exists=True), help='Path to app model (JSON)')
-@click.option('--output', '-o', 'output_path', required=True,
-              type=click.Path(), help='Output path for training data (JSON)')
+@ml.command(name="generate-training-data")
+@click.option(
+    "--app-model", "-a", "app_model_path", required=True, type=click.Path(exists=True), help="Path to app model (JSON)"
+)
+@click.option(
+    "--output", "-o", "output_path", required=True, type=click.Path(), help="Output path for training data (JSON)"
+)
 def generate_training_data(app_model_path: str, output_path: str) -> None:
     """Generate training data from app model"""
     print_header("Generating Training Data")
@@ -275,7 +279,7 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
 
     try:
         # Load app model
-        with open(model_file, 'r') as f:
+        with open(model_file, "r") as f:
             app_model_data = json.load(f)
 
         # Generate training data
@@ -283,7 +287,7 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
         training_data_path = generator.generate_from_app_model(app_model_data, output_path=output_file)
 
         # Load to get count for display
-        with open(training_data_path, 'r') as f:
+        with open(training_data_path, "r") as f:
             training_data = json.load(f)
 
         print_info(f"\nGenerated {len(training_data)} training examples")
@@ -295,5 +299,5 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
         raise click.Abort()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     ml()

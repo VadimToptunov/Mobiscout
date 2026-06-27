@@ -119,9 +119,9 @@ class ColorContrastChecker:
         return (lighter + 0.05) / (darker + 0.05)
 
     def check_element_contrast(
-            self,
-            element: Dict[str, Any],
-            wcag_level: WCAGLevel = WCAGLevel.AA,
+        self,
+        element: Dict[str, Any],
+        wcag_level: WCAGLevel = WCAGLevel.AA,
     ) -> Optional[A11yViolation]:
         """Check if element meets contrast requirements"""
         # Extract colors (placeholder - in production, parse from styles)
@@ -175,9 +175,9 @@ class TouchTargetValidator:
     }
 
     def check_touch_target(
-            self,
-            element: Dict[str, Any],
-            platform: str = "android",
+        self,
+        element: Dict[str, Any],
+        platform: str = "android",
     ) -> Optional[A11yViolation]:
         """Check if touch target meets size requirements"""
         bounds = element.get("bounds", {})
@@ -215,9 +215,9 @@ class ScreenReaderChecker:
     def check_content_description(self, element: Dict[str, Any]) -> Optional[A11yViolation]:
         """Check if interactive element has proper description"""
         is_interactive = (
-                element.get("clickable")
-                or element.get("focusable")
-                or element.get("type") in ["Button", "TextField", "ImageButton"]
+            element.get("clickable")
+            or element.get("focusable")
+            or element.get("type") in ["Button", "TextField", "ImageButton"]
         )
 
         has_description = bool(element.get("content_desc") or element.get("text") or element.get("accessibility_label"))
@@ -287,11 +287,11 @@ class AccessibilityScanner:
         self.text_checker = TextSizeChecker()
 
     def scan_hierarchy(
-            self,
-            hierarchy: Dict[str, Any],
-            app_name: str,
-            screen_name: str,
-            platform: str = "android",
+        self,
+        hierarchy: Dict[str, Any],
+        app_name: str,
+        screen_name: str,
+        platform: str = "android",
     ) -> A11yScanResult:
         """Scan UI hierarchy for accessibility issues"""
         result = A11yScanResult(

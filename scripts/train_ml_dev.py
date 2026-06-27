@@ -12,10 +12,10 @@ def train_all_models_dev():
     """Тренировка моделей в DEV режиме (обходим license check)"""
 
     # Patch license check для разработки
-    with patch('framework.ml.ml_module.check_feature', return_value=True):
+    with patch("framework.ml.ml_module.check_feature", return_value=True):
         from framework.ml import MLModule, MLBackend, ModelType, TrainingData
 
-        output_dir = Path.home() / '.observe' / 'models'
+        output_dir = Path.home() / ".observe" / "models"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         print("=" * 70)
@@ -32,47 +32,51 @@ def train_all_models_dev():
 
         # Элементы с ID (best practice)
         for i in range(100):
-            selector_features.append({
-                'id': f'btn_{i}',
-                'accessibility_id': f'button_{i}',
-                'xpath': f'//button[@id="btn_{i}"]',
-                'type': 'button',
-                'visible': True,
-                'enabled': True,
-                'depth': 3
-            })
-            selector_labels.append('id')
+            selector_features.append(
+                {
+                    "id": f"btn_{i}",
+                    "accessibility_id": f"button_{i}",
+                    "xpath": f'//button[@id="btn_{i}"]',
+                    "type": "button",
+                    "visible": True,
+                    "enabled": True,
+                    "depth": 3,
+                }
+            )
+            selector_labels.append("id")
 
         # Элементы с accessibility_id
         for i in range(60):
-            selector_features.append({
-                'id': '',
-                'accessibility_id': f'element_{i}',
-                'xpath': f'//div[@class="element_{i}"]',
-                'type': 'view',
-                'visible': True,
-                'enabled': True,
-                'depth': 4
-            })
-            selector_labels.append('accessibility_id')
+            selector_features.append(
+                {
+                    "id": "",
+                    "accessibility_id": f"element_{i}",
+                    "xpath": f'//div[@class="element_{i}"]',
+                    "type": "view",
+                    "visible": True,
+                    "enabled": True,
+                    "depth": 4,
+                }
+            )
+            selector_labels.append("accessibility_id")
 
         # Элементы с xpath only
         for i in range(40):
-            selector_features.append({
-                'id': '',
-                'accessibility_id': '',
-                'xpath': f'//div[{i}]/span',
-                'type': 'label',
-                'visible': True,
-                'enabled': True,
-                'depth': 5
-            })
-            selector_labels.append('xpath')
+            selector_features.append(
+                {
+                    "id": "",
+                    "accessibility_id": "",
+                    "xpath": f"//div[{i}]/span",
+                    "type": "label",
+                    "visible": True,
+                    "enabled": True,
+                    "depth": 5,
+                }
+            )
+            selector_labels.append("xpath")
 
         selector_data = TrainingData(
-            features=selector_features,
-            labels=selector_labels,
-            metadata={'source': 'dev_training'}
+            features=selector_features, labels=selector_labels, metadata={"source": "dev_training"}
         )
 
         print(f"   ✅ Generated {len(selector_features)} selector samples")
@@ -82,25 +86,18 @@ def train_all_models_dev():
 
         # Типичные переходы
         flows = [
-            ('splash', 'onboarding', 50),
-            ('onboarding', 'login', 45),
-            ('login', 'home', 80),
-            ('home', 'profile', 60),
-            ('home', 'settings', 50),
-            ('profile', 'edit_profile', 40),
+            ("splash", "onboarding", 50),
+            ("onboarding", "login", 45),
+            ("login", "home", 80),
+            ("home", "profile", 60),
+            ("home", "settings", 50),
+            ("profile", "edit_profile", 40),
         ]
 
         for from_screen, to_screen, count in flows:
-            step_features.extend([
-                {'from_screen': from_screen, 'to_screen': to_screen}
-                for _ in range(count)
-            ])
+            step_features.extend([{"from_screen": from_screen, "to_screen": to_screen} for _ in range(count)])
 
-        step_data = TrainingData(
-            features=step_features,
-            labels=[],
-            metadata={'source': 'dev_training'}
-        )
+        step_data = TrainingData(features=step_features, labels=[], metadata={"source": "dev_training"})
 
         print(f"   ✅ Generated {len(step_features)} transition patterns")
 
@@ -110,39 +107,23 @@ def train_all_models_dev():
 
         # High importance
         for i in range(50):
-            element_features.append({
-                'type': 'button',
-                'visible': True,
-                'enabled': True,
-                'label': f'Submit {i}',
-                'navigates': True
-            })
+            element_features.append(
+                {"type": "button", "visible": True, "enabled": True, "label": f"Submit {i}", "navigates": True}
+            )
             element_labels.append(0.9)
 
         # Medium importance
         for i in range(30):
-            element_features.append({
-                'type': 'link',
-                'visible': True,
-                'enabled': True,
-                'label': f'Link {i}'
-            })
+            element_features.append({"type": "link", "visible": True, "enabled": True, "label": f"Link {i}"})
             element_labels.append(0.5)
 
         # Low importance
         for i in range(20):
-            element_features.append({
-                'type': 'label',
-                'visible': True,
-                'enabled': False,
-                'decorative': True
-            })
+            element_features.append({"type": "label", "visible": True, "enabled": False, "decorative": True})
             element_labels.append(0.1)
 
         element_data = TrainingData(
-            features=element_features,
-            labels=element_labels,
-            metadata={'source': 'dev_training'}
+            features=element_features, labels=element_labels, metadata={"source": "dev_training"}
         )
 
         print(f"   ✅ Generated {len(element_features)} element samples")
@@ -161,6 +142,7 @@ def train_all_models_dev():
         print("1️⃣ Training SelectorPredictor...")
         try:
             import sklearn
+
             metrics = ml_module.train_model(ModelType.SELECTOR_PREDICTOR, selector_data)
             print(f"   ✅ Training complete!")
             print(f"   Accuracy: {metrics.get('accuracy', 0):.4f}")
@@ -203,12 +185,12 @@ def train_all_models_dev():
         # Test 1: Selector Prediction
         print("📊 Test 1: Predict best selector")
         test_elem = {
-            'id': 'submit_btn',
-            'accessibility_id': 'submit',
-            'xpath': '//button[@id="submit_btn"]',
-            'type': 'button',
-            'visible': True,
-            'enabled': True
+            "id": "submit_btn",
+            "accessibility_id": "submit",
+            "xpath": '//button[@id="submit_btn"]',
+            "type": "button",
+            "visible": True,
+            "enabled": True,
         }
         result = ml_module.predict_selector(test_elem)
         print(f"   Element: {test_elem['id']}")
@@ -220,7 +202,7 @@ def train_all_models_dev():
 
         # Test 2: Next Step Recommendation
         print("🔮 Test 2: Recommend next step")
-        context = {'current_screen': 'login', 'recent_actions': ['tap_login']}
+        context = {"current_screen": "login", "recent_actions": ["tap_login"]}
         result = ml_module.recommend_next_step(context)
         print(f"   Current: {context['current_screen']}")
         print(f"   ✅ Recommended: {result.prediction}")
@@ -229,13 +211,7 @@ def train_all_models_dev():
 
         # Test 3: Element Importance
         print("⭐ Test 3: Score element importance")
-        test_elem = {
-            'type': 'button',
-            'visible': True,
-            'enabled': True,
-            'label': 'Submit Form',
-            'navigates': True
-        }
+        test_elem = {"type": "button", "visible": True, "enabled": True, "label": "Submit Form", "navigates": True}
         result = ml_module.score_element(test_elem)
         print(f"   Element: {test_elem['label']}")
         print(f"   ✅ Score: {result.prediction:.2f}")
@@ -249,7 +225,7 @@ def train_all_models_dev():
 
         models_info = ml_module.get_models_info()
         for name, info in models_info.items():
-            status = "✅ TRAINED" if info['is_trained'] else "❌ NOT TRAINED"
+            status = "✅ TRAINED" if info["is_trained"] else "❌ NOT TRAINED"
             print(f"📦 {name.upper()}")
             print(f"   Backend: {info['backend']}")
             print(f"   Version: {info['version']}")

@@ -11,17 +11,17 @@ from framework.fuzzing.fuzzer import (
     MutationFuzzer,
     UIFuzzer,
     APIFuzzer,
-    FuzzingCampaign
+    FuzzingCampaign,
 )
 
 __all__ = [
-    'FuzzingStrategy',
-    'InputType',
-    'FuzzInput',
-    'FuzzResult',
-    'FuzzGenerator',
-    'MutationFuzzer',
-    'UIFuzzer',
-    'APIFuzzer',
-    'FuzzingCampaign',
+    "FuzzingStrategy",
+    "InputType",
+    "FuzzInput",
+    "FuzzResult",
+    "FuzzGenerator",
+    "MutationFuzzer",
+    "UIFuzzer",
+    "APIFuzzer",
+    "FuzzingCampaign",
 ]

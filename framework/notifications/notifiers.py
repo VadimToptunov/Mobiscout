@@ -17,6 +17,7 @@ import requests
 @dataclass
 class TestSummary:
     """Test execution summary for notifications"""
+
     total: int
     passed: int
     failed: int
@@ -78,64 +79,31 @@ class SlackNotifier(Notifier):
                     {
                         "color": color,
                         "fields": [
-                            {
-                                "title": "Total Tests",
-                                "value": str(summary.total),
-                                "short": True
-                            },
-                            {
-                                "title": "Pass Rate",
-                                "value": f"{summary.pass_rate:.1f}%",
-                                "short": True
-                            },
-                            {
-                                "title": "Passed",
-                                "value": f"{summary.passed}",
-                                "short": True
-                            },
-                            {
-                                "title": "Failed",
-                                "value": f"{summary.failed}",
-                                "short": True
-                            },
-                            {
-                                "title": "Skipped",
-                                "value": str(summary.skipped),
-                                "short": True
-                            },
-                            {
-                                "title": "Duration",
-                                "value": f"{summary.duration:.1f}s",
-                                "short": True
-                            }
-                        ]
+                            {"title": "Total Tests", "value": str(summary.total), "short": True},
+                            {"title": "Pass Rate", "value": f"{summary.pass_rate:.1f}%", "short": True},
+                            {"title": "Passed", "value": f"{summary.passed}", "short": True},
+                            {"title": "Failed", "value": f"{summary.failed}", "short": True},
+                            {"title": "Skipped", "value": str(summary.skipped), "short": True},
+                            {"title": "Duration", "value": f"{summary.duration:.1f}s", "short": True},
+                        ],
                     }
-                ]
+                ],
             }
 
             # Add platform if available
             if summary.platform:
-                message["attachments"][0]["fields"].insert(0, {
-                    "title": "Platform",
-                    "value": summary.platform,
-                    "short": True
-                })
+                message["attachments"][0]["fields"].insert(
+                    0, {"title": "Platform", "value": summary.platform, "short": True}
+                )
 
             # Add report link if available
             if summary.report_url:
                 message["attachments"][0]["actions"] = [
-                    {
-                        "type": "button",
-                        "text": "View Report",
-                        "url": summary.report_url
-                    }
+                    {"type": "button", "text": "View Report", "url": summary.report_url}
                 ]
 
             # Send to Slack
-            response = requests.post(
-                self.webhook_url,
-                headers={'Content-Type': 'application/json'}
-            )
+            response = requests.post(self.webhook_url, headers={"Content-Type": "application/json"})
             response.raise_for_status()
 
             return True
@@ -186,42 +154,40 @@ class TeamsNotifier(Notifier):
                             {"name": "Failed", "value": f"{summary.failed}"},
                             {"name": "Skipped", "value": str(summary.skipped)},
                             {"name": "Pass Rate", "value": f"{summary.pass_rate:.1f}%"},
-                            {"name": "Duration", "value": f"{summary.duration:.1f}s"}
-                        ]
+                            {"name": "Duration", "value": f"{summary.duration:.1f}s"},
+                        ],
                     }
-                ]
+                ],
             }
 
             # Add platform if available
             if summary.platform:
-                message["sections"][0]["facts"].insert(0, {
-                    "name": "Platform",
-                    "value": summary.platform
-                })
+                message["sections"][0]["facts"].insert(0, {"name": "Platform", "value": summary.platform})
 
             # Add potential actions
             if summary.report_url or summary.build_url:
                 message["potentialAction"] = []
 
                 if summary.report_url:
-                    message["potentialAction"].append({
-                        "@type": "OpenUri",
-                        "name": "View Report",
-                        "targets": [{"os": "default", "uri": summary.report_url}]
-                    })
+                    message["potentialAction"].append(
+                        {
+                            "@type": "OpenUri",
+                            "name": "View Report",
+                            "targets": [{"os": "default", "uri": summary.report_url}],
+                        }
+                    )
 
                 if summary.build_url:
-                    message["potentialAction"].append({
-                        "@type": "OpenUri",
-                        "name": "View Build",
-                        "targets": [{"os": "default", "uri": summary.build_url}]
-                    })
+                    message["potentialAction"].append(
+                        {
+                            "@type": "OpenUri",
+                            "name": "View Build",
+                            "targets": [{"os": "default", "uri": summary.build_url}],
+                        }
+                    )
 
             # Send to Teams
-            response = requests.post(
-                self.webhook_url,
-                headers={'Content-Type': 'application/json'}
-            )
+            response = requests.post(self.webhook_url, headers={"Content-Type": "application/json"})
             response.raise_for_status()
 
             return True
@@ -237,14 +203,14 @@ class EmailNotifier(Notifier):
     """
 
     def __init__(
-            self,
-            smtp_host: str,
-            smtp_port: int,
-            sender_email: str,
-            recipients: List[str],
-            username: Optional[str] = None,
-            password: Optional[str] = None,
-            use_tls: bool = True
+        self,
+        smtp_host: str,
+        smtp_port: int,
+        sender_email: str,
+        recipients: List[str],
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        use_tls: bool = True,
     ):
         """
         Initialize email notifier
@@ -270,10 +236,10 @@ class EmailNotifier(Notifier):
         """Send email notification"""
         try:
             # Create message
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = title
-            msg['From'] = self.sender_email
-            msg['To'] = ', '.join(self.recipients)
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = title
+            msg["From"] = self.sender_email
+            msg["To"] = ", ".join(self.recipients)
 
             # Build HTML body
             # status_color =  # Unused "#28a745" if summary.pass_rate >= 80 else "#dc3545"
@@ -337,7 +303,7 @@ class EmailNotifier(Notifier):
             """
 
             # Attach HTML body
-            msg.attach(MIMEText(html_body, 'html'))
+            msg.attach(MIMEText(html_body, "html"))
 
             # Send email
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:

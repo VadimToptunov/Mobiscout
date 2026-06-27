@@ -77,11 +77,7 @@ class IOSBusinessAnalyzer:
 
     def _analyze_swiftui_views(self) -> None:
         """Analyze SwiftUI Views for user flows."""
-        view_files = [
-            f
-            for f in self.project_path.rglob("*.swift")
-            if "View" in f.stem and "ViewModel" not in f.stem
-        ]
+        view_files = [f for f in self.project_path.rglob("*.swift") if "View" in f.stem and "ViewModel" not in f.stem]
 
         for view_file in view_files:
             try:
@@ -102,9 +98,7 @@ class IOSBusinessAnalyzer:
                 )
 
                 # Extract NavigationLink destinations
-                nav_links = re.findall(
-                    r"NavigationLink\(.*?destination:\s*(\w+)", content
-                )
+                nav_links = re.findall(r"NavigationLink\(.*?destination:\s*(\w+)", content)
 
                 # Create user flow
                 if buttons or nav_links:
@@ -134,18 +128,14 @@ class IOSBusinessAnalyzer:
                 content = vm_file.read_text(encoding="utf-8")
 
                 # Extract class name
-                class_match = re.search(
-                    r"class\s+(\w+ViewModel):\s*ObservableObject", content
-                )
+                class_match = re.search(r"class\s+(\w+ViewModel):\s*ObservableObject", content)
                 if not class_match:
                     continue
 
                 class_name = class_match.group(1)
 
                 # Extract public methods
-                methods = re.findall(
-                    r"func\s+(\w+)\([^)]*\)\s*(?:->.*?)?\{", content
-                )
+                methods = re.findall(r"func\s+(\w+)\([^)]*\)\s*(?:->.*?)?\{", content)
 
                 # Create user flow
                 flow = UserFlow(
@@ -164,11 +154,7 @@ class IOSBusinessAnalyzer:
 
     def _analyze_swift_models(self) -> None:
         """Analyze Swift data models."""
-        model_files = [
-            f
-            for f in self.project_path.rglob("*.swift")
-            if "Model" in f.stem or f.parent.name == "Models"
-        ]
+        model_files = [f for f in self.project_path.rglob("*.swift") if "Model" in f.stem or f.parent.name == "Models"]
 
         for model_file in model_files:
             try:
@@ -176,19 +162,16 @@ class IOSBusinessAnalyzer:
 
                 # Extract struct/class definitions
                 for match in re.finditer(
-                        r"(?:struct|class)\s+(\w+):\s*(?:Codable|Identifiable|Hashable)"
-                        r"(?:.*?)\{(.*?)\n\}",
-                        content,
-                        re.DOTALL,
+                    r"(?:struct|class)\s+(\w+):\s*(?:Codable|Identifiable|Hashable)" r"(?:.*?)\{(.*?)\n\}",
+                    content,
+                    re.DOTALL,
                 ):
                     model_name = match.group(1)
                     body = match.group(2)
 
                     # Parse properties
                     fields: Dict[str, str] = {}
-                    for prop_match in re.finditer(
-                            r"(?:var|let)\s+(\w+):\s+([^\n=]+)", body
-                    ):
+                    for prop_match in re.finditer(r"(?:var|let)\s+(\w+):\s+([^\n=]+)", body):
                         prop_name = prop_match.group(1)
                         prop_type = prop_match.group(2).strip()
                         fields[prop_name] = prop_type
@@ -206,11 +189,7 @@ class IOSBusinessAnalyzer:
 
     def _analyze_swift_mock_data(self) -> None:
         """Analyze Swift mock data."""
-        mock_files = [
-            f
-            for f in self.project_path.rglob("*.swift")
-            if "Mock" in f.stem or "Preview" in f.stem
-        ]
+        mock_files = [f for f in self.project_path.rglob("*.swift") if "Mock" in f.stem or "Preview" in f.stem]
 
         for mock_file in mock_files:
             try:
@@ -218,20 +197,16 @@ class IOSBusinessAnalyzer:
 
                 # Extract static mock arrays
                 for match in re.finditer(
-                        r"static\s+(?:let|var)\s+(\w+):\s*\[(\w+)\]\s*=\s*\[(.*?)\]",
-                        content,
-                        re.DOTALL,
+                    r"static\s+(?:let|var)\s+(\w+):\s*\[(\w+)\]\s*=\s*\[(.*?)\]",
+                    content,
+                    re.DOTALL,
                 ):
                     entity_name = match.group(1)
                     entity_type = match.group(2)
                     array_content = match.group(3)
 
                     # Count items
-                    items = [
-                        item.strip()
-                        for item in array_content.split(f"{entity_type}(")
-                        if item.strip()
-                    ]
+                    items = [item.strip() for item in array_content.split(f"{entity_type}(") if item.strip()]
                     count = len(items)
 
                     if count > 0:
@@ -244,16 +219,11 @@ class IOSBusinessAnalyzer:
             except Exception as e:
                 print(f"Warning: Could not analyze Swift mock data {mock_file}: {e}")
 
-    def _extract_business_rules_from_comments(
-            self, content: str, file_path: str
-    ) -> None:
+    def _extract_business_rules_from_comments(self, content: str, file_path: str) -> None:
         """Extract business rules from TODO and comments."""
         todos = re.findall(r"//\s*TODO:?\s*(.+)", content)
         for todo in todos:
-            if any(
-                    keyword in todo.lower()
-                    for keyword in ["validate", "check", "auth", "permission", "rule"]
-            ):
+            if any(keyword in todo.lower() for keyword in ["validate", "check", "auth", "permission", "rule"]):
                 rule = BusinessRule(
                     type=BusinessRuleType.VALIDATION,
                     description=todo.strip(),
@@ -264,16 +234,12 @@ class IOSBusinessAnalyzer:
 
     def _extract_swift_validations(self, content: str, file_path: str) -> None:
         """Extract Swift validation logic (guard statements)."""
-        guards = re.findall(
-            r"guard\s+(.*?)\s+else\s*\{([^}]*)\}", content, re.DOTALL
-        )
+        guards = re.findall(r"guard\s+(.*?)\s+else\s*\{([^}]*)\}", content, re.DOTALL)
 
         for condition, else_body in guards:
             # Extract error message if present
             error_msg_match = re.search(r'["\'](.+?)["\']', else_body)
-            error_msg = (
-                error_msg_match.group(1) if error_msg_match else "Validation failed"
-            )
+            error_msg = error_msg_match.group(1) if error_msg_match else "Validation failed"
 
             rule = BusinessRule(
                 type=BusinessRuleType.VALIDATION,
@@ -286,9 +252,7 @@ class IOSBusinessAnalyzer:
 
     def _extract_swift_error_handling(self, content: str, file_path: str) -> None:
         """Extract Swift error handling (do-catch, throws)."""
-        catches = re.findall(
-            r"catch\s+(?:let\s+)?(\w+)?\s*\{([^}]+)\}", content
-        )
+        catches = re.findall(r"catch\s+(?:let\s+)?(\w+)?\s*\{([^}]+)\}", content)
 
         for error_var, _ in catches:
             error_type = error_var or "Error"
@@ -309,9 +273,7 @@ class IOSBusinessAnalyzer:
                 content = swift_file.read_text(encoding="utf-8")
 
                 # Find enums that represent states
-                enum_matches = re.finditer(
-                    r"enum\s+(\w+State)\s*\{(.*?)\n\}", content, re.DOTALL
-                )
+                enum_matches = re.finditer(r"enum\s+(\w+State)\s*\{(.*?)\n\}", content, re.DOTALL)
 
                 for match in enum_matches:
                     state_name = match.group(1)
@@ -333,13 +295,9 @@ class IOSBusinessAnalyzer:
                         self.analysis.state_machines.append(state_machine)
 
             except Exception as e:
-                print(
-                    f"Warning: Could not extract Swift state machine from {swift_file}: {e}"
-                )
+                print(f"Warning: Could not extract Swift state machine from {swift_file}: {e}")
 
-    def _find_state_transitions(
-            self, content: str, states: List[str]
-    ) -> Dict[str, List[str]]:
+    def _find_state_transitions(self, content: str, states: List[str]) -> Dict[str, List[str]]:
         """Find state transitions in switch expressions."""
         transitions: Dict[str, List[str]] = {state: [] for state in states}
 
@@ -371,9 +329,7 @@ class IOSBusinessAnalyzer:
                     context_end = min(len(content), url_pos + 500)
                     context = content[context_start:context_end]
 
-                    method_match = re.search(
-                        r'httpMethod\s*=\s*"(GET|POST|PUT|DELETE|PATCH)"', context
-                    )
+                    method_match = re.search(r'httpMethod\s*=\s*"(GET|POST|PUT|DELETE|PATCH)"', context)
                     method = method_match.group(1) if method_match else "GET"
 
                     # Find schemas

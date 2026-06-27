@@ -12,15 +12,16 @@ logger = get_logger(__name__)
 
 class ValidationError(Exception):
     """Custom exception for validation errors."""
+
     pass
 
 
 def validate_path(
-        path: Path,
-        must_exist: bool = True,
-        must_be_dir: bool = False,
-        must_be_file: bool = False,
-        create_if_missing: bool = False,
+    path: Path,
+    must_exist: bool = True,
+    must_be_dir: bool = False,
+    must_be_file: bool = False,
+    create_if_missing: bool = False,
 ) -> Path:
     """
     Validate a filesystem path.
@@ -61,9 +62,9 @@ def validate_path(
 
 
 def validate_project_structure(
-        project_path: Path,
-        required_files: Optional[List[str]] = None,
-        required_dirs: Optional[List[str]] = None,
+    project_path: Path,
+    required_files: Optional[List[str]] = None,
+    required_dirs: Optional[List[str]] = None,
 ) -> Tuple[bool, List[str]]:
     """
     Validate that a project has the expected structure.
@@ -145,10 +146,7 @@ def validate_ios_project(project_path: Path) -> Tuple[bool, List[str]]:
         Tuple of (is_valid, missing_items)
     """
     # Look for .xcodeproj or .xcworkspace
-    has_xcode_project = any(
-        path.suffix in [".xcodeproj", ".xcworkspace"]
-        for path in project_path.glob("*")
-    )
+    has_xcode_project = any(path.suffix in [".xcodeproj", ".xcworkspace"] for path in project_path.glob("*"))
 
     if not has_xcode_project:
         return False, ["Missing .xcodeproj or .xcworkspace"]
@@ -172,7 +170,5 @@ def validate_output_format(format_str: str, allowed_formats: List[str]) -> str:
     """
     format_lower = format_str.lower()
     if format_lower not in [f.lower() for f in allowed_formats]:
-        raise ValidationError(
-            f"Invalid format '{format_str}'. Allowed: {', '.join(allowed_formats)}"
-        )
+        raise ValidationError(f"Invalid format '{format_str}'. Allowed: {', '.join(allowed_formats)}")
     return format_lower

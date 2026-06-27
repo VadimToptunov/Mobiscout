@@ -26,7 +26,7 @@ console = Console()
 def a11y() -> None:
     """
     Accessibility testing commands.
-    
+
     Automated WCAG 2.1 compliance checking.
     """
     pass
@@ -41,19 +41,19 @@ def a11y() -> None:
 @click.option("--output", "-o", type=Path, help="Output report path")
 @click.option("--format", "-f", type=click.Choice(["json", "html"]), default="json", help="Report format")
 def scan(
-        hierarchy_file: Path,
-        app_name: str,
-        screen: str,
-        platform: str,
-        wcag_level: str,
-        output: Optional[Path],
-        format: str,
+    hierarchy_file: Path,
+    app_name: str,
+    screen: str,
+    platform: str,
+    wcag_level: str,
+    output: Optional[Path],
+    format: str,
 ) -> None:
     """
     Scan UI hierarchy for accessibility issues.
-    
+
     HIERARCHY_FILE: Path to UI hierarchy JSON file
-    
+
     Example:
         observe a11y scan hierarchy.json --app-name MyApp --screen Login
         observe a11y scan hierarchy.json -a MyApp -s Home --wcag-level AAA
@@ -100,16 +100,16 @@ def scan(
 @click.option("--wcag-level", "-w", type=click.Choice(["A", "AA", "AAA"]), default="AA", help="WCAG level")
 @click.option("--severity", type=click.Choice(["critical", "serious", "moderate", "minor"]), help="Filter by severity")
 def audit(
-        hierarchy_file: Path,
-        app_name: str,
-        screen: str,
-        platform: str,
-        wcag_level: str,
-        severity: Optional[str],
+    hierarchy_file: Path,
+    app_name: str,
+    screen: str,
+    platform: str,
+    wcag_level: str,
+    severity: Optional[str],
 ) -> None:
     """
     Detailed accessibility audit with violation details.
-    
+
     Example:
         observe a11y audit hierarchy.json -a MyApp -s Login
         observe a11y audit hierarchy.json -a MyApp -s Home --severity critical
@@ -167,7 +167,7 @@ def audit(
 def list_checks() -> None:
     """
     List available accessibility checks.
-    
+
     Example:
         observe a11y list
     """
@@ -200,7 +200,7 @@ def list_checks() -> None:
 def compare(report1: Path, report2: Path) -> None:
     """
     Compare two accessibility reports.
-    
+
     Example:
         observe a11y compare v1_report.json v2_report.json
     """
@@ -267,7 +267,7 @@ def compare(report1: Path, report2: Path) -> None:
 def summary(report_file: Path) -> None:
     """
     Show summary from accessibility report.
-    
+
     Example:
         observe a11y summary report.json
     """
@@ -290,17 +290,19 @@ def summary(report_file: Path) -> None:
     )
 
     for v_data in data["violations"]:
-        result.violations.append(A11yViolation(
-            rule_id=v_data["rule_id"],
-            severity=A11yViolationSeverity(v_data["severity"]),
-            wcag_level=WCAGLevel[v_data["wcag_level"]],
-            title=v_data["title"],
-            description=v_data["description"],
-            element=v_data["element"],
-            recommendation=v_data["recommendation"],
-            wcag_reference=v_data.get("wcag_reference", ""),
-            help_url=v_data.get("help_url", ""),
-        ))
+        result.violations.append(
+            A11yViolation(
+                rule_id=v_data["rule_id"],
+                severity=A11yViolationSeverity(v_data["severity"]),
+                wcag_level=WCAGLevel[v_data["wcag_level"]],
+                title=v_data["title"],
+                description=v_data["description"],
+                element=v_data["element"],
+                recommendation=v_data["recommendation"],
+                wcag_reference=v_data.get("wcag_reference", ""),
+                help_url=v_data.get("help_url", ""),
+            )
+        )
 
     _print_summary(result)
 

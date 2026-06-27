@@ -10,13 +10,13 @@ from framework.correlation.types import (
     CorrelationResult,
     UIToAPICorrelation,
     APIToNavigationCorrelation,
-    CorrelationStrength
+    CorrelationStrength,
 )
 
 __all__ = [
-    'EventCorrelator',
-    'CorrelationResult',
-    'UIToAPICorrelation',
-    'APIToNavigationCorrelation',
-    'CorrelationStrength'
+    "EventCorrelator",
+    "CorrelationResult",
+    "UIToAPICorrelation",
+    "APIToNavigationCorrelation",
+    "CorrelationStrength",
 ]

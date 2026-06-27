@@ -13,11 +13,11 @@ from framework.plugins.languages import (
 )
 
 __all__ = [
-    'LanguagePlugin',
-    'PythonPlugin',
-    'JavaPlugin',
-    'KotlinPlugin',
-    'get_plugin',
-    'list_languages',
-    'PLUGINS',
+    "LanguagePlugin",
+    "PythonPlugin",
+    "JavaPlugin",
+    "KotlinPlugin",
+    "get_plugin",
+    "list_languages",
+    "PLUGINS",
 ]

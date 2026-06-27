@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TLSSessionKey:
     """TLS session key data"""
+
     session_id: str
     master_secret: bytes
     client_random: bytes
@@ -33,6 +34,7 @@ class TLSSessionKey:
 @dataclass
 class DeviceKeys:
     """Device encryption keys"""
+
     public_key: bytes
     private_key: bytes
     symmetric_key: bytes
@@ -79,11 +81,7 @@ class TrafficDecryptor:
 
         try:
             logger.info(f"Pulling crypto keys from device: {device_path}")
-            result = subprocess.run(
-                ["adb", "pull", device_path, str(local_path)],
-                capture_output=True,
-                text=True
-            )
+            result = subprocess.run(["adb", "pull", device_path, str(local_path)], capture_output=True, text=True)
 
             if result.returncode != 0:
                 logger.error(f"Failed to pull keys from device: {result.stderr}")
@@ -109,32 +107,32 @@ class TrafficDecryptor:
             True if keys loaded successfully
         """
         try:
-            with open(keys_file, 'r') as f:
+            with open(keys_file, "r") as f:
                 data = json.load(f)
 
             # Load TLS session keys
-            if 'tls_session_keys' in data:
-                for key_data in data['tls_session_keys']:
+            if "tls_session_keys" in data:
+                for key_data in data["tls_session_keys"]:
                     tls_key = TLSSessionKey(
-                        session_id=key_data['session_id'],
-                        master_secret=base64.b64decode(key_data['master_secret']),
-                        client_random=base64.b64decode(key_data['client_random']),
-                        server_random=base64.b64decode(key_data['server_random']),
-                        cipher=key_data['cipher'],
-                        protocol=key_data['protocol'],
-                        timestamp=key_data['timestamp']
+                        session_id=key_data["session_id"],
+                        master_secret=base64.b64decode(key_data["master_secret"]),
+                        client_random=base64.b64decode(key_data["client_random"]),
+                        server_random=base64.b64decode(key_data["server_random"]),
+                        cipher=key_data["cipher"],
+                        protocol=key_data["protocol"],
+                        timestamp=key_data["timestamp"],
                     )
                     self.tls_keys[tls_key.session_id] = tls_key
 
             # Load device keys
-            if 'device_keys' in data:
-                dk = data['device_keys']
+            if "device_keys" in data:
+                dk = data["device_keys"]
                 self.device_keys = DeviceKeys(
-                    public_key=base64.b64decode(dk['public_key']),
-                    private_key=base64.b64decode(dk['private_key']),
-                    symmetric_key=base64.b64decode(dk['symmetric_key']),
-                    key_type=dk['key_type'],
-                    key_size=dk['key_size']
+                    public_key=base64.b64decode(dk["public_key"]),
+                    private_key=base64.b64decode(dk["private_key"]),
+                    symmetric_key=base64.b64decode(dk["symmetric_key"]),
+                    key_type=dk["key_type"],
+                    key_size=dk["key_size"],
                 )
 
             self.crypto_keys_path = keys_file
@@ -157,17 +155,17 @@ class TrafficDecryptor:
             True if keys loaded successfully
         """
         try:
-            with open(key_log_file, 'r') as f:
+            with open(key_log_file, "r") as f:
                 for line in f:
                     line = line.strip()
 
                     # Skip comments and empty lines
-                    if not line or line.startswith('#'):
+                    if not line or line.startswith("#"):
                         continue
 
                     # Parse: CLIENT_RANDOM <client_random> <master_secret>
                     parts = line.split()
-                    if len(parts) == 3 and parts[0] == 'CLIENT_RANDOM':
+                    if len(parts) == 3 and parts[0] == "CLIENT_RANDOM":
                         client_random_hex = parts[1]
                         master_secret_hex = parts[2]
 
@@ -182,10 +180,10 @@ class TrafficDecryptor:
                             session_id=session_id,
                             master_secret=master_secret,
                             client_random=client_random,
-                            server_random=b'',  # Not in NSS format
-                            cipher='unknown',
-                            protocol='TLS',
-                            timestamp=0
+                            server_random=b"",  # Not in NSS format
+                            cipher="unknown",
+                            protocol="TLS",
+                            timestamp=0,
                         )
 
                         self.tls_keys[session_id] = tls_key
@@ -208,7 +206,7 @@ class TrafficDecryptor:
             Network event with decrypted data
         """
         # Extract TLS session ID from network event
-        session_id = network_event.get('correlation_id', '')
+        session_id = network_event.get("correlation_id", "")
 
         if not session_id or session_id not in self.tls_keys:
             logger.debug(f"No TLS key available for session {session_id}")
@@ -218,24 +216,18 @@ class TrafficDecryptor:
         result = network_event.copy()
 
         # Decrypt request body if present
-        if 'request_body' in network_event and network_event['request_body']:
-            decrypted_request = self.decrypt_request_body(
-                network_event['request_body'],
-                session_id
-            )
+        if "request_body" in network_event and network_event["request_body"]:
+            decrypted_request = self.decrypt_request_body(network_event["request_body"], session_id)
             if decrypted_request:
-                result['request_body'] = decrypted_request
-                result['request_decrypted'] = True
+                result["request_body"] = decrypted_request
+                result["request_decrypted"] = True
 
         # Decrypt response body if present
-        if 'response_body' in network_event and network_event['response_body']:
-            decrypted_response = self.decrypt_response_body(
-                network_event['response_body'],
-                session_id
-            )
+        if "response_body" in network_event and network_event["response_body"]:
+            decrypted_response = self.decrypt_response_body(network_event["response_body"], session_id)
             if decrypted_response:
-                result['response_body'] = decrypted_response
-                result['response_decrypted'] = True
+                result["response_body"] = decrypted_response
+                result["response_decrypted"] = True
 
         return result
 
@@ -277,11 +269,7 @@ class TrafficDecryptor:
             key = tls_key.master_secret[:32]
 
             # Decrypt using AES-256-CBC
-            cipher = Cipher(
-                algorithms.AES(key),
-                modes.CBC(iv),
-                backend=default_backend()
-            )
+            cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
             decryptor = cipher.decryptor()
             decrypted_padded = decryptor.update(ciphertext) + decryptor.finalize()
 
@@ -289,7 +277,7 @@ class TrafficDecryptor:
             pad_len = decrypted_padded[-1]
             decrypted = decrypted_padded[:-pad_len]
 
-            return decrypted.decode('utf-8', errors='replace')
+            return decrypted.decode("utf-8", errors="replace")
 
         except ImportError:
             logger.error("cryptography library not installed. Install with: pip install cryptography")
@@ -323,7 +311,7 @@ class TrafficDecryptor:
             True if export successful
         """
         try:
-            with open(output_file, 'w') as f:
+            with open(output_file, "w") as f:
                 f.write("# TLS Key Log - Exported by Mobile Test Framework\n")
                 f.write("# Format: CLIENT_RANDOM <client_random> <master_secret>\n")
                 f.write("#\n")
@@ -343,9 +331,9 @@ class TrafficDecryptor:
     def get_stats(self) -> Dict:
         """Get decryptor statistics"""
         return {
-            'tls_keys_loaded': len(self.tls_keys),
-            'device_keys_loaded': self.device_keys is not None,
-            'keys_file': str(self.crypto_keys_path) if self.crypto_keys_path else None
+            "tls_keys_loaded": len(self.tls_keys),
+            "device_keys_loaded": self.device_keys is not None,
+            "keys_file": str(self.crypto_keys_path) if self.crypto_keys_path else None,
         }
 
     def list_sessions(self) -> List[str]:
@@ -371,11 +359,7 @@ def pull_keys_from_device(session_id: str, package_name: str = "com.findemo") ->
 
     try:
         logger.info(f"Pulling crypto keys from device: {device_path}")
-        result = subprocess.run(
-            ["adb", "pull", device_path, str(local_path)],
-            capture_output=True,
-            text=True
-        )
+        result = subprocess.run(["adb", "pull", device_path, str(local_path)], capture_output=True, text=True)
 
         if result.returncode != 0:
             logger.error(f"Failed to pull keys: {result.stderr}")

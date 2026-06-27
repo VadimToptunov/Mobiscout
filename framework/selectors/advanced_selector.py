@@ -174,17 +174,17 @@ class AdvancedSelector:
             # Escape value to prevent XPath injection
             escaped_value = escape_xpath_value(self.value)
             if platform == "android":
-                return {"xpath": f'//*[@text={escaped_value}]'}
+                return {"xpath": f"//*[@text={escaped_value}]"}
             else:  # iOS
-                return {"xpath": f'//*[@label={escaped_value} or @value={escaped_value}]'}
+                return {"xpath": f"//*[@label={escaped_value} or @value={escaped_value}]"}
 
         if self.type == SelectorType.CONTAINS_TEXT:
             # Escape value to prevent XPath injection
             escaped_value = escape_xpath_value(self.value)
             if platform == "android":
-                return {"xpath": f'//*[contains(@text, {escaped_value})]'}
+                return {"xpath": f"//*[contains(@text, {escaped_value})]"}
             else:  # iOS
-                return {"xpath": f'//*[contains(@label, {escaped_value}) or contains(@value, {escaped_value})]'}
+                return {"xpath": f"//*[contains(@label, {escaped_value}) or contains(@value, {escaped_value})]"}
 
         return {}
 
@@ -207,6 +207,7 @@ class AdvancedSelectorEngine:
         """
         # Deep copy elements to avoid modifying original data
         import copy
+
         self.elements = copy.deepcopy(elements)
         self._build_relationships()
 
@@ -260,7 +261,7 @@ class AdvancedSelectorEngine:
         return candidates
 
     def _apply_base_selector(
-            self, candidates: List[Dict[str, Any]], selector: AdvancedSelector
+        self, candidates: List[Dict[str, Any]], selector: AdvancedSelector
     ) -> List[Dict[str, Any]]:
         """Apply the base selector type"""
         results = []
@@ -307,9 +308,7 @@ class AdvancedSelectorEngine:
 
         return False
 
-    def _apply_relationship(
-            self, candidates: List[Dict[str, Any]], selector: AdvancedSelector
-    ) -> List[Dict[str, Any]]:
+    def _apply_relationship(self, candidates: List[Dict[str, Any]], selector: AdvancedSelector) -> List[Dict[str, Any]]:
         """Apply relationship selector"""
         results = []
 
@@ -319,7 +318,7 @@ class AdvancedSelectorEngine:
             # Check if any related element matches the target selector
             for related in related_elements:
                 if self._matches_base(related, selector.relationship_target) and selector.relationship_target.matches(
-                        related
+                    related
                 ):
                     results.append(element)
                     break

@@ -19,6 +19,7 @@ from framework.core.engine import Language, Screen, UIElement
 
 class PageObjectPattern(Enum):
     """Page Object patterns"""
+
     CLASSIC = "classic"  # Classic Page Object Model
     SCREENPLAY = "screenplay"  # Screenplay pattern
     FLUENT = "fluent"  # Fluent interface
@@ -27,6 +28,7 @@ class PageObjectPattern(Enum):
 @dataclass
 class SelectorStrategy:
     """Self-healing selector with fallback strategies"""
+
     primary: str  # Primary selector (e.g., ID)
     fallbacks: List[str]  # Fallback selectors (xpath, accessibility id, etc.)
     stability_score: float = 1.0  # Selector stability score (0-1)
@@ -204,7 +206,7 @@ class {class_name}:
         """Generate Java Page Object"""
         class_name = f"{screen.name}Page"
 
-        code = f'''package {package_name};
+        code = f"""package {package_name};
 
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.pagefactory.AppiumFieldDecorator;
@@ -230,15 +232,15 @@ public class {class_name} {{
         PageFactory.initElements(new AppiumFieldDecorator(driver), this);
     }}
     
-'''
+"""
 
         # Generate methods for elements
         for element in screen.elements[:5]:
             strategy = self.generate_selector_strategy(element)
             elem_name = (element.label or element.id or f"element_{element.type}").replace(" ", "_").lower()
-            method_name = ''.join(word.capitalize() for word in elem_name.split('_'))
+            method_name = "".join(word.capitalize() for word in elem_name.split("_"))
 
-            code += f'''    public WebElement get{method_name}() {{
+            code += f"""    public WebElement get{method_name}() {{
         String[] strategies = {{{", ".join(f'"{s}"' for s in strategy.get_selector_chain())}}};
         
         for (String selector : strategies) {{
@@ -254,9 +256,9 @@ public class {class_name} {{
         throw new RuntimeException("Could not find {elem_name}");
     }}
     
-'''
+"""
 
-        code += f'''    private By getLocator(String type, String value) {{
+        code += f"""    private By getLocator(String type, String value) {{
         switch (type) {{
             case "id": return By.id(value);
             case "xpath": return By.xpath(value);
@@ -274,7 +276,7 @@ public class {class_name} {{
         }}
     }}
 }}
-'''
+"""
 
         return code
 
@@ -282,7 +284,7 @@ public class {class_name} {{
         """Generate Kotlin Page Object"""
         class_name = f"{screen.name}Page"
 
-        return f'''package {package_name}
+        return f"""package {package_name}
 
 import io.appium.java_client.AppiumDriver
 import org.openqa.selenium.By
@@ -330,13 +332,13 @@ class {class_name}(private val driver: AppiumDriver) {{
         }}
     }}
 }}
-'''
+"""
 
     def _generate_javascript_page_object(self, screen: Screen, package_name: str) -> str:
         """Generate JavaScript Page Object"""
         class_name = f"{screen.name}Page"
 
-        return f'''/**
+        return f"""/**
  * Page Object for {screen.name}
  * Auto-generated with self-healing selectors
  */
@@ -386,13 +388,13 @@ class {class_name} {{
 }}
 
 module.exports = {class_name};
-'''
+"""
 
     def _generate_typescript_page_object(self, screen: Screen, package_name: str) -> str:
         """Generate TypeScript Page Object"""
         class_name = f"{screen.name}Page"
 
-        return f'''import {{ Browser, Element }} from 'webdriverio';
+        return f"""import {{ Browser, Element }} from 'webdriverio';
 
 /**
  * Page Object for {screen.name}
@@ -440,13 +442,13 @@ export class {class_name} {{
         }}
     }}
 }}
-'''
+"""
 
     def _generate_csharp_page_object(self, screen: Screen, package_name: str) -> str:
         """Generate C# Page Object"""
         class_name = f"{screen.name}Page"
 
-        return f'''using OpenQA.Selenium;
+        return f"""using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
 using OpenQA.Selenium.Support.UI;
 using System;
@@ -511,13 +513,13 @@ namespace {package_name}
         }}
     }}
 }}
-'''
+"""
 
     def _generate_go_page_object(self, screen: Screen, package_name: str) -> str:
         """Generate Go Page Object"""
         class_name = f"{screen.name}Page"
 
-        return f'''package {package_name}
+        return f"""package {package_name}
 
 import (
     "fmt"
@@ -549,13 +551,13 @@ func (p *{class_name}) IsDisplayed() bool {{
     // Check key element
     return true
 }}
-'''
+"""
 
     def _generate_swift_page_object(self, screen: Screen, package_name: str) -> str:
         """Generate Swift Page Object"""
         class_name = f"{screen.name}Page"
 
-        return f'''import XCTest
+        return f"""import XCTest
 
 /// Page Object for {screen.name}
 /// Auto-generated with self-healing selectors
@@ -598,7 +600,7 @@ class {class_name} {{
         return true
     }}
 }}
-'''
+"""
 
     def generate_test_scaffold(self, screen: Screen, test_name: Optional[str] = None) -> str:
         """
@@ -656,7 +658,7 @@ class Test{screen.name}:
         """Generate Java test scaffold"""
         page_class = f"{screen.name}Page"
 
-        return f'''package tests;
+        return f"""package tests;
 
 import org.junit.jupiter.api.*;
 import pages.{page_class};
@@ -686,11 +688,11 @@ public class {screen.name}Test {{
         // TODO: Add interaction tests
     }}
 }}
-'''
+"""
 
     def generate_bdd_feature(self, screen: Screen) -> str:
         """Generate BDD feature file"""
-        return f'''Feature: {screen.name}
+        return f"""Feature: {screen.name}
   As a user
   I want to interact with {screen.name}
   So that I can complete my task
@@ -704,7 +706,7 @@ public class {screen.name}Test {{
     Given I am on {screen.name}
     When I perform actions
     Then I should see expected results
-'''
+"""
 
     def save_files(self, screen: Screen, output_dir: Path):
         """
@@ -721,20 +723,20 @@ public class {screen.name}Test {{
         po_filename = f"{screen.name.lower()}_page"
         po_ext = self._get_file_extension()
         (output_dir / "pages").mkdir(exist_ok=True)
-        with open(output_dir / "pages" / f"{po_filename}{po_ext}", 'w') as f:
+        with open(output_dir / "pages" / f"{po_filename}{po_ext}", "w") as f:
             f.write(po_code)
 
         # Test scaffold
         test_code = self.generate_test_scaffold(screen)
         test_filename = f"test_{screen.name.lower()}"
         (output_dir / "tests").mkdir(exist_ok=True)
-        with open(output_dir / "tests" / f"{test_filename}{po_ext}", 'w') as f:
+        with open(output_dir / "tests" / f"{test_filename}{po_ext}", "w") as f:
             f.write(test_code)
 
         # BDD feature (optional)
         feature_code = self.generate_bdd_feature(screen)
         (output_dir / "features").mkdir(exist_ok=True)
-        with open(output_dir / "features" / f"{screen.name.lower()}.feature", 'w') as f:
+        with open(output_dir / "features" / f"{screen.name.lower()}.feature", "w") as f:
             f.write(feature_code)
 
     def _get_file_extension(self) -> str:

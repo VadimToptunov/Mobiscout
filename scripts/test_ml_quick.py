@@ -5,7 +5,7 @@
 
 import sys
 
-sys.path.insert(0, '/Users/vadimtoptunov/PycharmProjects/mobile_test_recorder')
+sys.path.insert(0, "/Users/vadimtoptunov/PycharmProjects/mobile_test_recorder")
 
 print("🤖 Testing ML Module...")
 
@@ -19,7 +19,7 @@ try:
     print("✅ MLModule created")
 
     # Test prediction
-    result = ml.predict_selector({'id': 'test', 'type': 'button'})
+    result = ml.predict_selector({"id": "test", "type": "button"})
     print(f"✅ Prediction works: {result.prediction} (confidence: {result.confidence})")
 
     print("\n✅ ALL TESTS PASSED!")

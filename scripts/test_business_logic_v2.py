@@ -5,11 +5,7 @@ Test Business Logic Analyzer v2.0 Features
 
 from pathlib import Path
 
-from framework.analyzers.business_logic_analyzer import (
-    BusinessLogicAnalyzer,
-    StateMachine,
-    EdgeCase
-)
+from framework.analyzers.business_logic_analyzer import BusinessLogicAnalyzer, StateMachine, EdgeCase
 
 
 def test_platform_detection():
@@ -37,10 +33,7 @@ def test_edge_case_detection():
 
     # Simulate detection
     edge_case = EdgeCase(
-        type="boundary",
-        description="Boundary check: userId > 0",
-        test_data=[-1, 0, 1],
-        severity="high"
+        type="boundary", description="Boundary check: userId > 0", test_data=[-1, 0, 1], severity="high"
     )
 
     print(f"✅ Edge case structure: {edge_case.type}")
@@ -60,11 +53,11 @@ def test_state_machine_extraction():
             "Idle": ["Loading"],
             "Loading": ["Authenticated", "Error"],
             "Authenticated": ["Idle"],
-            "Error": ["Idle"]
+            "Error": ["Idle"],
         },
         initial_state="Idle",
         final_states=["Authenticated"],
-        source_file="LoginViewModel.kt"
+        source_file="LoginViewModel.kt",
     )
 
     print(f"✅ State machine: {state_machine.name}")
@@ -81,11 +74,11 @@ def test_negative_test_generation():
     print("\n=== Testing Negative Test Generation ===")
 
     negative_test = {
-        'name': "Negative: Login - Invalid Input",
-        'type': 'negative',
-        'description': "Test Login with invalid input",
-        'expected_outcome': "Show error message",
-        'priority': 'high'
+        "name": "Negative: Login - Invalid Input",
+        "type": "negative",
+        "description": "Test Login with invalid input",
+        "expected_outcome": "Show error message",
+        "priority": "high",
     }
 
     print(f"✅ Negative test: {negative_test['name']}")
@@ -102,10 +95,10 @@ def test_export_format():
     export_data = analyzer.export_to_json()
 
     # Check new fields
-    assert 'platform' in export_data
-    assert 'state_machines' in export_data
-    assert 'edge_cases' in export_data
-    assert 'negative_test_cases' in export_data
+    assert "platform" in export_data
+    assert "state_machines" in export_data
+    assert "edge_cases" in export_data
+    assert "negative_test_cases" in export_data
 
     print("✅ Export contains 'platform'")
     print("✅ Export contains 'state_machines'")
@@ -141,6 +134,7 @@ def main():
     except Exception as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)
 

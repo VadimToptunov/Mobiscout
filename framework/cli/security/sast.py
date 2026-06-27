@@ -23,7 +23,9 @@ from framework.cli.security.base import (
 
 @security.command()
 @click.argument("source_path", type=Path)
-@click.option("--language", "-l", type=click.Choice(["python", "java", "kotlin", "swift", "javascript", "all"]), default="all")
+@click.option(
+    "--language", "-l", type=click.Choice(["python", "java", "kotlin", "swift", "javascript", "all"]), default="all"
+)
 @click.option("--output", "-o", type=Path, help="Output report path")
 @click.option("--format", "-f", type=click.Choice(["json", "sarif", "html"]), default="json")
 @click.option("--taint/--no-taint", default=True, help="Enable taint analysis")
@@ -50,14 +52,16 @@ def sast(
     if not validate_path(source_path):
         raise SystemExit(1)
 
-    console.print(Panel.fit(
-        "Static Application Security Testing (SAST)\n\n"
-        f"Source: {source_path}\n"
-        f"Language: {language.upper()}\n"
-        f"Taint Analysis: {'Enabled' if taint else 'Disabled'}\n"
-        f"Crypto Analysis: {'Enabled' if crypto else 'Disabled'}",
-        style="bold cyan"
-    ))
+    console.print(
+        Panel.fit(
+            "Static Application Security Testing (SAST)\n\n"
+            f"Source: {source_path}\n"
+            f"Language: {language.upper()}\n"
+            f"Taint Analysis: {'Enabled' if taint else 'Disabled'}\n"
+            f"Crypto Analysis: {'Enabled' if crypto else 'Disabled'}",
+            style="bold cyan",
+        )
+    )
 
     analyzer = SASTAnalyzer()
 
@@ -104,7 +108,9 @@ def sast(
 
     for vuln in (critical_vulns + high_vulns)[:10]:
         severity_style = "red bold" if vuln.severity == "critical" else "yellow"
-        console.print(f"  [{severity_style}]•[/{severity_style}] [{severity_style}]{vuln.vulnerability_type.value}[/{severity_style}]")
+        console.print(
+            f"  [{severity_style}]•[/{severity_style}] [{severity_style}]{vuln.vulnerability_type.value}[/{severity_style}]"
+        )
         console.print(f"    [dim]File:[/dim] {vuln.file_path}:{vuln.line_number}")
         console.print(f"    [dim]CWE:[/dim] {vuln.cwe_id} | {vuln.description[:60]}...")
         if vuln.taint_flow:
@@ -117,7 +123,7 @@ def sast(
         elif format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, 'w') as f:
+            with open(output, "w") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
@@ -169,9 +175,10 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
             f"[dim]Sink:[/dim] {flow.sink} (line {flow.sink_line})\n"
             f"[dim]File:[/dim] {vuln.file_path}\n"
             f"[dim]Path Length:[/dim] {len(flow.path)} nodes\n\n"
-            f"[cyan]Flow Path:[/cyan]\n" + " -> ".join(flow.path[:5]) +
-            (f" -> ... ({len(flow.path) - 5} more)" if len(flow.path) > 5 else "") +
-            f"\n\n[yellow]CWE-{vuln.cwe_id}:[/yellow] {vuln.description}",
+            f"[cyan]Flow Path:[/cyan]\n"
+            + " -> ".join(flow.path[:5])
+            + (f" -> ... ({len(flow.path) - 5} more)" if len(flow.path) > 5 else "")
+            + f"\n\n[yellow]CWE-{vuln.cwe_id}:[/yellow] {vuln.description}",
             title=f"[{severity_style}]{vuln.severity.upper()}[/{severity_style}]",
             border_style=severity_style,
         )
@@ -180,7 +187,7 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
 
     if output:
         data = [v.to_dict() for v in taint_vulns]
-        with open(output, 'w') as f:
+        with open(output, "w") as f:
             json.dump(data, f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 

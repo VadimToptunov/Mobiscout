@@ -13,6 +13,7 @@ from typing import List, Dict, Optional
 
 class SelectorStrategy(Enum):
     """Strategy for selector generation"""
+
     ID = "id"
     XPATH = "xpath"
     CSS = "css"
@@ -25,6 +26,7 @@ class SelectorStrategy(Enum):
 @dataclass
 class AlternativeSelector:
     """Represents an alternative selector"""
+
     strategy: SelectorStrategy
     value: str
     confidence: float  # 0.0 - 1.0
@@ -46,12 +48,11 @@ class SelectorDiscovery:
 
     def __init__(self):
         self.alternatives: List[AlternativeSelector] = []
+        # child -> parent map, rebuilt per page source (ElementTree has no
+        # parent pointers); used by _generate_xpath to build positional paths.
+        self._parent_map: Dict[ET.Element, ET.Element] = {}
 
-    def discover_from_page_source(
-            self,
-            page_source_path: Path,
-            original_selector: tuple
-    ) -> List[AlternativeSelector]:
+    def discover_from_page_source(self, page_source_path: Path, original_selector: tuple) -> List[AlternativeSelector]:
         """
         Discover alternative selectors from page source XML
 
@@ -67,6 +68,10 @@ class SelectorDiscovery:
         try:
             tree = ET.parse(page_source_path)
             root = tree.getroot()
+
+            # Build the child->parent map so _generate_xpath can compute
+            # positional, unique paths (without it every XPath collapsed to //tag).
+            self._parent_map = {child: parent for parent in root.iter() for child in parent}
 
             # Find all interactive elements
             elements = self._find_interactive_elements(root)
@@ -98,22 +103,28 @@ class SelectorDiscovery:
     def _is_interactive(self, elem: ET.Element) -> bool:
         """Check if element is interactive"""
         # Check class name
-        class_name = elem.get('class', '')
+        class_name = elem.get("class", "")
         interactive_classes = [
-            'Button', 'EditText', 'TextView', 'ImageButton',
-            'UIButton', 'UITextField', 'UILabel', 'UITextView'
+            "Button",
+            "EditText",
+            "TextView",
+            "ImageButton",
+            "UIButton",
+            "UITextField",
+            "UILabel",
+            "UITextView",
         ]
 
         if any(cls in class_name for cls in interactive_classes):
             return True
 
         # Check if clickable
-        if elem.get('clickable') == 'true':
+        if elem.get("clickable") == "true":
             return True
 
         # Check if has text
-        text = elem.get('text', '')
-        content_desc = elem.get('content-desc', '')
+        text = elem.get("text", "")
+        content_desc = elem.get("content-desc", "")
         if text or content_desc:
             return True
 
@@ -125,73 +136,81 @@ class SelectorDiscovery:
         attributes = elem.attrib
 
         # ID selector (highest confidence)
-        resource_id = attributes.get('resource-id', '')
+        resource_id = attributes.get("resource-id", "")
         if resource_id:
-            selectors.append(AlternativeSelector(
-                strategy=SelectorStrategy.ID,
-                value=resource_id,
-                confidence=0.95,
-                element_attributes=dict(attributes)
-            ))
+            selectors.append(
+                AlternativeSelector(
+                    strategy=SelectorStrategy.ID,
+                    value=resource_id,
+                    confidence=0.95,
+                    element_attributes=dict(attributes),
+                )
+            )
 
         # Accessibility ID (iOS)
-        accessibility_id = attributes.get('name', '') or attributes.get('label', '')
+        accessibility_id = attributes.get("name", "") or attributes.get("label", "")
         if accessibility_id:
-            selectors.append(AlternativeSelector(
-                strategy=SelectorStrategy.ACCESSIBILITY_ID,
-                value=accessibility_id,
-                confidence=0.90,
-                element_attributes=dict(attributes)
-            ))
+            selectors.append(
+                AlternativeSelector(
+                    strategy=SelectorStrategy.ACCESSIBILITY_ID,
+                    value=accessibility_id,
+                    confidence=0.90,
+                    element_attributes=dict(attributes),
+                )
+            )
 
         # Text selector
-        text = attributes.get('text', '')
+        text = attributes.get("text", "")
         if text:
-            selectors.append(AlternativeSelector(
-                strategy=SelectorStrategy.TEXT,
-                value=text,
-                confidence=0.70,
-                element_attributes=dict(attributes)
-            ))
+            selectors.append(
+                AlternativeSelector(
+                    strategy=SelectorStrategy.TEXT, value=text, confidence=0.70, element_attributes=dict(attributes)
+                )
+            )
 
             # Partial text (more flexible)
             if len(text) > 3:
-                selectors.append(AlternativeSelector(
-                    strategy=SelectorStrategy.PARTIAL_TEXT,
-                    value=text,
-                    confidence=0.65,
-                    element_attributes=dict(attributes)
-                ))
+                selectors.append(
+                    AlternativeSelector(
+                        strategy=SelectorStrategy.PARTIAL_TEXT,
+                        value=text,
+                        confidence=0.65,
+                        element_attributes=dict(attributes),
+                    )
+                )
 
         # Content description (Android)
-        content_desc = attributes.get('content-desc', '')
+        content_desc = attributes.get("content-desc", "")
         if content_desc:
-            selectors.append(AlternativeSelector(
-                strategy=SelectorStrategy.TEXT,
-                value=content_desc,
-                confidence=0.75,
-                element_attributes=dict(attributes)
-            ))
+            selectors.append(
+                AlternativeSelector(
+                    strategy=SelectorStrategy.TEXT,
+                    value=content_desc,
+                    confidence=0.75,
+                    element_attributes=dict(attributes),
+                )
+            )
 
         # XPath selector (lower confidence, but works)
         xpath = self._generate_xpath(elem)
-        selectors.append(AlternativeSelector(
-            strategy=SelectorStrategy.XPATH,
-            value=xpath,
-            confidence=0.50,
-            element_attributes=dict(attributes)
-        ))
+        selectors.append(
+            AlternativeSelector(
+                strategy=SelectorStrategy.XPATH, value=xpath, confidence=0.50, element_attributes=dict(attributes)
+            )
+        )
 
         # Class-based XPath (more stable)
-        class_name = attributes.get('class', '')
+        class_name = attributes.get("class", "")
         if class_name:
             class_xpath = f"//{class_name}[@text='{text}']" if text else f"//{class_name}"
-            selectors.append(AlternativeSelector(
-                strategy=SelectorStrategy.XPATH,
-                value=class_xpath,
-                confidence=0.60,
-                element_attributes=dict(attributes)
-            ))
+            selectors.append(
+                AlternativeSelector(
+                    strategy=SelectorStrategy.XPATH,
+                    value=class_xpath,
+                    confidence=0.60,
+                    element_attributes=dict(attributes),
+                )
+            )
 
         return selectors
 
@@ -216,17 +235,14 @@ class SelectorDiscovery:
 
             current = parent
 
-        return '//' + '/'.join(path_parts)
+        return "//" + "/".join(path_parts)
 
     def _get_parent(self, elem: ET.Element) -> Optional[ET.Element]:
-        """Get parent of element (not directly supported in ElementTree)"""
-        # This is a simplified version
-        # In real implementation, maintain parent map
-        return None
+        """Get parent of element via the map built in discover_from_page_source
+        (ElementTree elements don't carry parent pointers)."""
+        return self._parent_map.get(elem)
 
-    def filter_by_attributes(
-            self, required_attributes: Dict[str, str]
-    ) -> List[AlternativeSelector]:
+    def filter_by_attributes(self, required_attributes: Dict[str, str]) -> List[AlternativeSelector]:
         """
         Filter alternatives by matching attributes
 
@@ -236,15 +252,13 @@ class SelectorDiscovery:
         Returns:
             Filtered list of alternatives
         """
-        filtered = []
+        return [
+            alt
+            for alt in self.alternatives
+            if all(alt.element_attributes.get(key) == value for key, value in required_attributes.items())
+        ]
 
-        return filtered
-
-    def boost_confidence_by_context(
-            self,
-            screen_name: Optional[str] = None,
-            nearby_text: Optional[List[str]] = None
-    ):
+    def boost_confidence_by_context(self, screen_name: Optional[str] = None, nearby_text: Optional[List[str]] = None):
         """
         Adjust confidence scores based on context
 
@@ -255,13 +269,13 @@ class SelectorDiscovery:
         for selector in self.alternatives:
             # Boost if screen name matches
             if screen_name:
-                class_name = selector.element_attributes.get('class', '')
+                class_name = selector.element_attributes.get("class", "")
                 if screen_name.lower() in class_name.lower():
                     selector.confidence = min(1.0, selector.confidence + 0.10)
 
             # Boost if nearby text matches
             if nearby_text:
-                elem_text = selector.element_attributes.get('text', '')
+                elem_text = selector.element_attributes.get("text", "")
                 for text in nearby_text:
                     if text.lower() in elem_text.lower():
                         selector.confidence = min(1.0, selector.confidence + 0.05)

@@ -124,9 +124,7 @@ class ModelEnricher:
         if "api_calls" not in model:
             model["api_calls"] = []
 
-        existing_endpoints = {
-            f"{ep.get('method', 'GET')} {ep.get('endpoint', '')}" for ep in model["api_calls"]
-        }
+        existing_endpoints = {f"{ep.get('method', 'GET')} {ep.get('endpoint', '')}" for ep in model["api_calls"]}
 
         # Add discovered endpoints
         for ep_data in analysis.get("api_endpoints", []):
@@ -137,9 +135,7 @@ class ModelEnricher:
             if endpoint_key not in existing_endpoints:
                 model["api_calls"].append(
                     {
-                        "name": ep_data.get(
-                            "function_name", f"api_{method.lower()}_{path.replace('/', '_')}"
-                        ),
+                        "name": ep_data.get("function_name", f"api_{method.lower()}_{path.replace('/', '_')}"),
                         "method": method,
                         "endpoint": f"/api/v1/{path}" if not path.startswith("/") else path,
                         "description": f"From {ep_data.get('interface_name', 'service')}",
@@ -187,9 +183,7 @@ class ModelEnricher:
         # Add to fallback lists
         if discovered.get("android"):
             fallbacks = merged.setdefault("android_fallback", [])
-            if discovered["android"] not in fallbacks and discovered["android"] != merged.get(
-                    "android"
-            ):
+            if discovered["android"] not in fallbacks and discovered["android"] != merged.get("android"):
                 fallbacks.append(discovered["android"])
                 self.result.selectors_updated += 1
 
@@ -245,9 +239,7 @@ class ProjectIntegrator:
 
         return page_object_files
 
-    def extract_elements_from_page_objects(
-            self, page_object_files: List[Path]
-    ) -> Dict[str, List[Dict]]:
+    def extract_elements_from_page_objects(self, page_object_files: List[Path]) -> Dict[str, List[Dict]]:
         """
         Extract element definitions from existing Page Objects
 
@@ -265,9 +257,7 @@ class ProjectIntegrator:
             # Look for locator patterns
             import re
 
-            locators = re.findall(
-                r'(\w+)\s*=\s*\(["\'](\w+)["\']\s*,\s*["\']([^"\']+)["\']\)', content
-            )
+            locators = re.findall(r'(\w+)\s*=\s*\(["\'](\w+)["\']\s*,\s*["\']([^"\']+)["\']\)', content)
 
             elements = []
             for name, by, value in locators:
@@ -287,10 +277,10 @@ class ProjectIntegrator:
         return screens
 
     def integrate(
-            self,
-            analysis_results: Dict,
-            output_path: Optional[Path] = None,
-            preserve_existing: bool = True,
+        self,
+        analysis_results: Dict,
+        output_path: Optional[Path] = None,
+        preserve_existing: bool = True,
     ) -> EnrichmentResult:
         """
         Perform full integration

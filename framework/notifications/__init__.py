@@ -10,8 +10,8 @@ Sends notifications via multiple channels:
 from .notifiers import SlackNotifier, TeamsNotifier, EmailNotifier, NotificationManager
 
 __all__ = [
-    'SlackNotifier',
-    'TeamsNotifier',
-    'EmailNotifier',
-    'NotificationManager',
+    "SlackNotifier",
+    "TeamsNotifier",
+    "EmailNotifier",
+    "NotificationManager",
 ]

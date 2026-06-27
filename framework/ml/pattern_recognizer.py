@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FlowPattern:
     """Detected flow pattern."""
+
     pattern_id: str
     screens: List[str]
     frequency: int
@@ -26,6 +27,7 @@ class FlowPattern:
 @dataclass
 class AnomalyDetection:
     """Detected anomaly in user flow."""
+
     session_id: str
     timestamp: int
     anomaly_type: str
@@ -57,10 +59,7 @@ class PatternRecognizer:
         self.detected_patterns: List[FlowPattern] = []
         self.detected_anomalies: List[AnomalyDetection] = []
 
-    def analyze_flows(
-            self,
-            navigation_events: List[Dict[str, Any]]
-    ) -> List[FlowPattern]:
+    def analyze_flows(self, navigation_events: List[Dict[str, Any]]) -> List[FlowPattern]:
         """
         Analyze navigation events to detect common flows.
 
@@ -92,21 +91,18 @@ class PatternRecognizer:
 
         return patterns
 
-    def _group_by_session(
-            self,
-            events: List[Dict[str, Any]]
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    def _group_by_session(self, events: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Group events by session ID."""
         sessions = defaultdict(list)
 
         for event in events:
-            session_id = event.get('session_id') or event.get('sessionId')
+            session_id = event.get("session_id") or event.get("sessionId")
             if session_id:
                 sessions[session_id].append(event)
 
         # Sort each session by timestamp
         for session_id in sessions:
-            sessions[session_id].sort(key=lambda e: e.get('timestamp', 0))
+            sessions[session_id].sort(key=lambda e: e.get("timestamp", 0))
 
         return dict(sessions)
 
@@ -116,7 +112,7 @@ class PatternRecognizer:
         prev_screen = None
 
         for event in events:
-            screen = event.get('to_screen') or event.get('screen')
+            screen = event.get("to_screen") or event.get("screen")
 
             if screen and screen != prev_screen:
                 sequence.append(screen)
@@ -124,10 +120,7 @@ class PatternRecognizer:
 
         return sequence
 
-    def _mine_sequential_patterns(
-            self,
-            sequences: List[List[str]]
-    ) -> List[FlowPattern]:
+    def _mine_sequential_patterns(self, sequences: List[List[str]]) -> List[FlowPattern]:
         """
         Mine frequent sequential patterns.
 
@@ -142,18 +135,14 @@ class PatternRecognizer:
 
         return patterns
 
-    def _find_patterns_of_length(
-            self,
-            sequences: List[List[str]],
-            length: int
-    ) -> List[FlowPattern]:
+    def _find_patterns_of_length(self, sequences: List[List[str]], length: int) -> List[FlowPattern]:
         """Find all patterns of specific length."""
         pattern_counts = Counter()
 
         # Count subsequences
         for sequence in sequences:
             for i in range(len(sequence) - length + 1):
-                subsequence = tuple(sequence[i:i + length])
+                subsequence = tuple(sequence[i : i + length])
                 pattern_counts[subsequence] += 1
 
         # Filter by min_support
@@ -172,18 +161,14 @@ class PatternRecognizer:
                         frequency=count,
                         confidence=confidence,
                         is_critical=False,  # Will be determined later
-                        description=description
+                        description=description,
                     )
 
                     patterns.append(flow_pattern)
 
         return patterns
 
-    def _mark_critical_paths(
-            self,
-            patterns: List[FlowPattern],
-            sequences: List[List[str]]
-    ):
+    def _mark_critical_paths(self, patterns: List[FlowPattern], sequences: List[List[str]]):
         """Mark patterns that are likely critical paths."""
         # Critical path heuristics:
         # 1. High frequency (> 50% of sessions)
@@ -191,18 +176,15 @@ class PatternRecognizer:
         # 3. Contains transaction screens
 
         total_sessions = len(sequences)
-        critical_screens = {'login', 'home', 'checkout', 'payment', 'confirm', 'kyc'}
-        entry_screens = {'onboarding', 'splash', 'login'}
+        critical_screens = {"login", "home", "checkout", "payment", "confirm", "kyc"}
+        entry_screens = {"onboarding", "splash", "login"}
 
         for pattern in patterns:
             # High frequency check
             frequency_ratio = pattern.frequency / total_sessions
 
             # Entry screen check
-            starts_with_entry = any(
-                pattern.screens[0].lower().find(screen) >= 0
-                for screen in entry_screens
-            )
+            starts_with_entry = any(pattern.screens[0].lower().find(screen) >= 0 for screen in entry_screens)
 
             # Contains critical screen check
             contains_critical = any(
@@ -215,9 +197,7 @@ class PatternRecognizer:
                 pattern.is_critical = True
 
     def detect_anomalies(
-            self,
-            navigation_events: List[Dict[str, Any]],
-            known_patterns: Optional[List[FlowPattern]] = None
+        self, navigation_events: List[Dict[str, Any]], known_patterns: Optional[List[FlowPattern]] = None
     ) -> List[AnomalyDetection]:
         """
         Detect anomalies in user flows.
@@ -251,16 +231,12 @@ class PatternRecognizer:
 
         return anomalies
 
-    def _detect_dead_ends(
-            self,
-            session_id: str,
-            sequence: List[str]
-    ) -> List[AnomalyDetection]:
+    def _detect_dead_ends(self, session_id: str, sequence: List[str]) -> List[AnomalyDetection]:
         """Detect sessions that end unexpectedly."""
         anomalies = []
 
         # Check if session ended abruptly (not at expected exit point)
-        exit_screens = {'home', 'logout', 'onboarding'}
+        exit_screens = {"home", "logout", "onboarding"}
 
         if len(sequence) > 2:
             last_screen = sequence[-1].lower()
@@ -271,19 +247,15 @@ class PatternRecognizer:
                     anomaly = AnomalyDetection(
                         session_id=session_id,
                         timestamp=0,  # Would need actual timestamp
-                        anomaly_type='dead_end',
+                        anomaly_type="dead_end",
                         description=f"Session ended at unexpected screen: {last_screen}",
-                        severity='medium'
+                        severity="medium",
                     )
                     anomalies.append(anomaly)
 
         return anomalies
 
-    def _detect_loops(
-            self,
-            session_id: str,
-            sequence: List[str]
-    ) -> List[AnomalyDetection]:
+    def _detect_loops(self, session_id: str, sequence: List[str]) -> List[AnomalyDetection]:
         """Detect navigation loops (screen revisited multiple times)."""
         anomalies = []
 
@@ -296,19 +268,16 @@ class PatternRecognizer:
                 anomaly = AnomalyDetection(
                     session_id=session_id,
                     timestamp=0,
-                    anomaly_type='navigation_loop',
+                    anomaly_type="navigation_loop",
                     description=f"Screen '{screen}' visited {count} times (possible loop)",
-                    severity='low' if count <= 5 else 'medium'
+                    severity="low" if count <= 5 else "medium",
                 )
                 anomalies.append(anomaly)
 
         return anomalies
 
     def _detect_unusual_paths(
-            self,
-            session_id: str,
-            sequence: List[str],
-            known_patterns: List[FlowPattern]
+        self, session_id: str, sequence: List[str], known_patterns: List[FlowPattern]
     ) -> List[AnomalyDetection]:
         """Detect paths that don't match any known pattern."""
         if not known_patterns:
@@ -329,32 +298,25 @@ class PatternRecognizer:
             anomaly = AnomalyDetection(
                 session_id=session_id,
                 timestamp=0,
-                anomaly_type='unusual_path',
+                anomaly_type="unusual_path",
                 description=f"Unusual navigation path: {' → '.join(sequence[:5])}...",
-                severity='low'
+                severity="low",
             )
             anomalies.append(anomaly)
 
         return anomalies
 
-    def _sequence_contains_pattern(
-            self,
-            sequence: List[str],
-            pattern: List[str]
-    ) -> bool:
+    def _sequence_contains_pattern(self, sequence: List[str], pattern: List[str]) -> bool:
         """Check if sequence contains pattern as subsequence."""
         pattern_len = len(pattern)
 
         for i in range(len(sequence) - pattern_len + 1):
-            if sequence[i:i + pattern_len] == pattern:
+            if sequence[i : i + pattern_len] == pattern:
                 return True
 
         return False
 
-    def suggest_test_scenarios(
-            self,
-            patterns: Optional[List[FlowPattern]] = None
-    ) -> List[Dict[str, Any]]:
+    def suggest_test_scenarios(self, patterns: Optional[List[FlowPattern]] = None) -> List[Dict[str, Any]]:
         """
         Suggest test scenarios based on detected patterns.
 
@@ -374,31 +336,28 @@ class PatternRecognizer:
 
         for pattern in critical_patterns:
             scenario = {
-                'pattern_id': pattern.pattern_id,
-                'priority': 'critical' if pattern.is_critical else 'normal',
-                'frequency': pattern.frequency,
-                'confidence': pattern.confidence,
-                'steps': pattern.screens,
-                'gherkin': self._generate_gherkin(pattern),
-                'description': pattern.description
+                "pattern_id": pattern.pattern_id,
+                "priority": "critical" if pattern.is_critical else "normal",
+                "frequency": pattern.frequency,
+                "confidence": pattern.confidence,
+                "steps": pattern.screens,
+                "gherkin": self._generate_gherkin(pattern),
+                "description": pattern.description,
             }
             scenarios.append(scenario)
 
         # Add high-frequency non-critical patterns
-        frequent_patterns = [
-            p for p in patterns
-            if not p.is_critical and p.frequency > self.min_support * 2
-        ]
+        frequent_patterns = [p for p in patterns if not p.is_critical and p.frequency > self.min_support * 2]
 
         for pattern in frequent_patterns[:5]:  # Limit to top 5
             scenario = {
-                'pattern_id': pattern.pattern_id,
-                'priority': 'normal',
-                'frequency': pattern.frequency,
-                'confidence': pattern.confidence,
-                'steps': pattern.screens,
-                'gherkin': self._generate_gherkin(pattern),
-                'description': pattern.description
+                "pattern_id": pattern.pattern_id,
+                "priority": "normal",
+                "frequency": pattern.frequency,
+                "confidence": pattern.confidence,
+                "steps": pattern.screens,
+                "gherkin": self._generate_gherkin(pattern),
+                "description": pattern.description,
             }
             scenarios.append(scenario)
 
@@ -411,7 +370,7 @@ class PatternRecognizer:
         lines = []
 
         # Scenario header
-        scenario_name = pattern.description.replace(' → ', ' to ')
+        scenario_name = pattern.description.replace(" → ", " to ")
         lines.append(f"Scenario: User navigates {scenario_name}")
 
         # Given step (first screen)
@@ -429,23 +388,18 @@ class PatternRecognizer:
     def get_pattern_stats(self) -> Dict[str, Any]:
         """Get statistics about detected patterns."""
         if not self.detected_patterns:
-            return {
-                'total_patterns': 0,
-                'critical_patterns': 0,
-                'avg_frequency': 0.0,
-                'avg_confidence': 0.0
-            }
+            return {"total_patterns": 0, "critical_patterns": 0, "avg_frequency": 0.0, "avg_confidence": 0.0}
 
         critical_count = sum(1 for p in self.detected_patterns if p.is_critical)
         avg_frequency = sum(p.frequency for p in self.detected_patterns) / len(self.detected_patterns)
         avg_confidence = sum(p.confidence for p in self.detected_patterns) / len(self.detected_patterns)
 
         return {
-            'total_patterns': len(self.detected_patterns),
-            'critical_patterns': critical_count,
-            'avg_frequency': avg_frequency,
-            'avg_confidence': avg_confidence,
-            'patterns_by_length': self._count_by_length()
+            "total_patterns": len(self.detected_patterns),
+            "critical_patterns": critical_count,
+            "avg_frequency": avg_frequency,
+            "avg_confidence": avg_confidence,
+            "patterns_by_length": self._count_by_length(),
         }
 
     def _count_by_length(self) -> Dict[int, int]:

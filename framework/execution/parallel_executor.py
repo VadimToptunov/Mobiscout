@@ -18,6 +18,7 @@ from .test_sharding import TestCase, TestShard
 
 class TestStatus(Enum):
     """Test execution status"""
+
     PASSED = "passed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -27,6 +28,7 @@ class TestStatus(Enum):
 @dataclass
 class ExecutionResult:
     """Result of test execution"""
+
     test: TestCase
     status: TestStatus
     duration: float  # seconds
@@ -38,6 +40,7 @@ class ExecutionResult:
 @dataclass
 class ShardResult:
     """Result of shard execution"""
+
     shard_id: int
     test_results: List[ExecutionResult]
     total_duration: float
@@ -61,11 +64,7 @@ class ParallelExecutor:
     Executes tests in parallel across multiple workers
     """
 
-    def __init__(
-            self,
-            max_workers: int = 4,
-            pytest_args: List[str] = None
-    ):
+    def __init__(self, max_workers: int = 4, pytest_args: List[str] = None):
         """
         Initialize parallel executor
 
@@ -77,10 +76,10 @@ class ParallelExecutor:
         self.pytest_args = pytest_args or []
 
     def execute_shards(
-            self,
-            shards: List[TestShard],
-            project_root: Path,
-            progress_callback: Optional[Callable[[int, int], None]] = None
+        self,
+        shards: List[TestShard],
+        project_root: Path,
+        progress_callback: Optional[Callable[[int, int], None]] = None,
     ) -> List[ShardResult]:
         """
         Execute test shards in parallel
@@ -99,10 +98,7 @@ class ParallelExecutor:
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             # Submit all shards
-            future_to_shard = {
-                executor.submit(self._execute_shard, shard, project_root): shard
-                for shard in shards
-            }
+            future_to_shard = {executor.submit(self._execute_shard, shard, project_root): shard for shard in shards}
 
             # Collect results as they complete
             for future in concurrent.futures.as_completed(future_to_shard):
@@ -118,12 +114,9 @@ class ParallelExecutor:
                 except Exception as e:
                     print(f"Shard {shard.shard_id} failed with exception: {e}")
                     # Create error result
-                    results.append(ShardResult(
-                        shard_id=shard.shard_id,
-                        test_results=[],
-                        total_duration=0,
-                        worker_id=None
-                    ))
+                    results.append(
+                        ShardResult(shard_id=shard.shard_id, test_results=[], total_duration=0, worker_id=None)
+                    )
                     completed += 1
 
                     if progress_callback:
@@ -147,32 +140,18 @@ class ParallelExecutor:
 
         total_duration = time.time() - start_time
 
-        return ShardResult(
-            shard_id=shard.shard_id,
-            test_results=test_results,
-            total_duration=total_duration
-        )
+        return ShardResult(shard_id=shard.shard_id, test_results=test_results, total_duration=total_duration)
 
     def _execute_test(self, test: TestCase, project_root: Path) -> ExecutionResult:
         """Execute a single test"""
         start_time = time.time()
 
         # Build pytest command for specific test
-        cmd = [
-                  'pytest',
-                  str(test.file),
-                  '-k', test.name,
-                  '--tb=short',
-                  '-v'
-              ] + self.pytest_args
+        cmd = ["pytest", str(test.file), "-k", test.name, "--tb=short", "-v"] + self.pytest_args
 
         try:
             result = subprocess.run(
-                cmd,
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-                timeout=300  # 5 minute timeout per test
+                cmd, cwd=project_root, capture_output=True, text=True, timeout=300  # 5 minute timeout per test
             )
 
             duration = time.time() - start_time
@@ -189,19 +168,12 @@ class ParallelExecutor:
                 error_message = result.stderr or "Test failed"
 
             return ExecutionResult(
-                test=test,
-                status=status,
-                duration=duration,
-                output=result.stdout,
-                error_message=error_message
+                test=test, status=status, duration=duration, output=result.stdout, error_message=error_message
             )
 
         except subprocess.TimeoutExpired:
             return ExecutionResult(
-                test=test,
-                status=TestStatus.ERROR,
-                duration=300.0,
-                error_message="Test timeout (5 minutes)"
+                test=test, status=TestStatus.ERROR, duration=300.0, error_message="Test timeout (5 minutes)"
             )
 
         except Exception as e:
@@ -209,7 +181,7 @@ class ParallelExecutor:
                 test=test,
                 status=TestStatus.ERROR,
                 duration=time.time() - start_time,
-                error_message=f"Execution error: {e}"
+                error_message=f"Execution error: {e}",
             )
 
     def aggregate_results(self, shard_results: List[ShardResult]) -> Dict:
@@ -226,14 +198,14 @@ class ParallelExecutor:
         errors = sum(1 for r in all_results if r.status == TestStatus.ERROR)
 
         return {
-            'total_tests': len(all_results),
-            'passed': passed,
-            'failed': failed,
-            'skipped': skipped,
-            'errors': errors,
-            'total_duration': total_duration,
-            'pass_rate': (passed / len(all_results) * 100) if all_results else 0,
-            'parallelization_speedup': self._calculate_speedup(all_results, total_duration)
+            "total_tests": len(all_results),
+            "passed": passed,
+            "failed": failed,
+            "skipped": skipped,
+            "errors": errors,
+            "total_duration": total_duration,
+            "pass_rate": (passed / len(all_results) * 100) if all_results else 0,
+            "parallelization_speedup": self._calculate_speedup(all_results, total_duration),
         }
 
     def _calculate_speedup(self, results: List[ExecutionResult], parallel_duration: float) -> float:

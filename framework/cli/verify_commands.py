@@ -40,16 +40,10 @@ def verify() -> None:
     "-l",
     type=click.Choice(["error", "warning", "info", "all"]),
     default="warning",
-    help="Minimum issue level to show"
+    help="Minimum issue level to show",
 )
 @click.option("--exclude", "-e", multiple=True, help="Patterns to exclude")
-def check(
-    path: str,
-    recursive: bool,
-    output: Optional[str],
-    level: str,
-    exclude: tuple
-) -> None:
+def check(path: str, recursive: bool, output: Optional[str], level: str, exclude: tuple) -> None:
     """
     Verify test files in a directory.
 
@@ -60,10 +54,7 @@ def check(
     """
     path_obj = Path(path)
 
-    console.print(Panel.fit(
-        f"🔍 Verifying Test Files\n\nPath: {path}",
-        style="bold cyan"
-    ))
+    console.print(Panel.fit(f"🔍 Verifying Test Files\n\nPath: {path}", style="bold cyan"))
 
     verifier = MultiLanguageVerifier()
     exclude_list = list(exclude) if exclude else None
@@ -79,11 +70,7 @@ def check(
             result = verifier.verify_file(path_obj)
             results = [result] if result else []
         else:
-            results = verifier.verify_directory(
-                path_obj,
-                recursive=recursive,
-                exclude_patterns=exclude_list
-            )
+            results = verifier.verify_directory(path_obj, recursive=recursive, exclude_patterns=exclude_list)
 
         progress.update(task, completed=True)
 
@@ -204,14 +191,16 @@ def file(file_path: str) -> None:
     # Display result
     status = "[green]✓ PASSED[/green]" if result.success else "[red]✗ FAILED[/red]"
 
-    console.print(Panel.fit(
-        f"{status}\n\n"
-        f"File: {path.name}\n"
-        f"Language: {result.language.title()}\n"
-        f"Errors: {result.error_count} | Warnings: {result.warning_count}",
-        title="Verification Result",
-        border_style="green" if result.success else "red",
-    ))
+    console.print(
+        Panel.fit(
+            f"{status}\n\n"
+            f"File: {path.name}\n"
+            f"Language: {result.language.title()}\n"
+            f"Errors: {result.error_count} | Warnings: {result.warning_count}",
+            title="Verification Result",
+            border_style="green" if result.success else "red",
+        )
+    )
 
     # Display issues
     if result.issues:
@@ -286,10 +275,9 @@ def lint(path: str, fix: bool) -> None:
     """
     path_obj = Path(path)
 
-    console.print(Panel.fit(
-        f"🔧 Linting Test Files\n\nPath: {path}\nAuto-fix: {'Yes' if fix else 'No'}",
-        style="bold magenta"
-    ))
+    console.print(
+        Panel.fit(f"🔧 Linting Test Files\n\nPath: {path}\nAuto-fix: {'Yes' if fix else 'No'}", style="bold magenta")
+    )
 
     verifier = MultiLanguageVerifier()
 

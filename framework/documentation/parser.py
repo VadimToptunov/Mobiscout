@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Optional
 @dataclass
 class FunctionDoc:
     """Documentation for a function"""
+
     name: str
     signature: str
     docstring: Optional[str]
@@ -23,6 +24,7 @@ class FunctionDoc:
 @dataclass
 class ClassDoc:
     """Documentation for a class"""
+
     name: str
     docstring: Optional[str]
     bases: List[str]
@@ -35,6 +37,7 @@ class ClassDoc:
 @dataclass
 class ModuleDoc:
     """Documentation for a module"""
+
     name: str
     path: Path
     docstring: Optional[str]
@@ -104,18 +107,22 @@ class CodeParser:
             elif isinstance(item, ast.Assign):
                 for target in item.targets:
                     if isinstance(target, ast.Name):
-                        class_doc.attributes.append({
-                            "name": target.id,
-                            "type": self._get_annotation(item),
-                            "value": self._get_value(item.value),
-                        })
+                        class_doc.attributes.append(
+                            {
+                                "name": target.id,
+                                "type": self._get_annotation(item),
+                                "value": self._get_value(item.value),
+                            }
+                        )
             elif isinstance(item, ast.AnnAssign):
                 if isinstance(item.target, ast.Name):
-                    class_doc.attributes.append({
-                        "name": item.target.id,
-                        "type": self._get_annotation(item),
-                        "value": self._get_value(item.value) if item.value else None,
-                    })
+                    class_doc.attributes.append(
+                        {
+                            "name": item.target.id,
+                            "type": self._get_annotation(item),
+                            "value": self._get_value(item.value) if item.value else None,
+                        }
+                    )
 
         return class_doc
 
@@ -201,10 +208,7 @@ class CodeParser:
         elif isinstance(node, ast.List):
             return [self._get_value(elt) for elt in node.elts]
         elif isinstance(node, ast.Dict):
-            return {
-                self._get_value(k): self._get_value(v)
-                for k, v in zip(node.keys, node.values)
-            }
+            return {self._get_value(k): self._get_value(v) for k, v in zip(node.keys, node.values)}
         else:
             return ast.unparse(node) if hasattr(ast, "unparse") else "..."
 

@@ -23,14 +23,8 @@ class Settings(BaseModel):
     rich_tracebacks: bool = Field(default=True, description="Enable Rich tracebacks")
 
     # Paths
-    output_dir: Path = Field(
-        default_factory=lambda: Path.cwd() / "output",
-        description="Default output directory"
-    )
-    temp_dir: Path = Field(
-        default_factory=lambda: Path.cwd() / ".tmp",
-        description="Temporary files directory"
-    )
+    output_dir: Path = Field(default_factory=lambda: Path.cwd() / "output", description="Default output directory")
+    temp_dir: Path = Field(default_factory=lambda: Path.cwd() / ".tmp", description="Temporary files directory")
 
     # Analysis
     max_complexity: int = Field(default=10, description="Max allowed cyclomatic complexity")

@@ -35,12 +35,14 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
         observe security dast api.example.com
         observe security dast 192.168.1.100 --port 8443 -o dast_report.json
     """
-    console.print(Panel.fit(
-        "Dynamic Application Security Testing (DAST)\n\n"
-        f"Target: {target}:{port}\n"
-        f"Tests: SSL/TLS, API Security, Session Analysis",
-        style="bold yellow"
-    ))
+    console.print(
+        Panel.fit(
+            "Dynamic Application Security Testing (DAST)\n\n"
+            f"Target: {target}:{port}\n"
+            f"Tests: SSL/TLS, API Security, Session Analysis",
+            style="bold yellow",
+        )
+    )
 
     analyzer = DASTAnalyzer()
 
@@ -91,7 +93,7 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
         if format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, 'w') as f:
+            with open(output, "w") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 

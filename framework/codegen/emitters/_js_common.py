@@ -40,7 +40,5 @@ def _wdio_selector(sel: Selector) -> str:
 
 def selector_array(sel: Selector) -> str:
     """Render ``['primary', 'fallback', ...]`` as a JS array literal."""
-    items = [js_str(_wdio_selector(sel))] + [
-        js_str(_wdio_selector(fb)) for fb in sel.fallbacks
-    ]
+    items = [js_str(_wdio_selector(sel))] + [js_str(_wdio_selector(fb)) for fb in sel.fallbacks]
     return "[" + ", ".join(items) + "]"

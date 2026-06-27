@@ -7,6 +7,7 @@ from enum import Enum
 
 class Platform(str, Enum):
     """Supported platforms"""
+
     ANDROID = "android"
     IOS = "ios"
     CROSS_PLATFORM = "cross-platform"
@@ -14,6 +15,7 @@ class Platform(str, Enum):
 
 class ActionType(str, Enum):
     """Types of UI actions"""
+
     TAP = "tap"
     SWIPE = "swipe"
     INPUT = "input"
@@ -23,6 +25,7 @@ class ActionType(str, Enum):
 
 class ElementType(str, Enum):
     """Types of UI elements"""
+
     BUTTON = "button"
     INPUT = "input"
     TEXT = "text"
@@ -37,6 +40,7 @@ class ElementType(str, Enum):
 
 class TestPriority(str, Enum):
     """Element testing priority"""
+
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
@@ -45,6 +49,7 @@ class TestPriority(str, Enum):
 
 class SelectorStability(str, Enum):
     """Selector stability assessment"""
+
     HIGH = "high"  # accessibility ID, resource ID
     MEDIUM = "medium"  # text-based
     LOW = "low"  # XPath with index

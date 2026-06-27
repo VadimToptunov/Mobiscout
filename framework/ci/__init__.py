@@ -13,6 +13,6 @@ from .github_actions import GitHubActionsGenerator
 from .gitlab_ci import GitLabCIGenerator
 
 __all__ = [
-    'GitHubActionsGenerator',
-    'GitLabCIGenerator',
+    "GitHubActionsGenerator",
+    "GitLabCIGenerator",
 ]

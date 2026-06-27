@@ -8,9 +8,7 @@ import json
 
 import pytest
 
-from framework.core.engine import (
-    CoreEngine, UIElement, Screen, Language
-)
+from framework.core.engine import CoreEngine, UIElement, Screen, Language
 
 
 class TestUIElement:
@@ -24,9 +22,9 @@ class TestUIElement:
             label="Login",
             xpath="//android.widget.Button[@text='Login']",
             accessibility_id="login_btn",
-            bounds={'x': 100, 'y': 200, 'width': 50, 'height': 30},
+            bounds={"x": 100, "y": 200, "width": 50, "height": 30},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         assert elem.id == "login_button"
@@ -44,12 +42,12 @@ class TestUIElement:
             accessibility_id=None,
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         selector = elem.to_selector(Language.PYTHON)
-        assert 'driver.find_element' in selector
-        assert 'test_id' in selector
+        assert "driver.find_element" in selector
+        assert "test_id" in selector
 
     def test_java_selector_generation(self):
         """Test Java selector generation"""
@@ -61,12 +59,12 @@ class TestUIElement:
             accessibility_id=None,
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         selector = elem.to_selector(Language.JAVA)
-        assert 'driver.findElement' in selector
-        assert 'test_id' in selector
+        assert "driver.findElement" in selector
+        assert "test_id" in selector
 
     def test_kotlin_selector_generation(self):
         """Test Kotlin selector generation"""
@@ -78,11 +76,11 @@ class TestUIElement:
             accessibility_id=None,
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         selector = elem.to_selector(Language.KOTLIN)
-        assert 'driver.findElement' in selector
+        assert "driver.findElement" in selector
 
 
 class TestScreen:
@@ -95,13 +93,7 @@ class TestScreen:
             UIElement("id2", "textfield", "Text", None, None, {}, True, True),
         ]
 
-        screen = Screen(
-            id="screen1",
-            name="LoginScreen",
-            elements=elements,
-            transitions=[],
-            api_calls=[]
-        )
+        screen = Screen(id="screen1", name="LoginScreen", elements=elements, transitions=[], api_calls=[])
 
         assert screen.id == "screen1"
         assert len(screen.elements) == 2
@@ -128,58 +120,56 @@ class TestCoreEngine:
         """Test engine initializes correctly"""
         engine = CoreEngine()
 
-        assert 'ui_discovery' in engine.enabled_modules
-        assert 'flow_builder' in engine.enabled_modules
-        assert 'skeleton_generator' in engine.enabled_modules
+        assert "ui_discovery" in engine.enabled_modules
+        assert "flow_builder" in engine.enabled_modules
+        assert "skeleton_generator" in engine.enabled_modules
 
     def test_engine_custom_config(self):
         """Test engine with custom config"""
-        config = {
-            'enabled_modules': ['ui_discovery']
-        }
+        config = {"enabled_modules": ["ui_discovery"]}
         engine = CoreEngine(config)
 
-        assert engine.enabled_modules == ['ui_discovery']
+        assert engine.enabled_modules == ["ui_discovery"]
 
     def test_discover_ui(self):
         """Test UI discovery"""
         engine = CoreEngine()
 
         source = {
-            'id': 'login_screen',
-            'name': 'LoginScreen',
-            'elements': [
+            "id": "login_screen",
+            "name": "LoginScreen",
+            "elements": [
                 {
-                    'id': 'username_field',
-                    'type': 'textfield',
-                    'label': 'Username',
-                    'visible': True,
-                    'enabled': True,
-                    'bounds': {'x': 0, 'y': 0, 'width': 100, 'height': 50}
+                    "id": "username_field",
+                    "type": "textfield",
+                    "label": "Username",
+                    "visible": True,
+                    "enabled": True,
+                    "bounds": {"x": 0, "y": 0, "width": 100, "height": 50},
                 },
                 {
-                    'id': 'password_field',
-                    'type': 'textfield',
-                    'label': 'Password',
-                    'visible': True,
-                    'enabled': True,
-                    'bounds': {'x': 0, 'y': 60, 'width': 100, 'height': 50}
+                    "id": "password_field",
+                    "type": "textfield",
+                    "label": "Password",
+                    "visible": True,
+                    "enabled": True,
+                    "bounds": {"x": 0, "y": 60, "width": 100, "height": 50},
                 },
                 {
-                    'id': 'login_button',
-                    'type': 'button',
-                    'label': 'Login',
-                    'visible': True,
-                    'enabled': True,
-                    'bounds': {'x': 0, 'y': 120, 'width': 100, 'height': 40}
-                }
-            ]
+                    "id": "login_button",
+                    "type": "button",
+                    "label": "Login",
+                    "visible": True,
+                    "enabled": True,
+                    "bounds": {"x": 0, "y": 120, "width": 100, "height": 40},
+                },
+            ],
         }
 
         screen = engine.discover_ui(source)
 
-        assert screen.id == 'login_screen'
-        assert screen.name == 'LoginScreen'
+        assert screen.id == "login_screen"
+        assert screen.name == "LoginScreen"
         assert len(screen.elements) == 3
         assert screen in engine.screens.values()
 
@@ -190,19 +180,19 @@ class TestCoreEngine:
         # Create screens
         screen1 = Screen("s1", "Login", [], [], [])
         screen2 = Screen("s2", "Home", [], [], [])
-        engine.screens['s1'] = screen1
-        engine.screens['s2'] = screen2
+        engine.screens["s1"] = screen1
+        engine.screens["s2"] = screen2
 
         # Build flow
         engine.build_flow_graph("s1", "s2", "click_login")
 
         assert "s1" in engine.flow_graph
-        assert any(f['to'] == "s2" for f in engine.flow_graph["s1"])
+        assert any(f["to"] == "s2" for f in engine.flow_graph["s1"])
         assert "s2" in screen1.transitions
 
     def test_flow_builder_disabled(self):
         """Test flow builder when disabled"""
-        config = {'enabled_modules': ['ui_discovery']}
+        config = {"enabled_modules": ["ui_discovery"]}
         engine = CoreEngine(config)
 
         engine.build_flow_graph("s1", "s2", "action")
@@ -315,7 +305,7 @@ class TestCoreEngine:
 
     def test_skeleton_generator_disabled(self):
         """Test skeleton generation when disabled"""
-        config = {'enabled_modules': ['ui_discovery']}
+        config = {"enabled_modules": ["ui_discovery"]}
         engine = CoreEngine(config)
 
         elements = [UIElement("btn1", "button", "Test", None, None, {}, True, True)]
@@ -332,9 +322,9 @@ class TestCoreEngine:
         # Create test data
         screen1 = Screen("s1", "Login", [], ["s2"], [])
         screen2 = Screen("s2", "Home", [], [], [])
-        engine.screens['s1'] = screen1
-        engine.screens['s2'] = screen2
-        engine.flow_graph['s1'] = [{'to': 's2', 'action': 'login'}]
+        engine.screens["s1"] = screen1
+        engine.screens["s2"] = screen2
+        engine.flow_graph["s1"] = [{"to": "s2", "action": "login"}]
 
         # Export
         output = tmp_path / "flow.json"
@@ -345,10 +335,10 @@ class TestCoreEngine:
         with open(output) as f:
             data = json.load(f)
 
-        assert 'screens' in data
-        assert 'flow' in data
-        assert 's1' in data['screens']
-        assert data['screens']['s1']['name'] == 'Login'
+        assert "screens" in data
+        assert "flow" in data
+        assert "s1" in data["screens"]
+        assert data["screens"]["s1"]["name"] == "Login"
 
 
 class TestMultiLanguageSupport:
@@ -363,9 +353,9 @@ class TestMultiLanguageSupport:
             label="Test",
             xpath="//button[@id='test_button']",
             accessibility_id="test_btn",
-            bounds={'x': 0, 'y': 0, 'width': 100, 'height': 50},
+            bounds={"x": 0, "y": 0, "width": 100, "height": 50},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
     def test_all_languages_generate_selectors(self, sample_element):

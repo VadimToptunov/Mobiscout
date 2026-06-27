@@ -7,11 +7,7 @@ Tests page object generation, self-healing selectors, and test scaffolds.
 import pytest
 
 from framework.core.engine import Language, Screen, UIElement
-from framework.generators.skeleton_generator import (
-    SkeletonTestGenerator,
-    PageObjectPattern,
-    SelectorStrategy
-)
+from framework.generators.skeleton_generator import SkeletonTestGenerator, PageObjectPattern, SelectorStrategy
 
 
 class TestSelectorStrategy:
@@ -20,9 +16,7 @@ class TestSelectorStrategy:
     def test_create_strategy(self):
         """Test creating selector strategy"""
         strategy = SelectorStrategy(
-            primary="id=login_button",
-            fallbacks=["accessibility_id=login_btn", "xpath=//button"],
-            stability_score=0.9
+            primary="id=login_button", fallbacks=["accessibility_id=login_btn", "xpath=//button"], stability_score=0.9
         )
 
         assert strategy.primary == "id=login_button"
@@ -31,10 +25,7 @@ class TestSelectorStrategy:
 
     def test_get_selector_chain(self):
         """Test getting selector chain"""
-        strategy = SelectorStrategy(
-            primary="id=test",
-            fallbacks=["xpath=//test", "text=Test"]
-        )
+        strategy = SelectorStrategy(primary="id=test", fallbacks=["xpath=//test", "text=Test"])
 
         chain = strategy.get_selector_chain()
 
@@ -57,9 +48,9 @@ class TestSkeletonTestGenerator:
                 label="Username",
                 xpath="//input[@id='username_field']",
                 accessibility_id="username_input",
-                bounds={'x': 0, 'y': 0, 'width': 200, 'height': 40},
+                bounds={"x": 0, "y": 0, "width": 200, "height": 40},
                 visible=True,
-                enabled=True
+                enabled=True,
             ),
             UIElement(
                 id="password_field",
@@ -67,9 +58,9 @@ class TestSkeletonTestGenerator:
                 label="Password",
                 xpath="//input[@id='password_field']",
                 accessibility_id="password_input",
-                bounds={'x': 0, 'y': 50, 'width': 200, 'height': 40},
+                bounds={"x": 0, "y": 50, "width": 200, "height": 40},
                 visible=True,
-                enabled=True
+                enabled=True,
             ),
             UIElement(
                 id="login_button",
@@ -77,26 +68,19 @@ class TestSkeletonTestGenerator:
                 label="Login",
                 xpath="//button[@id='login_button']",
                 accessibility_id="login_btn",
-                bounds={'x': 0, 'y': 100, 'width': 200, 'height': 50},
+                bounds={"x": 0, "y": 100, "width": 200, "height": 50},
                 visible=True,
-                enabled=True
-            )
+                enabled=True,
+            ),
         ]
 
         return Screen(
-            id="login_screen",
-            name="LoginScreen",
-            elements=elements,
-            transitions=["home_screen"],
-            api_calls=[]
+            id="login_screen", name="LoginScreen", elements=elements, transitions=["home_screen"], api_calls=[]
         )
 
     def test_generator_creation(self):
         """Test creating generator"""
-        generator = SkeletonTestGenerator(
-            language=Language.PYTHON,
-            pattern=PageObjectPattern.CLASSIC
-        )
+        generator = SkeletonTestGenerator(language=Language.PYTHON, pattern=PageObjectPattern.CLASSIC)
 
         assert generator.language == Language.PYTHON
         assert generator.pattern == PageObjectPattern.CLASSIC
@@ -113,7 +97,7 @@ class TestSkeletonTestGenerator:
             accessibility_id="test_btn",
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         strategy = generator.generate_selector_strategy(element)
@@ -134,7 +118,7 @@ class TestSkeletonTestGenerator:
             accessibility_id="test_btn",
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         strategy = generator.generate_selector_strategy(element)
@@ -258,7 +242,7 @@ class TestSkeletonTestGenerator:
             Language.TYPESCRIPT: ".ts",
             Language.CSHARP: ".cs",
             Language.GO: ".go",
-            Language.SWIFT: ".swift"
+            Language.SWIFT: ".swift",
         }
 
         for lang, expected_ext in extensions.items():
@@ -308,17 +292,12 @@ class TestPageObjectPatterns:
     @pytest.fixture
     def simple_screen(self):
         """Simple screen for testing"""
-        elements = [
-            UIElement("btn1", "button", "Click", None, None, {}, True, True)
-        ]
+        elements = [UIElement("btn1", "button", "Click", None, None, {}, True, True)]
         return Screen("simple", "SimpleScreen", elements, [], [])
 
     def test_classic_pattern(self, simple_screen):
         """Test classic page object pattern"""
-        generator = SkeletonTestGenerator(
-            Language.PYTHON,
-            pattern=PageObjectPattern.CLASSIC
-        )
+        generator = SkeletonTestGenerator(Language.PYTHON, pattern=PageObjectPattern.CLASSIC)
 
         code = generator.generate_page_object(simple_screen)
 
@@ -327,10 +306,7 @@ class TestPageObjectPatterns:
 
     def test_screenplay_pattern(self, simple_screen):
         """Test screenplay pattern (placeholder)"""
-        generator = SkeletonTestGenerator(
-            Language.PYTHON,
-            pattern=PageObjectPattern.SCREENPLAY
-        )
+        generator = SkeletonTestGenerator(Language.PYTHON, pattern=PageObjectPattern.SCREENPLAY)
 
         # For now, it uses classic pattern
         code = generator.generate_page_object(simple_screen)
@@ -338,10 +314,7 @@ class TestPageObjectPatterns:
 
     def test_fluent_pattern(self, simple_screen):
         """Test fluent interface pattern (placeholder)"""
-        generator = SkeletonTestGenerator(
-            Language.PYTHON,
-            pattern=PageObjectPattern.FLUENT
-        )
+        generator = SkeletonTestGenerator(Language.PYTHON, pattern=PageObjectPattern.FLUENT)
 
         # For now, it uses classic pattern
         code = generator.generate_page_object(simple_screen)
@@ -363,7 +336,7 @@ class TestSelfHealingSelectors:
             accessibility_id="my_acc_id",
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         strategy = generator.generate_selector_strategy(element)
@@ -383,7 +356,7 @@ class TestSelfHealingSelectors:
             accessibility_id="my_acc_id",
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         strategy = generator.generate_selector_strategy(element)
@@ -403,7 +376,7 @@ class TestSelfHealingSelectors:
             accessibility_id="",
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         strategy = generator.generate_selector_strategy(element)
@@ -423,7 +396,7 @@ class TestSelfHealingSelectors:
             accessibility_id="test_btn",
             bounds={},
             visible=True,
-            enabled=True
+            enabled=True,
         )
 
         strategy = generator.generate_selector_strategy(element)
@@ -439,9 +412,7 @@ class TestMultiLanguageGeneration:
     @pytest.fixture
     def test_screen(self):
         """Screen for testing all languages"""
-        elements = [
-            UIElement("test_btn", "button", "Test", "//button", "test", {}, True, True)
-        ]
+        elements = [UIElement("test_btn", "button", "Test", "//button", "test", {}, True, True)]
         return Screen("test", "TestScreen", elements, [], [])
 
     def test_all_languages_generate_page_objects(self, test_screen):

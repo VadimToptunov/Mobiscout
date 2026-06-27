@@ -25,6 +25,7 @@ from typing import Dict, Any, List, Optional, Set, Tuple
 
 class DependencyType(Enum):
     """Dependency types"""
+
     PYTHON = "python"
     JAVA = "java"
     KOTLIN = "kotlin"
@@ -36,6 +37,7 @@ class DependencyType(Enum):
 
 class VulnerabilitySeverity(Enum):
     """Vulnerability severity"""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -45,6 +47,7 @@ class VulnerabilitySeverity(Enum):
 
 class LicenseType(Enum):
     """License compatibility"""
+
     PERMISSIVE = "permissive"  # MIT, Apache, BSD
     COPYLEFT = "copyleft"  # GPL, LGPL
     PROPRIETARY = "proprietary"
@@ -54,6 +57,7 @@ class LicenseType(Enum):
 @dataclass
 class Dependency:
     """A software dependency"""
+
     name: str
     version: str
     dep_type: DependencyType
@@ -81,6 +85,7 @@ class Dependency:
 @dataclass
 class Vulnerability:
     """A known vulnerability"""
+
     cve_id: str
     severity: VulnerabilitySeverity
     title: str
@@ -110,6 +115,7 @@ class Vulnerability:
 @dataclass
 class SupplyChainFinding:
     """Supply chain security finding"""
+
     finding_type: str  # vulnerability, license, outdated, malicious
     severity: VulnerabilitySeverity
     title: str
@@ -133,6 +139,7 @@ class SupplyChainFinding:
 @dataclass
 class DependencyWithVulns:
     """Dependency with its vulnerabilities - for CLI compatibility"""
+
     name: str
     version: str
     ecosystem: str
@@ -150,6 +157,7 @@ class DependencyWithVulns:
 @dataclass
 class VulnerabilityInfo:
     """Simplified vulnerability info for CLI - matches CLI expectations"""
+
     package_name: str
     installed_version: str
     cve_id: Optional[str]
@@ -171,6 +179,7 @@ class VulnerabilityInfo:
 @dataclass
 class LicenseIssue:
     """License compliance issue - for CLI compatibility"""
+
     package_name: str
     license: str
     issue: str
@@ -186,6 +195,7 @@ class LicenseIssue:
 @dataclass
 class SupplyChainResult:
     """Complete supply chain analysis result - for CLI compatibility"""
+
     dependencies: List[DependencyWithVulns] = field(default_factory=list)
     vulnerabilities: List[VulnerabilityInfo] = field(default_factory=list)
     license_issues: List[LicenseIssue] = field(default_factory=list)
@@ -238,13 +248,9 @@ class PythonDependencyParser:
     }
 
     # License classification
-    PERMISSIVE_LICENSES = [
-        "MIT", "Apache", "BSD", "ISC", "Unlicense", "WTFPL", "Zlib"
-    ]
+    PERMISSIVE_LICENSES = ["MIT", "Apache", "BSD", "ISC", "Unlicense", "WTFPL", "Zlib"]
 
-    COPYLEFT_LICENSES = [
-        "GPL", "LGPL", "AGPL", "MPL", "CC-BY-SA"
-    ]
+    COPYLEFT_LICENSES = ["GPL", "LGPL", "AGPL", "MPL", "CC-BY-SA"]
 
     def parse_requirements(self, requirements_path: Path) -> List[Dependency]:
         """Parse requirements.txt"""
@@ -256,24 +262,26 @@ class PythonDependencyParser:
                 line = line.strip()
 
                 # Skip comments and empty lines
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Skip options
-                if line.startswith('-'):
+                if line.startswith("-"):
                     continue
 
                 # Parse package==version or package>=version
-                match = re.match(r'^([a-zA-Z0-9_\-\.]+)\s*([<>=!]+)?\s*(.+)?$', line)
+                match = re.match(r"^([a-zA-Z0-9_\-\.]+)\s*([<>=!]+)?\s*(.+)?$", line)
                 if match:
                     name = match.group(1)
                     version = match.group(3) or "unknown"
 
-                    dependencies.append(Dependency(
-                        name=name.lower(),
-                        version=version,
-                        dep_type=DependencyType.PYTHON,
-                    ))
+                    dependencies.append(
+                        Dependency(
+                            name=name.lower(),
+                            version=version,
+                            dep_type=DependencyType.PYTHON,
+                        )
+                    )
 
         except OSError:
             pass
@@ -293,41 +301,47 @@ class PythonDependencyParser:
                 return dependencies
 
         try:
-            with open(pyproject_path, 'rb') as f:
+            with open(pyproject_path, "rb") as f:
                 data = tomllib.load(f)
 
             # Poetry style
-            if 'tool' in data and 'poetry' in data['tool']:
-                poetry = data['tool']['poetry']
-                for name, spec in poetry.get('dependencies', {}).items():
-                    if name == 'python':
+            if "tool" in data and "poetry" in data["tool"]:
+                poetry = data["tool"]["poetry"]
+                for name, spec in poetry.get("dependencies", {}).items():
+                    if name == "python":
                         continue
-                    version = spec if isinstance(spec, str) else spec.get('version', 'unknown')
-                    dependencies.append(Dependency(
-                        name=name.lower(),
-                        version=version.lstrip('^~>=<'),
-                        dep_type=DependencyType.PYTHON,
-                    ))
+                    version = spec if isinstance(spec, str) else spec.get("version", "unknown")
+                    dependencies.append(
+                        Dependency(
+                            name=name.lower(),
+                            version=version.lstrip("^~>=<"),
+                            dep_type=DependencyType.PYTHON,
+                        )
+                    )
 
-                for name, spec in poetry.get('dev-dependencies', {}).items():
-                    version = spec if isinstance(spec, str) else spec.get('version', 'unknown')
-                    dependencies.append(Dependency(
-                        name=name.lower(),
-                        version=version.lstrip('^~>=<'),
-                        dep_type=DependencyType.PYTHON,
-                        dev_dependency=True,
-                    ))
+                for name, spec in poetry.get("dev-dependencies", {}).items():
+                    version = spec if isinstance(spec, str) else spec.get("version", "unknown")
+                    dependencies.append(
+                        Dependency(
+                            name=name.lower(),
+                            version=version.lstrip("^~>=<"),
+                            dep_type=DependencyType.PYTHON,
+                            dev_dependency=True,
+                        )
+                    )
 
             # PEP 621 style
-            if 'project' in data:
-                for dep in data['project'].get('dependencies', []):
-                    match = re.match(r'^([a-zA-Z0-9_\-\.]+)\s*([<>=!]+)?\s*(.+)?$', dep)
+            if "project" in data:
+                for dep in data["project"].get("dependencies", []):
+                    match = re.match(r"^([a-zA-Z0-9_\-\.]+)\s*([<>=!]+)?\s*(.+)?$", dep)
                     if match:
-                        dependencies.append(Dependency(
-                            name=match.group(1).lower(),
-                            version=match.group(3) or "unknown",
-                            dep_type=DependencyType.PYTHON,
-                        ))
+                        dependencies.append(
+                            Dependency(
+                                name=match.group(1).lower(),
+                                version=match.group(3) or "unknown",
+                                dep_type=DependencyType.PYTHON,
+                            )
+                        )
 
         except (OSError, Exception):
             pass
@@ -366,25 +380,29 @@ class JavaScriptDependencyParser:
         dependencies = []
 
         try:
-            with open(package_path, 'r') as f:
+            with open(package_path, "r") as f:
                 data = json.load(f)
 
             # Production dependencies
-            for name, version in data.get('dependencies', {}).items():
-                dependencies.append(Dependency(
-                    name=name,
-                    version=version.lstrip('^~>=<'),
-                    dep_type=DependencyType.JAVASCRIPT,
-                ))
+            for name, version in data.get("dependencies", {}).items():
+                dependencies.append(
+                    Dependency(
+                        name=name,
+                        version=version.lstrip("^~>=<"),
+                        dep_type=DependencyType.JAVASCRIPT,
+                    )
+                )
 
             # Dev dependencies
-            for name, version in data.get('devDependencies', {}).items():
-                dependencies.append(Dependency(
-                    name=name,
-                    version=version.lstrip('^~>=<'),
-                    dep_type=DependencyType.JAVASCRIPT,
-                    dev_dependency=True,
-                ))
+            for name, version in data.get("devDependencies", {}).items():
+                dependencies.append(
+                    Dependency(
+                        name=name,
+                        version=version.lstrip("^~>=<"),
+                        dep_type=DependencyType.JAVASCRIPT,
+                        dev_dependency=True,
+                    )
+                )
 
         except (OSError, json.JSONDecodeError):
             pass
@@ -433,12 +451,14 @@ class GradleDependencyParser:
                     artifact = match.group(2)
                     version = match.group(3)
 
-                    dependencies.append(Dependency(
-                        name=f"{group}:{artifact}",
-                        version=version,
-                        dep_type=DependencyType.GRADLE,
-                        dev_dependency="test" in pattern.lower(),
-                    ))
+                    dependencies.append(
+                        Dependency(
+                            name=f"{group}:{artifact}",
+                            version=version,
+                            dep_type=DependencyType.GRADLE,
+                            dev_dependency="test" in pattern.lower(),
+                        )
+                    )
 
         except OSError:
             pass
@@ -472,13 +492,15 @@ class CocoaPodsDependencyParser:
 
                 if in_pods_section and line.startswith("  - "):
                     # Parse "  - PodName (version)"
-                    match = re.match(r'\s+-\s+([^\s(]+)\s*\(([^)]+)\)', line)
+                    match = re.match(r"\s+-\s+([^\s(]+)\s*\(([^)]+)\)", line)
                     if match:
-                        dependencies.append(Dependency(
-                            name=match.group(1),
-                            version=match.group(2),
-                            dep_type=DependencyType.COCOAPODS,
-                        ))
+                        dependencies.append(
+                            Dependency(
+                                name=match.group(1),
+                                version=match.group(2),
+                                dep_type=DependencyType.COCOAPODS,
+                            )
+                        )
 
         except OSError:
             pass
@@ -546,24 +568,26 @@ class SupplyChainAnalyzer:
             if dep.name in PythonDependencyParser.KNOWN_VULNERABILITIES:
                 for vuln_spec, cve, severity, desc in PythonDependencyParser.KNOWN_VULNERABILITIES[dep.name]:
                     if self._version_matches(dep.version, vuln_spec):
-                        findings.append(SupplyChainFinding(
-                            finding_type="vulnerability",
-                            severity=severity,
-                            title=f"Vulnerable dependency: {dep.name}",
-                            description=desc,
-                            dependency=dep,
-                            vulnerability=Vulnerability(
-                                cve_id=cve,
+                        findings.append(
+                            SupplyChainFinding(
+                                finding_type="vulnerability",
                                 severity=severity,
-                                title=desc,
+                                title=f"Vulnerable dependency: {dep.name}",
                                 description=desc,
-                                affected_package=dep.name,
-                                affected_versions=vuln_spec,
-                                fixed_version=None,
-                                cvss_score=None,
-                            ),
-                            recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
-                        ))
+                                dependency=dep,
+                                vulnerability=Vulnerability(
+                                    cve_id=cve,
+                                    severity=severity,
+                                    title=desc,
+                                    description=desc,
+                                    affected_package=dep.name,
+                                    affected_versions=vuln_spec,
+                                    fixed_version=None,
+                                    cvss_score=None,
+                                ),
+                                recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
+                            )
+                        )
 
         return findings
 
@@ -575,24 +599,26 @@ class SupplyChainAnalyzer:
             if dep.name in JavaScriptDependencyParser.KNOWN_VULNERABILITIES:
                 for vuln_spec, cve, severity, desc in JavaScriptDependencyParser.KNOWN_VULNERABILITIES[dep.name]:
                     if self._version_matches(dep.version, vuln_spec):
-                        findings.append(SupplyChainFinding(
-                            finding_type="vulnerability",
-                            severity=severity,
-                            title=f"Vulnerable dependency: {dep.name}",
-                            description=desc,
-                            dependency=dep,
-                            vulnerability=Vulnerability(
-                                cve_id=cve,
+                        findings.append(
+                            SupplyChainFinding(
+                                finding_type="vulnerability",
                                 severity=severity,
-                                title=desc,
+                                title=f"Vulnerable dependency: {dep.name}",
                                 description=desc,
-                                affected_package=dep.name,
-                                affected_versions=vuln_spec,
-                                fixed_version=None,
-                                cvss_score=None,
-                            ),
-                            recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
-                        ))
+                                dependency=dep,
+                                vulnerability=Vulnerability(
+                                    cve_id=cve,
+                                    severity=severity,
+                                    title=desc,
+                                    description=desc,
+                                    affected_package=dep.name,
+                                    affected_versions=vuln_spec,
+                                    fixed_version=None,
+                                    cvss_score=None,
+                                ),
+                                recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
+                            )
+                        )
 
         return findings
 
@@ -604,24 +630,26 @@ class SupplyChainAnalyzer:
             if dep.name in GradleDependencyParser.KNOWN_VULNERABILITIES:
                 for vuln_spec, cve, severity, desc in GradleDependencyParser.KNOWN_VULNERABILITIES[dep.name]:
                     if self._version_matches(dep.version, vuln_spec):
-                        findings.append(SupplyChainFinding(
-                            finding_type="vulnerability",
-                            severity=severity,
-                            title=f"Vulnerable dependency: {dep.name}",
-                            description=desc,
-                            dependency=dep,
-                            vulnerability=Vulnerability(
-                                cve_id=cve,
+                        findings.append(
+                            SupplyChainFinding(
+                                finding_type="vulnerability",
                                 severity=severity,
-                                title=desc,
+                                title=f"Vulnerable dependency: {dep.name}",
                                 description=desc,
-                                affected_package=dep.name,
-                                affected_versions=vuln_spec,
-                                fixed_version=None,
-                                cvss_score=None,
-                            ),
-                            recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
-                        ))
+                                dependency=dep,
+                                vulnerability=Vulnerability(
+                                    cve_id=cve,
+                                    severity=severity,
+                                    title=desc,
+                                    description=desc,
+                                    affected_package=dep.name,
+                                    affected_versions=vuln_spec,
+                                    fixed_version=None,
+                                    cvss_score=None,
+                                ),
+                                recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
+                            )
+                        )
 
         return findings
 
@@ -631,14 +659,16 @@ class SupplyChainAnalyzer:
 
         for dep in dependencies:
             if dep.license_type == LicenseType.COPYLEFT and not dep.dev_dependency:
-                findings.append(SupplyChainFinding(
-                    finding_type="license",
-                    severity=VulnerabilitySeverity.MEDIUM,
-                    title=f"Copyleft license: {dep.name}",
-                    description=f"Dependency {dep.name} uses copyleft license {dep.license}",
-                    dependency=dep,
-                    recommendation="Review license requirements for distribution",
-                ))
+                findings.append(
+                    SupplyChainFinding(
+                        finding_type="license",
+                        severity=VulnerabilitySeverity.MEDIUM,
+                        title=f"Copyleft license: {dep.name}",
+                        description=f"Dependency {dep.name} uses copyleft license {dep.license}",
+                        dependency=dep,
+                        recommendation="Review license requirements for distribution",
+                    )
+                )
 
         return findings
 
@@ -719,10 +749,7 @@ class SupplyChainAnalyzer:
         }
 
     def export_report(
-        self,
-        dependencies: List[Dependency],
-        findings: List[SupplyChainFinding],
-        output_path: Path
+        self, dependencies: List[Dependency], findings: List[SupplyChainFinding], output_path: Path
     ) -> None:
         """Export supply chain report"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -735,7 +762,7 @@ class SupplyChainAnalyzer:
             "sbom": self.generate_sbom(dependencies),
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2)
 
     def analyze(self, project_path: Path, check_vulnerabilities: bool = True) -> SupplyChainResult:
@@ -765,29 +792,28 @@ class SupplyChainAnalyzer:
         if check_vulnerabilities:
             for finding in findings:
                 if finding.finding_type == "vulnerability" and finding.vulnerability:
-                    result.vulnerabilities.append(VulnerabilityInfo(
-                        package_name=finding.dependency.name,
-                        installed_version=finding.dependency.version,
-                        cve_id=finding.vulnerability.cve_id,
-                        severity=finding.severity.value,
-                        fixed_version=finding.vulnerability.fixed_version,
-                        description=finding.description,
-                    ))
+                    result.vulnerabilities.append(
+                        VulnerabilityInfo(
+                            package_name=finding.dependency.name,
+                            installed_version=finding.dependency.version,
+                            cve_id=finding.vulnerability.cve_id,
+                            severity=finding.severity.value,
+                            fixed_version=finding.vulnerability.fixed_version,
+                            description=finding.description,
+                        )
+                    )
                 elif finding.finding_type == "license":
-                    result.license_issues.append(LicenseIssue(
-                        package_name=finding.dependency.name,
-                        license=finding.dependency.license or "Unknown",
-                        issue=finding.description,
-                    ))
+                    result.license_issues.append(
+                        LicenseIssue(
+                            package_name=finding.dependency.name,
+                            license=finding.dependency.license or "Unknown",
+                            issue=finding.description,
+                        )
+                    )
 
         return result
 
-    def generate_sbom_file(
-        self,
-        result: SupplyChainResult,
-        output_path: Path,
-        format: str = "cyclonedx"
-    ) -> None:
+    def generate_sbom_file(self, result: SupplyChainResult, output_path: Path, format: str = "cyclonedx") -> None:
         """
         Generate SBOM file from analysis result.
 
@@ -800,7 +826,11 @@ class SupplyChainAnalyzer:
             Dependency(
                 name=d.name,
                 version=d.version,
-                dep_type=DependencyType(d.ecosystem) if d.ecosystem in [e.value for e in DependencyType] else DependencyType.PYTHON,
+                dep_type=(
+                    DependencyType(d.ecosystem)
+                    if d.ecosystem in [e.value for e in DependencyType]
+                    else DependencyType.PYTHON
+                ),
             )
             for d in result.dependencies
         ]
@@ -826,7 +856,7 @@ class SupplyChainAnalyzer:
                 ],
             }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(sbom, f, indent=2)
 
     def export_html(self, result: SupplyChainResult, output_path: Path) -> None:
@@ -939,5 +969,5 @@ class SupplyChainAnalyzer:
 </html>
 """
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(html)

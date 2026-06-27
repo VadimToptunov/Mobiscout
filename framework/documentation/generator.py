@@ -13,6 +13,7 @@ from framework.documentation.parser import CodeParser, DocstringParser, ModuleDo
 
 class DocFormat(str, Enum):
     """Documentation output format"""
+
     MARKDOWN = "markdown"
     HTML = "html"
     JSON = "json"
@@ -22,6 +23,7 @@ class DocFormat(str, Enum):
 @dataclass
 class DocConfig:
     """Configuration for documentation generation"""
+
     source_dir: Path
     output_dir: Path
     format: DocFormat = DocFormat.MARKDOWN
@@ -369,11 +371,13 @@ class DocGenerator:
         # Generate conf.py
         conf_path = self.config.output_dir / "conf.py"
         with open(conf_path, "w") as f:
-            f.write(f"""
+            f.write(
+                f"""
 project = '{self.config.title}'
 html_theme = '{self.config.theme}'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
-""")
+"""
+            )
 
         # Generate index.rst
         index_path = self.config.output_dir / "index.rst"

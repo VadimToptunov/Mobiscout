@@ -101,7 +101,7 @@ class UnifiedReporter:
                 print(f"Warning: Failed to parse {junit_file}: {e}")
 
     def generate_report(
-            self, output_path: Path, format: ReportFormat = ReportFormat.HTML, title: str = "Test Report"
+        self, output_path: Path, format: ReportFormat = ReportFormat.HTML, title: str = "Test Report"
     ) -> None:
         """
         Generate test report

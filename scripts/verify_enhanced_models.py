@@ -27,31 +27,119 @@ print()
 
 test_cases = [
     # ID selectors (should predict 'id')
-    ({'id': 'login_btn', 'accessibility_id': 'login', 'xpath': '//button[@id="login_btn"]',
-      'type': 'button', 'visible': True, 'enabled': True, 'is_interactive': True}, 'id'),
-    ({'id': 'email_input', 'accessibility_id': 'email', 'xpath': '//input[@type="email"]',
-      'type': 'textfield', 'visible': True, 'enabled': True, 'is_interactive': True}, 'id'),
-    ({'id': 'submit_form', 'accessibility_id': 'submit', 'xpath': '//button[@id="submit_form"]',
-      'type': 'button', 'visible': True, 'enabled': True, 'is_interactive': True}, 'id'),
-
+    (
+        {
+            "id": "login_btn",
+            "accessibility_id": "login",
+            "xpath": '//button[@id="login_btn"]',
+            "type": "button",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "id",
+    ),
+    (
+        {
+            "id": "email_input",
+            "accessibility_id": "email",
+            "xpath": '//input[@type="email"]',
+            "type": "textfield",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "id",
+    ),
+    (
+        {
+            "id": "submit_form",
+            "accessibility_id": "submit",
+            "xpath": '//button[@id="submit_form"]',
+            "type": "button",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "id",
+    ),
     # Accessibility ID selectors
-    ({'id': '', 'accessibility_id': 'home_tab', 'xpath': '//div[@class="nav"]/button[1]',
-      'type': 'button', 'visible': True, 'enabled': True, 'is_interactive': True}, 'accessibility_id'),
-    ({'id': '', 'accessibility_id': 'profile_icon', 'xpath': '//img[@aria-label="profile"]',
-      'type': 'image', 'visible': True, 'enabled': False, 'is_interactive': False}, 'accessibility_id'),
-    ({'id': '', 'accessibility_id': 'settings_link', 'xpath': '//a[@aria-label="settings"]',
-      'type': 'link', 'visible': True, 'enabled': True, 'is_interactive': True}, 'accessibility_id'),
-
+    (
+        {
+            "id": "",
+            "accessibility_id": "home_tab",
+            "xpath": '//div[@class="nav"]/button[1]',
+            "type": "button",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "accessibility_id",
+    ),
+    (
+        {
+            "id": "",
+            "accessibility_id": "profile_icon",
+            "xpath": '//img[@aria-label="profile"]',
+            "type": "image",
+            "visible": True,
+            "enabled": False,
+            "is_interactive": False,
+        },
+        "accessibility_id",
+    ),
+    (
+        {
+            "id": "",
+            "accessibility_id": "settings_link",
+            "xpath": '//a[@aria-label="settings"]',
+            "type": "link",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "accessibility_id",
+    ),
     # XPath selectors
-    ({'id': '', 'accessibility_id': '', 'xpath': '//RecyclerView/ViewHolder[3]',
-      'type': 'view', 'visible': True, 'enabled': True, 'is_interactive': True}, 'xpath'),
-    ({'id': '', 'accessibility_id': '', 'xpath': '//ul[@class="items"]/li[5]',
-      'type': 'cell', 'visible': True, 'enabled': True, 'is_interactive': True}, 'xpath'),
-
+    (
+        {
+            "id": "",
+            "accessibility_id": "",
+            "xpath": "//RecyclerView/ViewHolder[3]",
+            "type": "view",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "xpath",
+    ),
+    (
+        {
+            "id": "",
+            "accessibility_id": "",
+            "xpath": '//ul[@class="items"]/li[5]',
+            "type": "cell",
+            "visible": True,
+            "enabled": True,
+            "is_interactive": True,
+        },
+        "xpath",
+    ),
     # Text selectors
-    ({'id': '', 'accessibility_id': '', 'xpath': '//button[text()="Learn More"]',
-      'label': 'Learn More', 'type': 'button', 'visible': True, 'enabled': True,
-      'unique_text': True, 'is_interactive': True}, 'text'),
+    (
+        {
+            "id": "",
+            "accessibility_id": "",
+            "xpath": '//button[text()="Learn More"]',
+            "label": "Learn More",
+            "type": "button",
+            "visible": True,
+            "enabled": True,
+            "unique_text": True,
+            "is_interactive": True,
+        },
+        "text",
+    ),
 ]
 
 correct_predictions = 0
@@ -114,16 +202,16 @@ print("=" * 80)
 print()
 
 flow_tests = [
-    ('catalog', ['product_details', 'filters']),
-    ('product_details', ['cart', 'reviews']),
-    ('cart', ['checkout', 'catalog']),
-    ('login', ['home', 'security_check']),
-    ('feed', ['post_details', 'create_post']),
+    ("catalog", ["product_details", "filters"]),
+    ("product_details", ["cart", "reviews"]),
+    ("cart", ["checkout", "catalog"]),
+    ("login", ["home", "security_check"]),
+    ("feed", ["post_details", "create_post"]),
 ]
 
 flow_correct = 0
 for current, valid_next in flow_tests:
-    result = ml.recommend_next_step({'current_screen': current})
+    result = ml.recommend_next_step({"current_screen": current})
     is_valid = result.prediction in valid_next
 
     if is_valid:
@@ -148,12 +236,35 @@ print("=" * 80)
 print()
 
 scoring_tests = [
-    ({'type': 'button', 'label': 'Pay Now', 'visible': True, 'enabled': True,
-      'monetary': True, 'is_interactive': True}, (0.90, 1.00), 'Critical'),
-    ({'type': 'button', 'label': 'Search', 'visible': True, 'enabled': True,
-      'frequently_used': True, 'is_interactive': True}, (0.70, 1.00), 'Important'),
-    ({'type': 'label', 'visible': True, 'enabled': False,
-      'decorative': True, 'is_interactive': False}, (0.00, 0.40), 'Low'),
+    (
+        {
+            "type": "button",
+            "label": "Pay Now",
+            "visible": True,
+            "enabled": True,
+            "monetary": True,
+            "is_interactive": True,
+        },
+        (0.90, 1.00),
+        "Critical",
+    ),
+    (
+        {
+            "type": "button",
+            "label": "Search",
+            "visible": True,
+            "enabled": True,
+            "frequently_used": True,
+            "is_interactive": True,
+        },
+        (0.70, 1.00),
+        "Important",
+    ),
+    (
+        {"type": "label", "visible": True, "enabled": False, "decorative": True, "is_interactive": False},
+        (0.00, 0.40),
+        "Low",
+    ),
 ]
 
 scoring_correct = 0

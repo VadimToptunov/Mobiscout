@@ -48,10 +48,11 @@ def start(device: str, session_name: Optional[str], package: str):
             "device": device,
             "package": package,
             "started_at": datetime.now().isoformat(),
-            "status": "recording"
+            "status": "recording",
         }
 
         import json
+
         with (session_dir / "metadata.json").open("w") as f:
             json.dump(metadata, f, indent=2)
 

@@ -119,9 +119,7 @@ class AndroidBusinessAnalyzer:
                 content = repo_file.read_text(encoding="utf-8")
 
                 # Extract interface methods
-                interface_methods = re.findall(
-                    r"suspend\s+fun\s+(\w+)\([^)]*\):\s*(\w+)", content
-                )
+                interface_methods = re.findall(r"suspend\s+fun\s+(\w+)\([^)]*\):\s*(\w+)", content)
 
                 for method_name, return_type in interface_methods:
                     # Create business rule for data access
@@ -146,9 +144,7 @@ class AndroidBusinessAnalyzer:
                 content = model_file.read_text(encoding="utf-8")
 
                 # Extract data class
-                class_match = re.search(
-                    r"data\s+class\s+(\w+)\s*\((.*?)\)", content, re.DOTALL
-                )
+                class_match = re.search(r"data\s+class\s+(\w+)\s*\((.*?)\)", content, re.DOTALL)
 
                 if not class_match:
                     continue
@@ -163,9 +159,7 @@ class AndroidBusinessAnalyzer:
                     field_type = field_match.group(2).strip()
                     fields[field_name] = field_type
 
-                model = DataModel(
-                    name=class_name, fields=fields, source_file=str(model_file)
-                )
+                model = DataModel(name=class_name, fields=fields, source_file=str(model_file))
 
                 self.analysis.data_models.append(model)
 
@@ -205,16 +199,11 @@ class AndroidBusinessAnalyzer:
             except Exception as e:
                 print(f"Warning: Could not analyze mock data {mock_file}: {e}")
 
-    def _extract_business_rules_from_comments(
-            self, content: str, file_path: str
-    ) -> None:
+    def _extract_business_rules_from_comments(self, content: str, file_path: str) -> None:
         """Extract business rules from TODO and comments."""
         todos = re.findall(r"//\s*TODO:?\s*(.+)", content)
         for todo in todos:
-            if any(
-                    keyword in todo.lower()
-                    for keyword in ["validate", "check", "auth", "permission", "rule"]
-            ):
+            if any(keyword in todo.lower() for keyword in ["validate", "check", "auth", "permission", "rule"]):
                 rule = BusinessRule(
                     type=BusinessRuleType.VALIDATION,
                     description=todo.strip(),
@@ -225,9 +214,7 @@ class AndroidBusinessAnalyzer:
 
     def _extract_validations(self, content: str, file_path: str) -> None:
         """Extract validation logic."""
-        requires = re.findall(
-            r'require\((.*?)\)\s*\{?\s*["\'](.+?)["\']', content
-        )
+        requires = re.findall(r'require\((.*?)\)\s*\{?\s*["\'](.+?)["\']', content)
         for condition, message in requires:
             rule = BusinessRule(
                 type=BusinessRuleType.VALIDATION,
@@ -240,9 +227,7 @@ class AndroidBusinessAnalyzer:
 
     def _extract_error_handling(self, content: str, file_path: str) -> None:
         """Extract error handling logic."""
-        catches = re.findall(
-            r"catch\s*\(\s*\w+:\s*(\w+)\s*\)\s*\{([^}]+)\}", content
-        )
+        catches = re.findall(r"catch\s*\(\s*\w+:\s*(\w+)\s*\)\s*\{([^}]+)\}", content)
         for exception_type, _ in catches:
             rule = BusinessRule(
                 type=BusinessRuleType.ERROR_HANDLING,
@@ -272,9 +257,7 @@ class AndroidBusinessAnalyzer:
                     body = match.group(2)
 
                     # Extract state variants
-                    states = re.findall(
-                        r"(?:data\s+)?class\s+(\w+)\s*(?:\(.*?\))?", body
-                    )
+                    states = re.findall(r"(?:data\s+)?class\s+(\w+)\s*(?:\(.*?\))?", body)
                     states = [s for s in states if s != state_name]
 
                     if len(states) > 1:
@@ -292,9 +275,7 @@ class AndroidBusinessAnalyzer:
             except Exception as e:
                 print(f"Warning: Could not extract state machine from {kt_file}: {e}")
 
-    def _find_state_transitions(
-            self, content: str, states: List[str]
-    ) -> Dict[str, List[str]]:
+    def _find_state_transitions(self, content: str, states: List[str]) -> Dict[str, List[str]]:
         """Find state transitions in when/switch expressions."""
         transitions: Dict[str, List[str]] = {state: [] for state in states}
 
@@ -323,36 +304,20 @@ class AndroidBusinessAnalyzer:
 
                 for method, endpoint, func_name, return_type in api_methods:
                     # Extract request parameters
-                    func_match = re.search(
-                        rf"fun\s+{func_name}\s*\(([^)]*)\)", content
-                    )
+                    func_match = re.search(rf"fun\s+{func_name}\s*\(([^)]*)\)", content)
                     request_params: Dict[str, Any] = {}
                     if func_match:
                         params_str = func_match.group(1)
-                        body_params = re.findall(
-                            r"@Body\s+(\w+):\s*(\w+)", params_str
-                        )
-                        query_params = re.findall(
-                            r"@Query\(\"(\w+)\"\)\s+(\w+):\s*(\w+)", params_str
-                        )
-                        path_params = re.findall(
-                            r"@Path\(\"(\w+)\"\)\s+(\w+):\s*(\w+)", params_str
-                        )
+                        body_params = re.findall(r"@Body\s+(\w+):\s*(\w+)", params_str)
+                        query_params = re.findall(r"@Query\(\"(\w+)\"\)\s+(\w+):\s*(\w+)", params_str)
+                        path_params = re.findall(r"@Path\(\"(\w+)\"\)\s+(\w+):\s*(\w+)", params_str)
 
                         if body_params:
-                            request_params["body"] = {
-                                name: type_name for name, type_name in body_params
-                            }
+                            request_params["body"] = {name: type_name for name, type_name in body_params}
                         if query_params:
-                            request_params["query"] = {
-                                param: type_name
-                                for param, _, type_name in query_params
-                            }
+                            request_params["query"] = {param: type_name for param, _, type_name in query_params}
                         if path_params:
-                            request_params["path"] = {
-                                param: type_name
-                                for param, _, type_name in path_params
-                            }
+                            request_params["path"] = {param: type_name for param, _, type_name in path_params}
 
                     # Extract authentication info
                     auth: Optional[str] = None
@@ -380,8 +345,7 @@ class AndroidBusinessAnalyzer:
                         error_codes = re.findall(r"(4\d{2}|5\d{2})", func_context)
                         if error_codes:
                             contract.error_responses = [
-                                {"code": code, "description": "Error response"}
-                                for code in set(error_codes)
+                                {"code": code, "description": "Error response"} for code in set(error_codes)
                             ]
 
                     self.analysis.api_contracts.append(contract)

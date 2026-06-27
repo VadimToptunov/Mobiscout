@@ -18,17 +18,17 @@ from framework.dashboard.server import DashboardServer
 from framework.reporting.junit_parser import JUnitParser
 
 
-@click.group(name='dashboard')
+@click.group(name="dashboard")
 def dashboard() -> None:
     """🎯 Test maintenance dashboard commands"""
     pass
 
 
 @dashboard.command()
-@click.option('--port', '-p', default=8080, help='Server port')
-@click.option('--host', '-h', default='localhost', help='Server host')
-@click.option('--no-browser', is_flag=True, help='Don\'t open browser automatically')
-@click.option('--repo', type=click.Path(exists=True), default='.', help='Repository path')
+@click.option("--port", "-p", default=8080, help="Server port")
+@click.option("--host", "-h", default="localhost", help="Server host")
+@click.option("--no-browser", is_flag=True, help="Don't open browser automatically")
+@click.option("--repo", type=click.Path(exists=True), default=".", help="Repository path")
 def start(port: int, host: str, no_browser: bool, repo: str) -> None:
     """Start the dashboard web server"""
     print_header("Starting Dashboard Server")
@@ -42,6 +42,7 @@ def start(port: int, host: str, no_browser: bool, repo: str) -> None:
 
         # Open browser after a short delay
         if not no_browser:
+
             def open_browser():
                 time.sleep(1.5)
                 url = f"http://{host}:{port}"
@@ -65,16 +66,17 @@ def start(port: int, host: str, no_browser: bool, repo: str) -> None:
 
 
 @dashboard.command()
-@click.option('--junit-xml', '-j', 'junit_path', required=True, type=click.Path(exists=True),
-              help='Path to JUnit XML file')
-@click.option('--repo', type=click.Path(exists=True), default='.', help='Repository path')
+@click.option(
+    "--junit-xml", "-j", "junit_path", required=True, type=click.Path(exists=True), help="Path to JUnit XML file"
+)
+@click.option("--repo", type=click.Path(exists=True), default=".", help="Repository path")
 def import_results(junit_path: str, repo: str) -> None:
     """Import test results from JUnit XML"""
     print_header("Importing Test Results")
 
     junit_file = Path(junit_path)
     repo_path = Path(repo).resolve()
-    db_path = repo_path / '.dashboard.db'
+    db_path = repo_path / ".dashboard.db"
 
     print_info(f"JUnit file: {junit_file}")
     print_info(f"Database: {db_path}")
@@ -103,14 +105,14 @@ def import_results(junit_path: str, repo: str) -> None:
 
 
 @dashboard.command()
-@click.option('--repo', type=click.Path(exists=True), default='.', help='Repository path')
-@click.option('--days', '-d', default=30, help='Number of days to analyze')
+@click.option("--repo", type=click.Path(exists=True), default=".", help="Repository path")
+@click.option("--days", "-d", default=30, help="Number of days to analyze")
 def stats(repo: str, days: int) -> None:
     """Show dashboard statistics"""
     print_header("Dashboard Statistics")
 
     repo_path = Path(repo).resolve()
-    db_path = repo_path / '.dashboard.db'
+    db_path = repo_path / ".dashboard.db"
 
     if not db_path.exists():
         print_error("No dashboard database found. Import test results first:")
@@ -136,6 +138,7 @@ def stats(repo: str, days: int) -> None:
 
         # Get healing stats
         from framework.dashboard.models import HealingStatus
+
         pending_selectors = len(db.get_healed_selectors(HealingStatus.PENDING))
         approved_selectors = len(db.get_healed_selectors(HealingStatus.APPROVED))
 
@@ -159,16 +162,15 @@ def stats(repo: str, days: int) -> None:
 
 
 @dashboard.command()
-@click.option('--repo', type=click.Path(exists=True), default='.', help='Repository path')
-@click.option('--format', '-f', type=click.Choice(['json', 'prometheus']), default='json',
-              help='Export format')
-@click.option('--output', '-o', type=click.Path(), help='Output file (default: stdout)')
+@click.option("--repo", type=click.Path(exists=True), default=".", help="Repository path")
+@click.option("--format", "-f", type=click.Choice(["json", "prometheus"]), default="json", help="Export format")
+@click.option("--output", "-o", type=click.Path(), help="Output file (default: stdout)")
 def export(repo: str, format: str, output: Optional[str]) -> None:
     """Export metrics for external monitoring"""
     print_header(f"Exporting Metrics ({format})")
 
     repo_path = Path(repo).resolve()
-    db_path = repo_path / '.dashboard.db'
+    db_path = repo_path / ".dashboard.db"
 
     if not db_path.exists():
         print_error("No dashboard database found")
@@ -178,18 +180,19 @@ def export(repo: str, format: str, output: Optional[str]) -> None:
         db = DashboardDB(db_path)
         health = db.get_test_health(days=30)
 
-        if format == 'json':
+        if format == "json":
             import json
+
             metrics = {
-                'total_tests': len(health),
-                'passing_tests': len([h for h in health if h.pass_rate >= 0.8]),
-                'failing_tests': len([h for h in health if h.pass_rate < 0.5]),
-                'flaky_tests': len([h for h in health if h.is_flaky]),
-                'avg_pass_rate': sum(h.pass_rate for h in health) / len(health) if health else 0.0
+                "total_tests": len(health),
+                "passing_tests": len([h for h in health if h.pass_rate >= 0.8]),
+                "failing_tests": len([h for h in health if h.pass_rate < 0.5]),
+                "flaky_tests": len([h for h in health if h.is_flaky]),
+                "avg_pass_rate": sum(h.pass_rate for h in health) / len(health) if health else 0.0,
             }
             content = json.dumps(metrics, indent=2)
 
-        elif format == 'prometheus':
+        elif format == "prometheus":
             total = len(health)
             passing = len([h for h in health if h.pass_rate >= 0.8])
             failing = len([h for h in health if h.pass_rate < 0.5])
@@ -230,5 +233,5 @@ test_pass_rate {avg_pass_rate}
         raise click.Abort()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dashboard()

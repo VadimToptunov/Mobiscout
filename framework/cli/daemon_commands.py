@@ -73,13 +73,7 @@ class JSONRPCServer:
 
         # In production: get actual UI tree from Appium
         # For now, return mock structure
-        return {
-            "tree": {
-                "type": "View",
-                "bounds": [0, 0, 1080, 1920],
-                "children": []
-            }
-        }
+        return {"tree": {"type": "View", "bounds": [0, 0, 1080, 1920], "children": []}}
 
     def handle_session_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle session start request."""
@@ -94,14 +88,10 @@ class JSONRPCServer:
             "id": session_id,
             "device_id": device_id,
             "backend": backend,
-            "started_at": "2026-01-14T12:00:00Z"
+            "started_at": "2026-01-14T12:00:00Z",
         }
 
-        return {
-            "session_id": session_id,
-            "backend": backend,
-            "device_id": device_id
-        }
+        return {"session_id": session_id, "backend": backend, "device_id": device_id}
 
     def handle_session_stop(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle session stop request."""
@@ -133,9 +123,7 @@ class JSONRPCServer:
         try:
             # Try Android first
             result = subprocess.run(
-                ["adb", "-s", device_id, "exec-out", "screencap", "-p"],
-                capture_output=True,
-                timeout=5
+                ["adb", "-s", device_id, "exec-out", "screencap", "-p"], capture_output=True, timeout=5
             )
 
             if result.returncode == 0:
@@ -143,24 +131,15 @@ class JSONRPCServer:
                     f.write(result.stdout)
             else:
                 # Try iOS simulator
-                subprocess.run(
-                    ["xcrun", "simctl", "io", device_id, "screenshot", tmp_path],
-                    check=True,
-                    timeout=5
-                )
+                subprocess.run(["xcrun", "simctl", "io", device_id, "screenshot", tmp_path], check=True, timeout=5)
 
             # Read and encode
             with open(tmp_path, "rb") as f:
                 image_data = f.read()
-                base64_data = base64.b64encode(image_data).decode('utf-8')
+                base64_data = base64.b64encode(image_data).decode("utf-8")
 
             # Get dimensions (simplified - just return 1080x2400 for now)
-            return {
-                "format": format_type,
-                "data": base64_data,
-                "width": 1080,
-                "height": 2400
-            }
+            return {"format": format_type, "data": base64_data, "width": 1080, "height": 2400}
         finally:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
@@ -178,10 +157,7 @@ class JSONRPCServer:
         device_id = session["device_id"]
 
         # Execute tap via adb
-        subprocess.run(
-            ["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)],
-            timeout=2
-        )
+        subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
 
         return {"status": "success", "x": x, "y": y}
 
@@ -202,9 +178,20 @@ class JSONRPCServer:
 
         # Execute swipe via adb
         subprocess.run(
-            ["adb", "-s", device_id, "shell", "input", "swipe",
-             str(start_x), str(start_y), str(end_x), str(end_y), str(duration_ms)],
-            timeout=2
+            [
+                "adb",
+                "-s",
+                device_id,
+                "shell",
+                "input",
+                "swipe",
+                str(start_x),
+                str(start_y),
+                str(end_x),
+                str(end_y),
+                str(duration_ms),
+            ],
+            timeout=2,
         )
 
         return {"status": "success"}
@@ -222,20 +209,17 @@ class JSONRPCServer:
 
         # Execute text input via adb (escape spaces)
         escaped_text = text.replace(" ", "%s")
-        subprocess.run(
-            ["adb", "-s", device_id, "shell", "input", "text", escaped_text],
-            timeout=2
-        )
+        subprocess.run(["adb", "-s", device_id, "shell", "input", "text", escaped_text], timeout=2)
 
         return {"status": "success", "text": text}
 
     def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
         Handle JSON-RPC request.
-        
+
         Args:
             request: JSON-RPC request dict
-            
+
         Returns:
             JSON-RPC response dict
         """
@@ -244,10 +228,7 @@ class JSONRPCServer:
             return {
                 "jsonrpc": "2.0",
                 "id": request.get("id"),
-                "error": {
-                    "code": -32600,
-                    "message": "Invalid Request: jsonrpc must be '2.0'"
-                }
+                "error": {"code": -32600, "message": "Invalid Request: jsonrpc must be '2.0'"},
             }
 
         request_id = request.get("id")
@@ -259,29 +240,19 @@ class JSONRPCServer:
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
-                "error": {
-                    "code": -32601,
-                    "message": f"Method not found: {method}"
-                }
+                "error": {"code": -32601, "message": f"Method not found: {method}"},
             }
 
         # Execute handler
         try:
             result = self.handlers[method](params)
-            return {
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": result
-            }
+            return {"jsonrpc": "2.0", "id": request_id, "result": result}
         except Exception as e:
             logger.exception(f"Error handling {method}")
             return {
                 "jsonrpc": "2.0",
                 "id": request_id,
-                "error": {
-                    "code": -32603,
-                    "message": f"Internal error: {str(e)}"
-                }
+                "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
             }
 
     def run_stdio(self):
@@ -289,13 +260,7 @@ class JSONRPCServer:
         logger.info("Starting JSON-RPC server (stdio mode)")
 
         # Send initial notification that we're ready
-        ready_notification = {
-            "jsonrpc": "2.0",
-            "method": "notification/ready",
-            "params": {
-                "version": "0.5.0"
-            }
-        }
+        ready_notification = {"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": "0.5.0"}}
         print(json.dumps(ready_notification), flush=True)
 
         # Read requests from stdin line by line
@@ -312,10 +277,7 @@ class JSONRPCServer:
                 error_response = {
                     "jsonrpc": "2.0",
                     "id": None,
-                    "error": {
-                        "code": -32700,
-                        "message": f"Parse error: {str(e)}"
-                    }
+                    "error": {"code": -32700, "message": f"Parse error: {str(e)}"},
                 }
                 print(json.dumps(error_response), flush=True)
             except Exception as e:
@@ -323,30 +285,18 @@ class JSONRPCServer:
                 error_response = {
                     "jsonrpc": "2.0",
                     "id": None,
-                    "error": {
-                        "code": -32603,
-                        "message": f"Internal error: {str(e)}"
-                    }
+                    "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
                 }
                 print(json.dumps(error_response), flush=True)
 
 
 @click.command(name="daemon")
-@click.option(
-    "--stdio",
-    is_flag=True,
-    default=True,
-    help="Run in stdio mode (default)"
-)
-@click.option(
-    "--tcp",
-    type=int,
-    help="Run in TCP mode on specified port (for debugging)"
-)
+@click.option("--stdio", is_flag=True, default=True, help="Run in stdio mode (default)")
+@click.option("--tcp", type=int, help="Run in TCP mode on specified port (for debugging)")
 def daemon_command(stdio: bool, tcp: Optional[int]):
     """
     Run JSON-RPC daemon for IDE plugin communication.
-    
+
     Examples:
         observe daemon --stdio
         observe daemon --tcp 33333
@@ -358,11 +308,7 @@ def daemon_command(stdio: bool, tcp: Optional[int]):
         sys.exit(1)
     else:
         # Configure logging to stderr (won't interfere with JSON-RPC on stdout)
-        logging.basicConfig(
-            level=logging.INFO,
-            format='[%(asctime)s] %(levelname)s: %(message)s',
-            stream=sys.stderr
-        )
+        logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", stream=sys.stderr)
 
         try:
             server.run_stdio()

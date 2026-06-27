@@ -51,9 +51,9 @@ class EdgeCaseDetector:
     def _detect_boundary_conditions(self) -> None:
         """Detect boundary condition checks."""
         all_files = (
-                list(self.project_path.rglob("*.kt"))
-                + list(self.project_path.rglob("*.java"))
-                + list(self.project_path.rglob("*.swift"))
+            list(self.project_path.rglob("*.kt"))
+            + list(self.project_path.rglob("*.java"))
+            + list(self.project_path.rglob("*.swift"))
         )
 
         seen_boundaries: Set[tuple] = set()
@@ -72,15 +72,11 @@ class EdgeCaseDetector:
                         if boundary_key not in seen_boundaries:
                             seen_boundaries.add(boundary_key)
 
-                            test_values = self._generate_boundary_test_values(
-                                int(value), operator
-                            )
+                            test_values = self._generate_boundary_test_values(int(value), operator)
 
                             edge_case = EdgeCase(
                                 type="boundary",
-                                description=(
-                                    f"Boundary check: {var_name} {operator} {value}"
-                                ),
+                                description=(f"Boundary check: {var_name} {operator} {value}"),
                                 test_data=test_values,
                                 source_file=str(file_path),
                                 severity="high",
@@ -90,9 +86,7 @@ class EdgeCaseDetector:
             except Exception as e:
                 print(f"Warning: Could not detect boundaries in {file_path}: {e}")
 
-    def _generate_boundary_test_values(
-            self, boundary: int, operator: str
-    ) -> List[int]:
+    def _generate_boundary_test_values(self, boundary: int, operator: str) -> List[int]:
         """Generate test values for boundary conditions."""
         if operator in ["<", "<="]:
             return [boundary - 1, boundary, boundary + 1]
@@ -103,10 +97,7 @@ class EdgeCaseDetector:
 
     def _detect_null_checks(self) -> None:
         """Detect null/nil safety checks."""
-        all_files = (
-                list(self.project_path.rglob("*.kt"))
-                + list(self.project_path.rglob("*.swift"))
-        )
+        all_files = list(self.project_path.rglob("*.kt")) + list(self.project_path.rglob("*.swift"))
 
         seen_null_checks: Set[tuple] = set()
 
@@ -118,9 +109,7 @@ class EdgeCaseDetector:
                 kt_null_checks = re.findall(r"(\w+)\s*[?!]=\s*null", content)
 
                 # Swift nil checks
-                swift_nil_checks = re.findall(
-                    r"(?:if|guard)\s+let\s+(\w+)", content
-                )
+                swift_nil_checks = re.findall(r"(?:if|guard)\s+let\s+(\w+)", content)
 
                 all_checks = set(kt_null_checks + swift_nil_checks)
 
@@ -144,10 +133,7 @@ class EdgeCaseDetector:
 
     def _detect_empty_checks(self) -> None:
         """Detect empty collection/string checks."""
-        all_files = (
-                list(self.project_path.rglob("*.kt"))
-                + list(self.project_path.rglob("*.swift"))
-        )
+        all_files = list(self.project_path.rglob("*.kt")) + list(self.project_path.rglob("*.swift"))
 
         seen_empty_checks: Set[tuple] = set()
 
@@ -178,10 +164,7 @@ class EdgeCaseDetector:
 
     def _detect_overflow_patterns(self) -> None:
         """Detect potential overflow/underflow patterns."""
-        all_files = (
-                list(self.project_path.rglob("*.kt"))
-                + list(self.project_path.rglob("*.java"))
-        )
+        all_files = list(self.project_path.rglob("*.kt")) + list(self.project_path.rglob("*.java"))
 
         seen_overflow: Set[tuple] = set()
 
@@ -208,9 +191,7 @@ class EdgeCaseDetector:
                             self.analysis.edge_cases.append(edge_case)
 
             except Exception as e:
-                print(
-                    f"Warning: Could not detect overflow patterns in {file_path}: {e}"
-                )
+                print(f"Warning: Could not detect overflow patterns in {file_path}: {e}")
 
     def generate_negative_test_cases(self) -> None:
         """Generate negative test cases from business rules and edge cases."""

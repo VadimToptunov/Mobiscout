@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 
 import joblib
+
 # import numpy  # Unused
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -65,66 +66,63 @@ class ElementClassifier:
         features = {}
 
         # Boolean attributes (0/1)
-        features['clickable'] = 1.0 if element_data.get('clickable') else 0.0
-        features['focusable'] = 1.0 if element_data.get('focusable') else 0.0
-        features['enabled'] = 1.0 if element_data.get('enabled', True) else 0.0
-        features['checkable'] = 1.0 if element_data.get('checkable') else 0.0
-        features['scrollable'] = 1.0 if element_data.get('scrollable') else 0.0
-        features['selected'] = 1.0 if element_data.get('selected') else 0.0
-        features['password'] = 1.0 if element_data.get('password') else 0.0
+        features["clickable"] = 1.0 if element_data.get("clickable") else 0.0
+        features["focusable"] = 1.0 if element_data.get("focusable") else 0.0
+        features["enabled"] = 1.0 if element_data.get("enabled", True) else 0.0
+        features["checkable"] = 1.0 if element_data.get("checkable") else 0.0
+        features["scrollable"] = 1.0 if element_data.get("scrollable") else 0.0
+        features["selected"] = 1.0 if element_data.get("selected") else 0.0
+        features["password"] = 1.0 if element_data.get("password") else 0.0
 
         # Text properties
-        text = element_data.get('text', '') or ''
-        features['has_text'] = 1.0 if text else 0.0
-        features['text_length'] = float(len(text))
-        features['text_short'] = 1.0 if 0 < len(text) <= 20 else 0.0
-        features['text_medium'] = 1.0 if 20 < len(text) <= 100 else 0.0
-        features['text_long'] = 1.0 if len(text) > 100 else 0.0
+        text = element_data.get("text", "") or ""
+        features["has_text"] = 1.0 if text else 0.0
+        features["text_length"] = float(len(text))
+        features["text_short"] = 1.0 if 0 < len(text) <= 20 else 0.0
+        features["text_medium"] = 1.0 if 20 < len(text) <= 100 else 0.0
+        features["text_long"] = 1.0 if len(text) > 100 else 0.0
 
         # Content description
-        content_desc = element_data.get('content_desc', '') or element_data.get('label', '') or ''
-        features['has_content_desc'] = 1.0 if content_desc else 0.0
+        content_desc = element_data.get("content_desc", "") or element_data.get("label", "") or ""
+        features["has_content_desc"] = 1.0 if content_desc else 0.0
 
         # Test ID
-        test_id = element_data.get('resource_id', '') or element_data.get('accessibility_id', '') or ''
-        features['has_test_id'] = 1.0 if test_id else 0.0
+        test_id = element_data.get("resource_id", "") or element_data.get("accessibility_id", "") or ""
+        features["has_test_id"] = 1.0 if test_id else 0.0
 
         # Hierarchy properties
-        features['depth'] = float(element_data.get('depth', 0))
-        features['children_count'] = float(element_data.get('children_count', 0))
-        features['has_children'] = 1.0 if element_data.get('children_count', 0) > 0 else 0.0
+        features["depth"] = float(element_data.get("depth", 0))
+        features["children_count"] = float(element_data.get("children_count", 0))
+        features["has_children"] = 1.0 if element_data.get("children_count", 0) > 0 else 0.0
 
         # Size properties
-        bounds = element_data.get('bounds', {})
-        width = bounds.get('width', 0)
-        height = bounds.get('height', 0)
-        features['width'] = float(width)
-        features['height'] = float(height)
-        features['area'] = float(width * height)
-        features['aspect_ratio'] = float(width / height) if height > 0 else 0.0
+        bounds = element_data.get("bounds", {})
+        width = bounds.get("width", 0)
+        height = bounds.get("height", 0)
+        features["width"] = float(width)
+        features["height"] = float(height)
+        features["area"] = float(width * height)
+        features["aspect_ratio"] = float(width / height) if height > 0 else 0.0
 
         # Size categories
-        features['small'] = 1.0 if width < 100 and height < 100 else 0.0
-        features['medium'] = 1.0 if 100 <= width < 300 and 100 <= height < 300 else 0.0
-        features['large'] = 1.0 if width >= 300 or height >= 300 else 0.0
+        features["small"] = 1.0 if width < 100 and height < 100 else 0.0
+        features["medium"] = 1.0 if 100 <= width < 300 and 100 <= height < 300 else 0.0
+        features["large"] = 1.0 if width >= 300 or height >= 300 else 0.0
 
         # Class name hints
-        class_name = element_data.get('class', '').lower()
-        features['class_button'] = 1.0 if 'button' in class_name else 0.0
-        features['class_text'] = 1.0 if 'text' in class_name and 'edit' not in class_name else 0.0
-        features['class_edit'] = 1.0 if 'edit' in class_name or 'input' in class_name else 0.0
-        features['class_image'] = 1.0 if 'image' in class_name else 0.0
-        features['class_list'] = 1.0 if 'list' in class_name or 'recycler' in class_name else 0.0
-        features['class_view'] = 1.0 if 'view' in class_name and 'text' not in class_name else 0.0
-        features['class_switch'] = 1.0 if 'switch' in class_name or 'toggle' in class_name else 0.0
-        features['class_checkbox'] = 1.0 if 'checkbox' in class_name or 'check' in class_name else 0.0
+        class_name = element_data.get("class", "").lower()
+        features["class_button"] = 1.0 if "button" in class_name else 0.0
+        features["class_text"] = 1.0 if "text" in class_name and "edit" not in class_name else 0.0
+        features["class_edit"] = 1.0 if "edit" in class_name or "input" in class_name else 0.0
+        features["class_image"] = 1.0 if "image" in class_name else 0.0
+        features["class_list"] = 1.0 if "list" in class_name or "recycler" in class_name else 0.0
+        features["class_view"] = 1.0 if "view" in class_name and "text" not in class_name else 0.0
+        features["class_switch"] = 1.0 if "switch" in class_name or "toggle" in class_name else 0.0
+        features["class_checkbox"] = 1.0 if "checkbox" in class_name or "check" in class_name else 0.0
 
         return features
 
-    def prepare_training_data(
-            self,
-            hierarchy_events: List[Dict[str, Any]]
-    ) -> Tuple[pd.DataFrame, pd.Series]:
+    def prepare_training_data(self, hierarchy_events: List[Dict[str, Any]]) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Prepare training dataset from recorded hierarchy events.
 
@@ -138,16 +136,16 @@ class ElementClassifier:
         labels_list = []
 
         for event in hierarchy_events:
-            hierarchy = json.loads(event.get('hierarchy', '{}'))
+            hierarchy = json.loads(event.get("hierarchy", "{}"))
             elements = self._flatten_hierarchy(hierarchy)
 
             for element in elements:
                 # Skip elements without labels
-                if 'element_type' not in element:
+                if "element_type" not in element:
                     continue
 
                 features = self.extract_features(element)
-                label = element['element_type']
+                label = element["element_type"]
 
                 features_list.append(features)
                 labels_list.append(label)
@@ -172,22 +170,18 @@ class ElementClassifier:
 
         # Add current node
         element = dict(node)
-        element['depth'] = depth
-        element['children_count'] = len(node.get('children', []))
+        element["depth"] = depth
+        element["children_count"] = len(node.get("children", []))
         elements.append(element)
 
         # Process children
-        for child in node.get('children', []):
+        for child in node.get("children", []):
             elements.extend(self._flatten_hierarchy(child, depth + 1))
 
         return elements
 
     def train(
-            self,
-            features: pd.DataFrame,
-            labels: pd.Series,
-            test_size: float = 0.2,
-            random_state: int = 42
+        self, features: pd.DataFrame, labels: pd.Series, test_size: float = 0.2, random_state: int = 42
     ) -> Dict[str, Any]:
         """
         Train Random Forest classifier.
@@ -207,10 +201,7 @@ class ElementClassifier:
 
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
-            features, labels_encoded,
-            test_size=test_size,
-            random_state=random_state,
-            stratify=labels_encoded
+            features, labels_encoded, test_size=test_size, random_state=random_state, stratify=labels_encoded
         )
 
         # Train model
@@ -221,8 +212,8 @@ class ElementClassifier:
             min_samples_split=5,
             min_samples_leaf=2,
             random_state=random_state,
-            class_weight='balanced',
-            n_jobs=-1
+            class_weight="balanced",
+            n_jobs=-1,
         )
 
         self.model.fit(X_train, y_train)
@@ -239,27 +230,22 @@ class ElementClassifier:
         y_pred = self.model.predict(X_test)
 
         # Classification report
-        report = classification_report(
-            y_test, y_pred,
-            target_names=self.label_encoder.classes_,
-            output_dict=True
-        )
+        report = classification_report(y_test, y_pred, target_names=self.label_encoder.classes_, output_dict=True)
 
         # Feature importance
-        feature_importance = pd.DataFrame({
-            'feature': self.feature_names,
-            'importance': self.model.feature_importances_
-        }).sort_values('importance', ascending=False)
+        feature_importance = pd.DataFrame(
+            {"feature": self.feature_names, "importance": self.model.feature_importances_}
+        ).sort_values("importance", ascending=False)
 
         metrics = {
-            'train_accuracy': float(train_score),
-            'test_accuracy': float(test_score),
-            'cv_mean': float(cv_scores.mean()),
-            'cv_std': float(cv_scores.std()),
-            'classification_report': report,
-            'feature_importance': feature_importance.to_dict('records'),
-            'train_samples': len(X_train),
-            'test_samples': len(X_test)
+            "train_accuracy": float(train_score),
+            "test_accuracy": float(test_score),
+            "cv_mean": float(cv_scores.mean()),
+            "cv_std": float(cv_scores.std()),
+            "classification_report": report,
+            "feature_importance": feature_importance.to_dict("records"),
+            "train_samples": len(X_train),
+            "test_samples": len(X_test),
         }
 
         logger.info("Training complete!")
@@ -270,11 +256,7 @@ class ElementClassifier:
 
         return metrics
 
-    def train_from_data(
-            self,
-            training_data: List[Dict[str, Any]],
-            test_size: float = 0.2
-    ) -> float:
+    def train_from_data(self, training_data: List[Dict[str, Any]], test_size: float = 0.2) -> float:
         """
         Train model from list of training examples.
 
@@ -295,7 +277,7 @@ class ElementClassifier:
         for example in training_data:
             features = self.extract_features(example)
             features_list.append(features)
-            label = example.get('label', example.get('element_type', 'generic'))
+            label = example.get("label", example.get("element_type", "generic"))
             labels.append(label)
 
         # Create DataFrame
@@ -305,12 +287,9 @@ class ElementClassifier:
 
         # Train using the main train method
         metrics = self.train(features_df, labels_series, test_size=test_size)
-        return metrics.get('test_accuracy', 0.0)
+        return metrics.get("test_accuracy", 0.0)
 
-    def predict(
-            self,
-            element_data: Dict[str, Any]
-    ) -> Tuple[ElementType, float]:
+    def predict(self, element_data: Dict[str, Any]) -> Tuple[ElementType, float]:
         """
         Predict element type with confidence.
 
@@ -345,10 +324,7 @@ class ElementClassifier:
 
         return element_type, confidence
 
-    def predict_batch(
-            self,
-            elements_data: List[Dict[str, Any]]
-    ) -> List[Tuple[ElementType, float]]:
+    def predict_batch(self, elements_data: List[Dict[str, Any]]) -> List[Tuple[ElementType, float]]:
         """Predict multiple elements at once."""
         if not self.trained or self.model is None:
             raise ValueError("Model not trained")
@@ -383,11 +359,7 @@ class ElementClassifier:
 
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        model_data = {
-            'model': self.model,
-            'label_encoder': self.label_encoder,
-            'feature_names': self.feature_names
-        }
+        model_data = {"model": self.model, "label_encoder": self.label_encoder, "feature_names": self.feature_names}
 
         joblib.dump(model_data, path)
         logger.info(f"Model saved to {path}")
@@ -399,9 +371,9 @@ class ElementClassifier:
 
         model_data = joblib.load(path)
 
-        self.model = model_data['model']
-        self.label_encoder = model_data['label_encoder']
-        self.feature_names = model_data['feature_names']
+        self.model = model_data["model"]
+        self.label_encoder = model_data["label_encoder"]
+        self.feature_names = model_data["feature_names"]
         self.trained = True
 
         logger.info(f"Model loaded from {path}")
@@ -411,9 +383,10 @@ class ElementClassifier:
         if not self.trained or self.model is None:
             raise ValueError("Model not trained")
 
-        importance_df = pd.DataFrame({
-            'feature': self.feature_names,
-            'importance': self.model.feature_importances_
-        }).sort_values('importance', ascending=False).head(top_n)
+        importance_df = (
+            pd.DataFrame({"feature": self.feature_names, "importance": self.model.feature_importances_})
+            .sort_values("importance", ascending=False)
+            .head(top_n)
+        )
 
         return importance_df

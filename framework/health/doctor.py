@@ -20,6 +20,7 @@ from rich.table import Table
 
 class CheckStatus(Enum):
     """Status of a health check"""
+
     PASS = "✓"
     FAIL = "✗"
     WARN = "⚠"
@@ -29,6 +30,7 @@ class CheckStatus(Enum):
 @dataclass
 class HealthCheck:
     """Result of a single health check"""
+
     name: str
     status: CheckStatus
     message: str
@@ -38,7 +40,7 @@ class HealthCheck:
 class SystemDoctor:
     """
     Comprehensive system health checker
-    
+
     Verifies:
     - Python version
     - Required packages

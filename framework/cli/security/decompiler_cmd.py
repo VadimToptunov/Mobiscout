@@ -46,14 +46,16 @@ def decompile(
 
     platform = "android" if binary_path.suffix.lower() == ".apk" else "ios"
 
-    console.print(Panel.fit(
-        f"Binary Decompilation & Analysis\n\n"
-        f"File: {binary_path.name}\n"
-        f"Platform: {platform.upper()}\n"
-        f"String Extraction: {'Enabled' if extract_strings else 'Disabled'}\n"
-        f"Native Analysis: {'Enabled' if analyze_native else 'Disabled'}",
-        style="bold magenta"
-    ))
+    console.print(
+        Panel.fit(
+            f"Binary Decompilation & Analysis\n\n"
+            f"File: {binary_path.name}\n"
+            f"Platform: {platform.upper()}\n"
+            f"String Extraction: {'Enabled' if extract_strings else 'Disabled'}\n"
+            f"Native Analysis: {'Enabled' if analyze_native else 'Disabled'}",
+            style="bold magenta",
+        )
+    )
 
     decompiler = Decompiler()
 
@@ -115,7 +117,9 @@ def decompile(
                 "secret": "red",
             }.get(string_info.category, "white")
 
-            console.print(f"  [{category_style}]•[/{category_style}] [{category_style}]{string_info.category}[/{category_style}]: {string_info.value[:60]}...")
+            console.print(
+                f"  [{category_style}]•[/{category_style}] [{category_style}]{string_info.category}[/{category_style}]: {string_info.value[:60]}..."
+            )
 
         if len(result.interesting_strings) > 15:
             console.print(f"  [dim]... and {len(result.interesting_strings) - 15} more[/dim]")
@@ -132,7 +136,9 @@ def decompile(
 
         for finding in result.security_findings[:10]:
             severity_style = "red" if finding.severity in ["critical", "high"] else "yellow"
-            console.print(f"  [{severity_style}]•[/{severity_style}] [{severity_style}]{finding.title}[/{severity_style}]")
+            console.print(
+                f"  [{severity_style}]•[/{severity_style}] [{severity_style}]{finding.title}[/{severity_style}]"
+            )
             console.print(f"    {finding.description}")
 
     if output:
@@ -214,7 +220,7 @@ def strings(
         console.print()
 
     if output:
-        with open(output, 'w') as f:
+        with open(output, "w") as f:
             for s in strings_list:
                 f.write(f"[{s.category}] {s.value}\n")
         console.print(f"\n[green]✓[/green] Strings saved to {output}")

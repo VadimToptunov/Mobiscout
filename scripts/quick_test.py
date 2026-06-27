@@ -12,7 +12,7 @@ try:
     module = MLModule()
     print("✅ MLModule instantiated successfully")
 
-    result = module.predict_selector({'id': 'test'})
+    result = module.predict_selector({"id": "test"})
     print(f"✅ Prediction works: {result.prediction}")
 
     print("\n✅ ALL CHECKS PASSED")

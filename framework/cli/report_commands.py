@@ -25,7 +25,7 @@ console = Console()
 def report() -> None:
     """
     Test report generation commands.
-    
+
     Generate professional reports in multiple formats.
     """
     pass
@@ -53,13 +53,13 @@ def report() -> None:
     help="Output file path",
 )
 def generate(
-        junit_xml: Optional[Path],
-        format: str,
-        output: Path,
+    junit_xml: Optional[Path],
+    format: str,
+    output: Path,
 ) -> None:
     """
     Generate test report from JUnit XML.
-    
+
     Example:
         observe report generate --junit-xml results.xml --output report.html
         observe report generate -j results.xml -f markdown -o REPORT.md
@@ -100,7 +100,7 @@ def generate(
 def summary(junit_xml: Path) -> None:
     """
     Show test summary from JUnit XML.
-    
+
     Example:
         observe report summary results.xml
     """
@@ -123,7 +123,7 @@ def summary(junit_xml: Path) -> None:
 def list_formats() -> None:
     """
     List available report formats.
-    
+
     Example:
         observe report list
     """

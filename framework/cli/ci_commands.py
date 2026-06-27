@@ -24,8 +24,14 @@ def ci():
 
 @ci.command()
 @click.argument("ci_system", type=click.Choice(["github", "gitlab", "jenkins", "circleci"]))
-@click.option("--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]),
-              default="basic", help="Template type")
+@click.option(
+    "--type",
+    "-t",
+    "template_type",
+    type=click.Choice(["basic", "parallel", "multiplatform"]),
+    default="basic",
+    help="Template type",
+)
 @click.option("--output", "-o", type=Path, help="Output file (default: standard location)")
 def init(ci_system: str, template_type: str, output: Path):
     """Initialize CI/CD configuration for your project."""
@@ -64,8 +70,12 @@ def init(ci_system: str, template_type: str, output: Path):
 
         # Show preview
         if click.confirm("\nShow file contents?", default=True):
-            syntax = Syntax(template, "yaml" if ci_system in ["github", "gitlab", "circleci"] else "groovy",
-                            theme="monokai", line_numbers=True)
+            syntax = Syntax(
+                template,
+                "yaml" if ci_system in ["github", "gitlab", "circleci"] else "groovy",
+                theme="monokai",
+                line_numbers=True,
+            )
             console.print("\n")
             console.print(syntax)
 
@@ -106,8 +116,9 @@ def list_templates():
 
 @ci.command()
 @click.argument("ci_system", type=click.Choice(["github", "gitlab", "jenkins", "circleci"]))
-@click.option("--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]),
-              default="basic")
+@click.option(
+    "--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]), default="basic"
+)
 def show(ci_system: str, template_type: str):
     """Show a CI/CD template without saving."""
     try:
@@ -119,7 +130,7 @@ def show(ci_system: str, template_type: str):
             template,
             "yaml" if ci_system in ["github", "gitlab", "circleci"] else "groovy",
             theme="monokai",
-            line_numbers=True
+            line_numbers=True,
         )
         console.print(syntax)
 

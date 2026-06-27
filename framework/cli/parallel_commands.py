@@ -86,12 +86,12 @@ def run(test_dir: Path, workers: int, shard_strategy: str, pytest_args: str) -> 
     executor = ParallelExecutor(max_workers=workers, pytest_args=pytest_args.split() if pytest_args else [])
 
     with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console,
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        console=console,
     ) as progress:
         task = progress.add_task("[cyan]Executing tests...", total=len(shards))
 
@@ -146,7 +146,7 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
     devices = device_manager.get_available_devices()
 
     if platform != "both":
-        devices = [d for d in devices if d.get('platform', '').lower() == platform]
+        devices = [d for d in devices if d.get("platform", "").lower() == platform]
 
     if not devices:
         console.print(f"[red]❌ No {platform} devices found[/red]")
@@ -166,10 +166,10 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
 
     for device in devices:
         table.add_row(
-            device.get('name', 'Unknown'),
-            device.get('platform', 'Unknown'),
-            device.get('platform_version', device.get('os_version', 'Unknown')),
-            device.get('status', 'Unknown')
+            device.get("name", "Unknown"),
+            device.get("platform", "Unknown"),
+            device.get("platform_version", device.get("os_version", "Unknown")),
+            device.get("status", "Unknown"),
         )
 
     console.print(table)

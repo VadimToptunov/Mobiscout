@@ -17,6 +17,7 @@ from typing import Dict, Any, List, Optional, Callable
 @dataclass
 class ProfilerConfig:
     """Configuration for performance profiling"""
+
     profile_cpu: bool = True
     profile_memory: bool = True
     profile_time: bool = True
@@ -28,6 +29,7 @@ class ProfilerConfig:
 @dataclass
 class ProfileResult:
     """Results from performance profiling"""
+
     test_path: str
     start_time: datetime
     end_time: datetime
@@ -58,10 +60,10 @@ class PerformanceProfiler:
         self.memory_snapshots: List[tracemalloc.Snapshot] = []
 
     def profile_test(
-            self,
-            test_path: Path,
-            test_function: Callable[[], Any],
-            progress_callback: Optional[Callable[[str], None]] = None,
+        self,
+        test_path: Path,
+        test_function: Callable[[], Any],
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> ProfileResult:
         """Profile a test function"""
         start_time = datetime.now()
@@ -134,17 +136,19 @@ class PerformanceProfiler:
         stats = ps.stats  # type: ignore[attr-defined]  # pstats.Stats has dynamic attrs
         top_functions = []
 
-        for func, (cc, nc, tt, ct, callers) in list(stats.items())[:self.config.top_functions]:
+        for func, (cc, nc, tt, ct, callers) in list(stats.items())[: self.config.top_functions]:
             filename, line, name = func
-            top_functions.append({
-                "function": name,
-                "filename": filename,
-                "line": line,
-                "calls": nc,
-                "total_time": tt,
-                "cumulative_time": ct,
-                "time_per_call": tt / nc if nc > 0 else 0,
-            })
+            top_functions.append(
+                {
+                    "function": name,
+                    "filename": filename,
+                    "line": line,
+                    "calls": nc,
+                    "total_time": tt,
+                    "cumulative_time": ct,
+                    "time_per_call": tt / nc if nc > 0 else 0,
+                }
+            )
 
         return {
             "top_functions": top_functions,
@@ -162,13 +166,15 @@ class PerformanceProfiler:
         top_stats = snapshot.statistics("lineno")
 
         top_allocations = []
-        for stat in top_stats[:self.config.top_functions]:
-            top_allocations.append({
-                "filename": stat.traceback.format()[0] if stat.traceback else "unknown",
-                "size_bytes": stat.size,
-                "size_mb": stat.size / 1024 / 1024,
-                "count": stat.count,
-            })
+        for stat in top_stats[: self.config.top_functions]:
+            top_allocations.append(
+                {
+                    "filename": stat.traceback.format()[0] if stat.traceback else "unknown",
+                    "size_bytes": stat.size,
+                    "size_mb": stat.size / 1024 / 1024,
+                    "count": stat.count,
+                }
+            )
 
         # Calculate total memory
         total_size = sum(stat.size for stat in top_stats)
@@ -181,9 +187,9 @@ class PerformanceProfiler:
         }
 
     def compare_profiles(
-            self,
-            baseline: ProfileResult,
-            current: ProfileResult,
+        self,
+        baseline: ProfileResult,
+        current: ProfileResult,
     ) -> Dict[str, Any]:
         """Compare two profile results"""
         comparison: Dict[str, Any] = {

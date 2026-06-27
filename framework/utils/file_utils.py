@@ -34,10 +34,10 @@ def safe_read_file(file_path: Path, encoding: str = "utf-8") -> Optional[str]:
 
 
 def safe_write_file(
-        file_path: Path,
-        content: str,
-        encoding: str = "utf-8",
-        create_dirs: bool = True,
+    file_path: Path,
+    content: str,
+    encoding: str = "utf-8",
+    create_dirs: bool = True,
 ) -> bool:
     """
     Safely write content to a file with error handling.
@@ -83,10 +83,10 @@ def load_json(file_path: Path) -> Optional[Dict[str, Any]]:
 
 
 def save_json(
-        file_path: Path,
-        data: Dict[str, Any],
-        indent: int = 2,
-        create_dirs: bool = True,
+    file_path: Path,
+    data: Dict[str, Any],
+    indent: int = 2,
+    create_dirs: bool = True,
 ) -> bool:
     """
     Save data to JSON file with error handling.
@@ -134,9 +134,9 @@ def load_yaml(file_path: Path) -> Optional[Dict[str, Any]]:
 
 
 def save_yaml(
-        file_path: Path,
-        data: Dict[str, Any],
-        create_dirs: bool = True,
+    file_path: Path,
+    data: Dict[str, Any],
+    create_dirs: bool = True,
 ) -> bool:
     """
     Save data to YAML file with error handling.

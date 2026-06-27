@@ -8,8 +8,8 @@ from .parallel_executor import ParallelExecutor, ExecutionResult
 from .test_sharding import TestSharding, ShardStrategy
 
 __all__ = [
-    'TestSharding',
-    'ShardStrategy',
-    'ParallelExecutor',
-    'ExecutionResult',
+    "TestSharding",
+    "ShardStrategy",
+    "ParallelExecutor",
+    "ExecutionResult",
 ]

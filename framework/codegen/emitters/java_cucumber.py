@@ -34,9 +34,7 @@ class JavaCucumberEmitter(Emitter):
         base = _pascal(model.name)
         # (registry key, Java By[] literal of primary + fallbacks)
         locators = [(key, by_list(sel)) for key, sel in collect_targets(model)]
-        steps = self.env.get_template("steps.java.j2").render(
-            model=model, class_name=f"{base}Steps", locators=locators
-        )
+        steps = self.env.get_template("steps.java.j2").render(model=model, class_name=f"{base}Steps", locators=locators)
         return {
             f"{base}.feature": render_feature(model),
             f"{base}Steps.java": steps,

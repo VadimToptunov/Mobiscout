@@ -54,7 +54,7 @@ from framework.core.exceptions import (
     APIError,
     # Utility functions
     format_error_message,
-    is_retriable_error
+    is_retriable_error,
 )
 
 
@@ -82,11 +82,7 @@ class TestBaseException:
 
     def test_to_dict(self):
         """Test exception serialization."""
-        error = MobileTestError(
-            "Test error",
-            code="TEST001",
-            details={"key": "value"}
-        )
+        error = MobileTestError("Test error", code="TEST001", details={"key": "value"})
         result = error.to_dict()
 
         assert result["error"] == "MobileTestError"
@@ -100,10 +96,7 @@ class TestDeviceExceptions:
 
     def test_device_not_found(self):
         """Test DeviceNotFoundError."""
-        error = DeviceNotFoundError(
-            "Device not found",
-            details={"device_id": "unknown"}
-        )
+        error = DeviceNotFoundError("Device not found", details={"device_id": "unknown"})
         assert isinstance(error, DeviceError)
         assert isinstance(error, MobileTestError)
 
@@ -123,18 +116,12 @@ class TestBackendExceptions:
 
     def test_backend_not_available(self):
         """Test BackendNotAvailableError."""
-        error = BackendNotAvailableError(
-            "Appium not running",
-            details={"backend": "appium"}
-        )
+        error = BackendNotAvailableError("Appium not running", details={"backend": "appium"})
         assert isinstance(error, BackendError)
 
     def test_session_not_found(self):
         """Test SessionNotFoundError."""
-        error = SessionNotFoundError(
-            "Session expired",
-            details={"session_id": "abc123"}
-        )
+        error = SessionNotFoundError("Session expired", details={"session_id": "abc123"})
         assert isinstance(error, SessionError)
         assert isinstance(error, BackendError)
 
@@ -144,18 +131,12 @@ class TestElementExceptions:
 
     def test_element_not_found(self):
         """Test ElementNotFoundError."""
-        error = ElementNotFoundError(
-            "Element not found",
-            details={"selector": "//button[@id='submit']"}
-        )
+        error = ElementNotFoundError("Element not found", details={"selector": "//button[@id='submit']"})
         assert isinstance(error, ElementError)
 
     def test_element_not_interactable(self):
         """Test ElementNotInteractableError."""
-        error = ElementNotInteractableError(
-            "Element is disabled",
-            details={"element_id": "btn_123"}
-        )
+        error = ElementNotInteractableError("Element is disabled", details={"element_id": "btn_123"})
         assert isinstance(error, ElementError)
 
 
@@ -164,17 +145,13 @@ class TestSelectorExceptions:
 
     def test_invalid_selector(self):
         """Test InvalidSelectorError."""
-        error = InvalidSelectorError(
-            "Invalid XPath syntax",
-            details={"selector": "//button["}
-        )
+        error = InvalidSelectorError("Invalid XPath syntax", details={"selector": "//button["})
         assert isinstance(error, SelectorError)
 
     def test_selector_timeout(self):
         """Test SelectorTimeoutError."""
         error = SelectorTimeoutError(
-            "Timeout waiting for element",
-            details={"timeout": 30, "selector": "//div[@class='loading']"}
+            "Timeout waiting for element", details={"timeout": 30, "selector": "//div[@class='loading']"}
         )
         assert isinstance(error, SelectorError)
 
@@ -184,25 +161,20 @@ class TestAnalysisExceptions:
 
     def test_ast_parsing_error(self):
         """Test ASTParsingError."""
-        error = ASTParsingError(
-            "Invalid Python syntax",
-            details={"file": "test.py", "line": 42}
-        )
+        error = ASTParsingError("Invalid Python syntax", details={"file": "test.py", "line": 42})
         assert isinstance(error, AnalysisError)
 
     def test_security_violation(self):
         """Test SecurityViolationError."""
         error = SecurityViolationError(
-            "SQL injection detected",
-            details={"severity": "critical", "location": "login.py:15"}
+            "SQL injection detected", details={"severity": "critical", "location": "login.py:15"}
         )
         assert isinstance(error, AnalysisError)
 
     def test_accessibility_violation(self):
         """Test AccessibilityViolationError."""
         error = AccessibilityViolationError(
-            "Missing content description",
-            details={"element_id": "btn_submit", "wcag": "1.1.1"}
+            "Missing content description", details={"element_id": "btn_submit", "wcag": "1.1.1"}
         )
         assert isinstance(error, AnalysisError)
 
@@ -212,34 +184,22 @@ class TestMLExceptions:
 
     def test_model_not_found(self):
         """Test ModelNotFoundError."""
-        error = ModelNotFoundError(
-            "Model file not found",
-            details={"model_path": "/models/selector_model.pkl"}
-        )
+        error = ModelNotFoundError("Model file not found", details={"model_path": "/models/selector_model.pkl"})
         assert isinstance(error, MLError)
 
     def test_model_not_trained(self):
         """Test ModelNotTrainedError."""
-        error = ModelNotTrainedError(
-            "Model requires training",
-            details={"model_name": "element_classifier"}
-        )
+        error = ModelNotTrainedError("Model requires training", details={"model_name": "element_classifier"})
         assert isinstance(error, MLError)
 
     def test_prediction_error(self):
         """Test PredictionError."""
-        error = PredictionError(
-            "Invalid input shape",
-            details={"expected": (1, 128), "got": (1, 64)}
-        )
+        error = PredictionError("Invalid input shape", details={"expected": (1, 128), "got": (1, 64)})
         assert isinstance(error, MLError)
 
     def test_training_error(self):
         """Test TrainingError."""
-        error = TrainingError(
-            "Insufficient training data",
-            details={"samples": 10, "required": 100}
-        )
+        error = TrainingError("Insufficient training data", details={"samples": 10, "required": 100})
         assert isinstance(error, MLError)
 
 
@@ -248,18 +208,12 @@ class TestConfigurationExceptions:
 
     def test_invalid_config(self):
         """Test InvalidConfigError."""
-        error = InvalidConfigError(
-            "Invalid JSON syntax",
-            details={"config_file": "config.json"}
-        )
+        error = InvalidConfigError("Invalid JSON syntax", details={"config_file": "config.json"})
         assert isinstance(error, ConfigurationError)
 
     def test_missing_config(self):
         """Test MissingConfigError."""
-        error = MissingConfigError(
-            "Required field missing",
-            details={"field": "appium.server_url"}
-        )
+        error = MissingConfigError("Required field missing", details={"field": "appium.server_url"})
         assert isinstance(error, ConfigurationError)
 
 
@@ -268,25 +222,18 @@ class TestLicenseExceptions:
 
     def test_invalid_license(self):
         """Test InvalidLicenseError."""
-        error = InvalidLicenseError(
-            "License key format invalid",
-            details={"key": "INVALID-KEY"}
-        )
+        error = InvalidLicenseError("License key format invalid", details={"key": "INVALID-KEY"})
         assert isinstance(error, LicenseError)
 
     def test_license_expired(self):
         """Test LicenseExpiredError."""
-        error = LicenseExpiredError(
-            "License expired",
-            details={"expiry_date": "2024-01-01"}
-        )
+        error = LicenseExpiredError("License expired", details={"expiry_date": "2024-01-01"})
         assert isinstance(error, LicenseError)
 
     def test_feature_not_licensed(self):
         """Test FeatureNotLicensedError."""
         error = FeatureNotLicensedError(
-            "Feature requires Pro license",
-            details={"feature": "ml_advanced", "license_type": "free"}
+            "Feature requires Pro license", details={"feature": "ml_advanced", "license_type": "free"}
         )
         assert isinstance(error, LicenseError)
 
@@ -296,11 +243,7 @@ class TestUtilityFunctions:
 
     def test_format_error_message_mobile_test_error(self):
         """Test formatting MobileTestError."""
-        error = DeviceNotFoundError(
-            "Device not found",
-            code="DEVICE_001",
-            details={"device_id": "emulator-5554"}
-        )
+        error = DeviceNotFoundError("Device not found", code="DEVICE_001", details={"device_id": "emulator-5554"})
 
         msg = format_error_message(error)
         assert "[DEVICE_001]" in msg
@@ -389,6 +332,7 @@ class TestExceptionInheritance:
 # Negative Tests
 # ============================================================================
 
+
 class TestNegativeCases:
     """Test negative and edge cases."""
 
@@ -406,11 +350,7 @@ class TestNegativeCases:
         """Test that to_dict produces JSON-serializable output."""
         import json
 
-        error = DeviceError(
-            "Test error",
-            code="TEST",
-            details={"key": "value", "count": 42}
-        )
+        error = DeviceError("Test error", code="TEST", details={"key": "value", "count": 42})
 
         # Should be JSON serializable
         result = error.to_dict()
@@ -420,11 +360,7 @@ class TestNegativeCases:
     def test_format_error_with_complex_context(self):
         """Test format_error with complex nested context."""
         error = APIError("Request failed")
-        context = {
-            "url": "https://api.example.com",
-            "headers": {"Authorization": "Bearer token"},
-            "retry_count": 3
-        }
+        context = {"url": "https://api.example.com", "headers": {"Authorization": "Bearer token"}, "retry_count": 3}
 
         msg = format_error_message(error, context=context)
         assert "Request failed" in msg

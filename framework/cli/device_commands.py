@@ -15,17 +15,19 @@ from framework.devices.device_pool import PoolManager, PoolStrategy
 console = Console()
 
 
-@click.group(name='devices')
+@click.group(name="devices")
 def devices() -> None:
     """📱 Device management commands"""
     pass
 
 
 @devices.command()
-@click.option('--platform', '-p', type=click.Choice(['android', 'ios', 'all']),
-              default='all', help='Filter by platform')
-@click.option('--status', '-s', type=click.Choice(['available', 'busy', 'offline', 'all']),
-              default='all', help='Filter by status')
+@click.option(
+    "--platform", "-p", type=click.Choice(["android", "ios", "all"]), default="all", help="Filter by platform"
+)
+@click.option(
+    "--status", "-s", type=click.Choice(["available", "busy", "offline", "all"]), default="all", help="Filter by status"
+)
 def list(platform: str, status: str) -> None:
     """List available devices"""
     print_header("Available Devices")
@@ -35,12 +37,12 @@ def list(platform: str, status: str) -> None:
 
         # Get Android devices
         android_devices = []
-        if platform in ['android', 'all']:
+        if platform in ["android", "all"]:
             android_devices = manager.list_android_devices()
 
         # Get iOS devices
         ios_devices = []
-        if platform in ['ios', 'all']:
+        if platform in ["ios", "all"]:
             ios_devices = manager.list_ios_devices()
 
         all_devices = android_devices + ios_devices
@@ -50,7 +52,7 @@ def list(platform: str, status: str) -> None:
             return
 
         # Filter by status if specified
-        if status != 'all':
+        if status != "all":
             all_devices = [d for d in all_devices if d.status.lower() == status]
 
         if not all_devices:
@@ -66,25 +68,21 @@ def list(platform: str, status: str) -> None:
         table.add_column("Status", style="bold")
 
         for device in all_devices:
-            status_emoji = {
-                'available': '✅',
-                'busy': '🔄',
-                'offline': '❌'
-            }.get(device.status.lower(), '❓')
+            status_emoji = {"available": "✅", "busy": "🔄", "offline": "❌"}.get(device.status.lower(), "❓")
 
             table.add_row(
                 device.device_id,
                 device.name or "Unknown",
                 device.platform.value,
                 device.os_version or "Unknown",
-                f"{status_emoji} {device.status}"
+                f"{status_emoji} {device.status}",
             )
 
         console.print(table)
 
         # Show counts by platform
-        android_count = len([d for d in all_devices if d.platform.value == 'android'])
-        ios_count = len([d for d in all_devices if d.platform.value == 'ios'])
+        android_count = len([d for d in all_devices if d.platform.value == "android"])
+        ios_count = len([d for d in all_devices if d.platform.value == "ios"])
 
         print_info(f"\n📊 Summary:")  # noqa: F541
         print_info(f"  Android: {android_count}")
@@ -97,7 +95,7 @@ def list(platform: str, status: str) -> None:
 
 
 @devices.command()
-@click.option('--device-id', '-d', required=True, help='Device ID to check')
+@click.option("--device-id", "-d", required=True, help="Device ID to check")
 def info(device_id: str) -> None:
     """Show detailed device information"""
     print_header(f"Device Info: {device_id}")
@@ -119,7 +117,7 @@ def info(device_id: str) -> None:
         print_info(f"  OS Version: {device.get('os_version', 'Unknown')}")
         print_info(f"  Status:     {device.get('status', 'Unknown')}")
 
-        capabilities = device.get('capabilities', {})
+        capabilities = device.get("capabilities", {})
         if capabilities:
             print_info(f"\n  Capabilities:")  # noqa: F541
             for key, value in capabilities.items():
@@ -154,9 +152,9 @@ def health() -> None:
         unhealthy = []
 
         for device in all_devices:
-            device_id = device.get('id', '')
+            device_id = device.get("id", "")
             health_result = manager.check_device_health(device_id)
-            is_healthy = health_result.get('healthy', False)
+            is_healthy = health_result.get("healthy", False)
 
             if is_healthy:
                 healthy.append(device)
@@ -184,24 +182,29 @@ def health() -> None:
         raise click.Abort()
 
 
-@devices.group(name='pool')
+@devices.group(name="pool")
 def pool() -> None:
     """Device pool management"""
     pass
 
 
-@pool.command(name='create')
-@click.option('--name', '-n', required=True, help='Pool name')
-@click.option('--devices', '-d', required=True, help='Comma-separated device IDs')
-@click.option('--strategy', '-s', type=click.Choice(['round-robin', 'least-busy', 'random']),
-              default='round-robin', help='Device selection strategy')
+@pool.command(name="create")
+@click.option("--name", "-n", required=True, help="Pool name")
+@click.option("--devices", "-d", required=True, help="Comma-separated device IDs")
+@click.option(
+    "--strategy",
+    "-s",
+    type=click.Choice(["round-robin", "least-busy", "random"]),
+    default="round-robin",
+    help="Device selection strategy",
+)
 def pool_create(name: str, devices: str, strategy: str) -> None:
     """Create a new device pool"""
     print_header(f"Creating Device Pool: {name}")
 
     try:
         manager = PoolManager()
-        device_ids = [d.strip() for d in devices.split(',')]
+        device_ids = [d.strip() for d in devices.split(",")]
 
         print_info(f"Pool name: {name}")
         print_info(f"Strategy: {strategy}")
@@ -209,9 +212,9 @@ def pool_create(name: str, devices: str, strategy: str) -> None:
 
         # Parse strategy
         strategy_map = {
-            'round-robin': PoolStrategy.ROUND_ROBIN,
-            'least-busy': PoolStrategy.LEAST_BUSY,
-            'random': PoolStrategy.RANDOM
+            "round-robin": PoolStrategy.ROUND_ROBIN,
+            "least-busy": PoolStrategy.LEAST_BUSY,
+            "random": PoolStrategy.RANDOM,
         }
         pool_strategy = strategy_map[strategy]
 
@@ -239,7 +242,7 @@ def pool_create(name: str, devices: str, strategy: str) -> None:
         raise click.Abort()
 
 
-@pool.command(name='list')
+@pool.command(name="list")
 def pool_list() -> None:
     """List all device pools"""
     print_header("Device Pools")
@@ -253,8 +256,8 @@ def pool_list() -> None:
         raise click.Abort()
 
 
-@pool.command(name='info')
-@click.argument('pool_name')
+@pool.command(name="info")
+@click.argument("pool_name")
 def pool_info(pool_name: str) -> None:
     """Show device pool information"""
     print_header(f"Pool Info: {pool_name}")
@@ -275,11 +278,7 @@ def pool_info(pool_name: str) -> None:
         if pool.devices:
             print_info(f"\n  Device List:")  # noqa: F541
             for device in pool.devices:
-                status_emoji = {
-                    'available': '✅',
-                    'busy': '🔄',
-                    'offline': '❌'
-                }.get(device.status.value.lower(), '❓')
+                status_emoji = {"available": "✅", "busy": "🔄", "offline": "❌"}.get(device.status.value.lower(), "❓")
                 print_info(f"    {status_emoji} {device.id} ({device.name})")
 
         # Health check
@@ -294,9 +293,9 @@ def pool_info(pool_name: str) -> None:
         raise click.Abort()
 
 
-@pool.command(name='delete')
-@click.argument('pool_name')
-@click.option('--force', '-f', is_flag=True, help='Force deletion without confirmation')
+@pool.command(name="delete")
+@click.argument("pool_name")
+@click.option("--force", "-f", is_flag=True, help="Force deletion without confirmation")
 def pool_delete(pool_name: str, force: bool) -> None:
     """Delete a device pool"""
     print_header(f"Deleting Pool: {pool_name}")
@@ -317,5 +316,5 @@ def pool_delete(pool_name: str, force: bool) -> None:
         raise click.Abort()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     devices()

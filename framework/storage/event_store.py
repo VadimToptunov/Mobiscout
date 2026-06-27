@@ -29,7 +29,8 @@ class EventStore:
     def _init_database(self):
         """Initialize database schema"""
         with self._get_connection() as conn:
-            conn.executescript("""
+            conn.executescript(
+                """
                                CREATE TABLE IF NOT EXISTS sessions
                                (
                                    session_id
@@ -176,7 +177,8 @@ class EventStore:
                                    session_id
                                )
                                    );
-                               """)
+                               """
+            )
 
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
@@ -198,10 +200,10 @@ class EventStore:
 
         Returns number of imported events
         """
-        with open(json_path, 'r') as f:
+        with open(json_path, "r") as f:
             data = json.load(f)
 
-        events = data.get('events', [])
+        events = data.get("events", [])
         count = 0
 
         for event in events:
@@ -213,101 +215,112 @@ class EventStore:
     def add_event(self, event: Dict[str, Any]):
         """Add single event to store"""
         # Extract common fields
-        session_id = event.get('sessionId', 'unknown')
+        session_id = event.get("sessionId", "unknown")
         event_type = self._get_event_type(event)
-        timestamp = event.get('timestamp', 0)
-        screen = event.get('screen') or event.get('toScreen') or event.get('fromScreen')
+        timestamp = event.get("timestamp", 0)
+        screen = event.get("screen") or event.get("toScreen") or event.get("fromScreen")
 
         with self._get_connection() as conn:
             # Ensure session exists
             self._ensure_session(conn, session_id, event)
 
             # Insert event
-            conn.execute("""
+            conn.execute(
+                """
                          INSERT INTO events (session_id, event_type, timestamp, screen, data)
                          VALUES (?, ?, ?, ?, ?)
-                         """, (session_id, event_type, timestamp, screen, json.dumps(event)))
+                         """,
+                (session_id, event_type, timestamp, screen, json.dumps(event)),
+            )
 
             # Update screens and flows
-            if event_type == 'navigation':
+            if event_type == "navigation":
                 self._update_navigation_stats(conn, session_id, event)
 
     def _ensure_session(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]):
         """Ensure session record exists"""
-        result = conn.execute(
-            "SELECT session_id FROM sessions WHERE session_id = ?",
-            (session_id,)
-        ).fetchone()
+        result = conn.execute("SELECT session_id FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
 
         if not result:
-            conn.execute("""
+            conn.execute(
+                """
                          INSERT INTO sessions (session_id, start_time, device_model, os_version, app_version)
                          VALUES (?, ?, ?, ?, ?)
-                         """, (
-                             session_id,
-                             event.get('timestamp', 0),
-                             event.get('deviceModel', 'unknown'),
-                             event.get('osVersion', 'unknown'),
-                             event.get('appVersion', 'unknown')
-                         ))
+                         """,
+                (
+                    session_id,
+                    event.get("timestamp", 0),
+                    event.get("deviceModel", "unknown"),
+                    event.get("osVersion", "unknown"),
+                    event.get("appVersion", "unknown"),
+                ),
+            )
 
     def _get_event_type(self, event: Dict[str, Any]) -> str:
         """Determine event type from event data"""
-        if 'actionType' in event:
-            return 'ui'
-        elif 'navType' in event or 'toScreen' in event:
-            return 'navigation'
-        elif 'method' in event and 'url' in event:
-            return 'network'
-        elif 'eventType' in event:
-            return event['eventType']
+        if "actionType" in event:
+            return "ui"
+        elif "navType" in event or "toScreen" in event:
+            return "navigation"
+        elif "method" in event and "url" in event:
+            return "network"
+        elif "eventType" in event:
+            return event["eventType"]
         else:
-            return 'unknown'
+            return "unknown"
 
     def _update_navigation_stats(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]):
         """Update screen and flow statistics"""
-        to_screen = event.get('toScreen')
-        from_screen = event.get('fromScreen')
-        timestamp = event.get('timestamp', 0)
+        to_screen = event.get("toScreen")
+        from_screen = event.get("fromScreen")
+        timestamp = event.get("timestamp", 0)
 
         if to_screen:
             # Update screen visit
-            conn.execute("""
+            conn.execute(
+                """
                          INSERT INTO screens (session_id, screen_name, visit_count, first_visit, last_visit)
                          VALUES (?, ?, 1, ?, ?) ON CONFLICT(session_id, screen_name) DO
                          UPDATE SET
                              visit_count = visit_count + 1,
                              last_visit = ?
-                         """, (session_id, to_screen, timestamp, timestamp, timestamp))
+                         """,
+                (session_id, to_screen, timestamp, timestamp, timestamp),
+            )
 
         if from_screen and to_screen:
             # Update flow
-            conn.execute("""
+            conn.execute(
+                """
                          INSERT INTO flows (session_id, from_screen, to_screen, count)
                          VALUES (?, ?, ?, 1) ON CONFLICT(session_id, from_screen, to_screen) DO
                          UPDATE SET
                              count = count + 1
-                         """, (session_id, from_screen, to_screen))
+                         """,
+                (session_id, from_screen, to_screen),
+            )
 
     def get_sessions(self) -> List[Dict[str, Any]]:
         """Get all sessions"""
         with self._get_connection() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                                 SELECT s.*, COUNT(e.id) as event_count
                                 FROM sessions s
                                          LEFT JOIN events e ON s.session_id = e.session_id
                                 GROUP BY s.session_id
                                 ORDER BY s.start_time DESC
-                                """).fetchall()
+                                """
+            ).fetchall()
 
             return [dict(row) for row in rows]
 
     def get_events(
-            self,
-            session_id: Optional[str] = None,
-            event_type: Optional[str] = None,
-            screen: Optional[str] = None,
-            limit: int = 100
+        self,
+        session_id: Optional[str] = None,
+        event_type: Optional[str] = None,
+        screen: Optional[str] = None,
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """Query events with filters"""
         query = "SELECT * FROM events WHERE 1=1"
@@ -334,7 +347,7 @@ class EventStore:
             events = []
             for row in rows:
                 event = dict(row)
-                event['data'] = json.loads(event['data'])
+                event["data"] = json.loads(event["data"])
                 events.append(event)
 
             return events
@@ -342,34 +355,40 @@ class EventStore:
     def get_screens(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all screens visited in session"""
         with self._get_connection() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                                 SELECT *
                                 FROM screens
                                 WHERE session_id = ?
                                 ORDER BY visit_count DESC
-                                """, (session_id,)).fetchall()
+                                """,
+                (session_id,),
+            ).fetchall()
 
             return [dict(row) for row in rows]
 
     def get_flows(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all navigation flows in session"""
         with self._get_connection() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                                 SELECT *
                                 FROM flows
                                 WHERE session_id = ?
                                 ORDER BY count DESC
-                                """, (session_id,)).fetchall()
+                                """,
+                (session_id,),
+            ).fetchall()
 
             return [dict(row) for row in rows]
 
     def get_ui_events_by_screen(self, session_id: str, screen: str) -> List[Dict[str, Any]]:
         """Get all UI events for specific screen"""
-        return self.get_events(session_id=session_id, event_type='ui', screen=screen)
+        return self.get_events(session_id=session_id, event_type="ui", screen=screen)
 
     def get_network_events(self, session_id: str) -> List[Dict[str, Any]]:
         """Get all network events"""
-        return self.get_events(session_id=session_id, event_type='network')
+        return self.get_events(session_id=session_id, event_type="network")
 
     def get_event_timeline(self, session_id: str) -> List[Dict[str, Any]]:
         """Get complete event timeline for session"""
@@ -403,21 +422,20 @@ class EventStore:
 
             # Event counts by type
             event_counts = {}
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                                 SELECT event_type, COUNT(*) as count
                                 FROM events {query_suffix}
                                 GROUP BY event_type
-                                """, params).fetchall()
+                                """,
+                params,
+            ).fetchall()
 
             for row in rows:
-                event_counts[row['event_type']] = row['count']
+                event_counts[row["event_type"]] = row["count"]
 
             # Total stats
             total_events = sum(event_counts.values())
-            total_sessions = conn.execute("SELECT COUNT(*) as count FROM sessions").fetchone()['count']
+            total_sessions = conn.execute("SELECT COUNT(*) as count FROM sessions").fetchone()["count"]
 
-            return {
-                'total_sessions': total_sessions,
-                'total_events': total_events,
-                'events_by_type': event_counts
-            }
+            return {"total_sessions": total_sessions, "total_events": total_events, "events_by_type": event_counts}

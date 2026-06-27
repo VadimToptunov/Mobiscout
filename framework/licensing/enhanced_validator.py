@@ -21,6 +21,7 @@ from typing import Dict, Any, Optional, List, Callable
 
 class LicenseTier(Enum):
     """License tiers"""
+
     FREE = "free"
     PRO = "pro"
     ENTERPRISE = "enterprise"
@@ -29,6 +30,7 @@ class LicenseTier(Enum):
 
 class FeatureFlag(Enum):
     """Feature flags for different license tiers"""
+
     # FREE features
     CORE_ENGINE = "core_engine"
     LOCAL_DEVICES = "local_devices"
@@ -59,6 +61,7 @@ class FeatureFlag(Enum):
 @dataclass
 class License:
     """License information"""
+
     tier: LicenseTier
     email: str
     organization: Optional[str] = None
@@ -91,6 +94,7 @@ class License:
 @dataclass
 class UsageMetrics:
     """Usage analytics metrics"""
+
     tests_run: int = 0
     devices_connected: int = 0
     screenshots_captured: int = 0
@@ -104,15 +108,15 @@ class UsageMetrics:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
         return {
-            'tests_run': self.tests_run,
-            'devices_connected': self.devices_connected,
-            'screenshots_captured': self.screenshots_captured,
-            'api_calls_analyzed': self.api_calls_analyzed,
-            'ml_predictions': self.ml_predictions,
-            'flow_discoveries': self.flow_discoveries,
-            'last_used': self.last_used.isoformat(),
-            'session_count': self.session_count,
-            'total_runtime_hours': self.total_runtime_hours
+            "tests_run": self.tests_run,
+            "devices_connected": self.devices_connected,
+            "screenshots_captured": self.screenshots_captured,
+            "api_calls_analyzed": self.api_calls_analyzed,
+            "ml_predictions": self.ml_predictions,
+            "flow_discoveries": self.flow_discoveries,
+            "last_used": self.last_used.isoformat(),
+            "session_count": self.session_count,
+            "total_runtime_hours": self.total_runtime_hours,
         }
 
 
@@ -124,8 +128,8 @@ class LicenseManager:
     """
 
     def __init__(self, license_file: Optional[Path] = None):
-        self.license_file = license_file or Path.home() / '.observe' / 'license.json'
-        self.metrics_file = Path.home() / '.observe' / 'metrics.json'
+        self.license_file = license_file or Path.home() / ".observe" / "license.json"
+        self.metrics_file = Path.home() / ".observe" / "metrics.json"
         self.license: Optional[License] = None
         self.metrics = UsageMetrics()
 
@@ -172,20 +176,20 @@ class LicenseManager:
             return
 
         try:
-            with open(self.license_file, 'r') as f:
+            with open(self.license_file, "r") as f:
                 data = json.load(f)
 
             self.license = License(
-                tier=LicenseTier(data['tier']),
-                email=data['email'],
-                organization=data.get('organization'),
-                license_key=data['license_key'],
-                issued_at=datetime.fromisoformat(data['issued_at']),
-                expires_at=datetime.fromisoformat(data['expires_at']) if data.get('expires_at') else None,
-                max_users=data.get('max_users', 1),
-                max_devices=data.get('max_devices', 5),
-                features=data.get('features', []),
-                metadata=data.get('metadata', {})
+                tier=LicenseTier(data["tier"]),
+                email=data["email"],
+                organization=data.get("organization"),
+                license_key=data["license_key"],
+                issued_at=datetime.fromisoformat(data["issued_at"]),
+                expires_at=datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None,
+                max_users=data.get("max_users", 1),
+                max_devices=data.get("max_devices", 5),
+                features=data.get("features", []),
+                metadata=data.get("metadata", {}),
             )
         except (OSError, json.JSONDecodeError, KeyError, ValueError):
             self.license = self._create_free_license()
@@ -196,19 +200,19 @@ class LicenseManager:
             return
 
         try:
-            with open(self.metrics_file, 'r') as f:
+            with open(self.metrics_file, "r") as f:
                 data = json.load(f)
 
             self.metrics = UsageMetrics(
-                tests_run=data.get('tests_run', 0),
-                devices_connected=data.get('devices_connected', 0),
-                screenshots_captured=data.get('screenshots_captured', 0),
-                api_calls_analyzed=data.get('api_calls_analyzed', 0),
-                ml_predictions=data.get('ml_predictions', 0),
-                flow_discoveries=data.get('flow_discoveries', 0),
-                last_used=datetime.fromisoformat(data['last_used']) if data.get('last_used') else datetime.now(),
-                session_count=data.get('session_count', 0),
-                total_runtime_hours=data.get('total_runtime_hours', 0.0)
+                tests_run=data.get("tests_run", 0),
+                devices_connected=data.get("devices_connected", 0),
+                screenshots_captured=data.get("screenshots_captured", 0),
+                api_calls_analyzed=data.get("api_calls_analyzed", 0),
+                ml_predictions=data.get("ml_predictions", 0),
+                flow_discoveries=data.get("flow_discoveries", 0),
+                last_used=datetime.fromisoformat(data["last_used"]) if data.get("last_used") else datetime.now(),
+                session_count=data.get("session_count", 0),
+                total_runtime_hours=data.get("total_runtime_hours", 0.0),
             )
         except (OSError, json.JSONDecodeError, KeyError, ValueError):
             pass
@@ -218,12 +222,7 @@ class LicenseManager:
         free_features = [f.value for f in self.tier_features[LicenseTier.FREE]]
 
         return License(
-            tier=LicenseTier.FREE,
-            email="",
-            license_key="FREE",
-            features=free_features,
-            max_users=1,
-            max_devices=5
+            tier=LicenseTier.FREE, email="", license_key="FREE", features=free_features, max_users=1, max_devices=5
         )
 
     def save_license(self):
@@ -234,26 +233,26 @@ class LicenseManager:
         self.license_file.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
-            'tier': self.license.tier.value,
-            'email': self.license.email,
-            'organization': self.license.organization,
-            'license_key': self.license.license_key,
-            'issued_at': self.license.issued_at.isoformat(),
-            'expires_at': self.license.expires_at.isoformat() if self.license.expires_at else None,
-            'max_users': self.license.max_users,
-            'max_devices': self.license.max_devices,
-            'features': self.license.features,
-            'metadata': self.license.metadata
+            "tier": self.license.tier.value,
+            "email": self.license.email,
+            "organization": self.license.organization,
+            "license_key": self.license.license_key,
+            "issued_at": self.license.issued_at.isoformat(),
+            "expires_at": self.license.expires_at.isoformat() if self.license.expires_at else None,
+            "max_users": self.license.max_users,
+            "max_devices": self.license.max_devices,
+            "features": self.license.features,
+            "metadata": self.license.metadata,
         }
 
-        with open(self.license_file, 'w') as f:
+        with open(self.license_file, "w") as f:
             json.dump(data, f, indent=2)
 
     def save_metrics(self):
         """Save usage metrics"""
         self.metrics_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(self.metrics_file, 'w') as f:
+        with open(self.metrics_file, "w") as f:
             json.dump(self.metrics.to_dict(), f, indent=2)
 
     def check_feature(self, feature: FeatureFlag) -> bool:
@@ -317,19 +316,19 @@ class LicenseManager:
 
     def track_usage(self, metric_name: str, increment: int = 1):
         """Track usage metric"""
-        if metric_name == 'tests_run':
+        if metric_name == "tests_run":
             self.metrics.tests_run += increment
-        elif metric_name == 'devices_connected':
+        elif metric_name == "devices_connected":
             self.metrics.devices_connected += increment
-        elif metric_name == 'screenshots':
+        elif metric_name == "screenshots":
             self.metrics.screenshots_captured += increment
-        elif metric_name == 'api_calls':
+        elif metric_name == "api_calls":
             self.metrics.api_calls_analyzed += increment
-        elif metric_name == 'ml_predictions':
+        elif metric_name == "ml_predictions":
             self.metrics.ml_predictions += increment
-        elif metric_name == 'flow_discoveries':
+        elif metric_name == "flow_discoveries":
             self.metrics.flow_discoveries += increment
-        elif metric_name == 'session':
+        elif metric_name == "session":
             self.metrics.session_count += increment
 
         self.metrics.last_used = datetime.now()
@@ -338,18 +337,18 @@ class LicenseManager:
     def get_license_info(self) -> Dict[str, Any]:
         """Get license information"""
         if not self.license:
-            return {'tier': 'FREE', 'valid': False}
+            return {"tier": "FREE", "valid": False}
 
         return {
-            'tier': self.license.tier.value,
-            'valid': self.license.is_valid(),
-            'email': self.license.email,
-            'organization': self.license.organization,
-            'expires_at': self.license.expires_at.isoformat() if self.license.expires_at else None,
-            'days_until_expiry': self.license.days_until_expiry(),
-            'max_users': self.license.max_users,
-            'max_devices': self.license.max_devices,
-            'features': self.license.features
+            "tier": self.license.tier.value,
+            "valid": self.license.is_valid(),
+            "email": self.license.email,
+            "organization": self.license.organization,
+            "expires_at": self.license.expires_at.isoformat() if self.license.expires_at else None,
+            "days_until_expiry": self.license.days_until_expiry(),
+            "max_users": self.license.max_users,
+            "max_devices": self.license.max_devices,
+            "features": self.license.features,
         }
 
     def get_usage_stats(self) -> Dict[str, Any]:
@@ -366,11 +365,11 @@ class LicenseManager:
 
         # Determine tier from key format
         tier = LicenseTier.FREE
-        if license_key.startswith('PRO-'):
+        if license_key.startswith("PRO-"):
             tier = LicenseTier.PRO
-        elif license_key.startswith('ENT-'):
+        elif license_key.startswith("ENT-"):
             tier = LicenseTier.ENTERPRISE
-        elif license_key.startswith('TRIAL-'):
+        elif license_key.startswith("TRIAL-"):
             tier = LicenseTier.TRIAL
 
         # Create license - include features from all lower tiers
@@ -386,7 +385,7 @@ class LicenseManager:
             email=email,
             license_key=license_key,
             features=list(set(features)),  # Remove duplicates
-            expires_at=datetime.now() + timedelta(days=365) if tier != LicenseTier.FREE else None
+            expires_at=datetime.now() + timedelta(days=365) if tier != LicenseTier.FREE else None,
         )
 
         self.save_license()
@@ -440,13 +439,13 @@ def check_feature(feature_name: str) -> bool:
 
     # Map string names to FeatureFlag enum
     feature_map = {
-        'cloud_devices': FeatureFlag.CLOUD_DEVICES,
-        'parallel_execution': FeatureFlag.PARALLEL_EXECUTION,
-        'ml_healing': FeatureFlag.ADVANCED_ML,
-        'ml_training': FeatureFlag.ML_TRAINING,
-        'api_mocking': FeatureFlag.API_MOCKING,
-        'security_scanning': FeatureFlag.SECURITY_SCANNING,
-        'performance_profiling': FeatureFlag.PERFORMANCE_PROFILING,
+        "cloud_devices": FeatureFlag.CLOUD_DEVICES,
+        "parallel_execution": FeatureFlag.PARALLEL_EXECUTION,
+        "ml_healing": FeatureFlag.ADVANCED_ML,
+        "ml_training": FeatureFlag.ML_TRAINING,
+        "api_mocking": FeatureFlag.API_MOCKING,
+        "security_scanning": FeatureFlag.SECURITY_SCANNING,
+        "performance_profiling": FeatureFlag.PERFORMANCE_PROFILING,
     }
 
     feature_flag = feature_map.get(feature_name)

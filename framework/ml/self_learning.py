@@ -33,6 +33,7 @@ class ElementSample:
 
     Completely anonymized - no app names, no user data, no screenshots.
     """
+
     # Element attributes
     class_name: str
     clickable: bool
@@ -72,6 +73,7 @@ class ElementSample:
 @dataclass
 class TrainingBatch:
     """Batch of training samples to upload."""
+
     samples: List[ElementSample]
     total_count: int
     platform_distribution: Dict[str, int]
@@ -92,10 +94,10 @@ class SelfLearningCollector:
     """
 
     def __init__(
-            self,
-            local_cache_dir: Path = Path("ml_cache/training_samples"),
-            opt_in: bool = True,
-            upload_endpoint: Optional[str] = None
+        self,
+        local_cache_dir: Path = Path("ml_cache/training_samples"),
+        opt_in: bool = True,
+        upload_endpoint: Optional[str] = None,
     ):
         """
         Initialize collector.
@@ -115,11 +117,7 @@ class SelfLearningCollector:
         self.batch_size = 1000  # Upload after 1000 samples
 
     def collect_from_hierarchy(
-            self,
-            hierarchy: Dict[str, Any],
-            platform: str,
-            confidence: float = 1.0,
-            source: str = "rule-based"
+        self, hierarchy: Dict[str, Any], platform: str, confidence: float = 1.0, source: str = "rule-based"
     ) -> None:
         """
         Collect training samples from UI hierarchy.
@@ -138,12 +136,7 @@ class SelfLearningCollector:
             self._save_batch()
 
     def _extract_samples_recursive(
-            self,
-            node: Dict[str, Any],
-            platform: str,
-            confidence: float,
-            source: str,
-            depth: int = 0
+        self, node: Dict[str, Any], platform: str, confidence: float, source: str, depth: int = 0
     ) -> List[ElementSample]:
         """Extract samples from hierarchy tree."""
         samples = []
@@ -155,29 +148,20 @@ class SelfLearningCollector:
 
         # Process children
         for child in node.get("children", []):
-            child_samples = self._extract_samples_recursive(
-                child, platform, confidence, source, depth + 1
-            )
+            child_samples = self._extract_samples_recursive(child, platform, confidence, source, depth + 1)
             samples.extend(child_samples)
 
         return samples
 
     def _create_sample(
-            self,
-            element: Dict[str, Any],
-            platform: str,
-            confidence: float,
-            source: str,
-            depth: int
+        self, element: Dict[str, Any], platform: str, confidence: float, source: str, depth: int
     ) -> ElementSample:
         """Create anonymized sample from element."""
         text = element.get("text", "") or element.get("label", "")
         content_desc = element.get("content_desc", "") or element.get("accessibilityLabel", "")
 
         # Generate anonymous ID
-        sample_id = hashlib.sha256(
-            f"{element.get('class', '')}-{datetime.now().isoformat()}".encode()
-        ).hexdigest()[:16]
+        sample_id = hashlib.sha256(f"{element.get('class', '')}-{datetime.now().isoformat()}".encode()).hexdigest()[:16]
 
         return ElementSample(
             # Attributes
@@ -188,32 +172,26 @@ class SelfLearningCollector:
             scrollable=element.get("scrollable", False),
             enabled=element.get("enabled", True),
             password=element.get("password", False),
-
             # Content (sanitized)
             has_text=bool(text),
             text_length=len(text) if text else 0,
             has_content_desc=bool(content_desc),
-
             # Structural
             bounds_width=element.get("bounds", {}).get("width", 0),
             bounds_height=element.get("bounds", {}).get("height", 0),
             depth=depth,
             children_count=len(element.get("children", [])),
-
             # Platform
             platform=platform,
-
             # Label
             element_type=element.get("element_type", "generic"),
-
             # Confidence
             confidence=confidence,
             source=source,
-
             # Metadata
             framework_version="1.0.0",  # TODO: Get from config
             timestamp=datetime.now().isoformat(),
-            sample_id=sample_id
+            sample_id=sample_id,
         )
 
     def _save_batch(self) -> None:
@@ -226,12 +204,12 @@ class SelfLearningCollector:
             total_count=len(self.samples),
             platform_distribution=self._get_platform_distribution(),
             framework_version="1.0.0",
-            batch_id=hashlib.sha256(datetime.now().isoformat().encode()).hexdigest()[:16]
+            batch_id=hashlib.sha256(datetime.now().isoformat().encode()).hexdigest()[:16],
         )
 
         # Save locally
         batch_file = self.local_cache_dir / f"batch_{batch.batch_id}.json"
-        with open(batch_file, 'w') as f:
+        with open(batch_file, "w") as f:
             json.dump(asdict(batch), f, indent=2)
 
         logger.info(f"Saved training batch: {batch_file} ({len(self.samples)} samples)")
@@ -260,10 +238,7 @@ class SelfLearningCollector:
         """
         try:
             response = requests.post(
-                self.upload_endpoint,
-                json=asdict(batch),
-                timeout=30,
-                headers={"Content-Type": "application/json"}
+                self.upload_endpoint, json=asdict(batch), timeout=30, headers={"Content-Type": "application/json"}
             )
 
             if response.status_code == 200:
@@ -283,7 +258,7 @@ class SelfLearningCollector:
         total = 0
 
         for batch_file in batch_files:
-            with open(batch_file, 'r') as f:
+            with open(batch_file, "r") as f:
                 batch = json.load(f)
                 total += batch.get("total_count", 0)
 
@@ -298,9 +273,7 @@ class ModelUpdater:
     """
 
     def __init__(
-            self,
-            model_dir: Path = Path("ml_models"),
-            update_endpoint: str = "https://api.mobile-observe.dev/v1/ml/models"
+        self, model_dir: Path = Path("ml_models"), update_endpoint: str = "https://api.mobile-observe.dev/v1/ml/models"
     ):
         """
         Initialize updater.
@@ -325,15 +298,19 @@ class ModelUpdater:
             current_version = self._get_current_version()
 
             response = requests.get(
-                f"{self.update_endpoint}/latest",
-                params={"current_version": current_version},
-                timeout=10
+                f"{self.update_endpoint}/latest", params={"current_version": current_version}, timeout=10
             )
 
             if response.status_code == 200:
                 latest = response.json()
 
-                if latest["version"] > current_version:
+                # Compare versions numerically, not lexically: string compare
+                # makes "0.9.0" > "0.10.0" wrongly True and would refuse a real
+                # update.
+                def _ver(v: str):
+                    return tuple(int(p) if p.isdigit() else 0 for p in str(v).split("."))
+
+                if _ver(latest["version"]) > _ver(current_version):
                     logger.info(f"New model available: v{latest['version']}")
                     return latest
                 else:
@@ -375,12 +352,12 @@ class ModelUpdater:
 
             # Save
             model_file = self.model_dir / "universal_element_classifier.pkl"
-            with open(model_file, 'wb') as f:
+            with open(model_file, "wb") as f:
                 f.write(model_data)
 
             # Save metadata
             metadata_file = self.model_dir / "model_metadata.json"
-            with open(metadata_file, 'w') as f:
+            with open(metadata_file, "w") as f:
                 json.dump(model_metadata, f, indent=2)
 
             logger.info(f"Model updated to v{version}")
@@ -395,7 +372,7 @@ class ModelUpdater:
         metadata_file = self.model_dir / "model_metadata.json"
 
         if metadata_file.exists():
-            with open(metadata_file, 'r') as f:
+            with open(metadata_file, "r") as f:
                 metadata = json.load(f)
                 return metadata.get("version", "0.0.0")
 
@@ -429,13 +406,7 @@ class FeedbackCollector:
         self.feedback_dir = feedback_dir
         self.feedback_dir.mkdir(parents=True, exist_ok=True)
 
-    def record_correction(
-            self,
-            element: Dict[str, Any],
-            predicted_type: str,
-            actual_type: str,
-            platform: str
-    ) -> None:
+    def record_correction(self, element: Dict[str, Any], predicted_type: str, actual_type: str, platform: str) -> None:
         """
         Record a user correction.
 
@@ -458,12 +429,12 @@ class FeedbackCollector:
             "timestamp": datetime.now().isoformat(),
             "correction_id": hashlib.sha256(
                 f"{element.get('class', '')}-{datetime.now().isoformat()}".encode()
-            ).hexdigest()[:16]
+            ).hexdigest()[:16],
         }
 
         # Save correction
         correction_file = self.feedback_dir / f"correction_{correction['correction_id']}.json"
-        with open(correction_file, 'w') as f:
+        with open(correction_file, "w") as f:
             json.dump(correction, f, indent=2)
 
         logger.info(f"Recorded correction: {predicted_type} → {actual_type}")
@@ -476,18 +447,13 @@ def create_self_learning_pipeline():
     This is called automatically during normal framework usage.
     """
     collector = SelfLearningCollector(
-        opt_in=True,  # TODO: Read from config
-        upload_endpoint="https://api.mobile-observe.dev/v1/ml/samples"
+        opt_in=True, upload_endpoint="https://api.mobile-observe.dev/v1/ml/samples"  # TODO: Read from config
     )
 
     updater = ModelUpdater()
     feedback = FeedbackCollector()
 
-    return {
-        "collector": collector,
-        "updater": updater,
-        "feedback": feedback
-    }
+    return {"collector": collector, "updater": updater, "feedback": feedback}
 
 
 if __name__ == "__main__":
@@ -500,7 +466,7 @@ if __name__ == "__main__":
         "text": "Submit",
         "clickable": True,
         "element_type": "button",
-        "children": []
+        "children": [],
     }
 
     collector.collect_from_hierarchy(sample_hierarchy, platform="android")

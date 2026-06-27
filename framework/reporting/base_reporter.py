@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional
 
 class ReportFormat(Enum):
     """Supported report output formats."""
+
     JSON = "json"
     HTML = "html"
     TEXT = "text"
@@ -34,6 +35,7 @@ class ReportMetadata:
         generator: Name of the generator class
         version: Report format version
     """
+
     title: str
     generated_at: datetime
     generator: str
@@ -42,10 +44,10 @@ class ReportMetadata:
     def to_dict(self) -> Dict[str, Any]:
         """Convert metadata to dictionary."""
         return {
-            'title': self.title,
-            'generated_at': self.generated_at.isoformat(),
-            'generator': self.generator,
-            'version': self.version,
+            "title": self.title,
+            "generated_at": self.generated_at.isoformat(),
+            "generator": self.generator,
+            "version": self.version,
         }
 
 
@@ -87,11 +89,7 @@ class BaseReporter(ABC):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
-    def generate_report(
-            self,
-            output_path: Path,
-            format: ReportFormat = ReportFormat.JSON
-    ) -> None:
+    def generate_report(self, output_path: Path, format: ReportFormat = ReportFormat.JSON) -> None:
         """
         Generate and save a report.
 
@@ -125,12 +123,7 @@ class BaseReporter(ABC):
         """
         path.parent.mkdir(parents=True, exist_ok=True)
 
-    def _write_json(
-            self,
-            data: Dict[str, Any],
-            path: Path,
-            indent: int = 2
-    ) -> None:
+    def _write_json(self, data: Dict[str, Any], path: Path, indent: int = 2) -> None:
         """
         Write data to a JSON file.
 
@@ -140,10 +133,7 @@ class BaseReporter(ABC):
             indent: JSON indentation level
         """
         self._ensure_output_dir(path)
-        path.write_text(
-            json.dumps(data, indent=indent, default=str, ensure_ascii=False),
-            encoding='utf-8'
-        )
+        path.write_text(json.dumps(data, indent=indent, default=str, ensure_ascii=False), encoding="utf-8")
         self.logger.info(f"JSON report saved to: {path}")
 
     def _write_html(self, content: str, path: Path) -> None:
@@ -155,7 +145,7 @@ class BaseReporter(ABC):
             path: Output file path
         """
         self._ensure_output_dir(path)
-        path.write_text(content, encoding='utf-8')
+        path.write_text(content, encoding="utf-8")
         self.logger.info(f"HTML report saved to: {path}")
 
     def _write_text(self, content: str, path: Path) -> None:
@@ -167,7 +157,7 @@ class BaseReporter(ABC):
             path: Output file path
         """
         self._ensure_output_dir(path)
-        path.write_text(content, encoding='utf-8')
+        path.write_text(content, encoding="utf-8")
         self.logger.info(f"Text report saved to: {path}")
 
     def _write_xml(self, content: str, path: Path) -> None:
@@ -179,7 +169,7 @@ class BaseReporter(ABC):
             path: Output file path
         """
         self._ensure_output_dir(path)
-        path.write_text(content, encoding='utf-8')
+        path.write_text(content, encoding="utf-8")
         self.logger.info(f"XML report saved to: {path}")
 
     def _get_html_template(self) -> str:
@@ -255,11 +245,7 @@ class BaseReporter(ABC):
 </body>
 </html>"""
 
-    def _render_html(
-            self,
-            content: str,
-            metadata: Optional[ReportMetadata] = None
-    ) -> str:
+    def _render_html(self, content: str, metadata: Optional[ReportMetadata] = None) -> str:
         """
         Render content using the HTML template.
 
@@ -273,8 +259,4 @@ class BaseReporter(ABC):
         meta = metadata or self._create_metadata()
         meta_str = f"Generated: {meta.generated_at.strftime('%Y-%m-%d %H:%M:%S')} | Generator: {meta.generator}"
 
-        return self._get_html_template().format(
-            title=meta.title,
-            metadata=meta_str,
-            content=content
-        )
+        return self._get_html_template().format(title=meta.title, metadata=meta_str, content=content)

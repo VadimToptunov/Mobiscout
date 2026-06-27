@@ -21,10 +21,7 @@ class SelectorBuilder:
         self.scorer = SelectorScorer()
 
     def build_selector(
-            self,
-            element_id: str,
-            attributes: Dict[str, str],
-            platform: Platform = Platform.ANDROID
+        self, element_id: str, attributes: Dict[str, str], platform: Platform = Platform.ANDROID
     ) -> Selector:
         """
         Build optimal selector from element attributes
@@ -46,7 +43,7 @@ class SelectorBuilder:
         ios_selector = self._dict_to_selector_string(ios_dict) if ios_dict else None
 
         # Extract test_id and xpath if present
-        test_id = attributes.get('test_tag') or attributes.get('accessibility_id')
+        test_id = attributes.get("test_tag") or attributes.get("accessibility_id")
         xpath = None
 
         # Build fallback lists
@@ -55,15 +52,15 @@ class SelectorBuilder:
 
         if android_dict:
             for key, value in android_dict.items():
-                if key != 'test_id' and value:
+                if key != "test_id" and value:
                     fallback_str = f"{key}:{value}"
                     android_fallbacks.append(fallback_str)
-                if key == 'xpath':
+                if key == "xpath":
                     xpath = value
 
         if ios_dict:
             for key, value in ios_dict.items():
-                if key != 'accessibility_id' and value:
+                if key != "accessibility_id" and value:
                     fallback_str = f"{key}:{value}"
                     ios_fallbacks.append(fallback_str)
 
@@ -74,12 +71,13 @@ class SelectorBuilder:
 
         # Map scorer stability to app_model stability
         from framework.model.app_model import SelectorStability as ModelStability
+
         stability_mapping = {
-            'excellent': ModelStability.HIGH,
-            'good': ModelStability.HIGH,
-            'fair': ModelStability.MEDIUM,
-            'poor': ModelStability.LOW,
-            'fragile': ModelStability.LOW
+            "excellent": ModelStability.HIGH,
+            "good": ModelStability.HIGH,
+            "fair": ModelStability.MEDIUM,
+            "poor": ModelStability.LOW,
+            "fragile": ModelStability.LOW,
         }
         stability = stability_mapping.get(stability_level.value, ModelStability.UNKNOWN)
 
@@ -90,14 +88,10 @@ class SelectorBuilder:
             xpath=xpath,
             android_fallback=android_fallbacks,
             ios_fallback=ios_fallbacks,
-            stability=stability
+            stability=stability,
         )
 
-    def _build_platform_selector(
-            self,
-            attributes: Dict[str, str],
-            platform: str
-    ) -> Optional[Dict[str, str]]:
+    def _build_platform_selector(self, attributes: Dict[str, str], platform: str) -> Optional[Dict[str, str]]:
         """Build selector for specific platform"""
 
         if platform == "android":
@@ -117,35 +111,35 @@ class SelectorBuilder:
 
         # Map to Appium selector format
         selector_map = {
-            'test_id': f'id:{value}',
-            'resource_id': f'id:{value}',
-            'content_desc': f'accessibility id:{value}',
-            'accessibility_id': f'accessibility id:{value}',
-            'text': f'text:{value}',
-            'xpath': value  # XPath is used as-is
+            "test_id": f"id:{value}",
+            "resource_id": f"id:{value}",
+            "content_desc": f"accessibility id:{value}",
+            "accessibility_id": f"accessibility id:{value}",
+            "text": f"text:{value}",
+            "xpath": value,  # XPath is used as-is
         }
 
-        return selector_map.get(key, f'{key}:{value}')
+        return selector_map.get(key, f"{key}:{value}")
 
     def _build_android_selector(self, attributes: Dict[str, str]) -> Optional[Dict[str, str]]:
         """Build Android-specific selector"""
 
         # Priority order for Android
-        if 'test_tag' in attributes and attributes['test_tag']:
-            return {'test_id': attributes['test_tag']}
+        if "test_tag" in attributes and attributes["test_tag"]:
+            return {"test_id": attributes["test_tag"]}
 
-        if 'resource_id' in attributes and attributes['resource_id']:
-            return {'resource_id': attributes['resource_id']}
+        if "resource_id" in attributes and attributes["resource_id"]:
+            return {"resource_id": attributes["resource_id"]}
 
-        if 'content_desc' in attributes and attributes['content_desc']:
-            return {'content_desc': attributes['content_desc']}
+        if "content_desc" in attributes and attributes["content_desc"]:
+            return {"content_desc": attributes["content_desc"]}
 
-        if 'text' in attributes and attributes['text']:
-            return {'text': attributes['text']}
+        if "text" in attributes and attributes["text"]:
+            return {"text": attributes["text"]}
 
         # Fallback to XPath if we have class name
-        if 'class_name' in attributes and attributes['class_name']:
-            return {'xpath': f"//{attributes['class_name']}"}
+        if "class_name" in attributes and attributes["class_name"]:
+            return {"xpath": f"//{attributes['class_name']}"}
 
         return None
 
@@ -153,17 +147,17 @@ class SelectorBuilder:
         """Build iOS-specific selector"""
 
         # Priority order for iOS
-        if 'accessibility_id' in attributes and attributes['accessibility_id']:
-            return {'accessibility_id': attributes['accessibility_id']}
+        if "accessibility_id" in attributes and attributes["accessibility_id"]:
+            return {"accessibility_id": attributes["accessibility_id"]}
 
-        if 'test_tag' in attributes and attributes['test_tag']:
-            return {'accessibility_id': attributes['test_tag']}
+        if "test_tag" in attributes and attributes["test_tag"]:
+            return {"accessibility_id": attributes["test_tag"]}
 
-        if 'text' in attributes and attributes['text']:
-            return {'label': attributes['text']}
+        if "text" in attributes and attributes["text"]:
+            return {"label": attributes["text"]}
 
-        if 'class_name' in attributes and attributes['class_name']:
-            return {'xpath': f"//{attributes['class_name']}"}
+        if "class_name" in attributes and attributes["class_name"]:
+            return {"xpath": f"//{attributes['class_name']}"}
 
         return None
 
@@ -173,36 +167,32 @@ class SelectorBuilder:
         # Score all available strategies
         strategies = []
 
-        if 'test_tag' in attributes and attributes['test_tag']:
-            strategies.append(('test_id', 1.0))
+        if "test_tag" in attributes and attributes["test_tag"]:
+            strategies.append(("test_id", 1.0))
 
-        if 'accessibility_id' in attributes and attributes['accessibility_id']:
-            strategies.append(('accessibility_id', 0.95))
+        if "accessibility_id" in attributes and attributes["accessibility_id"]:
+            strategies.append(("accessibility_id", 0.95))
 
-        if 'resource_id' in attributes and attributes['resource_id']:
-            strategies.append(('resource_id', 0.90))
+        if "resource_id" in attributes and attributes["resource_id"]:
+            strategies.append(("resource_id", 0.90))
 
-        if 'content_desc' in attributes and attributes['content_desc']:
-            strategies.append(('content_desc', 0.75))
+        if "content_desc" in attributes and attributes["content_desc"]:
+            strategies.append(("content_desc", 0.75))
 
-        if 'text' in attributes and attributes['text']:
-            strategies.append(('text', 0.60))
+        if "text" in attributes and attributes["text"]:
+            strategies.append(("text", 0.60))
 
-        if 'class_name' in attributes and attributes['class_name']:
-            strategies.append(('xpath', 0.30))
+        if "class_name" in attributes and attributes["class_name"]:
+            strategies.append(("xpath", 0.30))
 
         if not strategies:
-            return 'xpath'
+            return "xpath"
 
         # Return strategy with highest score
         strategies.sort(key=lambda x: x[1], reverse=True)
         return strategies[0][0]
 
-    def _build_fallback_chain(
-            self,
-            attributes: Dict[str, str],
-            primary_strategy: str
-    ) -> List[str]:
+    def _build_fallback_chain(self, attributes: Dict[str, str], primary_strategy: str) -> List[str]:
         """Build fallback strategy chain"""
 
         # All possible strategies in priority order
@@ -217,23 +207,23 @@ class SelectorBuilder:
         # Available strategies based on attributes
         available = []
 
-        if 'test_tag' in attributes and attributes['test_tag']:
-            available.append('test_id')
+        if "test_tag" in attributes and attributes["test_tag"]:
+            available.append("test_id")
 
-        if 'accessibility_id' in attributes and attributes['accessibility_id']:
-            available.append('accessibility_id')
+        if "accessibility_id" in attributes and attributes["accessibility_id"]:
+            available.append("accessibility_id")
 
-        if 'resource_id' in attributes and attributes['resource_id']:
-            available.append('resource_id')
+        if "resource_id" in attributes and attributes["resource_id"]:
+            available.append("resource_id")
 
-        if 'content_desc' in attributes and attributes['content_desc']:
-            available.append('content_desc')
+        if "content_desc" in attributes and attributes["content_desc"]:
+            available.append("content_desc")
 
-        if 'text' in attributes and attributes['text']:
-            available.append('text')
+        if "text" in attributes and attributes["text"]:
+            available.append("text")
 
         # XPath always available as last resort
-        available.append('xpath')
+        available.append("xpath")
 
         # Remove primary strategy and return rest
         fallbacks = [s for s in available if s != primary_strategy]

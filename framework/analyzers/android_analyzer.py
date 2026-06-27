@@ -17,7 +17,7 @@ from framework.analyzers.analysis_result import (
     ScreenCandidate,
     UIElementCandidate,
     NavigationCandidate,
-    APIEndpointCandidate
+    APIEndpointCandidate,
 )
 
 
@@ -31,17 +31,14 @@ class AndroidAnalyzer:
 
     def __init__(self) -> None:
         # Patterns for detection
-        self.composable_pattern = re.compile(r'@Composable\s+fun\s+(\w+)', re.MULTILINE)
-        self.screen_pattern = re.compile(r'(?:Screen|Page|View)\w*', re.IGNORECASE)
+        self.composable_pattern = re.compile(r"@Composable\s+fun\s+(\w+)", re.MULTILINE)
+        self.screen_pattern = re.compile(r"(?:Screen|Page|View)\w*", re.IGNORECASE)
         self.test_tag_pattern = re.compile(r'\.testTag\s*\(\s*["\']([^"\']+)["\']\s*\)')
-        self.content_desc_pattern = re.compile(
-            r'\.(?:contentDescription|semantics)\s*\(\s*["\']([^"\']+)["\']\s*\)'
-        )
-        self.nav_route_pattern = re.compile(r'sealed\s+(?:class|object)\s+Screen.*?{', re.DOTALL)
+        self.content_desc_pattern = re.compile(r'\.(?:contentDescription|semantics)\s*\(\s*["\']([^"\']+)["\']\s*\)')
+        self.nav_route_pattern = re.compile(r"sealed\s+(?:class|object)\s+Screen.*?{", re.DOTALL)
         self.retrofit_pattern = re.compile(r'@(?:GET|POST|PUT|DELETE|PATCH)\s*\(["\']([^"\']+)["\']\)')
         self.retrofit_method_pattern = re.compile(
-            r'@(GET|POST|PUT|DELETE|PATCH)\s*\(["\']([^"\']+)["\']\)\s*(?:suspend\s+)?fun\s+(\w+)',
-            re.MULTILINE
+            r'@(GET|POST|PUT|DELETE|PATCH)\s*\(["\']([^"\']+)["\']\)\s*(?:suspend\s+)?fun\s+(\w+)', re.MULTILINE
         )
 
     def analyze(self, source_path: str) -> AnalysisResult:
@@ -58,15 +55,10 @@ class AndroidAnalyzer:
 
         if not source_dir.exists():
             return AnalysisResult(
-                platform="android",
-                source_path=source_path,
-                errors=[f"Source path not found: {source_path}"]
+                platform="android", source_path=source_path, errors=[f"Source path not found: {source_path}"]
             )
 
-        result = AnalysisResult(
-            platform="android",
-            source_path=source_path
-        )
+        result = AnalysisResult(platform="android", source_path=source_path)
 
         # Find all Kotlin files
         kotlin_files = self._find_kotlin_files(source_dir)
@@ -91,12 +83,12 @@ class AndroidAnalyzer:
     def _analyze_file(self, file_path: Path, result: AnalysisResult) -> None:
         """Analyze single Kotlin file"""
         try:
-            content = file_path.read_text(encoding='utf-8')
+            content = file_path.read_text(encoding="utf-8")
         except Exception as e:
             result.warnings.append(f"Could not read {file_path}: {e}")
             return
 
-        lines = content.split('\n')
+        lines = content.split("\n")
 
         # Detect screens (Composable functions that look like screens)
         self._detect_screens(content, file_path, lines, result)
@@ -108,16 +100,10 @@ class AndroidAnalyzer:
         self._detect_navigation(content, file_path, lines, result)
 
         # Detect API endpoints (Retrofit)
-        if 'interface' in content and any(x in content for x in ['@GET', '@POST', '@PUT', '@DELETE']):
+        if "interface" in content and any(x in content for x in ["@GET", "@POST", "@PUT", "@DELETE"]):
             self._detect_api_endpoints(content, file_path, lines, result)
 
-    def _detect_screens(
-            self,
-            content: str,
-            file_path: Path,
-            lines: List[str],
-            result: AnalysisResult
-    ) -> None:
+    def _detect_screens(self, content: str, file_path: Path, lines: List[str], result: AnalysisResult) -> None:
         """Detect Composable screen functions"""
         for match in self.composable_pattern.finditer(content):
             func_name = match.group(1)
@@ -126,7 +112,7 @@ class AndroidAnalyzer:
             if not self.screen_pattern.search(func_name):
                 continue
 
-            line_num = content[:match.start()].count('\n') + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             # Try to extract route if present
             route = self._extract_route_for_screen(content, func_name)
@@ -140,24 +126,18 @@ class AndroidAnalyzer:
                 line_number=line_num,
                 composable_name=func_name,
                 route=route,
-                ui_elements=ui_elements
+                ui_elements=ui_elements,
             )
 
             result.screens.append(screen)
 
-    def _detect_ui_elements(
-            self,
-            content: str,
-            file_path: Path,
-            lines: List[str],
-            result: AnalysisResult
-    ) -> None:
+    def _detect_ui_elements(self, content: str, file_path: Path, lines: List[str], result: AnalysisResult) -> None:
         """Detect UI elements with test tags or content descriptions"""
 
         # Find test tags
         for match in self.test_tag_pattern.finditer(content):
             test_tag = match.group(1)
-            line_num = content[:match.start()].count('\n') + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             # Try to determine element type from context
             element_type = self._guess_element_type(content, match.start())
@@ -171,7 +151,7 @@ class AndroidAnalyzer:
                 screen=screen_name,
                 file_path=str(file_path),
                 line_number=line_num,
-                test_tag=test_tag
+                test_tag=test_tag,
             )
 
             result.ui_elements.append(element)
@@ -179,29 +159,23 @@ class AndroidAnalyzer:
         # Find content descriptions
         for match in self.content_desc_pattern.finditer(content):
             content_desc = match.group(1)
-            line_num = content[:match.start()].count('\n') + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             element_type = self._guess_element_type(content, match.start())
             screen_name = self._find_containing_screen(content, match.start())
 
             element = UIElementCandidate(
-                id=content_desc.lower().replace(' ', '_'),
+                id=content_desc.lower().replace(" ", "_"),
                 type=element_type or "Unknown",
                 screen=screen_name,
                 file_path=str(file_path),
                 line_number=line_num,
-                content_description=content_desc
+                content_description=content_desc,
             )
 
             result.ui_elements.append(element)
 
-    def _detect_navigation(
-            self,
-            content: str,
-            file_path: Path,
-            lines: List[str],
-            result: AnalysisResult
-    ) -> None:
+    def _detect_navigation(self, content: str, file_path: Path, lines: List[str], result: AnalysisResult) -> None:
         """Detect navigation routes and transitions"""
 
         # Look for navigation calls: navController.navigate("route")
@@ -209,53 +183,38 @@ class AndroidAnalyzer:
 
         for match in nav_pattern.finditer(content):
             route = match.group(1)
-            line_num = content[:match.start()].count('\n') + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             # Try to find which screen this is called from
             from_screen = self._find_containing_screen(content, match.start())
 
             navigation = NavigationCandidate(
-                from_screen=from_screen,
-                to_screen=route,
-                route=route,
-                file_path=str(file_path),
-                line_number=line_num
+                from_screen=from_screen, to_screen=route, route=route, file_path=str(file_path), line_number=line_num
             )
 
             result.navigation.append(navigation)
 
         # Look for sealed class Screen definitions
         screen_def_pattern = re.compile(
-            r'(?:object|data class)\s+(\w+)\s*[:(].*?route\s*=\s*["\']([^"\']+)["\']',
-            re.MULTILINE
+            r'(?:object|data class)\s+(\w+)\s*[:(].*?route\s*=\s*["\']([^"\']+)["\']', re.MULTILINE
         )
 
         for match in screen_def_pattern.finditer(content):
             screen_name = match.group(1)
             route = match.group(2)
-            line_num = content[:match.start()].count('\n') + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             navigation = NavigationCandidate(
-                from_screen=None,
-                to_screen=screen_name,
-                route=route,
-                file_path=str(file_path),
-                line_number=line_num
+                from_screen=None, to_screen=screen_name, route=route, file_path=str(file_path), line_number=line_num
             )
 
             result.navigation.append(navigation)
 
-    def _detect_api_endpoints(
-            self,
-            content: str,
-            file_path: Path,
-            lines: List[str],
-            result: AnalysisResult
-    ) -> None:
+    def _detect_api_endpoints(self, content: str, file_path: Path, lines: List[str], result: AnalysisResult) -> None:
         """Detect Retrofit API endpoints"""
 
         # Extract interface name
-        interface_match = re.search(r'interface\s+(\w+)', content)
+        interface_match = re.search(r"interface\s+(\w+)", content)
         interface_name = interface_match.group(1) if interface_match else "Unknown"
 
         # Find all API methods
@@ -263,7 +222,7 @@ class AndroidAnalyzer:
             http_method = match.group(1)
             path = match.group(2)
             func_name = match.group(3)
-            line_num = content[:match.start()].count('\n') + 1
+            line_num = content[: match.start()].count("\n") + 1
 
             # Try to extract request/response types
             func_signature = self._extract_function_signature(content, match.end())
@@ -277,7 +236,7 @@ class AndroidAnalyzer:
                 request_type=request_type,
                 response_type=response_type,
                 file_path=str(file_path),
-                line_number=line_num
+                line_number=line_num,
             )
 
             result.api_endpoints.append(endpoint)
@@ -291,15 +250,10 @@ class AndroidAnalyzer:
             return match.group(1)
         return None
 
-    def _find_ui_elements_in_scope(
-            self,
-            content: str,
-            start_pos: int,
-            func_name: str
-    ) -> List[str]:
+    def _find_ui_elements_in_scope(self, content: str, start_pos: int, func_name: str) -> List[str]:
         """Find test tags within a function scope"""
         # Simple heuristic: look for test tags within ~500 characters of function start
-        scope = content[start_pos:start_pos + 2000]
+        scope = content[start_pos : start_pos + 2000]
 
         tags = []
         for match in self.test_tag_pattern.finditer(scope):
@@ -310,18 +264,18 @@ class AndroidAnalyzer:
     def _guess_element_type(self, content: str, position: int) -> Optional[str]:
         """Guess UI element type from surrounding code"""
         # Look backwards for element type
-        context = content[max(0, position - 200):position]
+        context = content[max(0, position - 200) : position]
 
-        if 'Button' in context:
-            return 'Button'
-        elif 'TextField' in context or 'OutlinedTextField' in context:
-            return 'TextField'
-        elif 'Text(' in context:
-            return 'Text'
-        elif 'Image' in context:
-            return 'Image'
-        elif 'Icon' in context:
-            return 'Icon'
+        if "Button" in context:
+            return "Button"
+        elif "TextField" in context or "OutlinedTextField" in context:
+            return "TextField"
+        elif "Text(" in context:
+            return "Text"
+        elif "Image" in context:
+            return "Image"
+        elif "Icon" in context:
+            return "Icon"
 
         return None
 
@@ -346,17 +300,17 @@ class AndroidAnalyzer:
     def _extract_function_signature(self, content: str, start_pos: int) -> str:
         """Extract function signature after method annotation"""
         # Get next ~200 characters
-        signature = content[start_pos:start_pos + 200]
+        signature = content[start_pos : start_pos + 200]
 
         # Find closing parenthesis of function
         paren_count = 0
         for i, char in enumerate(signature):
-            if char == '(':
+            if char == "(":
                 paren_count += 1
-            elif char == ')':
+            elif char == ")":
                 paren_count -= 1
                 if paren_count == 0:
-                    return signature[:i + 1]
+                    return signature[: i + 1]
 
         return signature
 
@@ -367,12 +321,12 @@ class AndroidAnalyzer:
         response_type = None
 
         # Look for @Body parameter
-        body_match = re.search(r'@Body\s+\w+:\s*(\w+)', signature)
+        body_match = re.search(r"@Body\s+\w+:\s*(\w+)", signature)
         if body_match:
             request_type = body_match.group(1)
 
         # Look for return type
-        return_match = re.search(r':\s*(?:Response<)?(\w+)>?', signature)
+        return_match = re.search(r":\s*(?:Response<)?(\w+)>?", signature)
         if return_match:
             response_type = return_match.group(1)
 

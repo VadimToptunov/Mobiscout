@@ -11,6 +11,7 @@ Features:
 - Mutation-based fuzzing
 - Grammar-based fuzzing
 """
+
 import datetime
 import json
 import random
@@ -23,6 +24,7 @@ from typing import List, Dict, Any, Optional, Set
 
 class FuzzingStrategy(Enum):
     """Fuzzing strategies"""
+
     RANDOM = "random"
     MUTATION = "mutation"
     GRAMMAR = "grammar"
@@ -32,6 +34,7 @@ class FuzzingStrategy(Enum):
 
 class InputType(Enum):
     """Input types for fuzzing"""
+
     TEXT = "text"
     NUMBER = "number"
     EMAIL = "email"
@@ -45,6 +48,7 @@ class InputType(Enum):
 @dataclass
 class FuzzInput:
     """Fuzzing input"""
+
     value: Any
     input_type: InputType
     strategy: FuzzingStrategy
@@ -54,6 +58,7 @@ class FuzzInput:
 @dataclass
 class FuzzResult:
     """Fuzzing result"""
+
     input: FuzzInput
     success: bool
     error: Optional[str] = None
@@ -79,10 +84,10 @@ class FuzzGenerator:
 
         # Boundary values
         self.boundaries = {
-            'int_min': -2147483648,
-            'int_max': 2147483647,
-            'long_min': -9223372036854775808,
-            'long_max': 9223372036854775807,
+            "int_min": -2147483648,
+            "int_max": 2147483647,
+            "long_min": -9223372036854775808,
+            "long_max": 9223372036854775807,
         }
 
     def generate(self, input_type: InputType, count: int = 10) -> List[FuzzInput]:
@@ -115,43 +120,33 @@ class FuzzGenerator:
             (" ", "single_space"),
             ("   ", "multiple_spaces"),
             ("\t\n\r", "whitespace_only"),
-
             # Very long strings
             ("A" * 1000, "long_string_1k"),
             ("A" * 10000, "long_string_10k"),
-
             # Special characters
             (self.special_chars, "special_chars"),
             (self.control_chars, "control_chars"),
             (self.unicode_chars, "unicode_chars"),
-
             # SQL injection
             ("' OR '1'='1", "sql_injection_1"),
             ("1; DROP TABLE users--", "sql_injection_2"),
-
             # XSS
             ("<script>alert('XSS')</script>", "xss_script"),
             ("<img src=x onerror=alert('XSS')>", "xss_img"),
-
             # Path traversal
             ("../../etc/passwd", "path_traversal_1"),
             ("..\\..\\windows\\system32", "path_traversal_2"),
-
             # Format strings
             ("%s%s%s%s%s", "format_string_1"),
             ("%x%x%x%x", "format_string_2"),
-
             # Unicode edge cases
             ("\u0000", "null_byte"),
-            ("\uFFFD", "replacement_char"),
+            ("\ufffd", "replacement_char"),
         ]
 
         return [
             FuzzInput(
-                value=value,
-                input_type=InputType.TEXT,
-                strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                value=value, input_type=InputType.TEXT, strategy=FuzzingStrategy.BOUNDARY, metadata={"pattern": name}
             )
             for value, name in patterns
         ]
@@ -163,15 +158,13 @@ class FuzzGenerator:
             (0, "zero"),
             (-1, "negative_one"),
             (1, "positive_one"),
-            (self.boundaries['int_min'], "int_min"),
-            (self.boundaries['int_max'], "int_max"),
-
+            (self.boundaries["int_min"], "int_min"),
+            (self.boundaries["int_max"], "int_max"),
             # Edge cases
             (-0, "negative_zero"),
-            (float('inf'), "infinity"),
-            (float('-inf'), "negative_infinity"),
-            (float('nan'), "not_a_number"),
-
+            (float("inf"), "infinity"),
+            (float("-inf"), "negative_infinity"),
+            (float("nan"), "not_a_number"),
             # Large numbers
             (999999999, "large_positive"),
             (-999999999, "large_negative"),
@@ -179,10 +172,7 @@ class FuzzGenerator:
 
         return [
             FuzzInput(
-                value=value,
-                input_type=InputType.NUMBER,
-                strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                value=value, input_type=InputType.NUMBER, strategy=FuzzingStrategy.BOUNDARY, metadata={"pattern": name}
             )
             for value, name in patterns
         ]
@@ -192,7 +182,6 @@ class FuzzGenerator:
         patterns = [
             # Valid
             ("test@example.com", "valid_email"),
-
             # Invalid
             ("", "empty"),
             ("invalid", "no_at_symbol"),
@@ -200,11 +189,9 @@ class FuzzGenerator:
             ("test@", "missing_domain"),
             ("test@@example.com", "double_at"),
             ("test@example", "missing_tld"),
-
             # Edge cases
             ("a" * 64 + "@example.com", "long_local_part"),
             ("test@" + "a" * 255 + ".com", "long_domain"),
-
             # Special chars
             ("test+tag@example.com", "plus_sign"),
             ("test.name@example.com", "dot_in_local"),
@@ -212,10 +199,7 @@ class FuzzGenerator:
 
         return [
             FuzzInput(
-                value=value,
-                input_type=InputType.EMAIL,
-                strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                value=value, input_type=InputType.EMAIL, strategy=FuzzingStrategy.BOUNDARY, metadata={"pattern": name}
             )
             for value, name in patterns
         ]
@@ -226,12 +210,10 @@ class FuzzGenerator:
             # Valid
             ("https://example.com", "valid_https"),
             ("http://example.com", "valid_http"),
-
             # Invalid
             ("", "empty"),
             ("not-a-url", "no_protocol"),
             ("http://", "missing_host"),
-
             # Edge cases
             ("https://example.com/" + "a" * 2000, "very_long_path"),
             ("https://user:pass@example.com", "with_credentials"),
@@ -240,10 +222,7 @@ class FuzzGenerator:
 
         return [
             FuzzInput(
-                value=value,
-                input_type=InputType.URL,
-                strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                value=value, input_type=InputType.URL, strategy=FuzzingStrategy.BOUNDARY, metadata={"pattern": name}
             )
             for value, name in patterns
         ]
@@ -254,7 +233,6 @@ class FuzzGenerator:
             # Valid formats
             ("+1234567890", "international"),
             ("(123) 456-7890", "formatted_us"),
-
             # Invalid
             ("", "empty"),
             ("abc", "letters"),
@@ -264,10 +242,7 @@ class FuzzGenerator:
 
         return [
             FuzzInput(
-                value=value,
-                input_type=InputType.PHONE,
-                strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                value=value, input_type=InputType.PHONE, strategy=FuzzingStrategy.BOUNDARY, metadata={"pattern": name}
             )
             for value, name in patterns
         ]
@@ -279,11 +254,9 @@ class FuzzGenerator:
             ("", "empty"),
             ("123456", "common_weak"),
             ("password", "common_weak_2"),
-
             # Strong
             ("P@ssw0rd123!", "strong"),
             ("aB3$" + "x" * 50, "very_long"),
-
             # Edge cases
             (" " * 20, "spaces_only"),
             ("emoji😀password", "with_emoji"),
@@ -294,7 +267,7 @@ class FuzzGenerator:
                 value=value,
                 input_type=InputType.PASSWORD,
                 strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                metadata={"pattern": name},
             )
             for value, name in patterns
         ]
@@ -303,26 +276,21 @@ class FuzzGenerator:
         """Generate JSON fuzzing inputs"""
         patterns = [
             # Valid
-            ('{}', "empty_object"),
-            ('[]', "empty_array"),
+            ("{}", "empty_object"),
+            ("[]", "empty_array"),
             ('{"key": "value"}', "simple_object"),
-
             # Invalid
-            ('', "empty_string"),
-            ('{', "unclosed_brace"),
+            ("", "empty_string"),
+            ("{", "unclosed_brace"),
             ('{"key": }', "missing_value"),
-
             # Edge cases
-            ('{"' + 'a' * 1000 + '": "value"}', "long_key"),
-            ('[' + ','.join(['1'] * 1000) + ']', "large_array"),
+            ('{"' + "a" * 1000 + '": "value"}', "long_key"),
+            ("[" + ",".join(["1"] * 1000) + "]", "large_array"),
         ]
 
         return [
             FuzzInput(
-                value=value,
-                input_type=InputType.JSON,
-                strategy=FuzzingStrategy.BOUNDARY,
-                metadata={'pattern': name}
+                value=value, input_type=InputType.JSON, strategy=FuzzingStrategy.BOUNDARY, metadata={"pattern": name}
             )
             for value, name in patterns
         ]
@@ -346,7 +314,7 @@ class MutationFuzzer(FuzzGenerator):
                     value=mutated,
                     input_type=InputType.TEXT,
                     strategy=FuzzingStrategy.MUTATION,
-                    metadata={'original': input_value}
+                    metadata={"original": input_value},
                 )
             )
 
@@ -355,25 +323,25 @@ class MutationFuzzer(FuzzGenerator):
     def _apply_mutation(self, value: str) -> str:
         """Apply random mutation"""
         if not value:
-            return random.choice([' ', '!', '0'])
+            return random.choice([" ", "!", "0"])
 
-        mutation_type = random.choice(['insert', 'delete', 'replace', 'duplicate'])
+        mutation_type = random.choice(["insert", "delete", "replace", "duplicate"])
 
-        if mutation_type == 'insert':
+        if mutation_type == "insert":
             pos = random.randint(0, len(value))
             char = random.choice(string.printable)
             return value[:pos] + char + value[pos:]
 
-        elif mutation_type == 'delete' and len(value) > 1:
+        elif mutation_type == "delete" and len(value) > 1:
             pos = random.randint(0, len(value) - 1)
-            return value[:pos] + value[pos + 1:]
+            return value[:pos] + value[pos + 1 :]
 
-        elif mutation_type == 'replace' and len(value) > 0:
+        elif mutation_type == "replace" and len(value) > 0:
             pos = random.randint(0, len(value) - 1)
             char = random.choice(string.printable)
-            return value[:pos] + char + value[pos + 1:]
+            return value[:pos] + char + value[pos + 1 :]
 
-        elif mutation_type == 'duplicate':
+        elif mutation_type == "duplicate":
             return value + value
 
         return value
@@ -391,8 +359,9 @@ class UIFuzzer:
         self.mutator = MutationFuzzer()
         self.results: List[FuzzResult] = []
 
-    def fuzz_text_field(self, field_id: str, input_type: InputType = InputType.TEXT,
-                        count: int = 20) -> List[FuzzResult]:
+    def fuzz_text_field(
+        self, field_id: str, input_type: InputType = InputType.TEXT, count: int = 20
+    ) -> List[FuzzResult]:
         """Fuzz text field input"""
         inputs = self.generator.generate(input_type, count)
         results = []
@@ -414,7 +383,7 @@ class UIFuzzer:
                 value=f"click_{i}",
                 input_type=InputType.TEXT,
                 strategy=FuzzingStrategy.RANDOM,
-                metadata={'click_count': i + 1}
+                metadata={"click_count": i + 1},
             )
 
             result = self._execute_fuzz(button_id, fuzz_input)
@@ -438,7 +407,7 @@ class UIFuzzer:
             crash=crash,
             response_time_ms=response_time,
             error="Crash detected" if crash else None,
-            metadata={'target': target_id}
+            metadata={"target": target_id},
         )
 
     def get_crash_inputs(self) -> List[FuzzInput]:
@@ -455,12 +424,12 @@ class UIFuzzer:
         successes = sum(1 for r in self.results if r.success)
 
         return {
-            'total_inputs': len(self.results),
-            'crashes': crashes,
-            'errors': errors,
-            'successes': successes,
-            'crash_rate': crashes / len(self.results) if self.results else 0,
-            'avg_response_time_ms': sum(r.response_time_ms for r in self.results) / len(self.results)
+            "total_inputs": len(self.results),
+            "crashes": crashes,
+            "errors": errors,
+            "successes": successes,
+            "crash_rate": crashes / len(self.results) if self.results else 0,
+            "avg_response_time_ms": sum(r.response_time_ms for r in self.results) / len(self.results),
         }
 
 
@@ -475,8 +444,7 @@ class APIFuzzer:
         self.generator = FuzzGenerator()
         self.results: List[FuzzResult] = []
 
-    def fuzz_endpoint(self, method: str, endpoint: str, param_type: InputType,
-                      count: int = 50) -> List[FuzzResult]:
+    def fuzz_endpoint(self, method: str, endpoint: str, param_type: InputType, count: int = 50) -> List[FuzzResult]:
         """Fuzz API endpoint parameter"""
         inputs = self.generator.generate(param_type, count)
         results = []
@@ -488,8 +456,7 @@ class APIFuzzer:
 
         return results
 
-    def _execute_api_fuzz(self, method: str, endpoint: str,
-                          fuzz_input: FuzzInput) -> FuzzResult:
+    def _execute_api_fuzz(self, method: str, endpoint: str, fuzz_input: FuzzInput) -> FuzzResult:
         """Execute API fuzzing (simulation)"""
         # In real implementation, this would make HTTP requests
         # For now, simulate result
@@ -504,7 +471,7 @@ class APIFuzzer:
             crash=crash,
             response_time_ms=response_time,
             error="API error" if not success else None,
-            metadata={'method': method, 'endpoint': endpoint}
+            metadata={"method": method, "endpoint": endpoint},
         )
 
     def get_vulnerable_endpoints(self) -> List[Dict[str, Any]]:
@@ -512,26 +479,22 @@ class APIFuzzer:
         endpoint_stats = {}
 
         for result in self.results:
-            endpoint = result.metadata.get('endpoint', 'unknown')
+            endpoint = result.metadata.get("endpoint", "unknown")
             if endpoint not in endpoint_stats:
-                endpoint_stats[endpoint] = {'crashes': 0, 'errors': 0, 'total': 0}
+                endpoint_stats[endpoint] = {"crashes": 0, "errors": 0, "total": 0}
 
-            endpoint_stats[endpoint]['total'] += 1
+            endpoint_stats[endpoint]["total"] += 1
             if result.crash:
-                endpoint_stats[endpoint]['crashes'] += 1
+                endpoint_stats[endpoint]["crashes"] += 1
             if result.error:
-                endpoint_stats[endpoint]['errors'] += 1
+                endpoint_stats[endpoint]["errors"] += 1
 
         # Return endpoints with >10% crash/error rate
         vulnerable = []
         for endpoint, stats in endpoint_stats.items():
-            error_rate = (stats['crashes'] + stats['errors']) / stats['total']
+            error_rate = (stats["crashes"] + stats["errors"]) / stats["total"]
             if error_rate > 0.1:
-                vulnerable.append({
-                    'endpoint': endpoint,
-                    'error_rate': error_rate,
-                    **stats
-                })
+                vulnerable.append({"endpoint": endpoint, "error_rate": error_rate, **stats})
 
         return vulnerable
 
@@ -551,102 +514,86 @@ class FuzzingCampaign:
     def run_ui_campaign(self, targets: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Run UI fuzzing campaign"""
         results: Dict[str, Any] = {
-            'targets': [],
-            'total_inputs': 0,
-            'crashes': 0,
-            'start_time': datetime.datetime.now().isoformat()
+            "targets": [],
+            "total_inputs": 0,
+            "crashes": 0,
+            "start_time": datetime.datetime.now().isoformat(),
         }
 
         for target in targets:
-            target_id = target.get('id')
-            target_type = target.get('type', 'text_field')
-            input_type = InputType(target.get('input_type', 'text'))
+            target_id = target.get("id")
+            target_type = target.get("type", "text_field")
+            input_type = InputType(target.get("input_type", "text"))
 
-            if target_type == 'text_field':
+            if target_type == "text_field":
                 fuzz_results = self.ui_fuzzer.fuzz_text_field(target_id, input_type, count=50)
-            elif target_type == 'button':
+            elif target_type == "button":
                 fuzz_results = self.ui_fuzzer.fuzz_button_clicks(target_id, count=100)
             else:
                 continue
 
             target_crashes = sum(1 for r in fuzz_results if r.crash)
 
-            results['targets'].append({
-                'id': target_id,
-                'type': target_type,
-                'inputs': len(fuzz_results),
-                'crashes': target_crashes
-            })
+            results["targets"].append(
+                {"id": target_id, "type": target_type, "inputs": len(fuzz_results), "crashes": target_crashes}
+            )
 
-            results['total_inputs'] += len(fuzz_results)
-            results['crashes'] += target_crashes
+            results["total_inputs"] += len(fuzz_results)
+            results["crashes"] += target_crashes
 
-        results['end_time'] = datetime.datetime.now().isoformat()
-        results['statistics'] = self.ui_fuzzer.get_statistics()
+        results["end_time"] = datetime.datetime.now().isoformat()
+        results["statistics"] = self.ui_fuzzer.get_statistics()
 
-        self.campaign_results['ui'] = results
+        self.campaign_results["ui"] = results
         return results
 
     def run_api_campaign(self, endpoints: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Run API fuzzing campaign"""
-        results = {
-            'endpoints': [],
-            'total_requests': 0,
-            'errors': 0,
-            'start_time': datetime.datetime.now().isoformat()
-        }
+        results = {"endpoints": [], "total_requests": 0, "errors": 0, "start_time": datetime.datetime.now().isoformat()}
 
         for endpoint_config in endpoints:
-            method = endpoint_config.get('method', 'GET')
-            endpoint = endpoint_config.get('endpoint')
-            param_type = InputType(endpoint_config.get('param_type', 'text'))
+            method = endpoint_config.get("method", "GET")
+            endpoint = endpoint_config.get("endpoint")
+            param_type = InputType(endpoint_config.get("param_type", "text"))
 
             fuzz_results = self.api_fuzzer.fuzz_endpoint(method, endpoint, param_type, count=100)
 
             endpoint_errors = sum(1 for r in fuzz_results if r.error)
 
-            results['endpoints'].append({
-                'method': method,
-                'endpoint': endpoint,
-                'requests': len(fuzz_results),
-                'errors': endpoint_errors
-            })
+            results["endpoints"].append(
+                {"method": method, "endpoint": endpoint, "requests": len(fuzz_results), "errors": endpoint_errors}
+            )
 
-            results['total_requests'] += len(fuzz_results)
-            results['errors'] += endpoint_errors
+            results["total_requests"] += len(fuzz_results)
+            results["errors"] += endpoint_errors
 
-        results['end_time'] = datetime.datetime.now().isoformat()
-        results['vulnerable_endpoints'] = self.api_fuzzer.get_vulnerable_endpoints()
+        results["end_time"] = datetime.datetime.now().isoformat()
+        results["vulnerable_endpoints"] = self.api_fuzzer.get_vulnerable_endpoints()
 
-        self.campaign_results['api'] = results
+        self.campaign_results["api"] = results
         return results
 
     def export_report(self, output_path: Path):
         """Export fuzzing campaign report"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(self.campaign_results, f, indent=2)
 
     def get_summary(self) -> Dict[str, Any]:
         """Get campaign summary"""
-        summary = {
-            'total_inputs': 0,
-            'total_crashes': 0,
-            'total_errors': 0,
-            'campaigns': []
-        }
+        summary = {"total_inputs": 0, "total_crashes": 0, "total_errors": 0, "campaigns": []}
 
-        if 'ui' in self.campaign_results:
-            ui = self.campaign_results['ui']
-            summary['total_inputs'] += ui.get('total_inputs', 0)
-            summary['total_crashes'] += ui.get('crashes', 0)
-            summary['campaigns'].append('ui')
+        if "ui" in self.campaign_results:
+            ui = self.campaign_results["ui"]
+            summary["total_inputs"] += ui.get("total_inputs", 0)
+            summary["total_crashes"] += ui.get("crashes", 0)
+            summary["campaigns"].append("ui")
 
-        if 'api' in self.campaign_results:
-            api = self.campaign_results['api']
-            summary['total_inputs'] += api.get('total_requests', 0)
-            summary['total_errors'] += api.get('errors', 0)
-            summary['campaigns'].append('api')
+        if "api" in self.campaign_results:
+            api = self.campaign_results["api"]
+            summary["total_inputs"] += api.get("total_requests", 0)
+            summary["total_errors"] += api.get("errors", 0)
+            summary["campaigns"].append("api")
 
         return summary

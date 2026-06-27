@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class TestCase:
     """Represents a generated test case."""
+
     name: str
     description: str = ""
     steps: List[str] = field(default_factory=list)
@@ -41,10 +42,7 @@ class LanguagePlugin(ABC):
 
     @abstractmethod
     def generate_test_file(
-            self,
-            test_cases: List[TestCase],
-            output_path: Path,
-            class_name: str = "GeneratedTest"
+        self, test_cases: List[TestCase], output_path: Path, class_name: str = "GeneratedTest"
     ) -> str:
         """
         Generate a test file from test cases.
@@ -60,12 +58,7 @@ class LanguagePlugin(ABC):
         pass
 
     @abstractmethod
-    def generate_page_object(
-            self,
-            screen_name: str,
-            elements: List[Dict[str, Any]],
-            output_path: Path
-    ) -> str:
+    def generate_page_object(self, screen_name: str, elements: List[Dict[str, Any]], output_path: Path) -> str:
         """
         Generate a page object class.
 
@@ -96,73 +89,65 @@ class PythonPlugin(LanguagePlugin):
     test_framework = "pytest"
 
     def generate_test_file(
-            self,
-            test_cases: List[TestCase],
-            output_path: Path,
-            class_name: str = "GeneratedTest"
+        self, test_cases: List[TestCase], output_path: Path, class_name: str = "GeneratedTest"
     ) -> str:
         lines = [
             '"""Auto-generated tests."""',
-            'import pytest',
-            'from appium import webdriver',
-            '',
-            '',
-            f'class Test{class_name}:',
+            "import pytest",
+            "from appium import webdriver",
+            "",
+            "",
+            f"class Test{class_name}:",
             '    """Generated test class."""',
-            '',
+            "",
         ]
 
         for tc in test_cases:
-            lines.append(f'    def test_{tc.name}(self, driver):')
+            lines.append(f"    def test_{tc.name}(self, driver):")
             lines.append(f'        """{tc.description}"""')
             for step in tc.steps:
-                lines.append(f'        {step}')
+                lines.append(f"        {step}")
             for assertion in tc.assertions:
-                lines.append(f'        {assertion}')
-            lines.append('')
+                lines.append(f"        {assertion}")
+            lines.append("")
 
-        code = '\n'.join(lines)
-        output_path.write_text(code, encoding='utf-8')
+        code = "\n".join(lines)
+        output_path.write_text(code, encoding="utf-8")
         return code
 
-    def generate_page_object(
-            self,
-            screen_name: str,
-            elements: List[Dict[str, Any]],
-            output_path: Path
-    ) -> str:
+    def generate_page_object(self, screen_name: str, elements: List[Dict[str, Any]], output_path: Path) -> str:
         lines = [
             '"""Auto-generated page object."""',
-            'from appium.webdriver.common.appiumby import AppiumBy',
-            '',
-            '',
-            f'class {screen_name}Page:',
+            "from appium.webdriver.common.appiumby import AppiumBy",
+            "",
+            "",
+            f"class {screen_name}Page:",
             f'    """Page object for {screen_name}."""',
-            '',
-            '    def __init__(self, driver):',
-            '        self.driver = driver',
-            '',
+            "",
+            "    def __init__(self, driver):",
+            "        self.driver = driver",
+            "",
         ]
 
         for elem in elements:
-            name = elem.get('name', 'element')
-            selector = elem.get('selector', '')
-            selector_type = elem.get('type', 'id')
+            name = elem.get("name", "element")
+            selector = elem.get("selector", "")
+            selector_type = elem.get("type", "id")
 
-            lines.append(f'    @property')
-            lines.append(f'    def {name}(self):')
+            lines.append(f"    @property")
+            lines.append(f"    def {name}(self):")
             lines.append(f'        return self.driver.find_element(AppiumBy.{selector_type.upper()}, "{selector}")')
-            lines.append('')
+            lines.append("")
 
-        code = '\n'.join(lines)
-        output_path.write_text(code, encoding='utf-8')
+        code = "\n".join(lines)
+        output_path.write_text(code, encoding="utf-8")
         return code
 
     def get_imports(self) -> List[str]:
         return [
-            'import pytest',
-            'from appium import webdriver',
-            'from appium.webdriver.common.appiumby import AppiumBy',
+            "import pytest",
+            "from appium import webdriver",
+            "from appium.webdriver.common.appiumby import AppiumBy",
         ]
 
 
@@ -174,80 +159,72 @@ class JavaPlugin(LanguagePlugin):
     test_framework = "junit"
 
     def generate_test_file(
-            self,
-            test_cases: List[TestCase],
-            output_path: Path,
-            class_name: str = "GeneratedTest"
+        self, test_cases: List[TestCase], output_path: Path, class_name: str = "GeneratedTest"
     ) -> str:
         lines = [
-            'import org.junit.jupiter.api.*;',
-            'import io.appium.java_client.AppiumDriver;',
-            'import static org.junit.jupiter.api.Assertions.*;',
-            '',
-            f'public class {class_name}Test {{',
-            '',
-            '    private AppiumDriver driver;',
-            '',
+            "import org.junit.jupiter.api.*;",
+            "import io.appium.java_client.AppiumDriver;",
+            "import static org.junit.jupiter.api.Assertions.*;",
+            "",
+            f"public class {class_name}Test {{",
+            "",
+            "    private AppiumDriver driver;",
+            "",
         ]
 
         for tc in test_cases:
-            lines.append('    @Test')
-            lines.append(f'    public void test{tc.name.title()}() {{')
-            lines.append(f'        // {tc.description}')
+            lines.append("    @Test")
+            lines.append(f"    public void test{tc.name.title()}() {{")
+            lines.append(f"        // {tc.description}")
             for step in tc.steps:
-                lines.append(f'        {step}')
+                lines.append(f"        {step}")
             for assertion in tc.assertions:
-                lines.append(f'        {assertion}')
-            lines.append('    }')
-            lines.append('')
+                lines.append(f"        {assertion}")
+            lines.append("    }")
+            lines.append("")
 
-        lines.append('}')
+        lines.append("}")
 
-        code = '\n'.join(lines)
-        output_path.write_text(code, encoding='utf-8')
+        code = "\n".join(lines)
+        output_path.write_text(code, encoding="utf-8")
         return code
 
-    def generate_page_object(
-            self,
-            screen_name: str,
-            elements: List[Dict[str, Any]],
-            output_path: Path
-    ) -> str:
+    def generate_page_object(self, screen_name: str, elements: List[Dict[str, Any]], output_path: Path) -> str:
         lines = [
-            'import io.appium.java_client.AppiumDriver;',
-            'import io.appium.java_client.pagefactory.*;',
-            'import org.openqa.selenium.WebElement;',
-            '',
-            f'public class {screen_name}Page {{',
-            '',
-            '    private AppiumDriver driver;',
-            '',
+            "import io.appium.java_client.AppiumDriver;",
+            "import io.appium.java_client.pagefactory.*;",
+            "import org.openqa.selenium.WebElement;",
+            "",
+            f"public class {screen_name}Page {{",
+            "",
+            "    private AppiumDriver driver;",
+            "",
         ]
 
         for elem in elements:
-            name = elem.get('name', 'element')
-            selector = elem.get('selector', '')
-            selector_type = elem.get('type', 'id')
+            name = elem.get("name", "element")
+            selector = elem.get("selector", "")
+            selector_type = elem.get("type", "id")
 
             lines.append(f'    @AndroidFindBy({selector_type} = "{selector}")')
-            lines.append(f'    private WebElement {name};')
-            lines.append('')
+            lines.append(f"    private WebElement {name};")
+            lines.append("")
 
-        lines.append(f'    public {screen_name}Page(AppiumDriver driver) {{')
-        lines.append('        this.driver = driver;')
-        lines.append('        PageFactory.initElements(new AppiumFieldDecorator(driver), this);')
-        lines.append('    }')
-        lines.append('}')
+        lines.append(f"    public {screen_name}Page(AppiumDriver driver) {{")
+        lines.append("        this.driver = driver;")
+        lines.append("        PageFactory.initElements(new AppiumFieldDecorator(driver), this);")
+        lines.append("    }")
+        lines.append("}")
 
-        code = '\n'.join(lines)
-        output_path.write_text(code, encoding='utf-8')
+        code = "\n".join(lines)
+        output_path.write_text(code, encoding="utf-8")
         return code
 
     def get_imports(self) -> List[str]:
         return [
-            'import org.junit.jupiter.api.*;',
-            'import io.appium.java_client.AppiumDriver;',
-            'import io.appium.java_client.pagefactory.*;',
+            "import org.junit.jupiter.api.*;",
+            "import io.appium.java_client.AppiumDriver;",
+            "import io.appium.java_client.pagefactory.*;",
         ]
 
 
@@ -259,84 +236,76 @@ class KotlinPlugin(LanguagePlugin):
     test_framework = "junit5"
 
     def generate_test_file(
-            self,
-            test_cases: List[TestCase],
-            output_path: Path,
-            class_name: str = "GeneratedTest"
+        self, test_cases: List[TestCase], output_path: Path, class_name: str = "GeneratedTest"
     ) -> str:
         lines = [
-            'import org.junit.jupiter.api.*',
-            'import io.appium.java_client.AppiumDriver',
-            '',
-            f'class {class_name}Test {{',
-            '',
-            '    private lateinit var driver: AppiumDriver',
-            '',
+            "import org.junit.jupiter.api.*",
+            "import io.appium.java_client.AppiumDriver",
+            "",
+            f"class {class_name}Test {{",
+            "",
+            "    private lateinit var driver: AppiumDriver",
+            "",
         ]
 
         for tc in test_cases:
-            lines.append('    @Test')
-            lines.append(f'    fun `test {tc.name}`() {{')
-            lines.append(f'        // {tc.description}')
+            lines.append("    @Test")
+            lines.append(f"    fun `test {tc.name}`() {{")
+            lines.append(f"        // {tc.description}")
             for step in tc.steps:
-                lines.append(f'        {step}')
+                lines.append(f"        {step}")
             for assertion in tc.assertions:
-                lines.append(f'        {assertion}')
-            lines.append('    }')
-            lines.append('')
+                lines.append(f"        {assertion}")
+            lines.append("    }")
+            lines.append("")
 
-        lines.append('}')
+        lines.append("}")
 
-        code = '\n'.join(lines)
-        output_path.write_text(code, encoding='utf-8')
+        code = "\n".join(lines)
+        output_path.write_text(code, encoding="utf-8")
         return code
 
-    def generate_page_object(
-            self,
-            screen_name: str,
-            elements: List[Dict[str, Any]],
-            output_path: Path
-    ) -> str:
+    def generate_page_object(self, screen_name: str, elements: List[Dict[str, Any]], output_path: Path) -> str:
         lines = [
-            'import io.appium.java_client.AppiumDriver',
-            'import io.appium.java_client.pagefactory.*',
-            'import org.openqa.selenium.WebElement',
-            '',
-            f'class {screen_name}Page(private val driver: AppiumDriver) {{',
-            '',
-            '    init {{',
-            '        PageFactory.initElements(AppiumFieldDecorator(driver), this)',
-            '    }}',
-            '',
+            "import io.appium.java_client.AppiumDriver",
+            "import io.appium.java_client.pagefactory.*",
+            "import org.openqa.selenium.WebElement",
+            "",
+            f"class {screen_name}Page(private val driver: AppiumDriver) {{",
+            "",
+            "    init {{",
+            "        PageFactory.initElements(AppiumFieldDecorator(driver), this)",
+            "    }}",
+            "",
         ]
 
         for elem in elements:
-            name = elem.get('name', 'element')
-            selector = elem.get('selector', '')
-            selector_type = elem.get('type', 'id')
+            name = elem.get("name", "element")
+            selector = elem.get("selector", "")
+            selector_type = elem.get("type", "id")
 
             lines.append(f'    @AndroidFindBy({selector_type} = "{selector}")')
-            lines.append(f'    lateinit var {name}: WebElement')
-            lines.append('')
+            lines.append(f"    lateinit var {name}: WebElement")
+            lines.append("")
 
-        lines.append('}')
+        lines.append("}")
 
-        code = '\n'.join(lines)
-        output_path.write_text(code, encoding='utf-8')
+        code = "\n".join(lines)
+        output_path.write_text(code, encoding="utf-8")
         return code
 
     def get_imports(self) -> List[str]:
         return [
-            'import org.junit.jupiter.api.*',
-            'import io.appium.java_client.AppiumDriver',
+            "import org.junit.jupiter.api.*",
+            "import io.appium.java_client.AppiumDriver",
         ]
 
 
 # Plugin registry
 PLUGINS: Dict[str, LanguagePlugin] = {
-    'python': PythonPlugin(),
-    'java': JavaPlugin(),
-    'kotlin': KotlinPlugin(),
+    "python": PythonPlugin(),
+    "java": JavaPlugin(),
+    "kotlin": KotlinPlugin(),
 }
 
 

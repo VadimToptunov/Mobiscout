@@ -40,16 +40,16 @@ from framework.ml.ml_module import (
     SelectorPredictor,
     NextStepRecommender,
     ElementScorer,
-    MLModule
+    MLModule,
 )
 
 __all__ = [
-    'ElementClassifier',
-    'VisualDetector',
-    'SelectorHealer',
-    'PatternRecognizer',
-    'AnalyticsDashboard',
-    'TrainingDataGenerator',
-    'UniversalModelBuilder',
-    'create_universal_pretrained_model',
+    "ElementClassifier",
+    "VisualDetector",
+    "SelectorHealer",
+    "PatternRecognizer",
+    "AnalyticsDashboard",
+    "TrainingDataGenerator",
+    "UniversalModelBuilder",
+    "create_universal_pretrained_model",
 ]

@@ -18,6 +18,7 @@ from framework.execution.test_runner import TestRunner
 @dataclass
 class LoadProfile:
     """Load testing profile configuration"""
+
     name: str
     description: str
     virtual_users: int
@@ -30,6 +31,7 @@ class LoadProfile:
 @dataclass
 class LoadTestConfig:
     """Configuration for load testing"""
+
     test_path: Path
     profile: LoadProfile
     devices: List[str] = field(default_factory=list)
@@ -43,6 +45,7 @@ class LoadTestConfig:
 @dataclass
 class LoadTestResult:
     """Results from a load test"""
+
     profile_name: str
     start_time: datetime
     end_time: datetime
@@ -188,11 +191,13 @@ class LoadTester:
                     result = future.result(timeout=self.config.timeout_seconds)
                     self.results.append(result)
                 except (TimeoutError, RuntimeError, OSError, ValueError) as e:
-                    self.results.append({
-                        "success": False,
-                        "error": str(e),
-                        "response_time": 0,
-                    })
+                    self.results.append(
+                        {
+                            "success": False,
+                            "error": str(e),
+                            "response_time": 0,
+                        }
+                    )
 
         end_time = datetime.now()
 
@@ -200,10 +205,10 @@ class LoadTester:
         return self._generate_results(start_time, end_time)
 
     def _run_user_session(
-            self,
-            user_id: int,
-            start_time: datetime,
-            progress_callback: Optional[Callable[[str], None]] = None,
+        self,
+        user_id: int,
+        start_time: datetime,
+        progress_callback: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Run a single user session"""
         profile = self.config.profile
@@ -226,11 +231,13 @@ class LoadTester:
                 test_duration = time.time() - test_start
                 self.response_times.append(test_duration)
 
-                session_results.append({
-                    "success": success,
-                    "response_time": test_duration,
-                    "iteration": iteration,
-                })
+                session_results.append(
+                    {
+                        "success": success,
+                        "response_time": test_duration,
+                        "iteration": iteration,
+                    }
+                )
 
                 if progress_callback:
                     progress_callback(
@@ -239,12 +246,14 @@ class LoadTester:
                     )
             except (RuntimeError, OSError, ValueError, AttributeError) as e:
                 test_duration = time.time() - test_start
-                session_results.append({
-                    "success": False,
-                    "error": str(e),
-                    "response_time": test_duration,
-                    "iteration": iteration,
-                })
+                session_results.append(
+                    {
+                        "success": False,
+                        "error": str(e),
+                        "response_time": test_duration,
+                        "iteration": iteration,
+                    }
+                )
 
             # Think time between iterations
             if profile.think_time_seconds > 0:
@@ -270,14 +279,12 @@ class LoadTester:
         # Run test
         runner = TestRunner()
         test_path = Path(self.config.test_path) if self.config.test_path else None
-        result = runner.run_test(
-            test_name=f"load_test_{user_id}",
-            test_path=test_path
-        )
+        result = runner.run_test(test_name=f"load_test_{user_id}", test_path=test_path)
 
         if result is None:
             return False
         from framework.execution.test_runner import TestResultStatus
+
         return result.status == TestResultStatus.PASSED
 
     def _has_critical_errors(self) -> bool:
@@ -311,11 +318,13 @@ class LoadTester:
                     else:
                         failed_tests += 1
                         if "error" in test_result:
-                            errors.append({
-                                "user_id": user_result.get("user_id"),
-                                "iteration": test_result.get("iteration"),
-                                "error": test_result["error"],
-                            })
+                            errors.append(
+                                {
+                                    "user_id": user_result.get("user_id"),
+                                    "iteration": test_result.get("iteration"),
+                                    "error": test_result["error"],
+                                }
+                            )
 
         # Calculate response time statistics
         if self.response_times:

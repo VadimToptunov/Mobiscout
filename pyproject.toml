@@ -81,6 +81,8 @@ extend-exclude = '''
   | \.venv
   | build
   | dist
+  # codegen golden files are exact emitter output, not hand-formatted source
+  | tests/codegen/golden
 )/
 '''
 

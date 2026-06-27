@@ -52,15 +52,17 @@ def comprehensive(
     if not validate_path(app_path):
         raise SystemExit(1)
 
-    console.print(Panel.fit(
-        "COMPREHENSIVE SECURITY ANALYSIS\n\n"
-        f"App: {app_name}\n"
-        f"Platform: {platform.upper()}\n"
-        f"Binary: {app_path.name}\n"
-        f"Source: {source_path or 'N/A'}\n"
-        f"DAST Target: {target_host or 'N/A'}",
-        style="bold red"
-    ))
+    console.print(
+        Panel.fit(
+            "COMPREHENSIVE SECURITY ANALYSIS\n\n"
+            f"App: {app_name}\n"
+            f"Platform: {platform.upper()}\n"
+            f"Binary: {app_path.name}\n"
+            f"Source: {source_path or 'N/A'}\n"
+            f"DAST Target: {target_host or 'N/A'}",
+            style="bold red",
+        )
+    )
 
     if output:
         output.mkdir(parents=True, exist_ok=True)
@@ -181,22 +183,22 @@ def comprehensive(
     # Save all reports
     if output:
         # Save individual reports
-        with open(output / f"{app_name}_decompile.json", 'w') as f:
+        with open(output / f"{app_name}_decompile.json", "w") as f:
             json.dump(decompile_result.to_dict(), f, indent=2, default=str)
 
         if sast_result:
-            with open(output / f"{app_name}_sast.json", 'w') as f:
+            with open(output / f"{app_name}_sast.json", "w") as f:
                 json.dump(sast_result.to_dict(), f, indent=2, default=str)
 
-        with open(output / f"{app_name}_runtime.json", 'w') as f:
+        with open(output / f"{app_name}_runtime.json", "w") as f:
             json.dump(runtime_result.to_dict(), f, indent=2, default=str)
 
         if supply_result:
-            with open(output / f"{app_name}_supply_chain.json", 'w') as f:
+            with open(output / f"{app_name}_supply_chain.json", "w") as f:
                 json.dump(supply_result.to_dict(), f, indent=2, default=str)
 
         if dast_result:
-            with open(output / f"{app_name}_dast.json", 'w') as f:
+            with open(output / f"{app_name}_dast.json", "w") as f:
                 json.dump(dast_result.to_dict(), f, indent=2, default=str)
 
         # Save combined summary
@@ -208,7 +210,7 @@ def comprehensive(
             "runtime_score": runtime_score,
             "analyses_completed": [a[0] for a in analyses if a[1] == "Complete"],
         }
-        with open(output / f"{app_name}_summary.json", 'w') as f:
+        with open(output / f"{app_name}_summary.json", "w") as f:
             json.dump(combined, f, indent=2)
 
         console.print(f"\n[green]✓[/green] All reports saved to {output}/")

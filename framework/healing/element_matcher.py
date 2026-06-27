@@ -14,6 +14,7 @@ from .selector_discovery import AlternativeSelector
 @dataclass
 class MatchResult:
     """Result of element matching"""
+
     selector: AlternativeSelector
     ml_confidence: float  # From ML model
     combined_confidence: float  # ML + selector confidence
@@ -45,6 +46,7 @@ class ElementMatcher:
         """Load ML model from Phase 4"""
         try:
             from framework.ml.element_classifier import ElementClassifier
+
             self.ml_model = ElementClassifier()
             self.ml_model.load_model(self.ml_model_path)
         except (ImportError, OSError, ValueError) as e:
@@ -52,10 +54,10 @@ class ElementMatcher:
             self.ml_model = None
 
     def find_best_match(
-            self,
-            alternatives: List[AlternativeSelector],
-            expected_element_type: Optional[str] = None,
-            context: Optional[Dict] = None
+        self,
+        alternatives: List[AlternativeSelector],
+        expected_element_type: Optional[str] = None,
+        context: Optional[Dict] = None,
     ) -> Optional[MatchResult]:
         """
         Find best matching selector from alternatives
@@ -86,10 +88,7 @@ class ElementMatcher:
         return None
 
     def _score_alternative(
-            self,
-            alternative: AlternativeSelector,
-            expected_element_type: Optional[str],
-            context: Optional[Dict]
+        self, alternative: AlternativeSelector, expected_element_type: Optional[str], context: Optional[Dict]
     ) -> Optional[MatchResult]:
         """Score a single alternative"""
 
@@ -111,22 +110,13 @@ class ElementMatcher:
         if context:
             combined = self._apply_context_boost(combined, alternative, context)
 
-        reasoning = self._generate_reasoning(
-            alternative, base_confidence, ml_confidence, combined
-        )
+        reasoning = self._generate_reasoning(alternative, base_confidence, ml_confidence, combined)
 
         return MatchResult(
-            selector=alternative,
-            ml_confidence=ml_confidence,
-            combined_confidence=combined,
-            reasoning=reasoning
+            selector=alternative, ml_confidence=ml_confidence, combined_confidence=combined, reasoning=reasoning
         )
 
-    def _get_ml_confidence(
-            self,
-            alternative: AlternativeSelector,
-            expected_type: Optional[str]
-    ) -> float:
+    def _get_ml_confidence(self, alternative: AlternativeSelector, expected_type: Optional[str]) -> float:
         """Get confidence from ML model"""
         if not self.ml_model:
             return 0.0
@@ -135,17 +125,20 @@ class ElementMatcher:
             # Prepare features for ML model
             features = self._extract_features(alternative)
 
-            # Get prediction
-            prediction = self.ml_model.predict(features)
+            # ElementClassifier.predict returns a (ElementType, confidence)
+            # tuple, not a dict — unpack it. The old prediction['type'] raised
+            # TypeError (swallowed below), so ML confidence was always 0.
+            element_type, confidence = self.ml_model.predict(features)
+            type_name = getattr(element_type, "value", str(element_type))
 
             # If expected type provided, check if it matches
-            if expected_type and prediction['type'] == expected_type:
-                return prediction['confidence']
+            if expected_type and type_name == expected_type:
+                return confidence
             elif not expected_type:
-                return prediction['confidence']
+                return confidence
             else:
                 # Type mismatch - lower confidence
-                return prediction['confidence'] * 0.5
+                return confidence * 0.5
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             print(f"ML prediction error: {e}")
@@ -156,44 +149,35 @@ class ElementMatcher:
         attrs = alternative.element_attributes
 
         return {
-            'class': attrs.get('class', ''),
-            'resource_id': attrs.get('resource-id', ''),
-            'text': attrs.get('text', ''),
-            'content_desc': attrs.get('content-desc', ''),
-            'clickable': attrs.get('clickable', 'false') == 'true',
-            'enabled': attrs.get('enabled', 'true') == 'true',
-            'bounds': attrs.get('bounds', ''),
+            "class": attrs.get("class", ""),
+            "resource_id": attrs.get("resource-id", ""),
+            "text": attrs.get("text", ""),
+            "content_desc": attrs.get("content-desc", ""),
+            "clickable": attrs.get("clickable", "false") == "true",
+            "enabled": attrs.get("enabled", "true") == "true",
+            "bounds": attrs.get("bounds", ""),
         }
 
-    def _apply_context_boost(
-            self,
-            confidence: float,
-            alternative: AlternativeSelector,
-            context: Dict
-    ) -> float:
+    def _apply_context_boost(self, confidence: float, alternative: AlternativeSelector, context: Dict) -> float:
         """Apply context-based confidence boost"""
         boosted = confidence
 
         # Boost for matching screen name
-        screen_name = context.get('screen_name', '')
+        screen_name = context.get("screen_name", "")
         if screen_name:
-            class_name = alternative.element_attributes.get('class', '')
+            class_name = alternative.element_attributes.get("class", "")
             if screen_name.lower() in class_name.lower():
                 boosted = min(1.0, boosted + 0.05)
 
         # Boost for stable selector types
-        stable_types = ['id', 'accessibility_id']
+        stable_types = ["id", "accessibility_id"]
         if alternative.strategy.value in stable_types:
             boosted = min(1.0, boosted + 0.05)
 
         return boosted
 
     def _generate_reasoning(
-            self,
-            alternative: AlternativeSelector,
-            base_conf: float,
-            ml_conf: float,
-            combined: float
+        self, alternative: AlternativeSelector, base_conf: float, ml_conf: float, combined: float
     ) -> str:
         """Generate human-readable reasoning"""
         reasoning = []
@@ -208,18 +192,14 @@ class ElementMatcher:
 
         # Add key attributes
         attrs = alternative.element_attributes
-        if attrs.get('resource-id'):
+        if attrs.get("resource-id"):
             reasoning.append(f"Has ID: {attrs['resource-id']}")
-        if attrs.get('text'):
+        if attrs.get("text"):
             reasoning.append(f"Text: '{attrs['text']}'")
 
         return " | ".join(reasoning)
 
-    def validate_match(
-            self,
-            match: MatchResult,
-            min_confidence: float = 0.7
-    ) -> bool:
+    def validate_match(self, match: MatchResult, min_confidence: float = 0.7) -> bool:
         """
         Validate if match is confident enough
 

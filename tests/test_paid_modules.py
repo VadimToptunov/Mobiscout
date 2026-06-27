@@ -18,7 +18,7 @@ from framework.licensing.enhanced_validator import (
     FeatureGate,
     get_license_manager,
     check_feature,
-    track_usage
+    track_usage,
 )
 
 
@@ -62,7 +62,7 @@ class TestFeatureFlag:
             FeatureFlag.BASIC_TEST_GEN,
             FeatureFlag.SELF_HEALING,
             FeatureFlag.FLOW_DISCOVERY,
-            FeatureFlag.ML_INFERENCE
+            FeatureFlag.ML_INFERENCE,
         ]
         assert len(free_features) == 6
 
@@ -74,7 +74,7 @@ class TestFeatureFlag:
             FeatureFlag.ADVANCED_ML,
             FeatureFlag.API_MOCKING,
             FeatureFlag.LOAD_TESTING,
-            FeatureFlag.PRIORITY_SUPPORT
+            FeatureFlag.PRIORITY_SUPPORT,
         ]
         assert len(pro_features) == 6
 
@@ -88,7 +88,7 @@ class TestFeatureFlag:
             FeatureFlag.ON_PREMISE,
             FeatureFlag.DEDICATED_SUPPORT,
             FeatureFlag.SECURITY_SCANNING,
-            FeatureFlag.PERFORMANCE_PROFILING
+            FeatureFlag.PERFORMANCE_PROFILING,
         ]
         assert len(ent_features) == 8
 
@@ -99,10 +99,7 @@ class TestLicense:
     def test_create_license(self):
         """Test creating license"""
         license = License(
-            tier=LicenseTier.PRO,
-            email="test@example.com",
-            organization="Test Corp",
-            license_key="PRO-123456"
+            tier=LicenseTier.PRO, email="test@example.com", organization="Test Corp", license_key="PRO-123456"
         )
 
         assert license.tier == LicenseTier.PRO
@@ -114,26 +111,18 @@ class TestLicense:
         """Test license validity check"""
         # Valid license
         license = License(
-            tier=LicenseTier.PRO,
-            email="test@example.com",
-            expires_at=datetime.now() + timedelta(days=30)
+            tier=LicenseTier.PRO, email="test@example.com", expires_at=datetime.now() + timedelta(days=30)
         )
         assert license.is_valid()
 
         # Expired license
         expired_license = License(
-            tier=LicenseTier.PRO,
-            email="test@example.com",
-            expires_at=datetime.now() - timedelta(days=1)
+            tier=LicenseTier.PRO, email="test@example.com", expires_at=datetime.now() - timedelta(days=1)
         )
         assert not expired_license.is_valid()
 
         # No expiry (FREE tier)
-        free_license = License(
-            tier=LicenseTier.FREE,
-            email="test@example.com",
-            expires_at=None
-        )
+        free_license = License(tier=LicenseTier.FREE, email="test@example.com", expires_at=None)
         assert free_license.is_valid()
 
     def test_has_feature(self):
@@ -141,7 +130,7 @@ class TestLicense:
         license = License(
             tier=LicenseTier.PRO,
             email="test@example.com",
-            features=[FeatureFlag.CLOUD_DEVICES.value, FeatureFlag.PARALLEL_EXECUTION.value]
+            features=[FeatureFlag.CLOUD_DEVICES.value, FeatureFlag.PARALLEL_EXECUTION.value],
         )
 
         assert license.has_feature(FeatureFlag.CLOUD_DEVICES)
@@ -152,26 +141,16 @@ class TestLicense:
         """Test expiry calculation"""
         # 30 days until expiry (add extra hours to ensure it rounds to 30)
         license = License(
-            tier=LicenseTier.PRO,
-            email="test@example.com",
-            expires_at=datetime.now() + timedelta(days=30, hours=12)
+            tier=LicenseTier.PRO, email="test@example.com", expires_at=datetime.now() + timedelta(days=30, hours=12)
         )
         assert license.days_until_expiry() == 30
 
         # Already expired
-        expired = License(
-            tier=LicenseTier.PRO,
-            email="test@example.com",
-            expires_at=datetime.now() - timedelta(days=5)
-        )
+        expired = License(tier=LicenseTier.PRO, email="test@example.com", expires_at=datetime.now() - timedelta(days=5))
         assert expired.days_until_expiry() == 0
 
         # No expiry
-        no_expiry = License(
-            tier=LicenseTier.FREE,
-            email="test@example.com",
-            expires_at=None
-        )
+        no_expiry = License(tier=LicenseTier.FREE, email="test@example.com", expires_at=None)
         assert no_expiry.days_until_expiry() is None
 
 
@@ -180,11 +159,7 @@ class TestUsageMetrics:
 
     def test_create_metrics(self):
         """Test creating metrics"""
-        metrics = UsageMetrics(
-            tests_run=100,
-            devices_connected=5,
-            screenshots_captured=50
-        )
+        metrics = UsageMetrics(tests_run=100, devices_connected=5, screenshots_captured=50)
 
         assert metrics.tests_run == 100
         assert metrics.devices_connected == 5
@@ -196,9 +171,9 @@ class TestUsageMetrics:
         data = metrics.to_dict()
 
         assert isinstance(data, dict)
-        assert data['tests_run'] == 10
-        assert data['ml_predictions'] == 20
-        assert 'last_used' in data
+        assert data["tests_run"] == 10
+        assert data["ml_predictions"] == 20
+        assert "last_used" in data
 
 
 class TestLicenseManager:
@@ -252,7 +227,7 @@ class TestLicenseManager:
         manager = LicenseManager(license_file=tmp_path / "license.json")
 
         initial_tests = manager.metrics.tests_run
-        manager.track_usage('tests_run', 5)
+        manager.track_usage("tests_run", 5)
 
         assert manager.metrics.tests_run == initial_tests + 5
 
@@ -281,8 +256,8 @@ class TestLicenseManager:
         manager1 = LicenseManager(license_file=license_file)
         manager1.metrics_file = metrics_file
         manager1.metrics = UsageMetrics()  # Reset to fresh metrics
-        manager1.track_usage('tests_run', 10)
-        manager1.track_usage('ml_predictions', 20)
+        manager1.track_usage("tests_run", 10)
+        manager1.track_usage("ml_predictions", 20)
         manager1.save_metrics()
 
         # Load - set metrics_file BEFORE loading
@@ -342,24 +317,24 @@ class TestLicenseManager:
 
         info = manager.get_license_info()
 
-        assert info['tier'] == 'pro'
-        assert info['valid'] == True
-        assert info['email'] == 'test@example.com'
-        assert 'features' in info
+        assert info["tier"] == "pro"
+        assert info["valid"] == True
+        assert info["email"] == "test@example.com"
+        assert "features" in info
 
     def test_get_usage_stats(self, tmp_path):
         """Test getting usage statistics"""
         manager = LicenseManager(license_file=tmp_path / "license.json")
         manager.metrics_file = tmp_path / "metrics.json"  # Use isolated file
         manager.metrics = UsageMetrics()  # Reset to fresh metrics
-        manager.track_usage('tests_run', 5)
-        manager.track_usage('ml_predictions', 10)
+        manager.track_usage("tests_run", 5)
+        manager.track_usage("ml_predictions", 10)
 
         stats = manager.get_usage_stats()
 
-        assert stats['tests_run'] == 5
-        assert stats['ml_predictions'] == 10
-        assert 'session_count' in stats
+        assert stats["tests_run"] == 5
+        assert stats["ml_predictions"] == 10
+        assert "session_count" in stats
 
 
 class TestFeatureGate:
@@ -400,18 +375,18 @@ class TestGlobalFunctions:
     def test_check_feature_function(self):
         """Test global check_feature function"""
         # FREE features should be available
-        assert check_feature('unknown_feature')  # Unknown features allowed
+        assert check_feature("unknown_feature")  # Unknown features allowed
 
         # PRO features should not be available with FREE tier
         # (Assuming default FREE tier)
-        result = check_feature('cloud_devices')
+        result = check_feature("cloud_devices")
         assert isinstance(result, bool)
 
     def test_track_usage_function(self):
         """Test global track_usage function"""
         # Should not raise
-        track_usage('tests_run', 1)
-        track_usage('ml_predictions', 5)
+        track_usage("tests_run", 1)
+        track_usage("ml_predictions", 5)
 
 
 class TestLicenseExpiry:
@@ -427,7 +402,7 @@ class TestLicenseExpiry:
             email="test@example.com",
             license_key="PRO-EXPIRED",
             expires_at=datetime.now() - timedelta(days=1),
-            features=[FeatureFlag.CLOUD_DEVICES.value]
+            features=[FeatureFlag.CLOUD_DEVICES.value],
         )
 
         # Expired license should fall back to FREE tier
@@ -438,9 +413,7 @@ class TestLicenseExpiry:
         manager = LicenseManager(license_file=tmp_path / "license.json")
 
         manager.license = License(
-            tier=LicenseTier.PRO,
-            email="test@example.com",
-            expires_at=datetime.now() + timedelta(days=7, hours=12)
+            tier=LicenseTier.PRO, email="test@example.com", expires_at=datetime.now() + timedelta(days=7, hours=12)
         )
 
         days = manager.license.days_until_expiry()
@@ -456,13 +429,13 @@ class TestUsageMetricsTracking:
         manager.metrics_file = tmp_path / "metrics.json"  # Use isolated file
         manager.metrics = UsageMetrics()  # Reset to fresh metrics
 
-        manager.track_usage('tests_run', 5)
-        manager.track_usage('devices_connected', 2)
-        manager.track_usage('screenshots', 10)
-        manager.track_usage('api_calls', 20)
-        manager.track_usage('ml_predictions', 15)
-        manager.track_usage('flow_discoveries', 3)
-        manager.track_usage('session', 1)
+        manager.track_usage("tests_run", 5)
+        manager.track_usage("devices_connected", 2)
+        manager.track_usage("screenshots", 10)
+        manager.track_usage("api_calls", 20)
+        manager.track_usage("ml_predictions", 15)
+        manager.track_usage("flow_discoveries", 3)
+        manager.track_usage("session", 1)
 
         assert manager.metrics.tests_run == 5
         assert manager.metrics.devices_connected == 2
@@ -478,9 +451,9 @@ class TestUsageMetricsTracking:
         manager.metrics_file = tmp_path / "metrics.json"  # Use isolated file
         manager.metrics = UsageMetrics()  # Reset to fresh metrics
 
-        manager.track_usage('tests_run', 5)
-        manager.track_usage('tests_run', 3)
-        manager.track_usage('tests_run', 2)
+        manager.track_usage("tests_run", 5)
+        manager.track_usage("tests_run", 3)
+        manager.track_usage("tests_run", 2)
 
         assert manager.metrics.tests_run == 10
 
@@ -498,7 +471,7 @@ class TestLicenseTierFeatures:
             FeatureFlag.BASIC_TEST_GEN,
             FeatureFlag.SELF_HEALING,
             FeatureFlag.FLOW_DISCOVERY,
-            FeatureFlag.ML_INFERENCE
+            FeatureFlag.ML_INFERENCE,
         ]
 
         for feature in free_features:

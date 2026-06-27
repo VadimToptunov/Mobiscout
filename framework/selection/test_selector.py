@@ -15,6 +15,7 @@ from .change_analyzer import FileChange, ChangeType
 
 class ImpactLevel(Enum):
     """Level of impact on tests"""
+
     HIGH = "high"  # Direct dependency
     MEDIUM = "medium"  # Indirect dependency
     LOW = "low"  # Related directory
@@ -24,6 +25,7 @@ class ImpactLevel(Enum):
 @dataclass
 class TestImpact:
     """Represents test impact from changes"""
+
     test_file: Path
     test_name: str
     impact_level: ImpactLevel
@@ -51,11 +53,7 @@ class TestSelector:
         self._test_cache: Dict[Path, List[str]] = {}
         self._dependency_cache: Dict[Path, Set[Path]] = {}
 
-    def select_tests(
-            self,
-            changes: List[FileChange],
-            selection_strategy: str = "smart"
-    ) -> List[TestImpact]:
+    def select_tests(self, changes: List[FileChange], selection_strategy: str = "smart") -> List[TestImpact]:
         """
         Select tests to run based on changes
 
@@ -82,12 +80,14 @@ class TestSelector:
             if self._is_test_file(change.path):
                 tests = self._get_tests_from_file(change.path)
                 for test_name in tests:
-                    impacted_tests.add(TestImpact(
-                        test_file=change.path,
-                        test_name=test_name,
-                        impact_level=ImpactLevel.HIGH,
-                        reasons=["Test file directly modified"]
-                    ))
+                    impacted_tests.add(
+                        TestImpact(
+                            test_file=change.path,
+                            test_name=test_name,
+                            impact_level=ImpactLevel.HIGH,
+                            reasons=["Test file directly modified"],
+                        )
+                    )
 
             # Source file changes - find dependent tests
             elif selection_strategy == "smart":
@@ -95,21 +95,14 @@ class TestSelector:
                 impacted_tests.update(dependent_tests)
 
         # Sort by impact level
-        return sorted(
-            impacted_tests,
-            key=lambda t: (t.impact_level.value, str(t.test_file), t.test_name)
-        )
+        return sorted(impacted_tests, key=lambda t: (t.impact_level.value, str(t.test_file), t.test_name))
 
     def _is_test_file(self, path: Path) -> bool:
         """Check if file is a test file"""
         try:
             # relative =  # Unusedpath.relative_to(self.test_root)
             name = path.name
-            return (
-                    name.startswith('test_') or
-                    name.endswith('_test.py') or
-                    'test' in path.parts
-            )
+            return name.startswith("test_") or name.endswith("_test.py") or "test" in path.parts
         except ValueError:
             return False
 
@@ -127,14 +120,14 @@ class TestSelector:
             for node in tree.body:
                 # Module-level test functions
                 if isinstance(node, ast.FunctionDef):
-                    if node.name.startswith('test_'):
+                    if node.name.startswith("test_"):
                         tests.append(node.name)
 
                 # Test classes
                 elif isinstance(node, ast.ClassDef):
-                    if node.name.startswith('Test'):
+                    if node.name.startswith("Test"):
                         for item in node.body:
-                            if isinstance(item, ast.FunctionDef) and item.name.startswith('test_'):
+                            if isinstance(item, ast.FunctionDef) and item.name.startswith("test_"):
                                 tests.append(f"{node.name}.{item.name}")
         except (OSError, SyntaxError, UnicodeDecodeError):
             pass
@@ -149,32 +142,38 @@ class TestSelector:
         # Strategy 1: Find tests in same directory
         directory_tests = self._find_tests_in_directory(source_file.parent)
         for test_file, test_name in directory_tests:
-            impacted.add(TestImpact(
-                test_file=test_file,
-                test_name=test_name,
-                impact_level=ImpactLevel.MEDIUM,
-                reasons=[f"Located in same directory as {source_file.name}"]
-            ))
+            impacted.add(
+                TestImpact(
+                    test_file=test_file,
+                    test_name=test_name,
+                    impact_level=ImpactLevel.MEDIUM,
+                    reasons=[f"Located in same directory as {source_file.name}"],
+                )
+            )
 
         # Strategy 2: Find tests with similar names
         similar_tests = self._find_tests_by_naming_convention(source_file)
         for test_file, test_name in similar_tests:
-            impacted.add(TestImpact(
-                test_file=test_file,
-                test_name=test_name,
-                impact_level=ImpactLevel.HIGH,
-                reasons=[f"Naming convention matches {source_file.name}"]
-            ))
+            impacted.add(
+                TestImpact(
+                    test_file=test_file,
+                    test_name=test_name,
+                    impact_level=ImpactLevel.HIGH,
+                    reasons=[f"Naming convention matches {source_file.name}"],
+                )
+            )
 
         # Strategy 3: Find tests that import this file
         importing_tests = self._find_tests_importing_file(source_file)
         for test_file, test_name in importing_tests:
-            impacted.add(TestImpact(
-                test_file=test_file,
-                test_name=test_name,
-                impact_level=ImpactLevel.HIGH,
-                reasons=[f"Imports {source_file.name}"]
-            ))
+            impacted.add(
+                TestImpact(
+                    test_file=test_file,
+                    test_name=test_name,
+                    impact_level=ImpactLevel.HIGH,
+                    reasons=[f"Imports {source_file.name}"],
+                )
+            )
 
         return impacted
 
@@ -183,12 +182,12 @@ class TestSelector:
         tests = []
 
         # Look for test files in same directory
-        for test_file in directory.glob('test_*.py'):
+        for test_file in directory.glob("test_*.py"):
             if test_file.is_file():
                 test_names = self._get_tests_from_file(test_file)
                 tests.extend([(test_file, name) for name in test_names])
 
-        for test_file in directory.glob('*_test.py'):
+        for test_file in directory.glob("*_test.py"):
             if test_file.is_file():
                 test_names = self._get_tests_from_file(test_file)
                 tests.extend([(test_file, name) for name in test_names])
@@ -202,11 +201,7 @@ class TestSelector:
         # Look for test_<filename>.py or <filename>_test.py
         stem = source_file.stem
 
-        test_patterns = [
-            f"test_{stem}.py",
-            f"{stem}_test.py",
-            f"test_{stem}_*.py"
-        ]
+        test_patterns = [f"test_{stem}.py", f"{stem}_test.py", f"test_{stem}_*.py"]
 
         for pattern in test_patterns:
             for test_file in self.test_root.rglob(pattern):
@@ -223,10 +218,10 @@ class TestSelector:
         try:
             # Get relative import path
             relative_path = source_file.relative_to(self.project_root)
-            module_name = str(relative_path.with_suffix('')).replace('/', '.')
+            module_name = str(relative_path.with_suffix("")).replace("/", ".")
 
             # Search all test files
-            for test_file in self.test_root.rglob('test_*.py'):
+            for test_file in self.test_root.rglob("test_*.py"):
                 if not test_file.is_file():
                     continue
 
@@ -263,16 +258,18 @@ class TestSelector:
         """Select all available tests"""
         all_tests = []
 
-        for test_file in self.test_root.rglob('test_*.py'):
+        for test_file in self.test_root.rglob("test_*.py"):
             if test_file.is_file():
                 test_names = self._get_tests_from_file(test_file)
                 for name in test_names:
-                    all_tests.append(TestImpact(
-                        test_file=test_file,
-                        test_name=name,
-                        impact_level=ImpactLevel.NONE,
-                        reasons=["Running all tests"]
-                    ))
+                    all_tests.append(
+                        TestImpact(
+                            test_file=test_file,
+                            test_name=name,
+                            impact_level=ImpactLevel.NONE,
+                            reasons=["Running all tests"],
+                        )
+                    )
 
         return all_tests
 
@@ -305,7 +302,7 @@ class TestSelector:
                 by_impact[level] = []
             by_impact[level].append(test)
 
-        for level in ['high', 'medium', 'low']:
+        for level in ["high", "medium", "low"]:
             if level in by_impact:
                 report += f"\n{level.upper()} Impact ({len(by_impact[level])} tests):\n"
                 for test in by_impact[level][:10]:  # Show first 10

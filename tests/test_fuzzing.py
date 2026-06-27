@@ -16,7 +16,7 @@ from framework.fuzzing import (
     MutationFuzzer,
     UIFuzzer,
     APIFuzzer,
-    FuzzingCampaign
+    FuzzingCampaign,
 )
 
 
@@ -30,7 +30,7 @@ class TestFuzzingStrategy:
             FuzzingStrategy.MUTATION,
             FuzzingStrategy.GRAMMAR,
             FuzzingStrategy.BOUNDARY,
-            FuzzingStrategy.ML_ASSISTED
+            FuzzingStrategy.ML_ASSISTED,
         ]
         assert len(strategies) == 5
 
@@ -48,7 +48,7 @@ class TestInputType:
             InputType.PHONE,
             InputType.DATE,
             InputType.PASSWORD,
-            InputType.JSON
+            InputType.JSON,
         ]
         assert len(types) == 8
 
@@ -77,14 +77,14 @@ class TestFuzzGenerator:
         gen = FuzzGenerator(seed=42)
         inputs = gen.generate(InputType.TEXT, count=20)
 
-        patterns = [i.metadata.get('pattern') for i in inputs]
+        patterns = [i.metadata.get("pattern") for i in inputs]
 
         # Should include SQL injection
-        assert any('sql_injection' in str(p) for p in patterns)
+        assert any("sql_injection" in str(p) for p in patterns)
         # Should include XSS
-        assert any('xss' in str(p) for p in patterns)
+        assert any("xss" in str(p) for p in patterns)
         # Should include path traversal
-        assert any('path_traversal' in str(p) for p in patterns)
+        assert any("path_traversal" in str(p) for p in patterns)
 
     def test_generate_number_inputs(self):
         """Test number input generation"""
@@ -109,9 +109,9 @@ class TestFuzzGenerator:
         assert all(i.input_type == InputType.EMAIL for i in inputs)
 
         # Should include valid and invalid emails
-        patterns = [i.metadata.get('pattern') for i in inputs]
-        assert 'valid_email' in patterns
-        assert 'empty' in patterns
+        patterns = [i.metadata.get("pattern") for i in inputs]
+        assert "valid_email" in patterns
+        assert "empty" in patterns
 
     def test_generate_url_inputs(self):
         """Test URL input generation"""
@@ -164,7 +164,7 @@ class TestMutationFuzzer:
         assert len(mutated) == 5
         assert all(isinstance(m, FuzzInput) for m in mutated)
         assert all(m.strategy == FuzzingStrategy.MUTATION for m in mutated)
-        assert all(m.metadata['original'] == original for m in mutated)
+        assert all(m.metadata["original"] == original for m in mutated)
 
     def test_mutate_empty_string(self):
         """Test mutation of empty string"""
@@ -232,14 +232,14 @@ class TestUIFuzzer:
 
         stats = fuzzer.get_statistics()
 
-        assert 'total_inputs' in stats
-        assert 'crashes' in stats
-        assert 'errors' in stats
-        assert 'successes' in stats
-        assert 'crash_rate' in stats
-        assert 'avg_response_time_ms' in stats
+        assert "total_inputs" in stats
+        assert "crashes" in stats
+        assert "errors" in stats
+        assert "successes" in stats
+        assert "crash_rate" in stats
+        assert "avg_response_time_ms" in stats
 
-        assert stats['total_inputs'] == 50
+        assert stats["total_inputs"] == 50
 
     def test_statistics_empty_results(self):
         """Test statistics with no results"""
@@ -280,9 +280,9 @@ class TestAPIFuzzer:
         assert isinstance(vulnerable, list)
         # Some endpoints should be flagged as vulnerable (>10% error rate)
         for vuln in vulnerable:
-            assert 'endpoint' in vuln
-            assert 'error_rate' in vuln
-            assert vuln['error_rate'] > 0.1
+            assert "endpoint" in vuln
+            assert "error_rate" in vuln
+            assert vuln["error_rate"] > 0.1
 
 
 class TestFuzzingCampaign:
@@ -300,72 +300,72 @@ class TestFuzzingCampaign:
         campaign = FuzzingCampaign()
 
         targets = [
-            {'id': 'email_field', 'type': 'text_field', 'input_type': 'email'},
-            {'id': 'password_field', 'type': 'text_field', 'input_type': 'password'},
-            {'id': 'submit_button', 'type': 'button'}
+            {"id": "email_field", "type": "text_field", "input_type": "email"},
+            {"id": "password_field", "type": "text_field", "input_type": "password"},
+            {"id": "submit_button", "type": "button"},
         ]
 
         results = campaign.run_ui_campaign(targets)
 
-        assert 'targets' in results
-        assert 'total_inputs' in results
-        assert 'crashes' in results
-        assert 'start_time' in results
-        assert 'end_time' in results
-        assert 'statistics' in results
+        assert "targets" in results
+        assert "total_inputs" in results
+        assert "crashes" in results
+        assert "start_time" in results
+        assert "end_time" in results
+        assert "statistics" in results
 
-        assert len(results['targets']) == 3
-        assert results['total_inputs'] > 0
+        assert len(results["targets"]) == 3
+        assert results["total_inputs"] > 0
 
     def test_run_api_campaign(self):
         """Test running API campaign"""
         campaign = FuzzingCampaign()
 
         endpoints = [
-            {'method': 'POST', 'endpoint': '/api/login', 'param_type': 'email'},
-            {'method': 'GET', 'endpoint': '/api/users', 'param_type': 'number'},
-            {'method': 'PUT', 'endpoint': '/api/profile', 'param_type': 'json'}
+            {"method": "POST", "endpoint": "/api/login", "param_type": "email"},
+            {"method": "GET", "endpoint": "/api/users", "param_type": "number"},
+            {"method": "PUT", "endpoint": "/api/profile", "param_type": "json"},
         ]
 
         results = campaign.run_api_campaign(endpoints)
 
-        assert 'endpoints' in results
-        assert 'total_requests' in results
-        assert 'errors' in results
-        assert 'start_time' in results
-        assert 'end_time' in results
-        assert 'vulnerable_endpoints' in results
+        assert "endpoints" in results
+        assert "total_requests" in results
+        assert "errors" in results
+        assert "start_time" in results
+        assert "end_time" in results
+        assert "vulnerable_endpoints" in results
 
-        assert len(results['endpoints']) == 3
-        assert results['total_requests'] > 0
+        assert len(results["endpoints"]) == 3
+        assert results["total_requests"] > 0
 
     def test_get_summary(self):
         """Test getting campaign summary"""
         campaign = FuzzingCampaign()
 
         # Run campaigns
-        ui_targets = [{'id': 'field1', 'type': 'text_field'}]
-        api_endpoints = [{'method': 'POST', 'endpoint': '/api/test'}]
+        ui_targets = [{"id": "field1", "type": "text_field"}]
+        api_endpoints = [{"method": "POST", "endpoint": "/api/test"}]
 
         campaign.run_ui_campaign(ui_targets)
         campaign.run_api_campaign(api_endpoints)
 
         summary = campaign.get_summary()
 
-        assert 'total_inputs' in summary
-        assert 'total_crashes' in summary
-        assert 'total_errors' in summary
-        assert 'campaigns' in summary
+        assert "total_inputs" in summary
+        assert "total_crashes" in summary
+        assert "total_errors" in summary
+        assert "campaigns" in summary
 
-        assert 'ui' in summary['campaigns']
-        assert 'api' in summary['campaigns']
-        assert summary['total_inputs'] > 0
+        assert "ui" in summary["campaigns"]
+        assert "api" in summary["campaigns"]
+        assert summary["total_inputs"] > 0
 
     def test_export_report(self, tmp_path):
         """Test exporting campaign report"""
         campaign = FuzzingCampaign()
 
-        targets = [{'id': 'test_field', 'type': 'text_field'}]
+        targets = [{"id": "test_field", "type": "text_field"}]
         campaign.run_ui_campaign(targets)
 
         output_path = tmp_path / "fuzzing_report.json"
@@ -375,10 +375,11 @@ class TestFuzzingCampaign:
 
         # Verify JSON is valid
         import json
+
         with open(output_path) as f:
             data = json.load(f)
 
-        assert 'ui' in data
+        assert "ui" in data
 
 
 class TestFuzzInputDataclass:
@@ -387,16 +388,13 @@ class TestFuzzInputDataclass:
     def test_create_fuzz_input(self):
         """Test creating FuzzInput"""
         fuzz_input = FuzzInput(
-            value="test",
-            input_type=InputType.TEXT,
-            strategy=FuzzingStrategy.RANDOM,
-            metadata={'test': True}
+            value="test", input_type=InputType.TEXT, strategy=FuzzingStrategy.RANDOM, metadata={"test": True}
         )
 
         assert fuzz_input.value == "test"
         assert fuzz_input.input_type == InputType.TEXT
         assert fuzz_input.strategy == FuzzingStrategy.RANDOM
-        assert fuzz_input.metadata['test'] == True
+        assert fuzz_input.metadata["test"] == True
 
 
 class TestFuzzResultDataclass:
@@ -404,19 +402,9 @@ class TestFuzzResultDataclass:
 
     def test_create_fuzz_result(self):
         """Test creating FuzzResult"""
-        fuzz_input = FuzzInput(
-            value="test",
-            input_type=InputType.TEXT,
-            strategy=FuzzingStrategy.RANDOM
-        )
+        fuzz_input = FuzzInput(value="test", input_type=InputType.TEXT, strategy=FuzzingStrategy.RANDOM)
 
-        result = FuzzResult(
-            input=fuzz_input,
-            success=True,
-            error=None,
-            crash=False,
-            response_time_ms=123.45
-        )
+        result = FuzzResult(input=fuzz_input, success=True, error=None, crash=False, response_time_ms=123.45)
 
         assert result.input == fuzz_input
         assert result.success == True
@@ -447,16 +435,16 @@ class TestEdgeCases:
         campaign = FuzzingCampaign()
         results = campaign.run_ui_campaign([])
 
-        assert results['total_inputs'] == 0
-        assert len(results['targets']) == 0
+        assert results["total_inputs"] == 0
+        assert len(results["targets"]) == 0
 
     def test_campaign_with_empty_endpoints(self):
         """Test campaign with no endpoints"""
         campaign = FuzzingCampaign()
         results = campaign.run_api_campaign([])
 
-        assert results['total_requests'] == 0
-        assert len(results['endpoints']) == 0
+        assert results["total_requests"] == 0
+        assert len(results["endpoints"]) == 0
 
 
 class TestIntegration:
@@ -469,14 +457,14 @@ class TestIntegration:
 
         # Define targets
         ui_targets = [
-            {'id': 'username', 'type': 'text_field', 'input_type': 'text'},
-            {'id': 'email', 'type': 'text_field', 'input_type': 'email'},
-            {'id': 'submit', 'type': 'button'}
+            {"id": "username", "type": "text_field", "input_type": "text"},
+            {"id": "email", "type": "text_field", "input_type": "email"},
+            {"id": "submit", "type": "button"},
         ]
 
         api_endpoints = [
-            {'method': 'POST', 'endpoint': '/api/register', 'param_type': 'email'},
-            {'method': 'POST', 'endpoint': '/api/login', 'param_type': 'password'}
+            {"method": "POST", "endpoint": "/api/register", "param_type": "email"},
+            {"method": "POST", "endpoint": "/api/login", "param_type": "password"},
         ]
 
         # Run campaigns
@@ -487,10 +475,10 @@ class TestIntegration:
         summary = campaign.get_summary()
 
         # Verify results
-        assert ui_results['total_inputs'] > 0
-        assert api_results['total_requests'] > 0
-        assert summary['total_inputs'] > 0
-        assert len(summary['campaigns']) == 2
+        assert ui_results["total_inputs"] > 0
+        assert api_results["total_requests"] > 0
+        assert summary["total_inputs"] > 0
+        assert len(summary["campaigns"]) == 2
 
     def test_mutation_and_generation_combined(self):
         """Test combining mutation and generation"""

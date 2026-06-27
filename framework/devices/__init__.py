@@ -26,25 +26,25 @@ from .device_layer import (
     DeviceLayer,
     Screenshot,
     LogEntry,
-    APITrace
+    APITrace,
 )
 
 __all__ = [
     # Legacy (optional for backward compatibility)
-    'DeviceManager',
-    'DevicePool',
-    'ADBProvider',
-    'InstrumentsProvider',
-    'BrowserStackProvider',
+    "DeviceManager",
+    "DevicePool",
+    "ADBProvider",
+    "InstrumentsProvider",
+    "BrowserStackProvider",
     # STEP 2: Core device layer
-    'Platform',
-    'DeviceType',
-    'DeviceCapabilities',
-    'Device',
-    'LocalDeviceProvider',
-    'CloudDeviceProvider',
-    'DeviceLayer',
-    'Screenshot',
-    'LogEntry',
-    'APITrace',
+    "Platform",
+    "DeviceType",
+    "DeviceCapabilities",
+    "Device",
+    "LocalDeviceProvider",
+    "CloudDeviceProvider",
+    "DeviceLayer",
+    "Screenshot",
+    "LogEntry",
+    "APITrace",
 ]

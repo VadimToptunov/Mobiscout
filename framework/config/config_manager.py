@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 
 class FrameworkConfig(BaseModel):
     """Framework-level configuration"""
+
     timeout: int = Field(default=30, description="Default timeout in seconds")
     retry_count: int = Field(default=3, description="Number of retries")
     log_level: str = Field(default="INFO", description="Logging level")
@@ -48,6 +49,7 @@ class DeviceConfig(BaseModel):
 
 class MLConfig(BaseModel):
     """ML-related configuration"""
+
     contribute: bool = Field(default=True, description="Contribute anonymized data")
     update_check: str = Field(default="daily", description="Update check frequency")
     model_version: str = Field(default="2.0", description="Model version")
@@ -79,13 +81,14 @@ class IntegrationConfig(BaseModel):
 class ObserveConfig(BaseModel):
     """
     Main configuration model for Observe Framework
-    
+
     Supports:
     - YAML/JSON files
     - Environment variables
     - Profiles (dev, staging, prod)
     - Validation
     """
+
     framework: FrameworkConfig = Field(default_factory=FrameworkConfig)
     devices: DeviceConfig = Field(default_factory=DeviceConfig)
     ml: MLConfig = Field(default_factory=MLConfig)
@@ -102,6 +105,7 @@ class ObserveConfig(BaseModel):
                 data = yaml.safe_load(f)
             elif path.suffix == ".json":
                 import json
+
                 data = json.load(f)
             else:
                 raise ValueError(f"Unsupported config format: {path.suffix}")
@@ -126,6 +130,7 @@ class ObserveConfig(BaseModel):
                 yaml.dump(data, f, Dumper=Dumper, default_flow_style=False)
             elif path.suffix == ".json":
                 import json
+
                 json.dump(data, f, indent=2)
             else:
                 raise ValueError(f"Unsupported config format: {path.suffix}")
@@ -146,7 +151,7 @@ class ObserveConfig(BaseModel):
     def get(self, key: str, default: Any = None) -> Any:
         """
         Get config value by dot-notation key
-        
+
         Example:
             config.get("framework.timeout")
             config.get("devices.android.adb_timeout")
@@ -165,7 +170,7 @@ class ObserveConfig(BaseModel):
     def set(self, key: str, value: Any) -> None:
         """
         Set config value by dot-notation key
-        
+
         Example:
             config.set("framework.timeout", 60)
         """
@@ -189,7 +194,7 @@ class ObserveConfig(BaseModel):
 class ConfigManager:
     """
     Configuration manager with profile support
-    
+
     Features:
     - Multiple profiles (dev, staging, prod)
     - Config file discovery
@@ -244,7 +249,7 @@ class ConfigManager:
     def validate(self) -> list[str]:
         """
         Validate configuration
-        
+
         Returns:
             List of validation errors (empty if valid)
         """

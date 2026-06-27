@@ -19,8 +19,7 @@ class GitHubActionsGenerator:
         self.project_name = project_name
 
     def generate_basic_workflow(
-            self, platforms: Optional[List[str]] = None, python_version: str = "3.13",
-            triggers: Optional[List[str]] = None
+        self, platforms: Optional[List[str]] = None, python_version: str = "3.13", triggers: Optional[List[str]] = None
     ) -> str:
         """
         Generate basic test workflow
@@ -48,13 +47,13 @@ class GitHubActionsGenerator:
         return yaml.dump(workflow, sort_keys=False, default_flow_style=False)
 
     def generate_advanced_workflow(
-            self,
-            platforms: Optional[List[str]] = None,
-            python_version: str = "3.13",
-            parallel_count: int = 2,
-            use_browserstack: bool = False,
-            upload_artifacts: bool = True,
-            notify_slack: bool = False,
+        self,
+        platforms: Optional[List[str]] = None,
+        python_version: str = "3.13",
+        parallel_count: int = 2,
+        use_browserstack: bool = False,
+        upload_artifacts: bool = True,
+        notify_slack: bool = False,
     ) -> str:
         """
         Generate advanced CI workflow with parallel testing

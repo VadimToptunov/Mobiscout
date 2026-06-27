@@ -31,46 +31,46 @@ print("-" * 80)
 
 test_cases = [
     {
-        'name': 'Payment Button (критичный элемент)',
-        'element': {
-            'id': 'btn_checkout',
-            'accessibility_id': 'checkout',
-            'xpath': '//button[@id="btn_checkout"]',
-            'type': 'button',
-            'visible': True,
-            'enabled': True
+        "name": "Payment Button (критичный элемент)",
+        "element": {
+            "id": "btn_checkout",
+            "accessibility_id": "checkout",
+            "xpath": '//button[@id="btn_checkout"]',
+            "type": "button",
+            "visible": True,
+            "enabled": True,
         },
-        'expected': 'id'
+        "expected": "id",
     },
     {
-        'name': 'Navigation Tab (без ID)',
-        'element': {
-            'id': '',
-            'accessibility_id': 'profile_tab',
-            'xpath': '//div[@class="tab"][3]',
-            'type': 'button',
-            'visible': True,
-            'enabled': True
+        "name": "Navigation Tab (без ID)",
+        "element": {
+            "id": "",
+            "accessibility_id": "profile_tab",
+            "xpath": '//div[@class="tab"][3]',
+            "type": "button",
+            "visible": True,
+            "enabled": True,
         },
-        'expected': 'accessibility_id'
+        "expected": "accessibility_id",
     },
     {
-        'name': 'List Item (динамический)',
-        'element': {
-            'id': '',
-            'accessibility_id': '',
-            'xpath': '//RecyclerView/ViewHolder[5]',
-            'type': 'view',
-            'visible': True,
-            'enabled': True
+        "name": "List Item (динамический)",
+        "element": {
+            "id": "",
+            "accessibility_id": "",
+            "xpath": "//RecyclerView/ViewHolder[5]",
+            "type": "view",
+            "visible": True,
+            "enabled": True,
         },
-        'expected': 'xpath'
-    }
+        "expected": "xpath",
+    },
 ]
 
 for i, test in enumerate(test_cases, 1):
-    result = ml.predict_selector(test['element'])
-    status = "✅" if result.prediction == test['expected'] else "⚠️"
+    result = ml.predict_selector(test["element"])
+    status = "✅" if result.prediction == test["expected"] else "⚠️"
 
     print(f"{i}. {test['name']}")
     print(f"   Предсказано: {result.prediction}")
@@ -86,14 +86,14 @@ print("🔄 TEST 2: Предсказание user flows")
 print("-" * 80)
 
 flow_tests = [
-    {'screen': 'product_details', 'expected_options': ['cart', 'reviews']},
-    {'screen': 'cart', 'expected_options': ['checkout', 'catalog']},
-    {'screen': 'login', 'expected_options': ['home', 'security_check']},
+    {"screen": "product_details", "expected_options": ["cart", "reviews"]},
+    {"screen": "cart", "expected_options": ["checkout", "catalog"]},
+    {"screen": "login", "expected_options": ["home", "security_check"]},
 ]
 
 for i, test in enumerate(flow_tests, 1):
-    result = ml.recommend_next_step({'current_screen': test['screen']})
-    is_valid = result.prediction in test['expected_options']
+    result = ml.recommend_next_step({"current_screen": test["screen"]})
+    is_valid = result.prediction in test["expected_options"]
     status = "✅" if is_valid else "ℹ️"
 
     print(f"{i}. Экран: {test['screen']}")
@@ -110,44 +110,33 @@ print("-" * 80)
 
 importance_tests = [
     {
-        'name': 'Кнопка оплаты (критичная)',
-        'element': {
-            'type': 'button',
-            'visible': True,
-            'enabled': True,
-            'label': 'Pay Now',
-            'navigates': True,
-            'monetary': True
+        "name": "Кнопка оплаты (критичная)",
+        "element": {
+            "type": "button",
+            "visible": True,
+            "enabled": True,
+            "label": "Pay Now",
+            "navigates": True,
+            "monetary": True,
         },
-        'expected_range': (0.8, 1.0)
+        "expected_range": (0.8, 1.0),
     },
     {
-        'name': 'Кнопка навигации (важная)',
-        'element': {
-            'type': 'button',
-            'visible': True,
-            'enabled': True,
-            'label': 'Search',
-            'navigates': True
-        },
-        'expected_range': (0.6, 0.9)
+        "name": "Кнопка навигации (важная)",
+        "element": {"type": "button", "visible": True, "enabled": True, "label": "Search", "navigates": True},
+        "expected_range": (0.6, 0.9),
     },
     {
-        'name': 'Декоративный текст (низкая)',
-        'element': {
-            'type': 'label',
-            'visible': True,
-            'enabled': False,
-            'decorative': True
-        },
-        'expected_range': (0.0, 0.3)
-    }
+        "name": "Декоративный текст (низкая)",
+        "element": {"type": "label", "visible": True, "enabled": False, "decorative": True},
+        "expected_range": (0.0, 0.3),
+    },
 ]
 
 for i, test in enumerate(importance_tests, 1):
-    result = ml.score_element(test['element'])
+    result = ml.score_element(test["element"])
     score = result.prediction
-    in_range = test['expected_range'][0] <= score <= test['expected_range'][1]
+    in_range = test["expected_range"][0] <= score <= test["expected_range"][1]
     status = "✅" if in_range else "⚠️"
 
     print(f"{i}. {test['name']}")

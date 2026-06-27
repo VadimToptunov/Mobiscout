@@ -44,12 +44,12 @@ def runtime(
     if not validate_path(app_path):
         raise SystemExit(1)
 
-    console.print(Panel.fit(
-        f"Runtime Protection Analysis\n\n"
-        f"App: {app_path.name}\n"
-        f"Platform: {platform.upper()}",
-        style="bold red"
-    ))
+    console.print(
+        Panel.fit(
+            f"Runtime Protection Analysis\n\n" f"App: {app_path.name}\n" f"Platform: {platform.upper()}",
+            style="bold red",
+        )
+    )
 
     analyzer = RuntimeProtectionAnalyzer()
 
@@ -90,7 +90,11 @@ def runtime(
             name,
             status,
             strength,
-            protection.details[:30] + "..." if protection.details and len(protection.details) > 30 else (protection.details or "-"),
+            (
+                protection.details[:30] + "..."
+                if protection.details and len(protection.details) > 30
+                else (protection.details or "-")
+            ),
         )
 
     console.print(protection_table)
@@ -127,7 +131,7 @@ def runtime(
         if format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, 'w') as f:
+            with open(output, "w") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 

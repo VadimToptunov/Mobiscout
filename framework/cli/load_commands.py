@@ -34,7 +34,7 @@ def load() -> None:
     "--profile",
     type=click.Choice(["smoke", "light", "medium", "heavy", "stress", "spike"]),
     default="light",
-    help="Load profile to use"
+    help="Load profile to use",
 )
 @click.option("--users", type=int, help="Override number of virtual users")
 @click.option("--duration", type=int, help="Override test duration (seconds)")
@@ -42,13 +42,13 @@ def load() -> None:
 @click.option("--output", type=click.Path(), help="Output directory for results")
 @click.option("--fail-fast", is_flag=True, help="Stop on critical errors")
 def run(
-        test_path: str,
-        profile: str,
-        users: int | None,
-        duration: int | None,
-        ramp_up: int | None,
-        output: str | None,
-        fail_fast: bool,
+    test_path: str,
+    profile: str,
+    users: int | None,
+    duration: int | None,
+    ramp_up: int | None,
+    output: str | None,
+    fail_fast: bool,
 ) -> None:
     """Run load test"""
     console.print(Panel.fit("🔥 Load Testing", style="bold magenta"))
@@ -90,9 +90,9 @@ def run(
     tester = LoadTester(config)
 
     with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
     ) as progress:
         task = progress.add_task("Running load test...", total=None)
 
@@ -111,12 +111,8 @@ def run(
 
     results_table.add_row("Duration", f"{result.duration_seconds:.2f}s")
     results_table.add_row("Total Tests", str(result.total_tests))
-    results_table.add_row(
-        "✅ Passed", f"{result.passed_tests} ({result.passed_tests / result.total_tests * 100:.1f}%)"
-    )
-    results_table.add_row(
-        "❌ Failed", f"{result.failed_tests} ({result.failed_tests / result.total_tests * 100:.1f}%)"
-    )
+    results_table.add_row("✅ Passed", f"{result.passed_tests} ({result.passed_tests / result.total_tests * 100:.1f}%)")
+    results_table.add_row("❌ Failed", f"{result.failed_tests} ({result.failed_tests / result.total_tests * 100:.1f}%)")
     results_table.add_row("Throughput", f"{result.throughput:.2f} tests/sec")
     results_table.add_row("Avg Response Time", f"{result.avg_response_time:.3f}s")
     results_table.add_row("Min Response Time", f"{result.min_response_time:.3f}s")
@@ -188,12 +184,12 @@ def profiles() -> None:
 @click.option("--output", type=click.Path(), help="Output path for profile data")
 @click.option("--report", type=click.Path(), help="Generate HTML report")
 def profile(
-        test_path: str,
-        cpu: bool,
-        memory: bool,
-        top: int,
-        output: str | None,
-        report: str | None,
+    test_path: str,
+    cpu: bool,
+    memory: bool,
+    top: int,
+    output: str | None,
+    report: str | None,
 ) -> None:
     """Profile test performance"""
     console.print(Panel.fit("🔬 Performance Profiling", style="bold cyan"))
@@ -215,6 +211,7 @@ def profile(
     def test_function() -> None:
         """Dummy test function - replace with actual test execution"""
         import time
+
         time.sleep(0.1)  # Simulate test execution
 
     with console.status("[bold green]Running profiler..."):

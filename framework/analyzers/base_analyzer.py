@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -26,6 +26,7 @@ class AnalysisResult(Generic[T]):
         success: Whether the analysis completed successfully
         errors: List of errors encountered during analysis
     """
+
     findings: List[T] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     duration_ms: float = 0.0
@@ -35,14 +36,11 @@ class AnalysisResult(Generic[T]):
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary for serialization."""
         return {
-            'findings': [
-                f.to_dict() if hasattr(f, 'to_dict') else f
-                for f in self.findings
-            ],
-            'metadata': self.metadata,
-            'duration_ms': self.duration_ms,
-            'success': self.success,
-            'errors': self.errors,
+            "findings": [f.to_dict() if hasattr(f, "to_dict") else f for f in self.findings],
+            "metadata": self.metadata,
+            "duration_ms": self.duration_ms,
+            "success": self.success,
+            "errors": self.errors,
         }
 
 
@@ -109,7 +107,7 @@ class BaseAnalyzer(ABC, Generic[T]):
         self._start_time = None
         return elapsed
 
-    def _read_file_safe(self, path: Path, encoding: str = 'utf-8') -> Optional[str]:
+    def _read_file_safe(self, path: Path, encoding: str = "utf-8") -> Optional[str]:
         """
         Safely read a file, returning None on error.
 
@@ -137,15 +135,12 @@ class BaseAnalyzer(ABC, Generic[T]):
         Returns:
             List of matching file paths
         """
-        if recursive and not pattern.startswith('**'):
+        if recursive and not pattern.startswith("**"):
             pattern = f"**/{pattern}"
         return list(self.project_root.glob(pattern))
 
     def _create_result(
-            self,
-            findings: List[T],
-            metadata: Optional[Dict[str, Any]] = None,
-            errors: Optional[List[str]] = None
+        self, findings: List[T], metadata: Optional[Dict[str, Any]] = None, errors: Optional[List[str]] = None
     ) -> AnalysisResult[T]:
         """
         Create an analysis result with timing information.
@@ -160,9 +155,5 @@ class BaseAnalyzer(ABC, Generic[T]):
         """
         duration = self._stop_timing()
         return AnalysisResult(
-            findings=findings,
-            metadata=metadata or {},
-            duration_ms=duration,
-            success=not errors,
-            errors=errors or []
+            findings=findings, metadata=metadata or {}, duration_ms=duration, success=not errors, errors=errors or []
         )

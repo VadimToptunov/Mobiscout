@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 
 class TestResultStatus(Enum):
     """Test result status."""
+
     PASSED = "passed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -25,6 +26,7 @@ class TestResultStatus(Enum):
 @dataclass
 class TestResult:
     """Result of a single test execution."""
+
     name: str
     status: TestResultStatus
     duration_ms: float
@@ -37,6 +39,7 @@ class TestResult:
 @dataclass
 class TestSuiteResult:
     """Result of running a test suite."""
+
     suite_name: str
     start_time: datetime
     end_time: datetime
@@ -69,25 +72,25 @@ class TestSuiteResult:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'suite_name': self.suite_name,
-            'start_time': self.start_time.isoformat(),
-            'end_time': self.end_time.isoformat(),
-            'duration_seconds': self.duration_seconds,
-            'total_tests': self.total_tests,
-            'passed_tests': self.passed_tests,
-            'failed_tests': self.failed_tests,
-            'skipped_tests': self.skipped_tests,
-            'error_tests': self.error_tests,
-            'tests': [
+            "suite_name": self.suite_name,
+            "start_time": self.start_time.isoformat(),
+            "end_time": self.end_time.isoformat(),
+            "duration_seconds": self.duration_seconds,
+            "total_tests": self.total_tests,
+            "passed_tests": self.passed_tests,
+            "failed_tests": self.failed_tests,
+            "skipped_tests": self.skipped_tests,
+            "error_tests": self.error_tests,
+            "tests": [
                 {
-                    'name': t.name,
-                    'status': t.status.value,
-                    'duration_ms': t.duration_ms,
-                    'message': t.message,
+                    "name": t.name,
+                    "status": t.status.value,
+                    "duration_ms": t.duration_ms,
+                    "message": t.message,
                 }
                 for t in self.tests
             ],
-            'metadata': self.metadata,
+            "metadata": self.metadata,
         }
 
 
@@ -102,18 +105,18 @@ class TestRunner:
     """
 
     def __init__(
-            self,
-            working_dir: Optional[Path] = None,
-            timeout_seconds: int = 300,
+        self,
+        working_dir: Optional[Path] = None,
+        timeout_seconds: int = 300,
     ):
         self.working_dir = working_dir or Path.cwd()
         self.timeout_seconds = timeout_seconds
 
     def run_tests(
-            self,
-            test_path: Path,
-            framework: str = "pytest",
-            extra_args: Optional[List[str]] = None,
+        self,
+        test_path: Path,
+        framework: str = "pytest",
+        extra_args: Optional[List[str]] = None,
     ) -> TestSuiteResult:
         """
         Run tests and return results.
@@ -145,9 +148,9 @@ class TestRunner:
         )
 
     def _run_pytest(
-            self,
-            test_path: Path,
-            extra_args: Optional[List[str]] = None,
+        self,
+        test_path: Path,
+        extra_args: Optional[List[str]] = None,
     ) -> List[TestResult]:
         """Run pytest and collect results."""
         args = ["python", "-m", "pytest", str(test_path), "--json-report", "-v"]
@@ -162,19 +165,23 @@ class TestRunner:
                 capture_output=True,
             )
         except subprocess.TimeoutExpired:
-            return [TestResult(
-                name="timeout",
-                status=TestResultStatus.ERROR,
-                duration_ms=self.timeout_seconds * 1000,
-                message="Test execution timed out",
-            )]
+            return [
+                TestResult(
+                    name="timeout",
+                    status=TestResultStatus.ERROR,
+                    duration_ms=self.timeout_seconds * 1000,
+                    message="Test execution timed out",
+                )
+            ]
         except (subprocess.SubprocessError, OSError) as e:
-            return [TestResult(
-                name="error",
-                status=TestResultStatus.ERROR,
-                duration_ms=0,
-                message=str(e),
-            )]
+            return [
+                TestResult(
+                    name="error",
+                    status=TestResultStatus.ERROR,
+                    duration_ms=0,
+                    message=str(e),
+                )
+            ]
 
         # Parse results from json report if available
         report_path = self.working_dir / ".report.json"
@@ -184,9 +191,9 @@ class TestRunner:
         return []
 
     def _run_junit(
-            self,
-            test_path: Path,
-            extra_args: Optional[List[str]] = None,
+        self,
+        test_path: Path,
+        extra_args: Optional[List[str]] = None,
     ) -> List[TestResult]:
         """Run JUnit tests (placeholder)."""
         # Would use gradle/maven to run tests
@@ -206,21 +213,23 @@ class TestRunner:
                     "skipped": TestResultStatus.SKIPPED,
                     "error": TestResultStatus.ERROR,
                 }
-                results.append(TestResult(
-                    name=test.get("nodeid", "unknown"),
-                    status=status_map.get(test.get("outcome", "error"), TestResultStatus.ERROR),
-                    duration_ms=test.get("duration", 0) * 1000,
-                    message=test.get("call", {}).get("longrepr"),
-                ))
+                results.append(
+                    TestResult(
+                        name=test.get("nodeid", "unknown"),
+                        status=status_map.get(test.get("outcome", "error"), TestResultStatus.ERROR),
+                        duration_ms=test.get("duration", 0) * 1000,
+                        message=test.get("call", {}).get("longrepr"),
+                    )
+                )
             return results
         except (json.JSONDecodeError, IOError):
             return []
 
     def run_test(
-            self,
-            test_name: str,
-            test_path: Optional[Path] = None,
-            framework: str = "pytest",
+        self,
+        test_name: str,
+        test_path: Optional[Path] = None,
+        framework: str = "pytest",
     ) -> TestResult:
         """
         Run a single test and return result.

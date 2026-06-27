@@ -22,19 +22,13 @@ def docs() -> None:
 
 @docs.command()
 @click.argument("source_dir", type=click.Path(exists=True))
-@click.option(
-    "--output",
-    "-o",
-    type=click.Path(),
-    default="docs/api",
-    help="Output directory for documentation"
-)
+@click.option("--output", "-o", type=click.Path(), default="docs/api", help="Output directory for documentation")
 @click.option(
     "--format",
     "-f",
     type=click.Choice(["markdown", "html", "json", "sphinx"]),
     default="markdown",
-    help="Documentation format"
+    help="Documentation format",
 )
 @click.option("--title", default="API Documentation", help="Documentation title")
 @click.option("--include-private", is_flag=True, help="Include private members")
@@ -42,14 +36,14 @@ def docs() -> None:
 @click.option("--no-toc", is_flag=True, help="Disable table of contents")
 @click.option("--theme", default="default", help="Documentation theme")
 def generate(
-        source_dir: str,
-        output: str,
-        format: str,
-        title: str,
-        include_private: bool,
-        include_source: bool,
-        no_toc: bool,
-        theme: str,
+    source_dir: str,
+    output: str,
+    format: str,
+    title: str,
+    include_private: bool,
+    include_source: bool,
+    no_toc: bool,
+    theme: str,
 ) -> None:
     """Generate documentation from source code"""
     console.print(Panel.fit("📚 Documentation Generator", style="bold cyan"))
@@ -77,9 +71,9 @@ def generate(
     generator = DocGenerator(config)
 
     with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
     ) as progress:
         task = progress.add_task("Generating documentation...", total=None)
         generator.generate()
@@ -250,12 +244,14 @@ def coverage(source_dir: str, output: str | None) -> None:
 
                 if file_total > 0:
                     file_coverage = (file_documented / file_total) * 100
-                    coverage_by_file.append({
-                        "file": str(file_path.relative_to(source_path)),
-                        "coverage": file_coverage,
-                        "documented": file_documented,
-                        "total": file_total,
-                    })
+                    coverage_by_file.append(
+                        {
+                            "file": str(file_path.relative_to(source_path)),
+                            "coverage": file_coverage,
+                            "documented": file_documented,
+                            "total": file_total,
+                        }
+                    )
 
             except (OSError, SyntaxError, UnicodeDecodeError):
                 pass
@@ -289,6 +285,7 @@ def coverage(source_dir: str, output: str | None) -> None:
     # Save report
     if output:
         import json
+
         report = {
             "overall_coverage": overall_coverage,
             "total_items": total_items,

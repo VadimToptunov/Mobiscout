@@ -13,6 +13,7 @@ from typing import Optional, Tuple
 try:
     from argon2 import PasswordHasher, exceptions as argon2_exceptions
     from argon2.profiles import RFC_9106_LOW_MEMORY
+
     ARGON2_AVAILABLE = True
 except ImportError:
     ARGON2_AVAILABLE = False
@@ -25,40 +26,52 @@ class SecurityConfig:
 
     # Sensitive environment variables that should never be logged
     SENSITIVE_ENV_VARS = {
-        'PASSWORD', 'SECRET', 'KEY', 'TOKEN', 'API_KEY', 'ACCESS_KEY',
-        'PRIVATE', 'CREDENTIAL', 'AUTH', 'BROWSERSTACK_ACCESS_KEY',
-        'SAUCE_ACCESS_KEY', 'AWS_SECRET_ACCESS_KEY', 'SLACK_WEBHOOK_URL',
-        'SMTP_PASSWORD', 'SESSION_ENCRYPTION_KEY', 'LICENSE_KEY'
+        "PASSWORD",
+        "SECRET",
+        "KEY",
+        "TOKEN",
+        "API_KEY",
+        "ACCESS_KEY",
+        "PRIVATE",
+        "CREDENTIAL",
+        "AUTH",
+        "BROWSERSTACK_ACCESS_KEY",
+        "SAUCE_ACCESS_KEY",
+        "AWS_SECRET_ACCESS_KEY",
+        "SLACK_WEBHOOK_URL",
+        "SMTP_PASSWORD",
+        "SESSION_ENCRYPTION_KEY",
+        "LICENSE_KEY",
     }
 
     # Build variants that should never have crypto export enabled
-    PRODUCTION_BUILD_VARIANTS = {'release', 'production', 'prod'}
+    PRODUCTION_BUILD_VARIANTS = {"release", "production", "prod"}
 
     def __init__(self):
         self.session_key = self._get_or_generate_session_key()
-        self.test_password = os.environ.get('TEST_USER_PASSWORD', self._generate_secure_password())
-        self.debug_mode = os.environ.get('DEBUG_MODE', 'false').lower() == 'true'
+        self.test_password = os.environ.get("TEST_USER_PASSWORD", self._generate_secure_password())
+        self.debug_mode = os.environ.get("DEBUG_MODE", "false").lower() == "true"
 
     @staticmethod
     def _generate_secure_password(length: int = 16) -> str:
         """Generate a cryptographically secure random password"""
         alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()"
-        password = ''.join(secrets.choice(alphabet) for _ in range(length))
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
 
         # Ensure password meets complexity requirements
         if not any(c.isupper() for c in password):
             password = password[0].upper() + password[1:]
         if not any(c.islower() for c in password):
-            password = password[:-1] + 'a'
+            password = password[:-1] + "a"
         if not any(c.isdigit() for c in password):
-            password = password[:-1] + '9'
+            password = password[:-1] + "9"
 
         return password
 
     @staticmethod
     def _get_or_generate_session_key() -> str:
         """Get or generate session encryption key"""
-        key = os.environ.get('SESSION_ENCRYPTION_KEY')
+        key = os.environ.get("SESSION_ENCRYPTION_KEY")
         if key:
             return key
 
@@ -84,9 +97,7 @@ class SecurityConfig:
         - parallelism: 4 threads
         """
         if not ARGON2_AVAILABLE:
-            raise SecurityError(
-                "argon2-cffi is not installed. Install it with: pip install argon2-cffi"
-            )
+            raise SecurityError("argon2-cffi is not installed. Install it with: pip install argon2-cffi")
 
         if cls._password_hasher is None:
             cls._password_hasher = PasswordHasher.from_parameters(RFC_9106_LOW_MEMORY)
@@ -167,10 +178,7 @@ class SecurityConfig:
         sanitized = {}
         for key, value in data.items():
             key_upper = key.upper()
-            is_sensitive = any(
-                sensitive in key_upper
-                for sensitive in SecurityConfig.SENSITIVE_ENV_VARS
-            )
+            is_sensitive = any(sensitive in key_upper for sensitive in SecurityConfig.SENSITIVE_ENV_VARS)
 
             if is_sensitive:
                 sanitized[key] = "***REDACTED***"
@@ -225,14 +233,12 @@ class SecurityConfig:
         # Check if file is world-readable (on Unix-like systems)
         try:
             import stat
+
             mode = file_path.stat().st_mode
 
             # Check if others have read permission
             if mode & stat.S_IROTH:
-                logger.warning(
-                    f"File {file_path} is world-readable. "
-                    f"Consider setting permissions to 600 or 640."
-                )
+                logger.warning(f"File {file_path} is world-readable. " f"Consider setting permissions to 600 or 640.")
                 return False
 
             return True
@@ -243,6 +249,7 @@ class SecurityConfig:
 
 class SecurityError(Exception):
     """Raised when a security constraint is violated"""
+
     pass
 
 
@@ -260,11 +267,11 @@ def get_security_config() -> SecurityConfig:
 
 def is_production_environment() -> bool:
     """Check if running in production environment"""
-    env = os.environ.get('ENVIRONMENT', 'development').lower()
-    ci = os.environ.get('CI', 'false').lower() == 'true'
+    env = os.environ.get("ENVIRONMENT", "development").lower()
+    ci = os.environ.get("CI", "false").lower() == "true"
 
-    return env in ('production', 'prod') or (
-            ci and os.environ.get('CI_ENVIRONMENT', '').lower() in ('production', 'prod')
+    return env in ("production", "prod") or (
+        ci and os.environ.get("CI_ENVIRONMENT", "").lower() in ("production", "prod")
     )
 
 
@@ -286,8 +293,8 @@ def validate_no_hardcoded_secrets(code: str, file_path: str = "unknown") -> list
     # Patterns for common secrets
     patterns = {
         "Potential API Key": r'["\']([A-Za-z0-9]{32,})["\']',
-        "Potential AWS Key": r'AKIA[0-9A-Z]{16}',
-        "Potential Private Key": r'-----BEGIN (?:RSA|DSA|EC) PRIVATE KEY-----',
+        "Potential AWS Key": r"AKIA[0-9A-Z]{16}",
+        "Potential Private Key": r"-----BEGIN (?:RSA|DSA|EC) PRIVATE KEY-----",
         "Hardcoded Password": r'password\s*=\s*["\'](?!.*env|.*config)[^"\']{8,}["\']',
         "Potential Token": r'token\s*=\s*["\'][A-Za-z0-9_-]{20,}["\']',
     }
@@ -296,16 +303,18 @@ def validate_no_hardcoded_secrets(code: str, file_path: str = "unknown") -> list
         matches = re.finditer(pattern, code, re.IGNORECASE)
         for match in matches:
             # Skip common false positives
-            if 'example' in match.group(0).lower():
+            if "example" in match.group(0).lower():
                 continue
-            if 'test' in file_path.lower() and 'Test' in match.group(0):
+            if "test" in file_path.lower() and "Test" in match.group(0):
                 continue
 
-            issues.append({
-                'type': issue_type,
-                'file': file_path,
-                'line': code[:match.start()].count('\n') + 1,
-                'snippet': match.group(0)[:50] + '...' if len(match.group(0)) > 50 else match.group(0)
-            })
+            issues.append(
+                {
+                    "type": issue_type,
+                    "file": file_path,
+                    "line": code[: match.start()].count("\n") + 1,
+                    "snippet": match.group(0)[:50] + "..." if len(match.group(0)) > 50 else match.group(0),
+                }
+            )
 
     return issues

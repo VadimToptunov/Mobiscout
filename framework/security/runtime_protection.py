@@ -24,6 +24,7 @@ from typing import Dict, Any, List, Optional, Set
 
 class ProtectionCategory(Enum):
     """Protection categories"""
+
     ROOT_DETECTION = "root_detection"
     JAILBREAK_DETECTION = "jailbreak_detection"
     EMULATOR_DETECTION = "emulator_detection"
@@ -39,6 +40,7 @@ class ProtectionCategory(Enum):
 
 class ImplementationQuality(Enum):
     """Protection implementation quality"""
+
     STRONG = "strong"
     MODERATE = "moderate"
     WEAK = "weak"
@@ -48,6 +50,7 @@ class ImplementationQuality(Enum):
 @dataclass
 class ProtectionIndicator:
     """A protection indicator found in code"""
+
     category: ProtectionCategory
     indicator: str
     location: str
@@ -59,6 +62,7 @@ class ProtectionIndicator:
 @dataclass
 class ProtectionAnalysis:
     """Protection analysis result"""
+
     category: ProtectionCategory
     implemented: bool
     quality: ImplementationQuality
@@ -89,6 +93,7 @@ class ProtectionAnalysis:
 @dataclass
 class ProtectionStatus:
     """Status of a specific protection mechanism - for CLI compatibility"""
+
     detected: bool = False
     strength: str = "none"  # strong, medium, weak, none
     details: str = ""
@@ -104,6 +109,7 @@ class ProtectionStatus:
 @dataclass
 class BypassMethod:
     """Potential bypass method"""
+
     method: str
     description: str
     difficulty: str  # easy, moderate, hard
@@ -119,6 +125,7 @@ class BypassMethod:
 @dataclass
 class RuntimeProtectionResult:
     """Complete runtime protection analysis result - for CLI compatibility"""
+
     root_detection: ProtectionStatus = field(default_factory=ProtectionStatus)
     emulator_detection: ProtectionStatus = field(default_factory=ProtectionStatus)
     debug_detection: ProtectionStatus = field(default_factory=ProtectionStatus)
@@ -148,6 +155,7 @@ class RuntimeProtectionResult:
 @dataclass
 class QuickCheckResult:
     """Quick protection check result - for CLI compatibility"""
+
     has_root_detection: bool = False
     has_emulator_detection: bool = False
     has_debug_detection: bool = False
@@ -176,84 +184,81 @@ class AndroidProtectionAnalyzer:
     # Root detection patterns
     ROOT_DETECTION_PATTERNS = {
         # Binary checks
-        r'/system/bin/su': ("su binary check", "easy"),
-        r'/system/xbin/su': ("su binary check", "easy"),
-        r'/sbin/su': ("su binary check", "easy"),
-        r'which su': ("su path check", "easy"),
-
+        r"/system/bin/su": ("su binary check", "easy"),
+        r"/system/xbin/su": ("su binary check", "easy"),
+        r"/sbin/su": ("su binary check", "easy"),
+        r"which su": ("su path check", "easy"),
         # Package checks
-        r'com\.noshufou\.android\.su': ("SuperSU package", "moderate"),
-        r'com\.thirdparty\.superuser': ("Superuser package", "moderate"),
-        r'eu\.chainfire\.supersu': ("SuperSU package", "moderate"),
-        r'com\.koushikdutta\.superuser': ("Superuser package", "moderate"),
-        r'com\.topjohnwu\.magisk': ("Magisk package", "moderate"),
-
+        r"com\.noshufou\.android\.su": ("SuperSU package", "moderate"),
+        r"com\.thirdparty\.superuser": ("Superuser package", "moderate"),
+        r"eu\.chainfire\.supersu": ("SuperSU package", "moderate"),
+        r"com\.koushikdutta\.superuser": ("Superuser package", "moderate"),
+        r"com\.topjohnwu\.magisk": ("Magisk package", "moderate"),
         # Method patterns
-        r'isRooted|checkRoot|detectRoot': ("Root detection method", "moderate"),
-        r'RootBeer|RootChecker': ("Root detection library", "hard"),
-        r'SafetyNet': ("SafetyNet attestation", "hard"),
-
+        r"isRooted|checkRoot|detectRoot": ("Root detection method", "moderate"),
+        r"RootBeer|RootChecker": ("Root detection library", "hard"),
+        r"SafetyNet": ("SafetyNet attestation", "hard"),
         # File checks
-        r'/system/app/Superuser': ("Superuser app check", "easy"),
-        r'/data/local/bin/su': ("Local su check", "easy"),
+        r"/system/app/Superuser": ("Superuser app check", "easy"),
+        r"/data/local/bin/su": ("Local su check", "easy"),
     }
 
     # Emulator detection patterns
     EMULATOR_DETECTION_PATTERNS = {
-        r'generic': ("Generic device check", "easy"),
-        r'goldfish': ("Goldfish check", "easy"),
-        r'vbox86': ("VirtualBox check", "moderate"),
-        r'genymotion': ("Genymotion check", "moderate"),
-        r'sdk_google': ("SDK image check", "easy"),
-        r'Andy|BlueStacks|Nox': ("Known emulator check", "moderate"),
-        r'isEmulator|detectEmulator': ("Emulator detection method", "moderate"),
-        r'Build\.FINGERPRINT': ("Fingerprint analysis", "moderate"),
-        r'Build\.HARDWARE': ("Hardware analysis", "moderate"),
-        r'/dev/qemu_pipe': ("QEMU pipe check", "hard"),
-        r'/dev/socket/qemud': ("QEMU socket check", "hard"),
+        r"generic": ("Generic device check", "easy"),
+        r"goldfish": ("Goldfish check", "easy"),
+        r"vbox86": ("VirtualBox check", "moderate"),
+        r"genymotion": ("Genymotion check", "moderate"),
+        r"sdk_google": ("SDK image check", "easy"),
+        r"Andy|BlueStacks|Nox": ("Known emulator check", "moderate"),
+        r"isEmulator|detectEmulator": ("Emulator detection method", "moderate"),
+        r"Build\.FINGERPRINT": ("Fingerprint analysis", "moderate"),
+        r"Build\.HARDWARE": ("Hardware analysis", "moderate"),
+        r"/dev/qemu_pipe": ("QEMU pipe check", "hard"),
+        r"/dev/socket/qemud": ("QEMU socket check", "hard"),
     }
 
     # Debug detection patterns
     DEBUG_DETECTION_PATTERNS = {
-        r'Debug\.isDebuggerConnected': ("Debugger check", "easy"),
-        r'isDebuggerConnected': ("Debugger check", "easy"),
-        r'waitForDebugger': ("Debugger wait", "easy"),
-        r'android:debuggable': ("Debuggable flag", "easy"),
-        r'JDWP': ("JDWP detection", "moderate"),
-        r'/proc/self/status.*TracerPid': ("TracerPid check", "hard"),
-        r'ptrace': ("Ptrace detection", "hard"),
+        r"Debug\.isDebuggerConnected": ("Debugger check", "easy"),
+        r"isDebuggerConnected": ("Debugger check", "easy"),
+        r"waitForDebugger": ("Debugger wait", "easy"),
+        r"android:debuggable": ("Debuggable flag", "easy"),
+        r"JDWP": ("JDWP detection", "moderate"),
+        r"/proc/self/status.*TracerPid": ("TracerPid check", "hard"),
+        r"ptrace": ("Ptrace detection", "hard"),
     }
 
     # Frida/Hook detection patterns
     FRIDA_DETECTION_PATTERNS = {
-        r'frida': ("Frida string", "easy"),
-        r'libfrida': ("Frida library", "moderate"),
-        r'27042': ("Frida default port", "moderate"),
-        r'/data/local/tmp': ("Frida injection path", "moderate"),
-        r'xposed': ("Xposed detection", "moderate"),
-        r'de\.robv\.android\.xposed': ("Xposed package", "moderate"),
-        r'substrate': ("Substrate detection", "moderate"),
-        r'cydia\.substrate': ("Substrate package", "moderate"),
+        r"frida": ("Frida string", "easy"),
+        r"libfrida": ("Frida library", "moderate"),
+        r"27042": ("Frida default port", "moderate"),
+        r"/data/local/tmp": ("Frida injection path", "moderate"),
+        r"xposed": ("Xposed detection", "moderate"),
+        r"de\.robv\.android\.xposed": ("Xposed package", "moderate"),
+        r"substrate": ("Substrate detection", "moderate"),
+        r"cydia\.substrate": ("Substrate package", "moderate"),
     }
 
     # Tamper detection patterns
     TAMPER_DETECTION_PATTERNS = {
-        r'PackageManager\.GET_SIGNATURES': ("Signature check", "moderate"),
-        r'getSigningInfo': ("Signing info check", "moderate"),
-        r'checkSignature': ("Signature verification", "moderate"),
-        r'CRC32|checksum': ("Checksum verification", "hard"),
-        r'dexFile\.loadDex': ("DEX loading check", "hard"),
-        r'classes\.dex': ("DEX file check", "moderate"),
+        r"PackageManager\.GET_SIGNATURES": ("Signature check", "moderate"),
+        r"getSigningInfo": ("Signing info check", "moderate"),
+        r"checkSignature": ("Signature verification", "moderate"),
+        r"CRC32|checksum": ("Checksum verification", "hard"),
+        r"dexFile\.loadDex": ("DEX loading check", "hard"),
+        r"classes\.dex": ("DEX file check", "moderate"),
     }
 
     # SSL Pinning patterns
     SSL_PINNING_PATTERNS = {
-        r'CertificatePinner': ("OkHttp pinning", "hard"),
-        r'TrustManagerFactory': ("Custom TrustManager", "moderate"),
-        r'X509TrustManager': ("Custom X509TrustManager", "moderate"),
-        r'checkServerTrusted': ("Server cert check", "moderate"),
-        r'network_security_config': ("Network security config", "hard"),
-        r'<pin-set': ("Pin set configuration", "hard"),
+        r"CertificatePinner": ("OkHttp pinning", "hard"),
+        r"TrustManagerFactory": ("Custom TrustManager", "moderate"),
+        r"X509TrustManager": ("Custom X509TrustManager", "moderate"),
+        r"checkServerTrusted": ("Server cert check", "moderate"),
+        r"network_security_config": ("Network security config", "hard"),
+        r"<pin-set": ("Pin set configuration", "hard"),
     }
 
     def analyze_source(self, source_dir: Path) -> List[ProtectionAnalysis]:
@@ -261,120 +266,138 @@ class AndroidProtectionAnalyzer:
         analyses = []
 
         # Collect all indicators
-        root_indicators = self._find_patterns(source_dir, self.ROOT_DETECTION_PATTERNS, ProtectionCategory.ROOT_DETECTION)
-        emulator_indicators = self._find_patterns(source_dir, self.EMULATOR_DETECTION_PATTERNS, ProtectionCategory.EMULATOR_DETECTION)
-        debug_indicators = self._find_patterns(source_dir, self.DEBUG_DETECTION_PATTERNS, ProtectionCategory.DEBUG_DETECTION)
-        frida_indicators = self._find_patterns(source_dir, self.FRIDA_DETECTION_PATTERNS, ProtectionCategory.FRIDA_DETECTION)
-        tamper_indicators = self._find_patterns(source_dir, self.TAMPER_DETECTION_PATTERNS, ProtectionCategory.TAMPER_DETECTION)
+        root_indicators = self._find_patterns(
+            source_dir, self.ROOT_DETECTION_PATTERNS, ProtectionCategory.ROOT_DETECTION
+        )
+        emulator_indicators = self._find_patterns(
+            source_dir, self.EMULATOR_DETECTION_PATTERNS, ProtectionCategory.EMULATOR_DETECTION
+        )
+        debug_indicators = self._find_patterns(
+            source_dir, self.DEBUG_DETECTION_PATTERNS, ProtectionCategory.DEBUG_DETECTION
+        )
+        frida_indicators = self._find_patterns(
+            source_dir, self.FRIDA_DETECTION_PATTERNS, ProtectionCategory.FRIDA_DETECTION
+        )
+        tamper_indicators = self._find_patterns(
+            source_dir, self.TAMPER_DETECTION_PATTERNS, ProtectionCategory.TAMPER_DETECTION
+        )
         ssl_indicators = self._find_patterns(source_dir, self.SSL_PINNING_PATTERNS, ProtectionCategory.SSL_PINNING)
 
         # Analyze each category
-        analyses.append(self._analyze_category(
-            ProtectionCategory.ROOT_DETECTION,
-            root_indicators,
-            [
-                "Implement multiple root detection methods",
-                "Use SafetyNet attestation for strong verification",
-                "Combine binary, package, and property checks",
-                "Check for Magisk hide and similar bypass tools",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.ROOT_DETECTION,
+                root_indicators,
+                [
+                    "Implement multiple root detection methods",
+                    "Use SafetyNet attestation for strong verification",
+                    "Combine binary, package, and property checks",
+                    "Check for Magisk hide and similar bypass tools",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.EMULATOR_DETECTION,
-            emulator_indicators,
-            [
-                "Check multiple device properties",
-                "Analyze build fingerprint and hardware",
-                "Check for emulator-specific files",
-                "Monitor performance characteristics",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.EMULATOR_DETECTION,
+                emulator_indicators,
+                [
+                    "Check multiple device properties",
+                    "Analyze build fingerprint and hardware",
+                    "Check for emulator-specific files",
+                    "Monitor performance characteristics",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.DEBUG_DETECTION,
-            debug_indicators,
-            [
-                "Check debugger connection status",
-                "Monitor TracerPid in /proc/self/status",
-                "Use timing-based anti-debug",
-                "Implement multi-threaded debug detection",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.DEBUG_DETECTION,
+                debug_indicators,
+                [
+                    "Check debugger connection status",
+                    "Monitor TracerPid in /proc/self/status",
+                    "Use timing-based anti-debug",
+                    "Implement multi-threaded debug detection",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.FRIDA_DETECTION,
-            frida_indicators,
-            [
-                "Scan for Frida artifacts and libraries",
-                "Monitor for Frida's default port (27042)",
-                "Check for Xposed framework",
-                "Implement memory scanning for hooks",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.FRIDA_DETECTION,
+                frida_indicators,
+                [
+                    "Scan for Frida artifacts and libraries",
+                    "Monitor for Frida's default port (27042)",
+                    "Check for Xposed framework",
+                    "Implement memory scanning for hooks",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.TAMPER_DETECTION,
-            tamper_indicators,
-            [
-                "Verify APK signature at runtime",
-                "Check DEX file integrity",
-                "Implement checksum verification",
-                "Use code obfuscation to hinder analysis",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.TAMPER_DETECTION,
+                tamper_indicators,
+                [
+                    "Verify APK signature at runtime",
+                    "Check DEX file integrity",
+                    "Implement checksum verification",
+                    "Use code obfuscation to hinder analysis",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.SSL_PINNING,
-            ssl_indicators,
-            [
-                "Implement certificate pinning with OkHttp",
-                "Use network_security_config.xml",
-                "Pin multiple certificates for redundancy",
-                "Implement backup pins for certificate rotation",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.SSL_PINNING,
+                ssl_indicators,
+                [
+                    "Implement certificate pinning with OkHttp",
+                    "Use network_security_config.xml",
+                    "Pin multiple certificates for redundancy",
+                    "Implement backup pins for certificate rotation",
+                ],
+            )
+        )
 
         return analyses
 
     def _find_patterns(
-        self,
-        source_dir: Path,
-        patterns: Dict[str, tuple],
-        category: ProtectionCategory
+        self, source_dir: Path, patterns: Dict[str, tuple], category: ProtectionCategory
     ) -> List[ProtectionIndicator]:
         """Find protection patterns in source code"""
         indicators = []
 
-        extensions = ['.java', '.kt', '.xml', '.smali']
+        extensions = [".java", ".kt", ".xml", ".smali"]
 
         for ext in extensions:
-            for file_path in source_dir.rglob(f'*{ext}'):
+            for file_path in source_dir.rglob(f"*{ext}"):
                 try:
-                    content = file_path.read_text(errors='ignore')
+                    content = file_path.read_text(errors="ignore")
                     lines = content.splitlines()
 
                     for pattern, (desc, difficulty) in patterns.items():
                         for i, line in enumerate(lines, 1):
                             if re.search(pattern, line, re.IGNORECASE):
-                                indicators.append(ProtectionIndicator(
-                                    category=category,
-                                    indicator=pattern,
-                                    location=str(file_path),
-                                    line_number=i,
-                                    description=desc,
-                                    bypass_difficulty=difficulty,
-                                ))
+                                indicators.append(
+                                    ProtectionIndicator(
+                                        category=category,
+                                        indicator=pattern,
+                                        location=str(file_path),
+                                        line_number=i,
+                                        description=desc,
+                                        bypass_difficulty=difficulty,
+                                    )
+                                )
                 except (OSError, UnicodeDecodeError):
                     pass
 
         return indicators
 
     def _analyze_category(
-        self,
-        category: ProtectionCategory,
-        indicators: List[ProtectionIndicator],
-        recommendations: List[str]
+        self, category: ProtectionCategory, indicators: List[ProtectionIndicator], recommendations: List[str]
     ) -> ProtectionAnalysis:
         """Analyze a protection category"""
         if not indicators:
@@ -424,45 +447,45 @@ class IOSProtectionAnalyzer:
 
     # Jailbreak detection patterns
     JAILBREAK_DETECTION_PATTERNS = {
-        r'/Applications/Cydia\.app': ("Cydia app check", "easy"),
-        r'/Library/MobileSubstrate': ("Substrate check", "easy"),
-        r'/bin/bash': ("Bash shell check", "easy"),
-        r'/usr/sbin/sshd': ("SSH daemon check", "easy"),
-        r'/etc/apt': ("APT check", "easy"),
-        r'/private/var/lib/apt': ("APT lib check", "easy"),
-        r'cydia://': ("Cydia URL scheme", "moderate"),
-        r'isJailbroken': ("Jailbreak method", "moderate"),
-        r'canOpenURL.*cydia': ("Cydia URL check", "moderate"),
-        r'fileExistsAtPath.*cydia': ("Cydia file check", "moderate"),
-        r'fork\(\)': ("Fork check", "hard"),
-        r'sysctl.*P_TRACED': ("Sysctl trace check", "hard"),
+        r"/Applications/Cydia\.app": ("Cydia app check", "easy"),
+        r"/Library/MobileSubstrate": ("Substrate check", "easy"),
+        r"/bin/bash": ("Bash shell check", "easy"),
+        r"/usr/sbin/sshd": ("SSH daemon check", "easy"),
+        r"/etc/apt": ("APT check", "easy"),
+        r"/private/var/lib/apt": ("APT lib check", "easy"),
+        r"cydia://": ("Cydia URL scheme", "moderate"),
+        r"isJailbroken": ("Jailbreak method", "moderate"),
+        r"canOpenURL.*cydia": ("Cydia URL check", "moderate"),
+        r"fileExistsAtPath.*cydia": ("Cydia file check", "moderate"),
+        r"fork\(\)": ("Fork check", "hard"),
+        r"sysctl.*P_TRACED": ("Sysctl trace check", "hard"),
     }
 
     # Debug detection patterns
     IOS_DEBUG_DETECTION_PATTERNS = {
-        r'sysctl.*P_TRACED': ("Sysctl trace check", "hard"),
-        r'ptrace': ("Ptrace detection", "hard"),
-        r'getppid': ("Parent PID check", "moderate"),
-        r'isBeingDebugged': ("Debug check method", "moderate"),
-        r'SIGSTOP': ("Signal handling", "hard"),
+        r"sysctl.*P_TRACED": ("Sysctl trace check", "hard"),
+        r"ptrace": ("Ptrace detection", "hard"),
+        r"getppid": ("Parent PID check", "moderate"),
+        r"isBeingDebugged": ("Debug check method", "moderate"),
+        r"SIGSTOP": ("Signal handling", "hard"),
     }
 
     # Frida detection patterns
     IOS_FRIDA_DETECTION_PATTERNS = {
-        r'frida': ("Frida string", "easy"),
-        r'27042': ("Frida default port", "moderate"),
-        r'_frida': ("Frida symbol", "moderate"),
-        r'gum-js-loop': ("Frida gadget", "hard"),
-        r'/usr/lib/frida': ("Frida library", "moderate"),
+        r"frida": ("Frida string", "easy"),
+        r"27042": ("Frida default port", "moderate"),
+        r"_frida": ("Frida symbol", "moderate"),
+        r"gum-js-loop": ("Frida gadget", "hard"),
+        r"/usr/lib/frida": ("Frida library", "moderate"),
     }
 
     # SSL Pinning patterns
     IOS_SSL_PINNING_PATTERNS = {
-        r'TrustKit': ("TrustKit library", "hard"),
-        r'Alamofire.*ServerTrustManager': ("Alamofire pinning", "hard"),
-        r'SecTrustEvaluate': ("SecTrust evaluation", "moderate"),
-        r'URLSession.*delegate': ("URLSession delegate", "moderate"),
-        r'NSAppTransportSecurity': ("ATS configuration", "moderate"),
+        r"TrustKit": ("TrustKit library", "hard"),
+        r"Alamofire.*ServerTrustManager": ("Alamofire pinning", "hard"),
+        r"SecTrustEvaluate": ("SecTrust evaluation", "moderate"),
+        r"URLSession.*delegate": ("URLSession delegate", "moderate"),
+        r"NSAppTransportSecurity": ("ATS configuration", "moderate"),
     }
 
     def analyze_source(self, source_dir: Path) -> List[ProtectionAnalysis]:
@@ -470,96 +493,106 @@ class IOSProtectionAnalyzer:
         analyses = []
 
         # Collect indicators
-        jb_indicators = self._find_patterns(source_dir, self.JAILBREAK_DETECTION_PATTERNS, ProtectionCategory.JAILBREAK_DETECTION)
-        debug_indicators = self._find_patterns(source_dir, self.IOS_DEBUG_DETECTION_PATTERNS, ProtectionCategory.DEBUG_DETECTION)
-        frida_indicators = self._find_patterns(source_dir, self.IOS_FRIDA_DETECTION_PATTERNS, ProtectionCategory.FRIDA_DETECTION)
+        jb_indicators = self._find_patterns(
+            source_dir, self.JAILBREAK_DETECTION_PATTERNS, ProtectionCategory.JAILBREAK_DETECTION
+        )
+        debug_indicators = self._find_patterns(
+            source_dir, self.IOS_DEBUG_DETECTION_PATTERNS, ProtectionCategory.DEBUG_DETECTION
+        )
+        frida_indicators = self._find_patterns(
+            source_dir, self.IOS_FRIDA_DETECTION_PATTERNS, ProtectionCategory.FRIDA_DETECTION
+        )
         ssl_indicators = self._find_patterns(source_dir, self.IOS_SSL_PINNING_PATTERNS, ProtectionCategory.SSL_PINNING)
 
         # Analyze each category
-        analyses.append(self._analyze_category(
-            ProtectionCategory.JAILBREAK_DETECTION,
-            jb_indicators,
-            [
-                "Check for jailbreak-related files and directories",
-                "Verify URL scheme availability (cydia://)",
-                "Use fork() to detect jailbreak bypass",
-                "Implement sysctl checks",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.JAILBREAK_DETECTION,
+                jb_indicators,
+                [
+                    "Check for jailbreak-related files and directories",
+                    "Verify URL scheme availability (cydia://)",
+                    "Use fork() to detect jailbreak bypass",
+                    "Implement sysctl checks",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.DEBUG_DETECTION,
-            debug_indicators,
-            [
-                "Use sysctl to check P_TRACED flag",
-                "Implement ptrace(PT_DENY_ATTACH)",
-                "Monitor for debug exceptions",
-                "Check parent process ID",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.DEBUG_DETECTION,
+                debug_indicators,
+                [
+                    "Use sysctl to check P_TRACED flag",
+                    "Implement ptrace(PT_DENY_ATTACH)",
+                    "Monitor for debug exceptions",
+                    "Check parent process ID",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.FRIDA_DETECTION,
-            frida_indicators,
-            [
-                "Scan for Frida artifacts",
-                "Monitor network connections for Frida ports",
-                "Check for Frida libraries in memory",
-                "Implement anti-instrumentation checks",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.FRIDA_DETECTION,
+                frida_indicators,
+                [
+                    "Scan for Frida artifacts",
+                    "Monitor network connections for Frida ports",
+                    "Check for Frida libraries in memory",
+                    "Implement anti-instrumentation checks",
+                ],
+            )
+        )
 
-        analyses.append(self._analyze_category(
-            ProtectionCategory.SSL_PINNING,
-            ssl_indicators,
-            [
-                "Use TrustKit for certificate pinning",
-                "Implement custom URLSession delegate",
-                "Configure ATS properly in Info.plist",
-                "Pin both leaf and intermediate certificates",
-            ]
-        ))
+        analyses.append(
+            self._analyze_category(
+                ProtectionCategory.SSL_PINNING,
+                ssl_indicators,
+                [
+                    "Use TrustKit for certificate pinning",
+                    "Implement custom URLSession delegate",
+                    "Configure ATS properly in Info.plist",
+                    "Pin both leaf and intermediate certificates",
+                ],
+            )
+        )
 
         return analyses
 
     def _find_patterns(
-        self,
-        source_dir: Path,
-        patterns: Dict[str, tuple],
-        category: ProtectionCategory
+        self, source_dir: Path, patterns: Dict[str, tuple], category: ProtectionCategory
     ) -> List[ProtectionIndicator]:
         """Find protection patterns in iOS source"""
         indicators = []
 
-        extensions = ['.swift', '.m', '.h', '.plist']
+        extensions = [".swift", ".m", ".h", ".plist"]
 
         for ext in extensions:
-            for file_path in source_dir.rglob(f'*{ext}'):
+            for file_path in source_dir.rglob(f"*{ext}"):
                 try:
-                    content = file_path.read_text(errors='ignore')
+                    content = file_path.read_text(errors="ignore")
                     lines = content.splitlines()
 
                     for pattern, (desc, difficulty) in patterns.items():
                         for i, line in enumerate(lines, 1):
                             if re.search(pattern, line, re.IGNORECASE):
-                                indicators.append(ProtectionIndicator(
-                                    category=category,
-                                    indicator=pattern,
-                                    location=str(file_path),
-                                    line_number=i,
-                                    description=desc,
-                                    bypass_difficulty=difficulty,
-                                ))
+                                indicators.append(
+                                    ProtectionIndicator(
+                                        category=category,
+                                        indicator=pattern,
+                                        location=str(file_path),
+                                        line_number=i,
+                                        description=desc,
+                                        bypass_difficulty=difficulty,
+                                    )
+                                )
                 except (OSError, UnicodeDecodeError):
                     pass
 
         return indicators
 
     def _analyze_category(
-        self,
-        category: ProtectionCategory,
-        indicators: List[ProtectionIndicator],
-        recommendations: List[str]
+        self, category: ProtectionCategory, indicators: List[ProtectionIndicator], recommendations: List[str]
     ) -> ProtectionAnalysis:
         """Analyze a protection category"""
         if not indicators:
@@ -674,34 +707,24 @@ class RuntimeProtectionAnalyzer:
 
         return summary
 
-    def export_report(
-        self,
-        results: Dict[str, List[ProtectionAnalysis]],
-        output_path: Path
-    ) -> None:
+    def export_report(self, results: Dict[str, List[ProtectionAnalysis]], output_path: Path) -> None:
         """Export protection analysis report"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         report = {
             "summary": self.get_summary(results),
-            "details": {
-                platform: [a.to_dict() for a in analyses]
-                for platform, analyses in results.items()
-            },
+            "details": {platform: [a.to_dict() for a in analyses] for platform, analyses in results.items()},
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2)
 
-    def generate_html_report(
-        self,
-        results: Dict[str, List[ProtectionAnalysis]],
-        output_path: Path
-    ) -> None:
+    def generate_html_report(self, results: Dict[str, List[ProtectionAnalysis]], output_path: Path) -> None:
         """Generate HTML report"""
         summary = self.get_summary(results)
 
-        html = """
+        html = (
+            """
 <!DOCTYPE html>
 <html>
 <head>
@@ -726,8 +749,11 @@ class RuntimeProtectionAnalyzer:
 <body>
     <div class="container">
         <h1>Runtime Protection Analysis Report</h1>
-        <div class="score">Score: """ + f"{summary['overall_score']:.1f}" + """/100</div>
+        <div class="score">Score: """
+            + f"{summary['overall_score']:.1f}"
+            + """/100</div>
 """
+        )
 
         for platform, analyses in results.items():
             html += f"<h2>{platform.upper()} Platform</h2>"
@@ -768,7 +794,7 @@ class RuntimeProtectionAnalyzer:
 """
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(html)
 
     def analyze(self, app_path: Path, platform: str) -> RuntimeProtectionResult:
@@ -792,7 +818,7 @@ class RuntimeProtectionAnalyzer:
             status = ProtectionStatus(
                 detected=analysis.implemented,
                 strength=analysis.quality.value if analysis.implemented else "none",
-                details=f"Score: {analysis.score:.0f}%, {len(analysis.indicators)} indicators found"
+                details=f"Score: {analysis.score:.0f}%, {len(analysis.indicators)} indicators found",
             )
 
             if analysis.category == ProtectionCategory.ROOT_DETECTION:
@@ -831,23 +857,29 @@ class RuntimeProtectionAnalyzer:
 
         # Add potential bypass methods for missing protections
         if not result.root_detection.detected:
-            result.bypass_methods.append(BypassMethod(
-                method="Root/Jailbreak bypass",
-                description="App can run on rooted/jailbroken devices without detection",
-                difficulty="easy"
-            ))
+            result.bypass_methods.append(
+                BypassMethod(
+                    method="Root/Jailbreak bypass",
+                    description="App can run on rooted/jailbroken devices without detection",
+                    difficulty="easy",
+                )
+            )
         if not result.hook_detection.detected:
-            result.bypass_methods.append(BypassMethod(
-                method="Frida/Xposed hooking",
-                description="App vulnerable to runtime instrumentation frameworks",
-                difficulty="easy"
-            ))
+            result.bypass_methods.append(
+                BypassMethod(
+                    method="Frida/Xposed hooking",
+                    description="App vulnerable to runtime instrumentation frameworks",
+                    difficulty="easy",
+                )
+            )
         if not result.debug_detection.detected:
-            result.bypass_methods.append(BypassMethod(
-                method="Debugger attachment",
-                description="App can be debugged to analyze runtime behavior",
-                difficulty="easy"
-            ))
+            result.bypass_methods.append(
+                BypassMethod(
+                    method="Debugger attachment",
+                    description="App can be debugged to analyze runtime behavior",
+                    difficulty="easy",
+                )
+            )
 
         return result
 
@@ -960,5 +992,5 @@ class RuntimeProtectionAnalyzer:
 </html>
 """
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(html)

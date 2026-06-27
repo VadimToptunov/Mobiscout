@@ -137,7 +137,7 @@ class TrainingDataGenerator:
         return ElementType.GENERIC
 
     def generate_synthetic_dataset(
-            self, num_samples: int = 1000, output_path: Path = Path("training_data/synthetic_elements.json")
+        self, num_samples: int = 1000, output_path: Path = Path("training_data/synthetic_elements.json")
     ):
         """
         Generate synthetic training dataset with labeled examples.
@@ -207,11 +207,7 @@ class TrainingDataGenerator:
 
         return output_path
 
-    def generate_from_app_model(
-            self,
-            app_model: Dict[str, Any],
-            output_path: Optional[Path] = None
-    ) -> Path:
+    def generate_from_app_model(self, app_model: Dict[str, Any], output_path: Optional[Path] = None) -> Path:
         """
         Generate training data from app model.
 

@@ -38,10 +38,11 @@ def fuzz() -> None:
 
 @fuzz.command()
 @click.option(
-    "--type", "-t",
+    "--type",
+    "-t",
     type=click.Choice(["text", "number", "email", "url", "phone", "password", "json"]),
     default="text",
-    help="Input type to generate"
+    help="Input type to generate",
 )
 @click.option("--count", "-n", type=int, default=20, help="Number of inputs to generate")
 @click.option("--output", "-o", type=click.Path(), help="Output file for inputs")
@@ -53,10 +54,7 @@ def generate(type: str, count: int, output: Optional[str]) -> None:
         observe fuzz generate --type email --count 50
         observe fuzz generate --type text -o fuzz_inputs.json
     """
-    console.print(Panel.fit(
-        f"🎲 Generating {count} {type.upper()} Inputs",
-        style="bold cyan"
-    ))
+    console.print(Panel.fit(f"🎲 Generating {count} {type.upper()} Inputs", style="bold cyan"))
 
     generator = FuzzGenerator()
     input_type = InputType(type)
@@ -77,7 +75,7 @@ def generate(type: str, count: int, output: Optional[str]) -> None:
             str(i),
             value_str,
             fuzz_input.strategy.value,
-            fuzz_input.metadata.get('pattern', '-'),
+            fuzz_input.metadata.get("pattern", "-"),
         )
 
     console.print(table)
@@ -88,20 +86,21 @@ def generate(type: str, count: int, output: Optional[str]) -> None:
     # Save to file if requested
     if output:
         import json
+
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = [
             {
-                'value': str(inp.value),
-                'type': inp.input_type.value,
-                'strategy': inp.strategy.value,
-                'metadata': inp.metadata,
+                "value": str(inp.value),
+                "type": inp.input_type.value,
+                "strategy": inp.strategy.value,
+                "metadata": inp.metadata,
             }
             for inp in inputs
         ]
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Saved to {output_path}")
@@ -118,10 +117,7 @@ def mutate(input_value: str, mutations: int) -> None:
         observe fuzz mutate "test@example.com" --mutations 20
         observe fuzz mutate "password123"
     """
-    console.print(Panel.fit(
-        f"🧬 Mutating Input: '{input_value[:30]}...'",
-        style="bold magenta"
-    ))
+    console.print(Panel.fit(f"🧬 Mutating Input: '{input_value[:30]}...'", style="bold magenta"))
 
     mutator = MutationFuzzer()
     mutated = mutator.mutate(input_value, mutations)
@@ -132,7 +128,7 @@ def mutate(input_value: str, mutations: int) -> None:
     table.add_column("Changes", style="yellow")
 
     for i, fuzz_input in enumerate(mutated, 1):
-        original = fuzz_input.metadata.get('original', '')
+        original = fuzz_input.metadata.get("original", "")
         mutated_val = str(fuzz_input.value)
 
         # Count differences
@@ -147,10 +143,11 @@ def mutate(input_value: str, mutations: int) -> None:
 @fuzz.command()
 @click.argument("target_id")
 @click.option(
-    "--input-type", "-t",
+    "--input-type",
+    "-t",
     type=click.Choice(["text", "number", "email", "url", "phone", "password"]),
     default="text",
-    help="Type of input expected"
+    help="Type of input expected",
 )
 @click.option("--count", "-n", type=int, default=50, help="Number of fuzz inputs")
 @click.option("--output", "-o", type=click.Path(), help="Output file for results")
@@ -162,10 +159,7 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
         observe fuzz ui username_field --input-type text --count 100
         observe fuzz ui email_input --input-type email -o results.json
     """
-    console.print(Panel.fit(
-        f"🎯 Fuzzing UI Element: {target_id}",
-        style="bold cyan"
-    ))
+    console.print(Panel.fit(f"🎯 Fuzzing UI Element: {target_id}", style="bold cyan"))
 
     fuzzer = UIFuzzer()
 
@@ -181,11 +175,7 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
         results = []
         for i in range(count):
             # Simulate fuzzing (in real implementation, this would interact with device)
-            partial_results = fuzzer.fuzz_text_field(
-                target_id,
-                InputType(input_type),
-                count=1
-            )
+            partial_results = fuzzer.fuzz_text_field(target_id, InputType(input_type), count=1)
             results.extend(partial_results)
             progress.update(task, advance=1)
 
@@ -199,18 +189,12 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
     results_table.add_column("Metric", style="cyan")
     results_table.add_column("Value", style="yellow", justify="right")
 
-    results_table.add_row("Total Inputs", str(stats.get('total_inputs', 0)))
+    results_table.add_row("Total Inputs", str(stats.get("total_inputs", 0)))
     results_table.add_row("Successes", f"[green]{stats.get('successes', 0)}[/green]")
     results_table.add_row("Errors", f"[yellow]{stats.get('errors', 0)}[/yellow]")
     results_table.add_row("Crashes", f"[red]{stats.get('crashes', 0)}[/red]")
-    results_table.add_row(
-        "Crash Rate",
-        f"{stats.get('crash_rate', 0) * 100:.2f}%"
-    )
-    results_table.add_row(
-        "Avg Response Time",
-        f"{stats.get('avg_response_time_ms', 0):.2f}ms"
-    )
+    results_table.add_row("Crash Rate", f"{stats.get('crash_rate', 0) * 100:.2f}%")
+    results_table.add_row("Avg Response Time", f"{stats.get('avg_response_time_ms', 0):.2f}ms")
 
     console.print(results_table)
 
@@ -218,10 +202,7 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
     crash_inputs = fuzzer.get_crash_inputs()
     if crash_inputs:
         console.print()
-        console.print(Panel.fit(
-            f"⚠️ {len(crash_inputs)} Crash-Inducing Inputs Found",
-            style="bold red"
-        ))
+        console.print(Panel.fit(f"⚠️ {len(crash_inputs)} Crash-Inducing Inputs Found", style="bold red"))
 
         crash_table = Table()
         crash_table.add_column("Input", style="red", max_width=60)
@@ -230,7 +211,7 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
         for inp in crash_inputs[:5]:
             crash_table.add_row(
                 str(inp.value)[:50],
-                inp.metadata.get('pattern', '-'),
+                inp.metadata.get("pattern", "-"),
             )
 
         console.print(crash_table)
@@ -238,20 +219,18 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
     # Save results
     if output:
         import json
+
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
-            'target': target_id,
-            'input_type': input_type,
-            'statistics': stats,
-            'crash_inputs': [
-                {'value': str(inp.value), 'pattern': inp.metadata.get('pattern')}
-                for inp in crash_inputs
-            ],
+            "target": target_id,
+            "input_type": input_type,
+            "statistics": stats,
+            "crash_inputs": [{"value": str(inp.value), "pattern": inp.metadata.get("pattern")} for inp in crash_inputs],
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Results saved to {output_path}")
@@ -261,20 +240,15 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
 @click.argument("endpoint")
 @click.option("--method", "-m", type=click.Choice(["GET", "POST", "PUT", "DELETE"]), default="POST")
 @click.option(
-    "--param-type", "-t",
+    "--param-type",
+    "-t",
     type=click.Choice(["text", "number", "email", "url", "json"]),
     default="text",
-    help="Parameter type to fuzz"
+    help="Parameter type to fuzz",
 )
 @click.option("--count", "-n", type=int, default=100, help="Number of requests")
 @click.option("--output", "-o", type=click.Path(), help="Output file for results")
-def api(
-    endpoint: str,
-    method: str,
-    param_type: str,
-    count: int,
-    output: Optional[str]
-) -> None:
+def api(endpoint: str, method: str, param_type: str, count: int, output: Optional[str]) -> None:
     """
     Fuzz an API endpoint.
 
@@ -282,10 +256,7 @@ def api(
         observe fuzz api /api/users --method POST --param-type json
         observe fuzz api /api/login --param-type text --count 200
     """
-    console.print(Panel.fit(
-        f"🌐 Fuzzing API: {method} {endpoint}",
-        style="bold cyan"
-    ))
+    console.print(Panel.fit(f"🌐 Fuzzing API: {method} {endpoint}", style="bold cyan"))
 
     fuzzer = APIFuzzer()
 
@@ -298,12 +269,7 @@ def api(
     ) as progress:
         task = progress.add_task(f"Fuzzing {endpoint}...", total=count)
 
-        results = fuzzer.fuzz_endpoint(
-            method,
-            endpoint,
-            InputType(param_type),
-            count
-        )
+        results = fuzzer.fuzz_endpoint(method, endpoint, InputType(param_type), count)
 
         progress.update(task, completed=count)
 
@@ -335,10 +301,7 @@ def api(
     # Vulnerable endpoints
     if vulnerable:
         console.print()
-        console.print(Panel.fit(
-            f"⚠️ {len(vulnerable)} Vulnerable Endpoint(s) Found",
-            style="bold red"
-        ))
+        console.print(Panel.fit(f"⚠️ {len(vulnerable)} Vulnerable Endpoint(s) Found", style="bold red"))
 
         vuln_table = Table()
         vuln_table.add_column("Endpoint", style="red")
@@ -347,9 +310,9 @@ def api(
 
         for v in vulnerable:
             vuln_table.add_row(
-                v['endpoint'],
+                v["endpoint"],
                 f"{v['error_rate'] * 100:.1f}%",
-                str(v.get('crashes', 0)),
+                str(v.get("crashes", 0)),
             )
 
         console.print(vuln_table)
@@ -357,21 +320,22 @@ def api(
     # Save results
     if output:
         import json
+
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
-            'endpoint': endpoint,
-            'method': method,
-            'param_type': param_type,
-            'total_requests': total,
-            'errors': errors,
-            'crashes': crashes,
-            'error_rate': errors / total if total > 0 else 0,
-            'vulnerable_endpoints': vulnerable,
+            "endpoint": endpoint,
+            "method": method,
+            "param_type": param_type,
+            "total_requests": total,
+            "errors": errors,
+            "crashes": crashes,
+            "error_rate": errors / total if total > 0 else 0,
+            "vulnerable_endpoints": vulnerable,
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Results saved to {output_path}")
@@ -395,21 +359,22 @@ def campaign(config: Optional[str], output: str) -> None:
     # Default targets if no config provided
     if config:
         import json
-        with open(config, 'r') as f:
+
+        with open(config, "r") as f:
             config_data = json.load(f)
-        ui_targets = config_data.get('ui_targets', [])
-        api_endpoints = config_data.get('api_endpoints', [])
+        ui_targets = config_data.get("ui_targets", [])
+        api_endpoints = config_data.get("api_endpoints", [])
     else:
         # Demo targets
         ui_targets = [
-            {'id': 'username_input', 'type': 'text_field', 'input_type': 'text'},
-            {'id': 'password_input', 'type': 'text_field', 'input_type': 'password'},
-            {'id': 'email_input', 'type': 'text_field', 'input_type': 'email'},
-            {'id': 'submit_button', 'type': 'button'},
+            {"id": "username_input", "type": "text_field", "input_type": "text"},
+            {"id": "password_input", "type": "text_field", "input_type": "password"},
+            {"id": "email_input", "type": "text_field", "input_type": "email"},
+            {"id": "submit_button", "type": "button"},
         ]
         api_endpoints = [
-            {'method': 'POST', 'endpoint': '/api/login', 'param_type': 'json'},
-            {'method': 'GET', 'endpoint': '/api/users', 'param_type': 'text'},
+            {"method": "POST", "endpoint": "/api/login", "param_type": "json"},
+            {"method": "GET", "endpoint": "/api/users", "param_type": "text"},
         ]
 
     # Run UI campaign
@@ -442,10 +407,10 @@ def campaign(config: Optional[str], output: str) -> None:
     summary_table.add_column("Metric", style="cyan")
     summary_table.add_column("Value", style="yellow", justify="right")
 
-    summary_table.add_row("Total Inputs", str(summary.get('total_inputs', 0)))
+    summary_table.add_row("Total Inputs", str(summary.get("total_inputs", 0)))
     summary_table.add_row("Total Crashes", f"[red]{summary.get('total_crashes', 0)}[/red]")
     summary_table.add_row("Total Errors", f"[yellow]{summary.get('total_errors', 0)}[/yellow]")
-    summary_table.add_row("Campaigns Run", str(len(summary.get('campaigns', []))))
+    summary_table.add_row("Campaigns Run", str(len(summary.get("campaigns", []))))
 
     console.print(summary_table)
 
@@ -471,31 +436,11 @@ def list_strategies() -> None:
     table.add_column("Use Case", style="yellow")
 
     strategies = [
-        (
-            "Random",
-            "Generate completely random inputs",
-            "Initial testing, stress testing"
-        ),
-        (
-            "Mutation",
-            "Mutate valid inputs to create edge cases",
-            "Finding subtle bugs"
-        ),
-        (
-            "Boundary",
-            "Test boundary values (min, max, empty)",
-            "Input validation testing"
-        ),
-        (
-            "Grammar",
-            "Generate inputs based on input grammar",
-            "Protocol fuzzing, format testing"
-        ),
-        (
-            "ML-Assisted",
-            "Use ML to guide input generation (PRO)",
-            "Smart fuzzing, coverage optimization"
-        ),
+        ("Random", "Generate completely random inputs", "Initial testing, stress testing"),
+        ("Mutation", "Mutate valid inputs to create edge cases", "Finding subtle bugs"),
+        ("Boundary", "Test boundary values (min, max, empty)", "Input validation testing"),
+        ("Grammar", "Generate inputs based on input grammar", "Protocol fuzzing, format testing"),
+        ("ML-Assisted", "Use ML to guide input generation (PRO)", "Smart fuzzing, coverage optimization"),
     ]
 
     for name, desc, use_case in strategies:
@@ -531,18 +476,18 @@ def analyze(report_path: str) -> None:
     """
     import json
 
-    with open(report_path, 'r') as f:
+    with open(report_path, "r") as f:
         data = json.load(f)
 
     console.print(Panel.fit("🔍 Fuzzing Analysis", style="bold cyan"))
 
     # Analyze UI results
-    if 'ui' in data:
-        ui = data['ui']
+    if "ui" in data:
+        ui = data["ui"]
         console.print("\n[bold]UI Fuzzing Analysis:[/bold]")
 
-        stats = ui.get('statistics', {})
-        crash_rate = stats.get('crash_rate', 0) * 100
+        stats = ui.get("statistics", {})
+        crash_rate = stats.get("crash_rate", 0) * 100
 
         if crash_rate > 5:
             console.print(f"  [red]⚠️ High crash rate: {crash_rate:.2f}%[/red]")
@@ -552,44 +497,40 @@ def analyze(report_path: str) -> None:
             console.print(f"  [green]✓ Low crash rate: {crash_rate:.2f}%[/green]")
 
         # Analyze targets
-        for target in ui.get('targets', []):
-            if target.get('crashes', 0) > 0:
+        for target in ui.get("targets", []):
+            if target.get("crashes", 0) > 0:
                 console.print(
-                    f"  [red]→ {target['id']}: "
-                    f"{target['crashes']} crashes in {target['inputs']} inputs[/red]"
+                    f"  [red]→ {target['id']}: " f"{target['crashes']} crashes in {target['inputs']} inputs[/red]"
                 )
 
     # Analyze API results
-    if 'api' in data:
-        api = data['api']
+    if "api" in data:
+        api = data["api"]
         console.print("\n[bold]API Fuzzing Analysis:[/bold]")
 
-        vulnerable = api.get('vulnerable_endpoints', [])
+        vulnerable = api.get("vulnerable_endpoints", [])
         if vulnerable:
             console.print(f"  [red]⚠️ {len(vulnerable)} vulnerable endpoint(s) found[/red]")
             for v in vulnerable:
-                console.print(
-                    f"    → {v['endpoint']}: "
-                    f"{v['error_rate'] * 100:.1f}% error rate"
-                )
+                console.print(f"    → {v['endpoint']}: " f"{v['error_rate'] * 100:.1f}% error rate")
         else:
             console.print("  [green]✓ No vulnerable endpoints found[/green]")
 
     # Recommendations
     console.print("\n[bold]Recommendations:[/bold]")
 
-    if 'ui' in data:
+    if "ui" in data:
         crash_inputs = []
-        for target in data['ui'].get('targets', []):
-            if target.get('crashes', 0) > 0:
-                crash_inputs.append(target['id'])
+        for target in data["ui"].get("targets", []):
+            if target.get("crashes", 0) > 0:
+                crash_inputs.append(target["id"])
 
         if crash_inputs:
             console.print("  • Review crash-inducing inputs for UI elements:")
             for inp in crash_inputs:
                 console.print(f"    - {inp}")
 
-    if 'api' in data and data['api'].get('vulnerable_endpoints'):
+    if "api" in data and data["api"].get("vulnerable_endpoints"):
         console.print("  • Add input validation to vulnerable endpoints")
         console.print("  • Implement proper error handling")
         console.print("  • Review API rate limiting")

@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VisualDiff:
     """Represents a visual difference"""
+
     screen_name: str
     baseline_image: Path
     current_image: Path
@@ -55,10 +56,7 @@ class VisualAnalyzer:
         self.diffs: List[VisualDiff] = []
 
     def compare_screenshots(
-            self,
-            screen_name: str,
-            current_image: Path,
-            threshold: float = 0.01
+        self, screen_name: str, current_image: Path, threshold: float = 0.01
     ) -> Optional[VisualDiff]:
         """
         Compare current screenshot with baseline
@@ -92,7 +90,7 @@ class VisualAnalyzer:
             current_image=current_image,
             diff_percentage=diff_percentage,
             diff_regions=diff_regions,
-            threshold=threshold
+            threshold=threshold,
         )
 
         if diff.has_regression:
@@ -124,11 +122,7 @@ class VisualAnalyzer:
             logger.error(f"Error calculating visual diff: {e}")
             return 0.0
 
-    def _find_diff_regions(
-            self,
-            baseline: Path,
-            current: Path
-    ) -> List[Tuple[int, int, int, int]]:
+    def _find_diff_regions(self, baseline: Path, current: Path) -> List[Tuple[int, int, int, int]]:
         """
         Find regions with visual differences
 
@@ -155,11 +149,7 @@ class VisualAnalyzer:
         """Update baseline with current image"""
         self._create_baseline(screen_name, current_image)
 
-    def batch_compare(
-            self,
-            screenshots_dir: Path,
-            threshold: float = 0.01
-    ) -> List[VisualDiff]:
+    def batch_compare(self, screenshots_dir: Path, threshold: float = 0.01) -> List[VisualDiff]:
         """
         Compare all screenshots in directory with baselines
 
@@ -172,7 +162,7 @@ class VisualAnalyzer:
         """
         regressions = []
 
-        for screenshot in screenshots_dir.glob('*.png'):
+        for screenshot in screenshots_dir.glob("*.png"):
             screen_name = screenshot.stem
             diff = self.compare_screenshots(screen_name, screenshot, threshold)
 
@@ -279,12 +269,7 @@ class VisualAnalyzer:
         </div>
 """
 
-        html = html_content.format(
-            total=len(self.diffs),
-            passed=passed,
-            failed=failed,
-            diff_items=diff_items
-        )
+        html = html_content.format(total=len(self.diffs), passed=passed, failed=failed, diff_items=diff_items)
 
         output_path.write_text(html)
         print(f"HTML report generated: {output_path}")

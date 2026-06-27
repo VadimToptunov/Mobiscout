@@ -25,6 +25,7 @@ from typing import List, Dict, Any, Optional
 
 class LogLevel(Enum):
     """Log severity levels"""
+
     DEBUG = "debug"
     INFO = "info"
     WARNING = "warning"
@@ -34,6 +35,7 @@ class LogLevel(Enum):
 
 class APIMethod(Enum):
     """HTTP methods"""
+
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -46,6 +48,7 @@ class APIMethod(Enum):
 @dataclass
 class APICall:
     """Captured API call"""
+
     timestamp: datetime
     method: APIMethod
     url: str
@@ -63,6 +66,7 @@ class APICall:
 @dataclass
 class LogEntry:
     """Log entry"""
+
     timestamp: datetime
     level: LogLevel
     message: str
@@ -75,6 +79,7 @@ class LogEntry:
 @dataclass
 class APIAssertion:
     """Generated assertion for API"""
+
     api_call: str
     assertion_type: str  # status_code, response_contains, response_time, etc.
     expected_value: Any
@@ -85,6 +90,7 @@ class APIAssertion:
 @dataclass
 class LogPattern:
     """Detected log pattern"""
+
     pattern: str
     regex: str
     count: int
@@ -120,13 +126,13 @@ class APIAnalyzer:
             Analysis results with patterns, frequencies, etc.
         """
         analysis = {
-            'total_calls': len(self.api_calls),
-            'by_method': Counter(),
-            'by_status': Counter(),
-            'by_endpoint': Counter(),
-            'avg_response_time': 0.0,
-            'errors': [],
-            'slow_calls': []
+            "total_calls": len(self.api_calls),
+            "by_method": Counter(),
+            "by_status": Counter(),
+            "by_endpoint": Counter(),
+            "avg_response_time": 0.0,
+            "errors": [],
+            "slow_calls": [],
         }
 
         total_duration = 0.0
@@ -134,15 +140,15 @@ class APIAnalyzer:
 
         for call in self.api_calls:
             # Count by method
-            analysis['by_method'][call.method.value] += 1
+            analysis["by_method"][call.method.value] += 1
 
             # Count by status
             if call.response_status:
-                analysis['by_status'][call.response_status] += 1
+                analysis["by_status"][call.response_status] += 1
 
             # Count by endpoint
             endpoint = self._normalize_endpoint(call.url)
-            analysis['by_endpoint'][endpoint] += 1
+            analysis["by_endpoint"][endpoint] += 1
 
             # Calculate avg response time
             if call.duration_ms:
@@ -151,23 +157,23 @@ class APIAnalyzer:
 
                 # Detect slow calls (>1s)
                 if call.duration_ms > 1000:
-                    analysis['slow_calls'].append({
-                        'url': call.url,
-                        'duration_ms': call.duration_ms,
-                        'timestamp': call.timestamp.isoformat()
-                    })
+                    analysis["slow_calls"].append(
+                        {"url": call.url, "duration_ms": call.duration_ms, "timestamp": call.timestamp.isoformat()}
+                    )
 
             # Detect errors
             if call.response_status and call.response_status >= 400:
-                analysis['errors'].append({
-                    'url': call.url,
-                    'status': call.response_status,
-                    'method': call.method.value,
-                    'timestamp': call.timestamp.isoformat()
-                })
+                analysis["errors"].append(
+                    {
+                        "url": call.url,
+                        "status": call.response_status,
+                        "method": call.method.value,
+                        "timestamp": call.timestamp.isoformat(),
+                    }
+                )
 
         if duration_count > 0:
-            analysis['avg_response_time'] = total_duration / duration_count
+            analysis["avg_response_time"] = total_duration / duration_count
 
         return analysis
 
@@ -197,13 +203,15 @@ class APIAnalyzer:
                 confidence = most_common[1] / len(status_codes)
 
                 if confidence >= min_confidence:
-                    assertions.append(APIAssertion(
-                        api_call=endpoint,
-                        assertion_type="status_code",
-                        expected_value=most_common[0],
-                        confidence=confidence,
-                        reason=f"Observed in {most_common[1]}/{len(status_codes)} calls"
-                    ))
+                    assertions.append(
+                        APIAssertion(
+                            api_call=endpoint,
+                            assertion_type="status_code",
+                            expected_value=most_common[0],
+                            confidence=confidence,
+                            reason=f"Observed in {most_common[1]}/{len(status_codes)} calls",
+                        )
+                    )
 
             # Response time assertions
             durations = [c.duration_ms for c in calls if c.duration_ms]
@@ -211,13 +219,15 @@ class APIAnalyzer:
                 avg_duration = sum(durations) / len(durations)
                 max_duration = max(durations)
 
-                assertions.append(APIAssertion(
-                    api_call=endpoint,
-                    assertion_type="response_time",
-                    expected_value=max_duration * 1.5,  # 50% buffer
-                    confidence=0.8,
-                    reason=f"Based on max observed time: {max_duration}ms"
-                ))
+                assertions.append(
+                    APIAssertion(
+                        api_call=endpoint,
+                        assertion_type="response_time",
+                        expected_value=max_duration * 1.5,  # 50% buffer
+                        confidence=0.8,
+                        reason=f"Based on max observed time: {max_duration}ms",
+                    )
+                )
 
         return assertions
 
@@ -228,46 +238,37 @@ class APIAnalyzer:
     def _normalize_endpoint(self, url: str) -> str:
         """Normalize URL to endpoint pattern"""
         # Remove query params
-        url = url.split('?')[0]
+        url = url.split("?")[0]
 
         # Replace IDs with placeholders
-        url = re.sub(r'/\d+', '/{id}', url)
-        url = re.sub(r'/[a-f0-9-]{36}', '/{uuid}', url)
+        url = re.sub(r"/\d+", "/{id}", url)
+        url = re.sub(r"/[a-f0-9-]{36}", "/{uuid}", url)
 
         return url
 
     def export_har(self, output_path: Path):
         """Export API calls in HAR format"""
-        har = {
-            'log': {
-                'version': '1.2',
-                'creator': {
-                    'name': 'Mobile Test Recorder',
-                    'version': '1.0'
-                },
-                'entries': []
-            }
-        }
+        har = {"log": {"version": "1.2", "creator": {"name": "Mobile Test Recorder", "version": "1.0"}, "entries": []}}
 
         for call in self.api_calls:
             entry = {
-                'startedDateTime': call.timestamp.isoformat(),
-                'time': call.duration_ms or 0,
-                'request': {
-                    'method': call.method.value,
-                    'url': call.url,
-                    'headers': [{'name': k, 'value': v} for k, v in call.request_headers.items()],
-                    'bodySize': len(call.request_body) if call.request_body else 0
+                "startedDateTime": call.timestamp.isoformat(),
+                "time": call.duration_ms or 0,
+                "request": {
+                    "method": call.method.value,
+                    "url": call.url,
+                    "headers": [{"name": k, "value": v} for k, v in call.request_headers.items()],
+                    "bodySize": len(call.request_body) if call.request_body else 0,
                 },
-                'response': {
-                    'status': call.response_status or 0,
-                    'headers': [{'name': k, 'value': v} for k, v in (call.response_headers or {}).items()],
-                    'bodySize': len(call.response_body) if call.response_body else 0
-                }
+                "response": {
+                    "status": call.response_status or 0,
+                    "headers": [{"name": k, "value": v} for k, v in (call.response_headers or {}).items()],
+                    "bodySize": len(call.response_body) if call.response_body else 0,
+                },
             }
-            har['log']['entries'].append(entry)
+            har["log"]["entries"].append(entry)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(har, f, indent=2)
 
 
@@ -282,13 +283,13 @@ class LogAnalyzer:
         self.logs: List[LogEntry] = []
         self.patterns: List[LogPattern] = []
         self.error_patterns: List[str] = [
-            r'exception',
-            r'error',
-            r'crash',
-            r'failed',
-            r'timeout',
-            r'null pointer',
-            r'out of memory'
+            r"exception",
+            r"error",
+            r"crash",
+            r"failed",
+            r"timeout",
+            r"null pointer",
+            r"out of memory",
         ]
 
     def add_log(self, log: LogEntry):
@@ -321,8 +322,7 @@ class LogAnalyzer:
         for normalized, logs_list in message_groups.items():
             if len(logs_list) >= min_occurrences:
                 # Check if it's an error pattern
-                is_error = any(re.search(pattern, normalized, re.IGNORECASE)
-                               for pattern in self.error_patterns)
+                is_error = any(re.search(pattern, normalized, re.IGNORECASE) for pattern in self.error_patterns)
 
                 pattern = LogPattern(
                     pattern=normalized,
@@ -330,7 +330,7 @@ class LogAnalyzer:
                     count=len(logs_list),
                     examples=[log.message for log in logs_list[:3]],
                     level=logs_list[0].level,
-                    is_error=is_error
+                    is_error=is_error,
                 )
                 patterns.append(pattern)
 
@@ -342,8 +342,7 @@ class LogAnalyzer:
 
     def find_errors(self) -> List[LogEntry]:
         """Find error logs"""
-        return [log for log in self.logs
-                if log.level in (LogLevel.ERROR, LogLevel.CRITICAL)]
+        return [log for log in self.logs if log.level in (LogLevel.ERROR, LogLevel.CRITICAL)]
 
     def find_warnings(self) -> List[LogEntry]:
         """Find warning logs"""
@@ -360,18 +359,16 @@ class LogAnalyzer:
         Returns:
             Analysis results
         """
-        filtered_logs = [log for log in self.logs
-                         if start <= log.timestamp <= end]
+        filtered_logs = [log for log in self.logs if start <= log.timestamp <= end]
 
         return {
-            'total': len(filtered_logs),
-            'by_level': Counter(log.level.value for log in filtered_logs),
-            'errors': len([l for l in filtered_logs if l.level == LogLevel.ERROR]),
-            'warnings': len([l for l in filtered_logs if l.level == LogLevel.WARNING])
+            "total": len(filtered_logs),
+            "by_level": Counter(log.level.value for log in filtered_logs),
+            "errors": len([l for l in filtered_logs if l.level == LogLevel.ERROR]),
+            "warnings": len([l for l in filtered_logs if l.level == LogLevel.WARNING]),
         }
 
-    def correlate_with_api(self, api_calls: List[APICall],
-                           time_window_ms: int = 5000) -> Dict[APICall, List[LogEntry]]:
+    def correlate_with_api(self, api_calls: List[APICall], time_window_ms: int = 5000) -> Dict[APICall, List[LogEntry]]:
         """
         Correlate logs with API calls
 
@@ -400,16 +397,16 @@ class LogAnalyzer:
     def _normalize_message(self, message: str) -> str:
         """Normalize log message for pattern matching"""
         # Replace numbers
-        message = re.sub(r'\d+', '{number}', message)
+        message = re.sub(r"\d+", "{number}", message)
 
         # Replace hex addresses
-        message = re.sub(r'0x[0-9a-fA-F]+', '{hex}', message)
+        message = re.sub(r"0x[0-9a-fA-F]+", "{hex}", message)
 
         # Replace timestamps
-        message = re.sub(r'\d{2}:\d{2}:\d{2}', '{time}', message)
+        message = re.sub(r"\d{2}:\d{2}:\d{2}", "{time}", message)
 
         # Replace UUIDs
-        message = re.sub(r'[a-f0-9-]{36}', '{uuid}', message)
+        message = re.sub(r"[a-f0-9-]{36}", "{uuid}", message)
 
         return message
 
@@ -419,42 +416,33 @@ class LogAnalyzer:
         pattern = re.escape(normalized)
 
         # Replace placeholders with regex patterns
-        pattern = pattern.replace(r'\{number\}', r'\d+')
-        pattern = pattern.replace(r'\{hex\}', r'0x[0-9a-fA-F]+')
-        pattern = pattern.replace(r'\{time\}', r'\d{2}:\d{2}:\d{2}')
-        pattern = pattern.replace(r'\{uuid\}', r'[a-f0-9-]{36}')
+        pattern = pattern.replace(r"\{number\}", r"\d+")
+        pattern = pattern.replace(r"\{hex\}", r"0x[0-9a-fA-F]+")
+        pattern = pattern.replace(r"\{time\}", r"\d{2}:\d{2}:\d{2}")
+        pattern = pattern.replace(r"\{uuid\}", r"[a-f0-9-]{36}")
 
         return pattern
 
     def export_report(self, output_path: Path):
         """Export analysis report"""
         report = {
-            'summary': {
-                'total_logs': len(self.logs),
-                'errors': len(self.find_errors()),
-                'warnings': len(self.find_warnings()),
-                'patterns_found': len(self.patterns)
+            "summary": {
+                "total_logs": len(self.logs),
+                "errors": len(self.find_errors()),
+                "warnings": len(self.find_warnings()),
+                "patterns_found": len(self.patterns),
             },
-            'patterns': [
-                {
-                    'pattern': p.pattern,
-                    'count': p.count,
-                    'is_error': p.is_error,
-                    'examples': p.examples[:3]
-                }
+            "patterns": [
+                {"pattern": p.pattern, "count": p.count, "is_error": p.is_error, "examples": p.examples[:3]}
                 for p in self.patterns[:10]  # Top 10
             ],
-            'errors': [
-                {
-                    'timestamp': log.timestamp.isoformat(),
-                    'message': log.message,
-                    'source': log.source
-                }
+            "errors": [
+                {"timestamp": log.timestamp.isoformat(), "message": log.message, "source": log.source}
                 for log in self.find_errors()[:20]  # First 20 errors
-            ]
+            ],
         }
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2)
 
 
@@ -485,28 +473,26 @@ class APILogCorrelator:
             # Find related logs
             time_window = timedelta(milliseconds=time_window_ms)
             related_logs = [
-                log for log in self.log_analyzer.logs
+                log
+                for log in self.log_analyzer.logs
                 if abs((log.timestamp - api_call.timestamp).total_seconds() * 1000) <= time_window_ms
             ]
 
-            correlations.append({
-                'api_call': {
-                    'method': api_call.method.value,
-                    'url': api_call.url,
-                    'status': api_call.response_status,
-                    'duration_ms': api_call.duration_ms,
-                    'ui_context': api_call.ui_context
-                },
-                'logs': [
-                    {
-                        'level': log.level.value,
-                        'message': log.message,
-                        'source': log.source
-                    }
-                    for log in related_logs
-                ],
-                'timestamp': api_call.timestamp.isoformat()
-            })
+            correlations.append(
+                {
+                    "api_call": {
+                        "method": api_call.method.value,
+                        "url": api_call.url,
+                        "status": api_call.response_status,
+                        "duration_ms": api_call.duration_ms,
+                        "ui_context": api_call.ui_context,
+                    },
+                    "logs": [
+                        {"level": log.level.value, "message": log.message, "source": log.source} for log in related_logs
+                    ],
+                    "timestamp": api_call.timestamp.isoformat(),
+                }
+            )
 
         return correlations
 
@@ -522,25 +508,29 @@ class APILogCorrelator:
         # Get API assertions
         api_assertions = self.api_analyzer.generate_assertions()
         for assertion in api_assertions:
-            assertions.append({
-                'type': 'api',
-                'api_call': assertion.api_call,
-                'assertion': assertion.assertion_type,
-                'expected': assertion.expected_value,
-                'confidence': assertion.confidence
-            })
+            assertions.append(
+                {
+                    "type": "api",
+                    "api_call": assertion.api_call,
+                    "assertion": assertion.assertion_type,
+                    "expected": assertion.expected_value,
+                    "confidence": assertion.confidence,
+                }
+            )
 
         # Add log-based assertions
         error_patterns = self.log_analyzer.detect_patterns()
         for pattern in error_patterns:
             if pattern.is_error:
-                assertions.append({
-                    'type': 'log',
-                    'pattern': pattern.pattern,
-                    'assertion': 'should_not_occur',
-                    'reason': f'Error pattern occurred {pattern.count} times',
-                    'confidence': 0.9
-                })
+                assertions.append(
+                    {
+                        "type": "log",
+                        "pattern": pattern.pattern,
+                        "assertion": "should_not_occur",
+                        "reason": f"Error pattern occurred {pattern.count} times",
+                        "confidence": 0.9,
+                    }
+                )
 
         return assertions
 
@@ -570,17 +560,17 @@ class APILogModule:
             APICall object
         """
         api_call = APICall(
-            timestamp=kwargs.get('timestamp', datetime.now()),
+            timestamp=kwargs.get("timestamp", datetime.now()),
             method=APIMethod(method.upper()),
             url=url,
-            request_headers=kwargs.get('request_headers', {}),
-            request_body=kwargs.get('request_body'),
-            response_status=kwargs.get('response_status'),
-            response_headers=kwargs.get('response_headers'),
-            response_body=kwargs.get('response_body'),
-            duration_ms=kwargs.get('duration_ms'),
-            ui_context=kwargs.get('ui_context'),
-            ui_action=kwargs.get('ui_action')
+            request_headers=kwargs.get("request_headers", {}),
+            request_body=kwargs.get("request_body"),
+            response_status=kwargs.get("response_status"),
+            response_headers=kwargs.get("response_headers"),
+            response_body=kwargs.get("response_body"),
+            duration_ms=kwargs.get("duration_ms"),
+            ui_context=kwargs.get("ui_context"),
+            ui_action=kwargs.get("ui_action"),
         )
 
         self.api_analyzer.add_api_call(api_call)
@@ -600,13 +590,13 @@ class APILogModule:
             LogEntry object
         """
         log = LogEntry(
-            timestamp=kwargs.get('timestamp', datetime.now()),
+            timestamp=kwargs.get("timestamp", datetime.now()),
             level=LogLevel(level.lower()),
             message=message,
             source=source,
-            thread=kwargs.get('thread'),
-            tag=kwargs.get('tag'),
-            metadata=kwargs.get('metadata', {})
+            thread=kwargs.get("thread"),
+            tag=kwargs.get("tag"),
+            metadata=kwargs.get("metadata", {}),
         )
 
         self.log_analyzer.add_log(log)
@@ -620,17 +610,17 @@ class APILogModule:
             Complete analysis results
         """
         return {
-            'api_analysis': self.api_analyzer.analyze_patterns(),
-            'log_analysis': {
-                'patterns': [
-                    {'pattern': p.pattern, 'count': p.count, 'is_error': p.is_error}
+            "api_analysis": self.api_analyzer.analyze_patterns(),
+            "log_analysis": {
+                "patterns": [
+                    {"pattern": p.pattern, "count": p.count, "is_error": p.is_error}
                     for p in self.log_analyzer.detect_patterns()
                 ],
-                'errors': len(self.log_analyzer.find_errors()),
-                'warnings': len(self.log_analyzer.find_warnings())
+                "errors": len(self.log_analyzer.find_errors()),
+                "warnings": len(self.log_analyzer.find_warnings()),
             },
-            'correlations': len(self.correlator.correlate_all()),
-            'assertions': self.correlator.generate_test_assertions()
+            "correlations": len(self.correlator.correlate_all()),
+            "assertions": self.correlator.generate_test_assertions(),
         }
 
     def export_reports(self, output_dir: Path):
@@ -638,12 +628,12 @@ class APILogModule:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Export API HAR
-        self.api_analyzer.export_har(output_dir / 'api_calls.har')
+        self.api_analyzer.export_har(output_dir / "api_calls.har")
 
         # Export log report
-        self.log_analyzer.export_report(output_dir / 'log_analysis.json')
+        self.log_analyzer.export_report(output_dir / "log_analysis.json")
 
         # Export correlations
         correlations = self.correlator.correlate_all()
-        with open(output_dir / 'correlations.json', 'w') as f:
+        with open(output_dir / "correlations.json", "w") as f:
             json.dump(correlations, f, indent=2)

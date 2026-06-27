@@ -13,15 +13,10 @@ class DeviceManager:
         """List Android devices via adb."""
         devices = []
         try:
-            result = subprocess.run(
-                ["adb", "devices", "-l"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["adb", "devices", "-l"], capture_output=True, text=True, timeout=5)
 
             if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                lines = result.stdout.strip().split("\n")[1:]  # Skip header
                 for line in lines:
                     if line.strip():
                         parts = line.split()
@@ -33,13 +28,15 @@ class DeviceManager:
                             name = DeviceManager._get_android_device_name(device_id)
                             api_level = DeviceManager._get_android_api_level(device_id)
 
-                            devices.append({
-                                "id": device_id,
-                                "name": name,
-                                "platform": "android",
-                                "status": "online" if status == "device" else status,
-                                "api_level": api_level
-                            })
+                            devices.append(
+                                {
+                                    "id": device_id,
+                                    "name": name,
+                                    "platform": "android",
+                                    "status": "online" if status == "device" else status,
+                                    "api_level": api_level,
+                                }
+                            )
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
 
@@ -51,10 +48,7 @@ class DeviceManager:
         devices = []
         try:
             result = subprocess.run(
-                ["xcrun", "simctl", "list", "devices", "-j"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                ["xcrun", "simctl", "list", "devices", "-j"], capture_output=True, text=True, timeout=5
             )
 
             if result.returncode == 0:
@@ -62,13 +56,15 @@ class DeviceManager:
                 for runtime, device_list in data.get("devices", {}).items():
                     for device in device_list:
                         if device.get("isAvailable", False):
-                            devices.append({
-                                "id": device["udid"],
-                                "name": device["name"],
-                                "platform": "ios",
-                                "status": device["state"].lower(),
-                                "ios_version": runtime.split('.')[-1]
-                            })
+                            devices.append(
+                                {
+                                    "id": device["udid"],
+                                    "name": device["name"],
+                                    "platform": "ios",
+                                    "status": device["state"].lower(),
+                                    "ios_version": runtime.split(".")[-1],
+                                }
+                            )
         except (subprocess.TimeoutExpired, FileNotFoundError, json.JSONDecodeError):
             pass
 
@@ -95,7 +91,7 @@ class DeviceManager:
                 ["adb", "-s", device_id, "shell", "getprop", "ro.product.model"],
                 capture_output=True,
                 text=True,
-                timeout=2
+                timeout=2,
             )
             return result.stdout.strip() or device_id
         except (subprocess.SubprocessError, subprocess.TimeoutExpired, OSError):
@@ -109,7 +105,7 @@ class DeviceManager:
                 ["adb", "-s", device_id, "shell", "getprop", "ro.build.version.sdk"],
                 capture_output=True,
                 text=True,
-                timeout=2
+                timeout=2,
             )
             return int(result.stdout.strip())
         except (subprocess.SubprocessError, subprocess.TimeoutExpired, ValueError, OSError):
@@ -140,7 +136,7 @@ class DeviceManager:
             "healthy": device.get("status") in ("online", "booted"),
             "status": device.get("status"),
             "device_id": device_id,
-            "platform": device.get("platform")
+            "platform": device.get("platform"),
         }
 
     @staticmethod

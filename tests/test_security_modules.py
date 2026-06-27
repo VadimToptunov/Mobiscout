@@ -18,29 +18,35 @@ import os
 
 # Import security modules
 from framework.security.sast_analyzer import (
-    SASTAnalyzer, SASTResult, SASTFinding,
-    VulnerabilityType, Severity,
-    TaintAnalyzer, CryptoAnalyzer, InsecureAPIAnalyzer
+    SASTAnalyzer,
+    SASTResult,
+    SASTFinding,
+    VulnerabilityType,
+    Severity,
+    TaintAnalyzer,
+    CryptoAnalyzer,
+    InsecureAPIAnalyzer,
 )
-from framework.security.dast_analyzer import (
-    DASTAnalyzer, DASTResult, DASTFinding,
-    DASTTestType, DASTSeverity
-)
+from framework.security.dast_analyzer import DASTAnalyzer, DASTResult, DASTFinding, DASTTestType, DASTSeverity
 from framework.security.supply_chain import (
-    SupplyChainAnalyzer, SupplyChainResult,
-    DependencyWithVulns, VulnerabilityInfo
+    SupplyChainAnalyzer,
+    SupplyChainResult,
+    DependencyWithVulns,
+    VulnerabilityInfo,
 )
 from framework.security.runtime_protection import (
-    RuntimeProtectionAnalyzer, RuntimeProtectionResult,
-    ProtectionStatus, QuickCheckResult
+    RuntimeProtectionAnalyzer,
+    RuntimeProtectionResult,
+    ProtectionStatus,
+    QuickCheckResult,
 )
-from framework.security.decompiler import (
-    Decompiler, DecompileResult
-)
+from framework.security.decompiler import Decompiler, DecompileResult
 from framework.security.config import (
-    SecurityConfig, SecurityError,
-    get_security_config, is_production_environment,
-    validate_no_hardcoded_secrets
+    SecurityConfig,
+    SecurityError,
+    get_security_config,
+    is_production_environment,
+    validate_no_hardcoded_secrets,
 )
 
 
@@ -56,11 +62,13 @@ class TestSASTAnalyzer:
 
     def test_analyze_simple_python_file(self):
         """Test analyzing a simple Python file"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 def hello():
     print("Hello World")
-""")
+"""
+            )
             f.flush()
 
             analyzer = SASTAnalyzer()
@@ -71,11 +79,13 @@ def hello():
 
     def test_detect_hardcoded_credentials(self):
         """Test detection of hardcoded credentials"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 password = "my_secret_password_123"
 api_key = "AKIAIOSFODNN7EXAMPLE"
-""")
+"""
+            )
             f.flush()
 
             analyzer = SASTAnalyzer()
@@ -83,49 +93,48 @@ api_key = "AKIAIOSFODNN7EXAMPLE"
 
             # Should detect hardcoded credentials
             credential_findings = [
-                f for f in findings
-                if f.vulnerability_type in [
-                    VulnerabilityType.HARDCODED_CREDENTIALS,
-                    VulnerabilityType.HARDCODED_KEY
-                ]
+                f
+                for f in findings
+                if f.vulnerability_type in [VulnerabilityType.HARDCODED_CREDENTIALS, VulnerabilityType.HARDCODED_KEY]
             ]
             assert len(credential_findings) > 0
             os.unlink(f.name)
 
     def test_detect_weak_crypto(self):
         """Test detection of weak cryptographic algorithms"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 import hashlib
 hash = hashlib.md5(data.encode())
-""")
+"""
+            )
             f.flush()
 
             crypto_analyzer = CryptoAnalyzer()
             findings = crypto_analyzer.analyze(Path(f.name))
 
             # Should detect MD5 usage
-            md5_findings = [
-                f for f in findings
-                if 'MD5' in f.title
-            ]
+            md5_findings = [f for f in findings if "MD5" in f.title]
             assert len(md5_findings) > 0
             os.unlink(f.name)
 
     def test_detect_insecure_api(self):
         """Test detection of insecure API usage"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 user_input = input()
 result = eval(user_input)
-""")
+"""
+            )
             f.flush()
 
             api_analyzer = InsecureAPIAnalyzer()
             findings = api_analyzer.analyze(Path(f.name))
 
             # Should detect eval usage
-            eval_findings = [f for f in findings if 'eval' in f.title.lower()]
+            eval_findings = [f for f in findings if "eval" in f.title.lower()]
             assert len(eval_findings) > 0
             os.unlink(f.name)
 
@@ -139,18 +148,18 @@ result = eval(user_input)
                     title="SQL Injection",
                     description="User input in SQL query",
                     file_path="/test.py",
-                    line_number=10
+                    line_number=10,
                 )
             ],
             source_path="/test",
-            files_scanned=1
+            files_scanned=1,
         )
 
         data = result.to_dict()
-        assert data['source_path'] == "/test"
-        assert data['files_scanned'] == 1
-        assert len(data['findings']) == 1
-        assert data['findings'][0]['severity'] == 'high'
+        assert data["source_path"] == "/test"
+        assert data["files_scanned"] == 1
+        assert len(data["findings"]) == 1
+        assert data["findings"][0]["severity"] == "high"
 
     def test_sast_result_summary(self):
         """Test SASTResult summary generation"""
@@ -162,7 +171,7 @@ result = eval(user_input)
                     title="Critical Issue",
                     description="",
                     file_path="/test.py",
-                    line_number=1
+                    line_number=1,
                 ),
                 SASTFinding(
                     vulnerability_type=VulnerabilityType.WEAK_CRYPTO,
@@ -170,15 +179,15 @@ result = eval(user_input)
                     title="High Issue",
                     description="",
                     file_path="/test.py",
-                    line_number=2
+                    line_number=2,
                 ),
             ]
         )
 
         summary = result.get_summary()
-        assert summary['total_findings'] == 2
-        assert summary['critical'] == 1
-        assert summary['high'] == 1
+        assert summary["total_findings"] == 2
+        assert summary["critical"] == 1
+        assert summary["high"] == 1
 
     def test_analyze_directory(self):
         """Test analyzing entire directory"""
@@ -208,8 +217,8 @@ class TestDASTAnalyzer:
         result = analyzer.analyze("localhost", port=8080)
 
         assert isinstance(result, DASTResult)
-        assert hasattr(result, 'findings')
-        assert hasattr(result, 'target')
+        assert hasattr(result, "findings")
+        assert hasattr(result, "target")
 
     def test_dast_result_to_dict(self):
         """Test DASTResult serialization"""
@@ -221,17 +230,17 @@ class TestDASTAnalyzer:
                     title="Weak TLS",
                     description="TLS 1.0 enabled",
                     evidence="TLS 1.0",
-                    recommendation="Disable TLS 1.0"
+                    recommendation="Disable TLS 1.0",
                 )
             ],
             target="example.com",
-            port=443
+            port=443,
         )
 
         data = result.to_dict()
-        assert data['target'] == "example.com"
-        assert data['port'] == 443
-        assert len(data['findings']) == 1
+        assert data["target"] == "example.com"
+        assert data["port"] == 443
+        assert len(data["findings"]) == 1
 
 
 class TestSupplyChainAnalyzer:
@@ -253,26 +262,19 @@ class TestSupplyChainAnalyzer:
             result = analyzer.analyze(Path(tmpdir))
 
             assert isinstance(result, SupplyChainResult)
-            assert hasattr(result, 'dependencies')
-            assert hasattr(result, 'vulnerabilities')
+            assert hasattr(result, "dependencies")
+            assert hasattr(result, "vulnerabilities")
 
     def test_supply_chain_result_to_dict(self):
         """Test SupplyChainResult serialization"""
         result = SupplyChainResult(
-            dependencies=[
-                DependencyWithVulns(
-                    name="requests",
-                    version="2.28.0",
-                    ecosystem="pypi",
-                    vulnerabilities=[]
-                )
-            ],
-            vulnerabilities=[]
+            dependencies=[DependencyWithVulns(name="requests", version="2.28.0", ecosystem="pypi", vulnerabilities=[])],
+            vulnerabilities=[],
         )
 
         data = result.to_dict()
-        assert data['total_dependencies'] == 1
-        assert data['total_vulnerabilities'] == 0
+        assert data["total_dependencies"] == 1
+        assert data["total_vulnerabilities"] == 0
 
 
 class TestRuntimeProtectionAnalyzer:
@@ -285,39 +287,35 @@ class TestRuntimeProtectionAnalyzer:
 
     def test_analyze_returns_result(self):
         """Test analyze method returns RuntimeProtectionResult"""
-        with tempfile.NamedTemporaryFile(suffix='.apk', delete=False) as f:
-            f.write(b'PK')  # Minimal ZIP signature
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f:
+            f.write(b"PK")  # Minimal ZIP signature
             f.flush()
 
             analyzer = RuntimeProtectionAnalyzer()
             result = analyzer.analyze(Path(f.name), platform="android")
 
             assert isinstance(result, RuntimeProtectionResult)
-            assert hasattr(result, 'root_detection')
-            assert hasattr(result, 'ssl_pinning')
+            assert hasattr(result, "root_detection")
+            assert hasattr(result, "ssl_pinning")
             os.unlink(f.name)
 
     def test_quick_check(self):
         """Test quick check functionality"""
-        with tempfile.NamedTemporaryFile(suffix='.apk', delete=False) as f:
-            f.write(b'PK')
+        with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f:
+            f.write(b"PK")
             f.flush()
 
             analyzer = RuntimeProtectionAnalyzer()
             result = analyzer.quick_check(Path(f.name), platform="android")
 
             assert isinstance(result, QuickCheckResult)
-            assert hasattr(result, 'has_root_detection')
-            assert hasattr(result, 'has_ssl_pinning')
+            assert hasattr(result, "has_root_detection")
+            assert hasattr(result, "has_ssl_pinning")
             os.unlink(f.name)
 
     def test_protection_status_fields(self):
         """Test ProtectionStatus fields"""
-        status = ProtectionStatus(
-            detected=True,
-            strength="strong",
-            details="Root detection using SafetyNet"
-        )
+        status = ProtectionStatus(detected=True, strength="strong", details="Root detection using SafetyNet")
 
         assert status.detected is True
         assert status.strength == "strong"
@@ -354,7 +352,7 @@ class TestDecompiler:
             strings=[],
             protections=[],
             hashes={"sha256": "abc123"},
-            metadata={"file_size": 1024}
+            metadata={"file_size": 1024},
         )
 
         # Test property aliases
@@ -410,12 +408,7 @@ class TestSecurityConfig:
 
     def test_sanitize_for_logging(self):
         """Test sensitive data sanitization"""
-        data = {
-            "username": "testuser",
-            "password": "secret123",
-            "api_key": "key123",
-            "normal_field": "visible"
-        }
+        data = {"username": "testuser", "password": "secret123", "api_key": "key123", "normal_field": "visible"}
 
         sanitized = SecurityConfig.sanitize_for_logging(data)
 
@@ -453,40 +446,40 @@ class TestHardcodedSecretsDetection:
 
     def test_detect_api_key(self):
         """Test detection of potential API keys (32+ chars)"""
-        code = '''
+        code = """
 API_KEY = "aVeryLongSecretKeyThatIs32CharsPlus"
-'''
+"""
         issues = validate_no_hardcoded_secrets(code, "test.py")
         # May or may not match depending on patterns - test pattern exists
         assert isinstance(issues, list)
 
     def test_detect_aws_key(self):
         """Test detection of AWS keys pattern"""
-        code = '''
+        code = """
 aws_access_key = "AKIAIOSFODNN7EXAMPLE"
-'''
+"""
         issues = validate_no_hardcoded_secrets(code, "production.py")
         # AWS key pattern: AKIA followed by 16 alphanumeric chars
-        aws_issues = [i for i in issues if 'AWS' in i.get('type', '')]
+        aws_issues = [i for i in issues if "AWS" in i.get("type", "")]
         assert len(aws_issues) >= 0  # Pattern may or may not match
 
     def test_detect_hardcoded_password(self):
         """Test detection of hardcoded passwords"""
-        code = '''
+        code = """
 password = "supersecretpassword123"
-'''
+"""
         issues = validate_no_hardcoded_secrets(code, "production.py")
         # Check that function returns list
         assert isinstance(issues, list)
 
     def test_skip_example_code(self):
         """Test that example code is skipped"""
-        code = '''
+        code = """
 # Example: password = "example_password"
-'''
+"""
         issues = validate_no_hardcoded_secrets(code, "test.py")
         # Should skip lines with "example"
-        assert all('example' not in i.get('snippet', '').lower() for i in issues)
+        assert all("example" not in i.get("snippet", "").lower() for i in issues)
 
 
 class TestTaintAnalyzer:
@@ -501,11 +494,13 @@ class TestTaintAnalyzer:
 
     def test_detect_taint_flow(self):
         """Test detection of taint flow from source to sink"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-            f.write("""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+            f.write(
+                """
 user_input = input("Enter query: ")
 cursor.execute(user_input)
-""")
+"""
+            )
             f.flush()
 
             analyzer = TaintAnalyzer()
@@ -524,7 +519,8 @@ class TestIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a vulnerable Python file
             vuln_file = Path(tmpdir) / "vulnerable.py"
-            vuln_file.write_text("""
+            vuln_file.write_text(
+                """
 import os
 import hashlib
 
@@ -537,7 +533,8 @@ def process_user_input():
     hash = hashlib.md5(password.encode())  # Weak hash
 
     return hash.hexdigest()
-""")
+"""
+            )
 
             analyzer = SASTAnalyzer()
             result = analyzer.analyze(Path(tmpdir))
@@ -547,7 +544,7 @@ def process_user_input():
 
             # Should find multiple vulnerabilities
             summary = result.get_summary()
-            assert summary['total_findings'] > 0
+            assert summary["total_findings"] > 0
 
     def test_export_html_report(self):
         """Test HTML report generation"""
@@ -562,11 +559,11 @@ def process_user_input():
                         file_path="/app/db.py",
                         line_number=42,
                         code_snippet="cursor.execute(query)",
-                        recommendation="Use parameterized queries"
+                        recommendation="Use parameterized queries",
                     )
                 ],
                 source_path="/app",
-                files_scanned=10
+                files_scanned=10,
             )
 
             analyzer = SASTAnalyzer()

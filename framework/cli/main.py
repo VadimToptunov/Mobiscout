@@ -9,6 +9,7 @@ import click
 from framework import __version__
 from framework.cli import ml_selflearn_commands
 from framework.cli.a11y_commands import a11y
+
 # Import command groups
 from framework.cli.business_logic_commands import business
 from framework.cli.fuzz_commands import fuzz

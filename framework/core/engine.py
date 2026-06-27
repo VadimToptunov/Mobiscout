@@ -18,6 +18,7 @@ from typing import List, Dict, Any, Optional
 
 class Language(Enum):
     """Supported programming languages"""
+
     PYTHON = "python"
     JAVA = "java"
     KOTLIN = "kotlin"
@@ -31,6 +32,7 @@ class Language(Enum):
 @dataclass
 class UIElement:
     """Discovered UI element with multi-language selector support"""
+
     id: str
     type: str
     label: Optional[str]
@@ -42,6 +44,11 @@ class UIElement:
 
     def to_selector(self, language: Language) -> str:
         """Generate language-specific selector"""
+        # Without any locator, every branch below would interpolate the literal
+        # "None" into a selector that can never match. Emit a clear marker instead.
+        if not self.id and not self.xpath:
+            return f"# TODO: no stable selector for {self.label or self.type!r}"
+
         if language == Language.PYTHON:
             if self.id:
                 return f'driver.find_element(By.ID, "{self.id}")'
@@ -80,7 +87,9 @@ class UIElement:
         elif language == Language.SWIFT:
             if self.id:
                 return f'app.otherElements["{self.id}"]'
-            return f'app.otherElements.matching(identifier: "{self.id}").element'
+            # fall back to the accessibility id (XCUITest has no XPath); the
+            # old code referenced self.id here too, always yielding "None".
+            return f'app.otherElements["{self.accessibility_id}"]'
 
         return f"# Unsupported language: {language}"
 
@@ -88,6 +97,7 @@ class UIElement:
 @dataclass
 class Screen:
     """Discovered screen with elements and flow connections"""
+
     id: str
     name: str
     elements: List[UIElement]
@@ -96,8 +106,7 @@ class Screen:
 
     def find_interactive_elements(self) -> List[UIElement]:
         """Find elements that can be interacted with"""
-        return [e for e in self.elements
-                if e.enabled and e.type in ('button', 'textfield', 'switch')]
+        return [e for e in self.elements if e.enabled and e.type in ("button", "textfield", "switch")]
 
 
 class CoreEngine:
@@ -116,9 +125,9 @@ class CoreEngine:
         self.config = config or {}
         self.screens: Dict[str, Screen] = {}
         self.flow_graph: Dict[str, List[Dict[str, str]]] = {}
-        self.enabled_modules = self.config.get('enabled_modules', [
-            'ui_discovery', 'flow_builder', 'skeleton_generator'
-        ])
+        self.enabled_modules = self.config.get(
+            "enabled_modules", ["ui_discovery", "flow_builder", "skeleton_generator"]
+        )
 
     def discover_ui(self, source: Dict[str, Any]) -> Screen:
         """
@@ -130,30 +139,24 @@ class CoreEngine:
         Returns:
             Screen object with discovered elements
         """
-        screen_id = source.get('id', f'screen_{len(self.screens)}')
-        screen_name = source.get('name', f'Screen{len(self.screens)}')
+        screen_id = source.get("id", f"screen_{len(self.screens)}")
+        screen_name = source.get("name", f"Screen{len(self.screens)}")
 
         elements = []
-        for elem_data in source.get('elements', []):
+        for elem_data in source.get("elements", []):
             element = UIElement(
-                id=elem_data.get('id', ''),
-                type=elem_data.get('type', 'unknown'),
-                label=elem_data.get('label'),
-                xpath=elem_data.get('xpath'),
-                accessibility_id=elem_data.get('accessibilityId'),
-                bounds=elem_data.get('bounds', {}),
-                visible=elem_data.get('visible', True),
-                enabled=elem_data.get('enabled', True),
+                id=elem_data.get("id", ""),
+                type=elem_data.get("type", "unknown"),
+                label=elem_data.get("label"),
+                xpath=elem_data.get("xpath"),
+                accessibility_id=elem_data.get("accessibilityId"),
+                bounds=elem_data.get("bounds", {}),
+                visible=elem_data.get("visible", True),
+                enabled=elem_data.get("enabled", True),
             )
             elements.append(element)
 
-        screen = Screen(
-            id=screen_id,
-            name=screen_name,
-            elements=elements,
-            transitions=[],
-            api_calls=[]
-        )
+        screen = Screen(id=screen_id, name=screen_name, elements=elements, transitions=[], api_calls=[])
 
         self.screens[screen_id] = screen
         return screen
@@ -167,16 +170,13 @@ class CoreEngine:
             to_screen: Destination screen ID
             action: Action that caused transition
         """
-        if 'flow_builder' not in self.enabled_modules:
+        if "flow_builder" not in self.enabled_modules:
             return
 
         if from_screen not in self.flow_graph:
             self.flow_graph[from_screen] = []
 
-        self.flow_graph[from_screen].append({
-            'to': to_screen,
-            'action': action
-        })
+        self.flow_graph[from_screen].append({"to": to_screen, "action": action})
 
         # Update screen transitions
         if from_screen in self.screens:
@@ -195,7 +195,7 @@ class CoreEngine:
         Returns:
             Generated test code
         """
-        if 'skeleton_generator' not in self.enabled_modules:
+        if "skeleton_generator" not in self.enabled_modules:
             return f"# Skeleton generator disabled\n"
 
         if language == Language.PYTHON:
@@ -233,7 +233,7 @@ class Test{screen.name}:
     
 '''
         for element in screen.find_interactive_elements()[:3]:  # First 3 elements
-            elem_name = (element.label or element.id or 'element').replace(' ', '_').lower()
+            elem_name = (element.label or element.id or "element").replace(" ", "_").lower()
             code += f'''    def test_{elem_name}_visible(self, driver):
         """Test {element.label or element.id} is visible"""
         elem = {element.to_selector(Language.PYTHON)}
@@ -244,7 +244,7 @@ class Test{screen.name}:
 
     def _generate_java_test(self, screen: Screen) -> str:
         """Generate Java/JUnit test"""
-        return f'''package com.tests;
+        return f"""package com.tests;
 
 import org.junit.jupiter.api.*;
 import io.appium.java_client.AppiumDriver;
@@ -268,11 +268,11 @@ public class {screen.name}Test {{
         assertNotNull(driver.getCurrentActivity());
     }}
 }}
-'''
+"""
 
     def _generate_kotlin_test(self, screen: Screen) -> str:
         """Generate Kotlin test"""
-        return f'''package com.tests
+        return f"""package com.tests
 
 import org.junit.jupiter.api.*
 import io.appium.java_client.AppiumDriver
@@ -296,11 +296,11 @@ class {screen.name}Test {{
         assertNotNull(driver.currentActivity)
     }}
 }}
-'''
+"""
 
     def _generate_javascript_test(self, screen: Screen) -> str:
         """Generate JavaScript test"""
-        return f'''// Test for {screen.name}
+        return f"""// Test for {screen.name}
 const {{ remote }} = require('webdriverio');
 
 describe('{screen.name} Tests', () => {{
@@ -316,11 +316,11 @@ describe('{screen.name} Tests', () => {{
         expect(activity).toBeTruthy();
     }});
 }});
-'''
+"""
 
     def _generate_typescript_test(self, screen: Screen) -> str:
         """Generate TypeScript test"""
-        return f'''// Test for {screen.name}
+        return f"""// Test for {screen.name}
 import {{ remote }} from 'webdriverio';
 
 describe('{screen.name} Tests', () => {{
@@ -336,11 +336,11 @@ describe('{screen.name} Tests', () => {{
         expect(activity).toBeTruthy();
     }});
 }});
-'''
+"""
 
     def _generate_csharp_test(self, screen: Screen) -> str:
         """Generate C# test"""
-        return f'''using NUnit.Framework;
+        return f"""using NUnit.Framework;
 using OpenQA.Selenium.Appium;
 
 namespace Tests
@@ -367,11 +367,11 @@ namespace Tests
         }}
     }}
 }}
-'''
+"""
 
     def _generate_go_test(self, screen: Screen) -> str:
         """Generate Go test"""
-        return f'''package tests
+        return f"""package tests
 
 import (
     "testing"
@@ -392,11 +392,11 @@ func Test{screen.name}Loads(t *testing.T) {{
         t.Error("Activity should not be empty")
     }}
 }}
-'''
+"""
 
     def _generate_swift_test(self, screen: Screen) -> str:
         """Generate Swift/XCTest"""
-        return f'''import XCTest
+        return f"""import XCTest
 
 /// Test for {screen.name}
 class {screen.name}Test: XCTestCase {{
@@ -414,16 +414,19 @@ class {screen.name}Test: XCTestCase {{
         XCTAssertTrue(app.otherElements.count > 0)
     }}
 }}
-'''
+"""
 
     def export_flow_graph(self, output_path: Path):
         """Export flow graph to JSON"""
-        with open(output_path, 'w') as f:
-            json.dump({
-                'screens': {sid: {
-                    'name': s.name,
-                    'transitions': s.transitions,
-                    'element_count': len(s.elements)
-                } for sid, s in self.screens.items()},
-                'flow': self.flow_graph
-            }, f, indent=2)
+        with open(output_path, "w") as f:
+            json.dump(
+                {
+                    "screens": {
+                        sid: {"name": s.name, "transitions": s.transitions, "element_count": len(s.elements)}
+                        for sid, s in self.screens.items()
+                    },
+                    "flow": self.flow_graph,
+                },
+                f,
+                indent=2,
+            )

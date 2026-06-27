@@ -13,11 +13,11 @@ from framework.licensing.validator import (
 )
 
 __all__ = [
-    'LicenseValidator',
-    'LicenseTier',
-    'License',
-    'get_validator',
-    'check_feature',
-    'is_pro',
-    'is_enterprise',
+    "LicenseValidator",
+    "LicenseTier",
+    "License",
+    "get_validator",
+    "check_feature",
+    "is_pro",
+    "is_enterprise",
 ]

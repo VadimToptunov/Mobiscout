@@ -19,6 +19,7 @@ from typing import List, Dict, Optional, Set
 @dataclass
 class ProjectStructure:
     """Detected project structure"""
+
     root_dir: Path
     test_framework: str  # pytest, unittest, robot, behave
     page_objects_dir: Optional[Path] = None
@@ -65,7 +66,7 @@ class ProjectStructure:
                 "total_tests": self.total_tests,
                 "total_page_objects": self.total_page_objects,
                 "screens_covered": list(self.screens_covered),
-            }
+            },
         }
 
 
@@ -83,30 +84,15 @@ class ProjectDetector:
         """Scan project and build structure model"""
         print(f"Scanning project: {self.project_dir}")
 
-        structure = ProjectStructure(
-            root_dir=self.project_dir,
-            test_framework=self._detect_test_framework()
-        )
+        structure = ProjectStructure(root_dir=self.project_dir, test_framework=self._detect_test_framework())
 
         # Find directories
-        structure.page_objects_dir = self._find_directory([
-            "page_objects", "pages", "page_object", "pom", "screens"
-        ])
-        structure.tests_dir = self._find_directory([
-            "tests", "test", "test_cases", "testcases", "test_suites"
-        ])
-        structure.fixtures_dir = self._find_directory([
-            "fixtures", "fixture", "test_fixtures"
-        ])
-        structure.utilities_dir = self._find_directory([
-            "utilities", "utils", "helpers", "common"
-        ])
-        structure.data_dir = self._find_directory([
-            "data", "test_data", "testdata", "resources"
-        ])
-        structure.reports_dir = self._find_directory([
-            "reports", "report", "test_reports", "output", "results"
-        ])
+        structure.page_objects_dir = self._find_directory(["page_objects", "pages", "page_object", "pom", "screens"])
+        structure.tests_dir = self._find_directory(["tests", "test", "test_cases", "testcases", "test_suites"])
+        structure.fixtures_dir = self._find_directory(["fixtures", "fixture", "test_fixtures"])
+        structure.utilities_dir = self._find_directory(["utilities", "utils", "helpers", "common"])
+        structure.data_dir = self._find_directory(["data", "test_data", "testdata", "resources"])
+        structure.reports_dir = self._find_directory(["reports", "report", "test_reports", "output", "results"])
 
         # Find files
         if structure.page_objects_dir:
@@ -328,7 +314,7 @@ class ProjectDetector:
         structure = self.scan()
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(structure.to_dict(), f, indent=2)
 
         print(f"\n✓ Analysis saved to: {output_path}")

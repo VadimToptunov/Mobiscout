@@ -33,20 +33,18 @@ class EspressoBackend(MobileAutomationBackend):
             supports_type=True,
             supports_gestures=True,
             requires_app_modification=True,  # Needs test APK
-            execution_speed="fast"
+            execution_speed="fast",
         )
 
-    def start_session(self, device_id: str, app_path: Optional[str] = None,
-                      capabilities: Optional[Dict[str, Any]] = None) -> str:
+    def start_session(
+        self, device_id: str, app_path: Optional[str] = None, capabilities: Optional[Dict[str, Any]] = None
+    ) -> str:
         """Start Espresso session (simplified)."""
         import uuid
+
         session_id = str(uuid.uuid4())
 
-        self.sessions[session_id] = {
-            "device_id": device_id,
-            "app_path": app_path,
-            "started": True
-        }
+        self.sessions[session_id] = {"device_id": device_id, "app_path": app_path, "started": True}
 
         # In full implementation: install test APK, start test runner
         return session_id
@@ -64,11 +62,7 @@ class EspressoBackend(MobileAutomationBackend):
 
         device_id = session["device_id"]
 
-        result = subprocess.run(
-            ["adb", "-s", device_id, "exec-out", "screencap", "-p"],
-            capture_output=True,
-            timeout=5
-        )
+        result = subprocess.run(["adb", "-s", device_id, "exec-out", "screencap", "-p"], capture_output=True, timeout=5)
 
         return result.stdout
 
@@ -81,17 +75,14 @@ class EspressoBackend(MobileAutomationBackend):
         device_id = session["device_id"]
 
         # Dump UI hierarchy
-        subprocess.run(
-            ["adb", "-s", device_id, "shell", "uiautomator", "dump", "/sdcard/window_dump.xml"],
-            timeout=5
-        )
+        subprocess.run(["adb", "-s", device_id, "shell", "uiautomator", "dump", "/sdcard/window_dump.xml"], timeout=5)
 
         # Pull file
         result = subprocess.run(
             ["adb", "-s", device_id, "shell", "cat", "/sdcard/window_dump.xml"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         return result.stdout
@@ -103,13 +94,11 @@ class EspressoBackend(MobileAutomationBackend):
             raise ValueError(f"Session not found: {session_id}")
 
         device_id = session["device_id"]
-        subprocess.run(
-            ["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)],
-            timeout=2
-        )
+        subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
 
-    def swipe(self, session_id: str, start_x: int, start_y: int,
-              end_x: int, end_y: int, duration_ms: int = 300) -> None:
+    def swipe(
+        self, session_id: str, start_x: int, start_y: int, end_x: int, end_y: int, duration_ms: int = 300
+    ) -> None:
         """Swipe via adb input."""
         session = self.sessions.get(session_id)
         if not session:
@@ -117,9 +106,20 @@ class EspressoBackend(MobileAutomationBackend):
 
         device_id = session["device_id"]
         subprocess.run(
-            ["adb", "-s", device_id, "shell", "input", "swipe",
-             str(start_x), str(start_y), str(end_x), str(end_y), str(duration_ms)],
-            timeout=2
+            [
+                "adb",
+                "-s",
+                device_id,
+                "shell",
+                "input",
+                "swipe",
+                str(start_x),
+                str(start_y),
+                str(end_x),
+                str(end_y),
+                str(duration_ms),
+            ],
+            timeout=2,
         )
 
     def type_text(self, session_id: str, text: str, element_id: Optional[str] = None) -> None:
@@ -130,10 +130,7 @@ class EspressoBackend(MobileAutomationBackend):
 
         device_id = session["device_id"]
         escaped_text = text.replace(" ", "%s")
-        subprocess.run(
-            ["adb", "-s", device_id, "shell", "input", "text", escaped_text],
-            timeout=2
-        )
+        subprocess.run(["adb", "-s", device_id, "shell", "input", "text", escaped_text], timeout=2)
 
     def find_element(self, session_id: str, strategy: str, value: str) -> Optional[str]:
         """Find element via UI hierarchy (simplified)."""

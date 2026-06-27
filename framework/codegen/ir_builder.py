@@ -36,9 +36,7 @@ def _selector_for(element: UIElement) -> Selector:
     """
     candidates: List[Selector] = []
     if element.accessibility_id:
-        candidates.append(
-            Selector(SelectorStrategy.ACCESSIBILITY_ID, element.accessibility_id, score=0.95)
-        )
+        candidates.append(Selector(SelectorStrategy.ACCESSIBILITY_ID, element.accessibility_id, score=0.95))
     if element.id:
         candidates.append(Selector(SelectorStrategy.ID, element.id, score=0.90))
     if element.label:
@@ -72,9 +70,7 @@ def build_smoke_model(
     interactive elements are visible. One TestCase per screen."""
     cases: List[TestCase] = []
     for screen in screens:
-        steps: List[Step] = [
-            Step(ActionType.LAUNCH, description=f"Open {screen.name or screen.id}")
-        ]
+        steps: List[Step] = [Step(ActionType.LAUNCH, description=f"Open {screen.name or screen.id}")]
         for element in screen.find_interactive_elements():
             try:
                 selector = _selector_for(element)
@@ -89,8 +85,9 @@ def build_smoke_model(
                 )
             )
         if len(steps) > 1:  # only emit a case that actually checks something
-            cases.append(TestCase(name=_case_name(screen), steps=steps,
-                                  description=f"Smoke test for {screen.name or screen.id}"))
+            cases.append(
+                TestCase(name=_case_name(screen), steps=steps, description=f"Smoke test for {screen.name or screen.id}")
+            )
 
     return TestModel(
         name=suite_name,

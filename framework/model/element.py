@@ -16,19 +16,16 @@ class Element(BaseModel):
 
     Represents a single interactive or visible element on screen
     """
+
     id: str = Field(..., description="Unique element identifier")
     type: ElementType = Field(..., description="Element type")
     selector: Selector = Field(..., description="Element selector")
     text: Optional[str] = Field(None, description="Visible text content")
     capabilities: List[str] = Field(
-        default_factory=list,
-        description="Element capabilities (tappable, input, scrollable, etc.)"
+        default_factory=list, description="Element capabilities (tappable, input, scrollable, etc.)"
     )
     test_priority: TestPriority = TestPriority.MEDIUM
-    visible_when: Optional[List[str]] = Field(
-        None,
-        description="Conditions when element is visible"
-    )
+    visible_when: Optional[List[str]] = Field(None, description="Conditions when element is visible")
     description: Optional[str] = None
 
     model_config = {
@@ -36,12 +33,9 @@ class Element(BaseModel):
             "example": {
                 "id": "login_button",
                 "type": "button",
-                "selector": {
-                    "android": "id:login_btn",
-                    "ios": "accessibility:login_btn"
-                },
+                "selector": {"android": "id:login_btn", "ios": "accessibility:login_btn"},
                 "capabilities": ["tappable"],
-                "test_priority": "high"
+                "test_priority": "high",
             }
         }
     }
@@ -53,18 +47,13 @@ class Action(BaseModel):
 
     Represents a recorded or possible action that triggers state changes
     """
+
     name: str = Field(..., description="Action name")
     ui_action: ActionType = Field(..., description="Type of UI interaction")
     element_id: str = Field(..., description="Target element ID")
     api_call: Optional[str] = Field(None, description="Triggered API call")
-    transitions: Dict[str, str] = Field(
-        default_factory=dict,
-        description="State transitions (success/failure/cancel)"
-    )
-    validation: Optional[str] = Field(
-        None,
-        description="Validation rule for this action"
-    )
+    transitions: Dict[str, str] = Field(default_factory=dict, description="State transitions (success/failure/cancel)")
+    validation: Optional[str] = Field(None, description="Validation rule for this action")
 
     model_config = {
         "json_schema_extra": {
@@ -73,10 +62,7 @@ class Action(BaseModel):
                 "ui_action": "tap",
                 "element_id": "login_button",
                 "api_call": "auth_login",
-                "transitions": {
-                    "success": "HomeScreen",
-                    "failure": "LoginErrorScreen"
-                }
+                "transitions": {"success": "HomeScreen", "failure": "LoginErrorScreen"},
             }
         }
     }

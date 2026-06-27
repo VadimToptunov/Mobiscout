@@ -18,6 +18,7 @@ from typing import Dict, Any, List, Optional
 @dataclass
 class BackendCapability:
     """Describes what a backend can do."""
+
     name: str
     supports_ios: bool
     supports_android: bool
@@ -41,11 +42,12 @@ class MobileAutomationBackend(ABC):
         pass
 
     @abstractmethod
-    def start_session(self, device_id: str, app_path: Optional[str] = None,
-                      capabilities: Optional[Dict[str, Any]] = None) -> str:
+    def start_session(
+        self, device_id: str, app_path: Optional[str] = None, capabilities: Optional[Dict[str, Any]] = None
+    ) -> str:
         """
         Start automation session.
-        
+
         Returns:
             session_id: Unique session identifier
         """
@@ -60,7 +62,7 @@ class MobileAutomationBackend(ABC):
     def get_screenshot(self, session_id: str) -> bytes:
         """
         Capture device screenshot.
-        
+
         Returns:
             PNG image bytes
         """
@@ -70,7 +72,7 @@ class MobileAutomationBackend(ABC):
     def get_ui_tree(self, session_id: str) -> str:
         """
         Get UI element tree.
-        
+
         Returns:
             XML or JSON string representing UI hierarchy
         """
@@ -82,8 +84,9 @@ class MobileAutomationBackend(ABC):
         pass
 
     @abstractmethod
-    def swipe(self, session_id: str, start_x: int, start_y: int,
-              end_x: int, end_y: int, duration_ms: int = 300) -> None:
+    def swipe(
+        self, session_id: str, start_x: int, start_y: int, end_x: int, end_y: int, duration_ms: int = 300
+    ) -> None:
         """Swipe gesture."""
         pass
 
@@ -96,11 +99,11 @@ class MobileAutomationBackend(ABC):
     def find_element(self, session_id: str, strategy: str, value: str) -> Optional[str]:
         """
         Find element by selector.
-        
+
         Args:
             strategy: "id", "xpath", "accessibility_id", "class_name", etc.
             value: Selector value
-            
+
         Returns:
             element_id or None
         """
@@ -110,7 +113,7 @@ class MobileAutomationBackend(ABC):
     def get_element_bounds(self, session_id: str, element_id: str) -> Dict[str, int]:
         """
         Get element bounds.
-        
+
         Returns:
             {"x": int, "y": int, "width": int, "height": int}
         """

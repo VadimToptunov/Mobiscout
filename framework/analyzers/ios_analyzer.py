@@ -136,12 +136,11 @@ class IOSAnalyzer:
 
             # Check if this is a screen (has navigationTitle or is a primary view)
             is_screen = (
-                    "navigationTitle" in body_content
-                    or "NavigationView" in body_content
-                    or "TabView" in body_content
-                    or view_name
-                    in ["ContentView", "OnboardingView", "LoginView", "HomeView", "KYCView", "TopUpView",
-                        "SendMoneyView"]
+                "navigationTitle" in body_content
+                or "NavigationView" in body_content
+                or "TabView" in body_content
+                or view_name
+                in ["ContentView", "OnboardingView", "LoginView", "HomeView", "KYCView", "TopUpView", "SendMoneyView"]
             )
 
             if is_screen:
@@ -165,7 +164,7 @@ class IOSAnalyzer:
         return screens, elements
 
     def _extract_elements_from_view(
-            self, screen_name: str, full_content: str, view_body_start: int, file_path: Path
+        self, screen_name: str, full_content: str, view_body_start: int, file_path: Path
     ) -> List[UIElementCandidate]:
         """Extract UI elements with accessibility identifiers from view"""
         elements = []

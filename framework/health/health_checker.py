@@ -16,7 +16,7 @@ class HealthChecker:
     def check(self) -> Dict[str, Any]:
         """
         Perform health check.
-        
+
         Returns:
             Dict containing health status
         """
@@ -26,6 +26,7 @@ class HealthChecker:
         rust_core_available = False
         try:
             import observe_core
+
             rust_core_available = True
         except ImportError:
             pass
@@ -34,7 +35,7 @@ class HealthChecker:
 
         return {
             "status": "ok",
-            "version": __version__ if hasattr(__version__, '__version__') else "0.5.0",
+            "version": __version__ if hasattr(__version__, "__version__") else "0.5.0",
             "rust_core": rust_core_available,
-            "uptime_seconds": uptime
+            "uptime_seconds": uptime,
         }

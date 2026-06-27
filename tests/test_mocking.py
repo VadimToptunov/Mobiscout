@@ -29,22 +29,12 @@ class TestMockStorage:
         session_id = "test-session"
 
         request = MockRequest(
-            method="GET",
-            url="https://api.example.com/users",
-            headers={"Authorization": "Bearer token"}
+            method="GET", url="https://api.example.com/users", headers={"Authorization": "Bearer token"}
         )
 
-        response = MockResponse(
-            status_code=200,
-            headers={"Content-Type": "application/json"},
-            body='{"users": []}'
-        )
+        response = MockResponse(status_code=200, headers={"Content-Type": "application/json"}, body='{"users": []}')
 
-        mock_entry = MockEntry(
-            request=request,
-            response=response,
-            session_id=session_id
-        )
+        mock_entry = MockEntry(request=request, response=response, session_id=session_id)
 
         # Save
         temp_storage.save_session(session_id, [mock_entry])
@@ -65,7 +55,7 @@ class TestMockStorage:
             mock = MockEntry(
                 request=MockRequest(method="GET", url="/test", headers={}),
                 response=MockResponse(status_code=200, headers={}, body="{}"),
-                session_id=session_id
+                session_id=session_id,
             )
             temp_storage.save_session(session_id, [mock])
 
@@ -81,7 +71,7 @@ class TestMockStorage:
         mock = MockEntry(
             request=MockRequest(method="GET", url="/test", headers={}),
             response=MockResponse(status_code=200, headers={}, body="{}"),
-            session_id=session_id
+            session_id=session_id,
         )
 
         temp_storage.save_session(session_id, [mock])
@@ -96,7 +86,7 @@ class TestMockStorage:
         mock = MockEntry(
             request=MockRequest(method="GET", url="/test", headers={}),
             response=MockResponse(status_code=200, headers={}, body="{}"),
-            session_id=session_id
+            session_id=session_id,
         )
 
         temp_storage.save_session(session_id, [mock])
@@ -116,11 +106,7 @@ class TestMockRequest:
 
     def test_exact_match(self):
         """Test exact URL and method matching"""
-        request = MockRequest(
-            method="GET",
-            url="https://api.example.com/users",
-            headers={}
-        )
+        request = MockRequest(method="GET", url="https://api.example.com/users", headers={})
 
         assert request.matches("GET", "https://api.example.com/users") is True
         assert request.matches("POST", "https://api.example.com/users") is False
@@ -128,46 +114,22 @@ class TestMockRequest:
 
     def test_trailing_slash_normalization(self):
         """Test that trailing slashes are normalized"""
-        request = MockRequest(
-            method="GET",
-            url="https://api.example.com/users/",
-            headers={}
-        )
+        request = MockRequest(method="GET", url="https://api.example.com/users/", headers={})
 
         assert request.matches("GET", "https://api.example.com/users") is True
         assert request.matches("GET", "https://api.example.com/users/") is True
 
     def test_strict_body_matching(self):
         """Test strict mode with body matching"""
-        request = MockRequest(
-            method="POST",
-            url="https://api.example.com/users",
-            headers={},
-            body='{"name": "John"}'
-        )
+        request = MockRequest(method="POST", url="https://api.example.com/users", headers={}, body='{"name": "John"}')
 
         # Fuzzy mode - ignores body
-        assert request.matches(
-            "POST",
-            "https://api.example.com/users",
-            body='{"name": "Jane"}',
-            strict=False
-        ) is True
+        assert request.matches("POST", "https://api.example.com/users", body='{"name": "Jane"}', strict=False) is True
 
         # Strict mode - requires exact body match
-        assert request.matches(
-            "POST",
-            "https://api.example.com/users",
-            body='{"name": "Jane"}',
-            strict=True
-        ) is False
+        assert request.matches("POST", "https://api.example.com/users", body='{"name": "Jane"}', strict=True) is False
 
-        assert request.matches(
-            "POST",
-            "https://api.example.com/users",
-            body='{"name": "John"}',
-            strict=True
-        ) is True
+        assert request.matches("POST", "https://api.example.com/users", body='{"name": "John"}', strict=True) is True
 
 
 class TestAPIMocker:
@@ -193,7 +155,7 @@ class TestAPIMocker:
             response_status=200,
             response_headers={"Content-Type": "application/json"},
             response_body='{"users": []}',
-            latency_ms=100
+            latency_ms=100,
         )
 
         stats = mocker.stop()
@@ -213,17 +175,14 @@ class TestAPIMocker:
             response_status=200,
             response_headers={"Content-Type": "application/json"},
             response_body='{"users": ["Alice", "Bob"]}',
-            latency_ms=100
+            latency_ms=100,
         )
         mocker.stop()
 
         # Replay
         mocker.start_replay("test-replay")
 
-        response = mocker.intercept_request(
-            method="GET",
-            url="https://api.example.com/users"
-        )
+        response = mocker.intercept_request(method="GET", url="https://api.example.com/users")
 
         assert response is not None
         assert response["status_code"] == 200
@@ -241,8 +200,8 @@ class TestAPIMocker:
             request_body=None,
             response_status=200,
             response_headers={},
-            response_body='{}',
-            latency_ms=100
+            response_body="{}",
+            latency_ms=100,
         )
         mocker.stop()
 
@@ -279,9 +238,9 @@ class TestAPIMocker:
                                                 "type": "object",
                                                 "properties": {
                                                     "id": {"type": "integer", "example": 1},
-                                                    "name": {"type": "string", "example": "John"}
-                                                }
-                                            }
+                                                    "name": {"type": "string", "example": "John"},
+                                                },
+                                            },
                                         }
                                     }
                                 }
@@ -297,17 +256,14 @@ class TestAPIMocker:
                                     "application/json": {
                                         "schema": {
                                             "type": "object",
-                                            "properties": {
-                                                "id": {"type": "integer"},
-                                                "name": {"type": "string"}
-                                            }
+                                            "properties": {"id": {"type": "integer"}, "name": {"type": "string"}},
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
+                },
             }
         }
 
@@ -335,7 +291,7 @@ class TestMockSession:
             response_status=200,
             response_headers={},
             response_body="{}",
-            latency_ms=100
+            latency_ms=100,
         )
 
         stats = session.get_stats()
@@ -350,7 +306,7 @@ class TestMockSession:
         mock = MockEntry(
             request=MockRequest(method="GET", url="/test", headers={}),
             response=MockResponse(status_code=200, headers={}, body="{}"),
-            session_id="count-test"
+            session_id="count-test",
         )
         temp_storage.save_session("count-test", [mock])
 
@@ -377,7 +333,7 @@ def test_integration_record_and_replay(mocker):
         response_status=200,
         response_headers={"Content-Type": "application/json"},
         response_body='{"token": "abc123"}',
-        latency_ms=150
+        latency_ms=150,
     )
 
     mocker.record_response(
@@ -388,7 +344,7 @@ def test_integration_record_and_replay(mocker):
         response_status=200,
         response_headers={"Content-Type": "application/json"},
         response_body='{"id": 1, "name": "Test User"}',
-        latency_ms=100
+        latency_ms=100,
     )
 
     record_stats = mocker.stop()
@@ -402,7 +358,7 @@ def test_integration_record_and_replay(mocker):
         method="POST",
         url="https://api.example.com/auth/login",
         headers={"Content-Type": "application/json"},
-        body='{"username": "test", "password": "pass"}'
+        body='{"username": "test", "password": "pass"}',
     )
 
     assert login_response is not None
@@ -411,9 +367,7 @@ def test_integration_record_and_replay(mocker):
 
     # Test user profile
     profile_response = mocker.intercept_request(
-        method="GET",
-        url="https://api.example.com/users/me",
-        headers={"Authorization": "Bearer abc123"}
+        method="GET", url="https://api.example.com/users/me", headers={"Authorization": "Bearer abc123"}
     )
 
     assert profile_response is not None

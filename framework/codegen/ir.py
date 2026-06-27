@@ -20,17 +20,19 @@ from typing import Any, Dict, List, Optional
 
 class ActionType(Enum):
     """A single interaction the test performs."""
-    LAUNCH = "launch"        # start the app under test
-    TAP = "tap"              # tap an element
-    TYPE = "type"            # type text into an element
-    SWIPE = "swipe"          # swipe in a direction
-    WAIT = "wait"            # wait for an element / timeout
-    BACK = "back"            # press the system back button
-    ASSERT = "assert"        # verify an expectation
+
+    LAUNCH = "launch"  # start the app under test
+    TAP = "tap"  # tap an element
+    TYPE = "type"  # type text into an element
+    SWIPE = "swipe"  # swipe in a direction
+    WAIT = "wait"  # wait for an element / timeout
+    BACK = "back"  # press the system back button
+    ASSERT = "assert"  # verify an expectation
 
 
 class AssertionType(Enum):
     """The expectation checked by an ``ASSERT`` action."""
+
     VISIBLE = "visible"
     NOT_VISIBLE = "not_visible"
     ENABLED = "enabled"
@@ -41,6 +43,7 @@ class SelectorStrategy(Enum):
     """Abstract locator strategy. Each emitter maps these to its own binding
     (e.g. AppiumBy.ID for Python, By.id(...) for Java). Keeping the strategy
     abstract is what keeps the IR language-agnostic."""
+
     ID = "id"
     ACCESSIBILITY_ID = "accessibility_id"
     XPATH = "xpath"
@@ -55,6 +58,7 @@ class Selector:
     ``score`` is the stability score (0..1) from selector_scorer; emitters may
     surface it as a comment so a human can see how fragile a locator is.
     """
+
     strategy: SelectorStrategy
     value: str
     score: float = 1.0
@@ -84,13 +88,14 @@ class Selector:
 @dataclass
 class Step:
     """One step of a test case."""
+
     action: ActionType
     selector: Optional[Selector] = None
-    text: Optional[str] = None                  # for TYPE
-    assertion: Optional[AssertionType] = None   # for ASSERT
-    expected: Optional[str] = None              # for ASSERT TEXT_EQUALS
-    direction: Optional[str] = None             # for SWIPE: up/down/left/right
-    timeout: Optional[float] = None             # for WAIT
+    text: Optional[str] = None  # for TYPE
+    assertion: Optional[AssertionType] = None  # for ASSERT
+    expected: Optional[str] = None  # for ASSERT TEXT_EQUALS
+    direction: Optional[str] = None  # for SWIPE: up/down/left/right
+    timeout: Optional[float] = None  # for WAIT
     description: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
@@ -128,6 +133,7 @@ class Step:
 @dataclass
 class TestCase:
     """A named sequence of steps — typically one path through the app flow."""
+
     __test__ = False  # not a pytest test class despite the name
     name: str
     steps: List[Step] = field(default_factory=list)
@@ -157,12 +163,13 @@ class Platform(Enum):
 @dataclass
 class TestModel:
     """A full generated test suite, ready to hand to any emitter."""
+
     __test__ = False  # not a pytest test class despite the name
-    name: str                                 # suite / class name, e.g. "LoginFlow"
-    app_package: str                            # app under test, e.g. "com.example.app"
+    name: str  # suite / class name, e.g. "LoginFlow"
+    app_package: str  # app under test, e.g. "com.example.app"
     platform: Platform = Platform.ANDROID
     cases: List[TestCase] = field(default_factory=list)
-    app_activity: Optional[str] = None          # Android entry activity
+    app_activity: Optional[str] = None  # Android entry activity
     description: str = ""
 
     def to_dict(self) -> Dict[str, Any]:

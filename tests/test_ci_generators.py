@@ -44,9 +44,7 @@ class TestGitHubActionsGenerator:
     def test_generate_basic_workflow_multiple_platforms(self) -> None:
         """Test basic workflow with multiple platforms"""
         generator = GitHubActionsGenerator()
-        workflow_yaml = generator.generate_basic_workflow(
-            platforms=["android", "ios"]
-        )
+        workflow_yaml = generator.generate_basic_workflow(platforms=["android", "ios"])
 
         workflow = yaml.safe_load(workflow_yaml)
 
@@ -56,9 +54,7 @@ class TestGitHubActionsGenerator:
     def test_generate_basic_workflow_custom_triggers(self) -> None:
         """Test basic workflow with custom triggers"""
         generator = GitHubActionsGenerator()
-        workflow_yaml = generator.generate_basic_workflow(
-            triggers=["push", "schedule"]
-        )
+        workflow_yaml = generator.generate_basic_workflow(triggers=["push", "schedule"])
 
         workflow = yaml.safe_load(workflow_yaml)
 
@@ -68,17 +64,13 @@ class TestGitHubActionsGenerator:
     def test_generate_basic_workflow_python_version(self) -> None:
         """Test basic workflow with custom Python version"""
         generator = GitHubActionsGenerator()
-        workflow_yaml = generator.generate_basic_workflow(
-            python_version="3.11"
-        )
+        workflow_yaml = generator.generate_basic_workflow(python_version="3.11")
 
         workflow = yaml.safe_load(workflow_yaml)
         steps = workflow["jobs"]["test-android"]["steps"]
 
         # Find Python setup step
-        python_step = next(
-            (s for s in steps if s.get("name") == "Set up Python"), None
-        )
+        python_step = next((s for s in steps if s.get("name") == "Set up Python"), None)
         assert python_step is not None
         assert python_step["with"]["python-version"] == "3.11"
 
@@ -96,9 +88,7 @@ class TestGitHubActionsGenerator:
     def test_generate_advanced_workflow_with_browserstack(self) -> None:
         """Test advanced workflow with BrowserStack enabled"""
         generator = GitHubActionsGenerator()
-        workflow_yaml = generator.generate_advanced_workflow(
-            use_browserstack=True
-        )
+        workflow_yaml = generator.generate_advanced_workflow(use_browserstack=True)
 
         workflow = yaml.safe_load(workflow_yaml)
 
@@ -108,9 +98,7 @@ class TestGitHubActionsGenerator:
     def test_generate_advanced_workflow_with_slack(self) -> None:
         """Test advanced workflow with Slack notifications"""
         generator = GitHubActionsGenerator()
-        workflow_yaml = generator.generate_advanced_workflow(
-            notify_slack=True
-        )
+        workflow_yaml = generator.generate_advanced_workflow(notify_slack=True)
 
         workflow = yaml.safe_load(workflow_yaml)
 
@@ -119,9 +107,7 @@ class TestGitHubActionsGenerator:
     def test_generate_advanced_workflow_with_artifacts(self) -> None:
         """Test advanced workflow with artifact upload"""
         generator = GitHubActionsGenerator()
-        workflow_yaml = generator.generate_advanced_workflow(
-            upload_artifacts=True
-        )
+        workflow_yaml = generator.generate_advanced_workflow(upload_artifacts=True)
 
         workflow = yaml.safe_load(workflow_yaml)
 
@@ -149,9 +135,7 @@ class TestGitHubActionsGenerator:
 
         with TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir)
-            generator.save_workflow(
-                workflow_yaml, output_dir, filename="mobile-tests.yml"
-            )
+            generator.save_workflow(workflow_yaml, output_dir, filename="mobile-tests.yml")
 
             expected_path = output_dir / ".github" / "workflows" / "mobile-tests.yml"
             assert expected_path.exists()
@@ -184,9 +168,7 @@ class TestGitLabCIGenerator:
     def test_generate_basic_pipeline_multiple_platforms(self) -> None:
         """Test basic pipeline with multiple platforms"""
         generator = GitLabCIGenerator()
-        pipeline_yaml = generator.generate_basic_pipeline(
-            platforms=["android", "ios"]
-        )
+        pipeline_yaml = generator.generate_basic_pipeline(platforms=["android", "ios"])
 
         pipeline = yaml.safe_load(pipeline_yaml)
 
@@ -196,9 +178,7 @@ class TestGitLabCIGenerator:
     def test_generate_basic_pipeline_python_version(self) -> None:
         """Test basic pipeline with custom Python version"""
         generator = GitLabCIGenerator()
-        pipeline_yaml = generator.generate_basic_pipeline(
-            python_version="3.11"
-        )
+        pipeline_yaml = generator.generate_basic_pipeline(python_version="3.11")
 
         pipeline = yaml.safe_load(pipeline_yaml)
 
@@ -219,9 +199,7 @@ class TestGitLabCIGenerator:
     def test_generate_advanced_pipeline_parallel(self) -> None:
         """Test advanced pipeline with parallel execution"""
         generator = GitLabCIGenerator()
-        pipeline_yaml = generator.generate_advanced_pipeline(
-            parallel_count=3
-        )
+        pipeline_yaml = generator.generate_advanced_pipeline(parallel_count=3)
 
         pipeline = yaml.safe_load(pipeline_yaml)
 
@@ -232,9 +210,7 @@ class TestGitLabCIGenerator:
     def test_generate_advanced_pipeline_platforms(self) -> None:
         """Test advanced pipeline with specific platforms"""
         generator = GitLabCIGenerator()
-        pipeline_yaml = generator.generate_advanced_pipeline(
-            platforms=["android"]
-        )
+        pipeline_yaml = generator.generate_advanced_pipeline(platforms=["android"])
 
         pipeline = yaml.safe_load(pipeline_yaml)
 
@@ -260,9 +236,7 @@ class TestGitLabCIGenerator:
 
         with TemporaryDirectory() as tmpdir:
             output_dir = Path(tmpdir)
-            generator.save_pipeline(
-                pipeline_yaml, output_dir, filename="ci-config.yml"
-            )
+            generator.save_pipeline(pipeline_yaml, output_dir, filename="ci-config.yml")
 
             expected_path = output_dir / "ci-config.yml"
             assert expected_path.exists()
@@ -279,9 +253,7 @@ class TestCIGeneratorIntegration:
         workflows = [
             generator.generate_basic_workflow(),
             generator.generate_advanced_workflow(),
-            generator.generate_advanced_workflow(
-                use_browserstack=True, notify_slack=True
-            ),
+            generator.generate_advanced_workflow(use_browserstack=True, notify_slack=True),
         ]
 
         for workflow_yaml in workflows:

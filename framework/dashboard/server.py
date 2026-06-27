@@ -29,7 +29,7 @@ class DashboardServer:
             db_path: Path to SQLite database (defaults to repo/.dashboard.db)
         """
         self.repo_path = repo_path
-        self.db_path = db_path or (repo_path / '.dashboard.db')
+        self.db_path = db_path or (repo_path / ".dashboard.db")
         self.db = DashboardDB(self.db_path)
 
         # Create FastAPI app
@@ -66,7 +66,7 @@ class DashboardServer:
                 flaky_tests=flaky,
                 healed_selectors_pending=pending_selectors,
                 healed_selectors_approved=approved_selectors,
-                avg_pass_rate=avg_pass_rate
+                avg_pass_rate=avg_pass_rate,
             )
 
             return JSONResponse(stats.to_dict())

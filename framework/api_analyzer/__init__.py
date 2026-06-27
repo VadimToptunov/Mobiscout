@@ -12,18 +12,18 @@ from framework.api_analyzer.api_log_analyzer import (
     APIAnalyzer,
     LogAnalyzer,
     APILogCorrelator,
-    APILogModule
+    APILogModule,
 )
 
 __all__ = [
-    'LogLevel',
-    'APIMethod',
-    'APICall',
-    'LogEntry',
-    'APIAssertion',
-    'LogPattern',
-    'APIAnalyzer',
-    'LogAnalyzer',
-    'APILogCorrelator',
-    'APILogModule',
+    "LogLevel",
+    "APIMethod",
+    "APICall",
+    "LogEntry",
+    "APIAssertion",
+    "LogPattern",
+    "APIAnalyzer",
+    "LogAnalyzer",
+    "APILogCorrelator",
+    "APILogModule",
 ]

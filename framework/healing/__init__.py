@@ -11,14 +11,14 @@ from .git_integration import GitIntegration, GitCommitInfo
 from .selector_discovery import SelectorDiscovery, AlternativeSelector
 
 __all__ = [
-    'FailureAnalyzer',
-    'SelectorFailure',
-    'SelectorDiscovery',
-    'AlternativeSelector',
-    'ElementMatcher',
-    'MatchResult',
-    'FileUpdater',
-    'UpdateResult',
-    'GitIntegration',
-    'GitCommitInfo',
+    "FailureAnalyzer",
+    "SelectorFailure",
+    "SelectorDiscovery",
+    "AlternativeSelector",
+    "ElementMatcher",
+    "MatchResult",
+    "FileUpdater",
+    "UpdateResult",
+    "GitIntegration",
+    "GitCommitInfo",
 ]

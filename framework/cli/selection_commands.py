@@ -17,17 +17,16 @@ from framework.selection.test_selector import TestSelector
 console = Console()
 
 
-@click.group(name='select')
+@click.group(name="select")
 def select() -> None:
     """🎯 Intelligent test selection commands"""
     pass
 
 
 @select.command()
-@click.option('--since', '-s', default='HEAD~1', help='Git commit to compare against')
-@click.option('--tests', '-t', 'tests_dir', type=click.Path(exists=True), default='tests/',
-              help='Tests directory')
-@click.option('--output', '-o', type=click.Path(), help='Output file for selected tests')
+@click.option("--since", "-s", default="HEAD~1", help="Git commit to compare against")
+@click.option("--tests", "-t", "tests_dir", type=click.Path(exists=True), default="tests/", help="Tests directory")
+@click.option("--output", "-o", type=click.Path(), help="Output file for selected tests")
 def auto(since: str, tests_dir: str, output: str) -> None:
     """Automatically select tests based on recent code changes"""
     print_header("Intelligent Test Selection")
@@ -37,8 +36,8 @@ def auto(since: str, tests_dir: str, output: str) -> None:
 
     try:
         # Initialize selector and analyzer
-        selector = TestSelector(project_root=Path('.'), test_root=Path(tests_dir))
-        analyzer = ChangeAnalyzer(repo_path=Path('.'))
+        selector = TestSelector(project_root=Path("."), test_root=Path(tests_dir))
+        analyzer = ChangeAnalyzer(repo_path=Path("."))
 
         print_info("\n🔄 Analyzing changes...")
 
@@ -72,9 +71,7 @@ def auto(since: str, tests_dir: str, output: str) -> None:
 
         for test in selected_tests[:15]:  # Show top 15
             table.add_row(
-                str(test.test_file),
-                test.impact_level.value,
-                test.reasons[0] if test.reasons else "Code change"
+                str(test.test_file), test.impact_level.value, test.reasons[0] if test.reasons else "Code change"
             )
 
         console.print(table)
@@ -83,7 +80,7 @@ def auto(since: str, tests_dir: str, output: str) -> None:
             print_info(f"\n... and {len(selected_tests) - 15} more tests")
 
         # Time estimation
-        if hasattr(selector, 'estimate_duration'):
+        if hasattr(selector, "estimate_duration"):
             estimated_time = selector.estimate_duration(selected_tests)
             print_info(f"\n⏱️  Estimated execution time: {estimated_time:.1f}s")
 
@@ -92,7 +89,7 @@ def auto(since: str, tests_dir: str, output: str) -> None:
             output_path = Path(output)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(output_path, 'w') as f:
+            with open(output_path, "w") as f:
                 for test in selected_tests:
                     f.write(f"{test.test_file}::{test.test_name}\n")
 
@@ -104,30 +101,26 @@ def auto(since: str, tests_dir: str, output: str) -> None:
         raise click.Abort()
 
 
-@select.command(name='by-files')
-@click.option('--files', '-f', required=True, help='Comma-separated list of changed files')
-@click.option('--tests', '-t', 'tests_dir', type=click.Path(exists=True), default='tests/',
-              help='Tests directory')
+@select.command(name="by-files")
+@click.option("--files", "-f", required=True, help="Comma-separated list of changed files")
+@click.option("--tests", "-t", "tests_dir", type=click.Path(exists=True), default="tests/", help="Tests directory")
 def by_files(files: str, tests_dir: str) -> None:
     """Select tests based on specific file changes"""
     print_header("Test Selection by Files")
 
-    changed_files = [f.strip() for f in files.split(',')]
+    changed_files = [f.strip() for f in files.split(",")]
     print_info(f"Changed files: {len(changed_files)}")
 
     for f in changed_files:
         print_info(f"  • {f}")
 
     try:
-        selector = TestSelector(project_root=Path('.'), test_root=Path(tests_dir))
+        selector = TestSelector(project_root=Path("."), test_root=Path(tests_dir))
 
         print_info("\n🔄 Analyzing impact...")
 
         # Convert string file paths to FileChange objects
-        file_changes = [
-            FileChange(path=Path(f), change_type=None)  # type: ignore
-            for f in changed_files
-        ]
+        file_changes = [FileChange(path=Path(f), change_type=None) for f in changed_files]  # type: ignore
 
         selected_tests = selector.select_tests(file_changes)
 
@@ -149,24 +142,20 @@ def by_files(files: str, tests_dir: str) -> None:
 
 
 @select.command()
-@click.option('--tests', '-t', 'tests_dir', type=click.Path(exists=True), default='tests/',
-              help='Tests directory')
-@click.option('--changed-files', '-c', help='Comma-separated list of changed files')
+@click.option("--tests", "-t", "tests_dir", type=click.Path(exists=True), default="tests/", help="Tests directory")
+@click.option("--changed-files", "-c", help="Comma-separated list of changed files")
 def estimate(tests_dir: str, changed_files: str) -> None:
     """Estimate test execution time"""
     print_header("Test Execution Time Estimation")
 
     try:
-        selector = TestSelector(project_root=Path('.'), test_root=Path(tests_dir))
+        selector = TestSelector(project_root=Path("."), test_root=Path(tests_dir))
 
         if changed_files:
-            files = [f.strip() for f in changed_files.split(',')]
+            files = [f.strip() for f in changed_files.split(",")]
 
             # Convert to FileChange objects
-            file_changes = [
-                FileChange(path=Path(f), change_type=None)  # type: ignore
-                for f in files
-            ]
+            file_changes = [FileChange(path=Path(f), change_type=None) for f in files]  # type: ignore
 
             selected_tests = selector.select_tests(file_changes)
             print_info(f"Selected tests: {len(selected_tests)}")
@@ -200,5 +189,5 @@ def estimate(tests_dir: str, changed_files: str) -> None:
         raise click.Abort()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     select()

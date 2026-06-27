@@ -20,7 +20,7 @@ from framework.devices.device_layer import (
     DeviceLayer,
     Screenshot,
     LogEntry,
-    APITrace
+    APITrace,
 )
 
 
@@ -34,7 +34,7 @@ class TestDeviceCapabilities:
             platform_version="13",
             device_name="Pixel 7",
             udid="emulator-5554",
-            device_type=DeviceType.EMULATOR
+            device_type=DeviceType.EMULATOR,
         )
 
         assert caps.platform == Platform.ANDROID
@@ -48,7 +48,7 @@ class TestDeviceCapabilities:
             platform_version="16.0",
             device_name="iPhone 14",
             udid="12345678-1234-1234-1234-123456789012",
-            device_type=DeviceType.SIMULATOR
+            device_type=DeviceType.SIMULATOR,
         )
 
         assert caps.platform == Platform.IOS
@@ -62,15 +62,15 @@ class TestDeviceCapabilities:
             device_name="Pixel 7",
             udid="emulator-5554",
             device_type=DeviceType.EMULATOR,
-            app_path="/path/to/app.apk"
+            app_path="/path/to/app.apk",
         )
 
         appium_caps = caps.to_appium_caps()
 
-        assert appium_caps['platformName'] == "Android"
-        assert appium_caps['platformVersion'] == "13"
-        assert appium_caps['deviceName'] == "Pixel 7"
-        assert appium_caps['app'] == "/path/to/app.apk"
+        assert appium_caps["platformName"] == "Android"
+        assert appium_caps["platformVersion"] == "13"
+        assert appium_caps["deviceName"] == "Pixel 7"
+        assert appium_caps["app"] == "/path/to/app.apk"
 
     def test_to_appium_caps_ios(self):
         """Test conversion to Appium capabilities for iOS"""
@@ -80,13 +80,13 @@ class TestDeviceCapabilities:
             device_name="iPhone 14",
             udid="12345678-1234-1234-1234-123456789012",
             device_type=DeviceType.SIMULATOR,
-            app_path="/path/to/app.app"
+            app_path="/path/to/app.app",
         )
 
         appium_caps = caps.to_appium_caps()
 
-        assert appium_caps['platformName'] == "Ios"
-        assert appium_caps['platformVersion'] == "16.0"
+        assert appium_caps["platformName"] == "Ios"
+        assert appium_caps["platformVersion"] == "16.0"
 
     def test_extra_capabilities(self):
         """Test extra capabilities"""
@@ -96,13 +96,13 @@ class TestDeviceCapabilities:
             device_name="Pixel 7",
             udid="emulator-5554",
             device_type=DeviceType.EMULATOR,
-            extra_caps={'noReset': True, 'fullReset': False}
+            extra_caps={"noReset": True, "fullReset": False},
         )
 
         appium_caps = caps.to_appium_caps()
 
-        assert appium_caps['noReset'] is True
-        assert appium_caps['fullReset'] is False
+        assert appium_caps["noReset"] is True
+        assert appium_caps["fullReset"] is False
 
 
 class TestDevice:
@@ -115,9 +115,7 @@ class TestDevice:
         driver.save_screenshot = Mock()
         driver.page_source = "<hierarchy>...</hierarchy>"
         driver.current_activity = "com.example.MainActivity"
-        driver.get_log = Mock(return_value=[
-            {'timestamp': 1234567890000, 'level': 'INFO', 'message': 'Test log'}
-        ])
+        driver.get_log = Mock(return_value=[{"timestamp": 1234567890000, "level": "INFO", "message": "Test log"}])
         return driver
 
     @pytest.fixture
@@ -128,7 +126,7 @@ class TestDevice:
             platform_version="13",
             device_name="Test Device",
             udid="test-123",
-            device_type=DeviceType.EMULATOR
+            device_type=DeviceType.EMULATOR,
         )
         return Device(caps, mock_driver)
 
@@ -160,8 +158,8 @@ class TestDevice:
 
         assert len(logs) > 0
         assert len(device.logs) > 0
-        assert logs[0].level == 'INFO'
-        assert logs[0].message == 'Test log'
+        assert logs[0].level == "INFO"
+        assert logs[0].message == "Test log"
 
     def test_get_page_source(self, device):
         """Test getting page source"""
@@ -191,14 +189,11 @@ class TestLocalDeviceProvider:
         provider = LocalDeviceProvider()
         assert provider is not None
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_list_android_devices(self, mock_run):
         """Test listing Android devices"""
         # Mock adb devices output
-        mock_run.return_value = Mock(
-            stdout="List of devices attached\nemulator-5554\tdevice\n",
-            returncode=0
-        )
+        mock_run.return_value = Mock(stdout="List of devices attached\nemulator-5554\tdevice\n", returncode=0)
 
         provider = LocalDeviceProvider()
         devices = provider._list_android_devices()
@@ -206,13 +201,13 @@ class TestLocalDeviceProvider:
         # Should attempt to get device details
         assert mock_run.called
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_list_ios_simulators(self, mock_run):
         """Test listing iOS simulators"""
         # Mock xcrun simctl output
         mock_run.return_value = Mock(
             stdout='{"devices": {"iOS 16.0": [{"name": "iPhone 14", "udid": "test-uuid", "isAvailable": true, "state": "Booted"}]}}',
-            returncode=0
+            returncode=0,
         )
 
         provider = LocalDeviceProvider()
@@ -224,70 +219,50 @@ class TestLocalDeviceProvider:
 class TestCloudDeviceProvider:
     """Test CloudDeviceProvider"""
 
-    @patch('framework.devices.device_layer.check_feature')
+    @patch("framework.devices.device_layer.check_feature")
     def test_provider_creation_with_license(self, mock_check):
         """Test cloud provider creation with valid license"""
         mock_check.return_value = True
 
-        provider = CloudDeviceProvider(
-            provider='browserstack',
-            username='test_user',
-            access_key='test_key'
-        )
+        provider = CloudDeviceProvider(provider="browserstack", username="test_user", access_key="test_key")
 
-        assert provider.provider == 'browserstack'
-        assert provider.username == 'test_user'
-        assert provider.access_key == 'test_key'
+        assert provider.provider == "browserstack"
+        assert provider.username == "test_user"
+        assert provider.access_key == "test_key"
 
-    @patch('framework.devices.device_layer.check_feature')
+    @patch("framework.devices.device_layer.check_feature")
     def test_provider_creation_without_license(self, mock_check):
         """Test cloud provider creation without license"""
         mock_check.return_value = False
 
         with pytest.raises(PermissionError):
-            CloudDeviceProvider(
-                provider='browserstack',
-                username='test_user',
-                access_key='test_key'
-            )
+            CloudDeviceProvider(provider="browserstack", username="test_user", access_key="test_key")
 
-    @patch('framework.devices.device_layer.check_feature')
+    @patch("framework.devices.device_layer.check_feature")
     def test_get_hub_url_browserstack(self, mock_check):
         """Test BrowserStack hub URL"""
         mock_check.return_value = True
 
-        provider = CloudDeviceProvider(
-            provider='browserstack',
-            username='user',
-            access_key='key'
-        )
+        provider = CloudDeviceProvider(provider="browserstack", username="user", access_key="key")
 
-        assert 'browserstack.com' in provider._hub_url
-        assert 'user:key' in provider._hub_url
+        assert "browserstack.com" in provider._hub_url
+        assert "user:key" in provider._hub_url
 
-    @patch('framework.devices.device_layer.check_feature')
+    @patch("framework.devices.device_layer.check_feature")
     def test_get_hub_url_saucelabs(self, mock_check):
         """Test Sauce Labs hub URL"""
         mock_check.return_value = True
 
-        provider = CloudDeviceProvider(
-            provider='saucelabs',
-            username='user',
-            access_key='key'
-        )
+        provider = CloudDeviceProvider(provider="saucelabs", username="user", access_key="key")
 
-        assert 'saucelabs.com' in provider._hub_url
+        assert "saucelabs.com" in provider._hub_url
 
-    @patch('framework.devices.device_layer.check_feature')
+    @patch("framework.devices.device_layer.check_feature")
     def test_list_devices(self, mock_check):
         """Test listing cloud devices"""
         mock_check.return_value = True
 
-        provider = CloudDeviceProvider(
-            provider='browserstack',
-            username='user',
-            access_key='key'
-        )
+        provider = CloudDeviceProvider(provider="browserstack", username="user", access_key="key")
 
         devices = provider.list_devices()
 
@@ -306,18 +281,18 @@ class TestDeviceLayer:
         assert layer.cloud_provider is None
         assert len(layer.connected_devices) == 0
 
-    @patch('framework.devices.device_layer.check_feature')
+    @patch("framework.devices.device_layer.check_feature")
     def test_configure_cloud(self, mock_check):
         """Test cloud configuration"""
         mock_check.return_value = True
 
         layer = DeviceLayer()
-        layer.configure_cloud('browserstack', 'user', 'key')
+        layer.configure_cloud("browserstack", "user", "key")
 
         assert layer.cloud_provider is not None
-        assert layer.cloud_provider.provider == 'browserstack'
+        assert layer.cloud_provider.provider == "browserstack"
 
-    @patch('subprocess.run')
+    @patch("subprocess.run")
     def test_list_available_devices_local_only(self, mock_run):
         """Test listing local devices only"""
         mock_run.return_value = Mock(stdout="", returncode=0)
@@ -327,15 +302,15 @@ class TestDeviceLayer:
 
         assert isinstance(devices, list)
 
-    @patch('framework.devices.device_layer.check_feature')
-    @patch('subprocess.run')
+    @patch("framework.devices.device_layer.check_feature")
+    @patch("subprocess.run")
     def test_list_available_devices_with_cloud(self, mock_run, mock_check):
         """Test listing devices including cloud"""
         mock_check.return_value = True
         mock_run.return_value = Mock(stdout="", returncode=0)
 
         layer = DeviceLayer()
-        layer.configure_cloud('browserstack', 'user', 'key')
+        layer.configure_cloud("browserstack", "user", "key")
         devices = layer.list_available_devices(include_cloud=True)
 
         assert isinstance(devices, list)
@@ -351,7 +326,7 @@ class TestDeviceLayer:
             platform_version="13",
             device_name="Test",
             udid="test-123",
-            device_type=DeviceType.EMULATOR
+            device_type=DeviceType.EMULATOR,
         )
 
         device = Device(caps, mock_driver)
@@ -370,23 +345,14 @@ class TestScreenshotAndLogging:
 
     def test_screenshot_creation(self, tmp_path):
         """Test Screenshot dataclass"""
-        screenshot = Screenshot(
-            timestamp=datetime.now(),
-            screen_name="TestScreen",
-            file_path=tmp_path / "test.png"
-        )
+        screenshot = Screenshot(timestamp=datetime.now(), screen_name="TestScreen", file_path=tmp_path / "test.png")
 
         assert screenshot.screen_name == "TestScreen"
         assert screenshot.element_id is None
 
     def test_log_entry_creation(self):
         """Test LogEntry dataclass"""
-        log = LogEntry(
-            timestamp=datetime.now(),
-            level="INFO",
-            message="Test message",
-            source="logcat"
-        )
+        log = LogEntry(timestamp=datetime.now(), level="INFO", message="Test message", source="logcat")
 
         assert log.level == "INFO"
         assert log.message == "Test message"
@@ -402,7 +368,7 @@ class TestScreenshotAndLogging:
             response_status=200,
             response_headers={"Content-Type": "application/json"},
             response_body='{"token": "abc123"}',
-            duration_ms=123.45
+            duration_ms=123.45,
         )
 
         assert trace.method == "POST"

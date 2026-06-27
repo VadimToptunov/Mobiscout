@@ -19,7 +19,7 @@ from framework.ml import (
     SelectorPredictor,
     NextStepRecommender,
     ElementScorer,
-    MLModule
+    MLModule,
 )
 
 
@@ -28,13 +28,7 @@ class TestMLBackend:
 
     def test_all_backends(self):
         """Test all backend types"""
-        backends = [
-            MLBackend.SKLEARN,
-            MLBackend.TENSORFLOW,
-            MLBackend.PYTORCH,
-            MLBackend.ONNX,
-            MLBackend.CUSTOM
-        ]
+        backends = [MLBackend.SKLEARN, MLBackend.TENSORFLOW, MLBackend.PYTORCH, MLBackend.ONNX, MLBackend.CUSTOM]
         assert len(backends) == 5
         assert all(isinstance(b, MLBackend) for b in backends)
 
@@ -48,7 +42,7 @@ class TestModelType:
             ModelType.SELECTOR_PREDICTOR,
             ModelType.STEP_RECOMMENDER,
             ModelType.ELEMENT_SCORER,
-            ModelType.EDGE_CASE_DETECTOR
+            ModelType.EDGE_CASE_DETECTOR,
         ]
         assert len(types) == 4
 
@@ -63,7 +57,7 @@ class TestPredictionResult:
             confidence=0.95,
             alternatives=[("accessibility_id", 0.8), ("xpath", 0.6)],
             model_version="1.0.0",
-            metadata={'test': True}
+            metadata={"test": True},
         )
 
         assert result.prediction == "id"
@@ -77,15 +71,11 @@ class TestTrainingData:
 
     def test_create_training_data(self):
         """Test creating training data"""
-        data = TrainingData(
-            features=[{'id': 'test', 'type': 'button'}],
-            labels=['id'],
-            metadata={'source': 'manual'}
-        )
+        data = TrainingData(features=[{"id": "test", "type": "button"}], labels=["id"], metadata={"source": "manual"})
 
         assert len(data.features) == 1
         assert len(data.labels) == 1
-        assert data.metadata['source'] == 'manual'
+        assert data.metadata["source"] == "manual"
 
 
 class TestSelectorPredictor:
@@ -110,18 +100,18 @@ class TestSelectorPredictor:
         predictor = SelectorPredictor()
 
         features = {
-            'id': 'login_button',
-            'accessibility_id': 'login_btn',
-            'xpath': '//button[@id="login_button"]',
-            'label': 'Login',
-            'type': 'button',
-            'visible': True,
-            'enabled': True
+            "id": "login_button",
+            "accessibility_id": "login_btn",
+            "xpath": '//button[@id="login_button"]',
+            "label": "Login",
+            "type": "button",
+            "visible": True,
+            "enabled": True,
         }
 
         result = predictor.predict(features)
 
-        assert result.prediction == 'id'
+        assert result.prediction == "id"
         assert result.confidence == 1.0
         assert len(result.alternatives) > 0
 
@@ -130,30 +120,27 @@ class TestSelectorPredictor:
         predictor = SelectorPredictor()
 
         features = {
-            'accessibility_id': 'submit_btn',
-            'xpath': '//button',
-            'type': 'button',
-            'visible': True,
-            'enabled': True
+            "accessibility_id": "submit_btn",
+            "xpath": "//button",
+            "type": "button",
+            "visible": True,
+            "enabled": True,
         }
 
         result = predictor.predict(features)
 
-        assert result.prediction == 'accessibility_id'
+        assert result.prediction == "accessibility_id"
         assert result.confidence == 0.8
 
     def test_predict_with_minimal_features(self):
         """Test prediction with minimal features"""
         predictor = SelectorPredictor()
 
-        features = {
-            'xpath': '//div',
-            'type': 'view'
-        }
+        features = {"xpath": "//div", "type": "view"}
 
         result = predictor.predict(features)
 
-        assert result.prediction in ['xpath', 'text']
+        assert result.prediction in ["xpath", "text"]
         assert result.confidence <= 1.0
 
     def test_predict_empty_features(self):
@@ -163,7 +150,7 @@ class TestSelectorPredictor:
         features = {}
         result = predictor.predict(features)
 
-        assert result.prediction == 'xpath'
+        assert result.prediction == "xpath"
         assert result.confidence <= 0.5
 
     def test_feature_extraction(self):
@@ -171,15 +158,15 @@ class TestSelectorPredictor:
         predictor = SelectorPredictor()
 
         features = {
-            'id': 'test',
-            'accessibility_id': 'test_acc',
-            'xpath': '//test',
-            'label': 'Test',
-            'type': 'button',
-            'visible': True,
-            'enabled': True,
-            'depth': 3,
-            'siblings_count': 5
+            "id": "test",
+            "accessibility_id": "test_acc",
+            "xpath": "//test",
+            "label": "Test",
+            "type": "button",
+            "visible": True,
+            "enabled": True,
+            "depth": 3,
+            "siblings_count": 5,
         }
 
         feature_vector = predictor._extract_features(features)
@@ -188,22 +175,18 @@ class TestSelectorPredictor:
         assert feature_vector[0] == 1.0  # has_id
         assert feature_vector[1] == 1.0  # has_accessibility_id
 
-    @patch('framework.ml.ml_module.check_feature')
+    @patch("framework.ml.ml_module.check_feature")
     def test_train_without_license(self, mock_check):
         """Test training without license (negative test)"""
         mock_check.return_value = False
 
         predictor = SelectorPredictor()
-        training_data = TrainingData(
-            features=[{'id': 'test'}],
-            labels=['id'],
-            metadata={}
-        )
+        training_data = TrainingData(features=[{"id": "test"}], labels=["id"], metadata={})
 
         with pytest.raises(PermissionError):
             predictor.train(training_data)
 
-    @patch('framework.ml.ml_module.check_feature')
+    @patch("framework.ml.ml_module.check_feature")
     def test_train_with_sklearn(self, mock_check):
         """Test training with sklearn backend"""
         mock_check.return_value = True
@@ -212,17 +195,17 @@ class TestSelectorPredictor:
 
         # Create training data
         features = [
-            {'id': 'btn1', 'type': 'button', 'visible': True, 'enabled': True},
-            {'id': 'btn2', 'type': 'button', 'visible': True, 'enabled': True},
-            {'accessibility_id': 'btn3', 'type': 'button', 'visible': True, 'enabled': True}
+            {"id": "btn1", "type": "button", "visible": True, "enabled": True},
+            {"id": "btn2", "type": "button", "visible": True, "enabled": True},
+            {"accessibility_id": "btn3", "type": "button", "visible": True, "enabled": True},
         ]
-        labels = ['id', 'id', 'accessibility_id']
+        labels = ["id", "id", "accessibility_id"]
 
         training_data = TrainingData(features=features, labels=labels, metadata={})
 
         try:
             metrics = predictor.train(training_data)
-            assert 'accuracy' in metrics
+            assert "accuracy" in metrics
             assert predictor.is_trained
         except ImportError:
             pytest.skip("scikit-learn not installed")
@@ -231,13 +214,9 @@ class TestSelectorPredictor:
         """Test training with unsupported backend (negative test)"""
         predictor = SelectorPredictor(backend=MLBackend.CUSTOM)
 
-        training_data = TrainingData(
-            features=[{'id': 'test'}],
-            labels=['id'],
-            metadata={}
-        )
+        training_data = TrainingData(features=[{"id": "test"}], labels=["id"], metadata={})
 
-        with patch('framework.ml.ml_module.check_feature', return_value=True):
+        with patch("framework.ml.ml_module.check_feature", return_value=True):
             with pytest.raises(NotImplementedError):
                 predictor.train(training_data)
 
@@ -262,21 +241,16 @@ class TestSelectorPredictor:
 
         info = predictor.get_info()
 
-        assert 'model_type' in info
-        assert 'backend' in info
-        assert 'version' in info
-        assert 'is_trained' in info
+        assert "model_type" in info
+        assert "backend" in info
+        assert "version" in info
+        assert "is_trained" in info
 
     def test_alternatives_generation(self):
         """Test alternative selector generation"""
         predictor = SelectorPredictor()
 
-        features = {
-            'id': 'test',
-            'accessibility_id': 'test_acc',
-            'xpath': '//test',
-            'label': 'Test'
-        }
+        features = {"id": "test", "accessibility_id": "test_acc", "xpath": "//test", "label": "Test"}
 
         result = predictor.predict(features)
 
@@ -299,10 +273,7 @@ class TestNextStepRecommender:
         """Test recommendation without history"""
         recommender = NextStepRecommender()
 
-        context = {
-            'current_screen': 'login',
-            'recent_actions': []
-        }
+        context = {"current_screen": "login", "recent_actions": []}
 
         result = recommender.predict(context)
 
@@ -314,36 +285,29 @@ class TestNextStepRecommender:
         recommender = NextStepRecommender()
 
         # Build history
-        recommender._transition_history = {
-            'login': ['home', 'home', 'error']
-        }
+        recommender._transition_history = {"login": ["home", "home", "error"]}
 
-        context = {
-            'current_screen': 'login',
-            'recent_actions': ['tap_login']
-        }
+        context = {"current_screen": "login", "recent_actions": ["tap_login"]}
 
         result = recommender.predict(context)
 
-        assert result.prediction == 'home'
+        assert result.prediction == "home"
         assert result.confidence > 0.5
 
     def test_recommend_multiple_alternatives(self):
         """Test recommendation with multiple alternatives"""
         recommender = NextStepRecommender()
 
-        recommender._transition_history = {
-            'home': ['profile', 'settings', 'profile']
-        }
+        recommender._transition_history = {"home": ["profile", "settings", "profile"]}
 
-        context = {'current_screen': 'home'}
+        context = {"current_screen": "home"}
 
         result = recommender.predict(context)
 
-        assert result.prediction == 'profile'
+        assert result.prediction == "profile"
         assert len(result.alternatives) > 0
 
-    @patch('framework.ml.ml_module.check_feature')
+    @patch("framework.ml.ml_module.check_feature")
     def test_train_recommender(self, mock_check):
         """Test training recommender"""
         mock_check.return_value = True
@@ -351,23 +315,23 @@ class TestNextStepRecommender:
         recommender = NextStepRecommender()
 
         features = [
-            {'from_screen': 'login', 'to_screen': 'home'},
-            {'from_screen': 'login', 'to_screen': 'home'},
-            {'from_screen': 'home', 'to_screen': 'profile'}
+            {"from_screen": "login", "to_screen": "home"},
+            {"from_screen": "login", "to_screen": "home"},
+            {"from_screen": "home", "to_screen": "profile"},
         ]
 
         training_data = TrainingData(features=features, labels=[], metadata={})
 
         metrics = recommender.train(training_data)
 
-        assert 'unique_screens' in metrics
+        assert "unique_screens" in metrics
         assert recommender.is_trained
         assert len(recommender._transition_history) > 0
 
     def test_save_and_load_recommender(self, tmp_path):
         """Test saving and loading recommender"""
         recommender = NextStepRecommender()
-        recommender._transition_history = {'a': ['b', 'c']}
+        recommender._transition_history = {"a": ["b", "c"]}
 
         model_path = tmp_path / "recommender.json"
         recommender.save(model_path)
@@ -403,13 +367,7 @@ class TestElementScorer:
         """Test scoring interactive element"""
         scorer = ElementScorer()
 
-        features = {
-            'type': 'button',
-            'visible': True,
-            'enabled': True,
-            'label': 'Submit',
-            'navigates': True
-        }
+        features = {"type": "button", "visible": True, "enabled": True, "label": "Submit", "navigates": True}
 
         result = scorer.predict(features)
 
@@ -420,11 +378,7 @@ class TestElementScorer:
         """Test scoring non-interactive element"""
         scorer = ElementScorer()
 
-        features = {
-            'type': 'label',
-            'visible': False,
-            'enabled': False
-        }
+        features = {"type": "label", "visible": False, "enabled": False}
 
         result = scorer.predict(features)
 
@@ -434,12 +388,7 @@ class TestElementScorer:
         """Test scoring textfield element"""
         scorer = ElementScorer()
 
-        features = {
-            'type': 'textfield',
-            'visible': True,
-            'enabled': True,
-            'label': 'Username'
-        }
+        features = {"type": "textfield", "visible": True, "enabled": True, "label": "Username"}
 
         result = scorer.predict(features)
 
@@ -454,23 +403,19 @@ class TestElementScorer:
 
         assert result.prediction == 0.0
 
-    @patch('framework.ml.ml_module.check_feature')
+    @patch("framework.ml.ml_module.check_feature")
     def test_train_scorer(self, mock_check):
         """Test training scorer"""
         mock_check.return_value = True
 
         scorer = ElementScorer()
 
-        training_data = TrainingData(
-            features=[{'type': 'button'}],
-            labels=[1.0],
-            metadata={}
-        )
+        training_data = TrainingData(features=[{"type": "button"}], labels=[1.0], metadata={})
 
         metrics = scorer.train(training_data)
 
         assert scorer.is_trained
-        assert 'samples' in metrics
+        assert "samples" in metrics
 
     def test_save_and_load_scorer(self, tmp_path):
         """Test saving and loading scorer"""
@@ -508,24 +453,18 @@ class TestMLModule:
         """Test selector prediction via module"""
         module = MLModule()
 
-        features = {
-            'id': 'test_button',
-            'type': 'button'
-        }
+        features = {"id": "test_button", "type": "button"}
 
         result = module.predict_selector(features)
 
         assert isinstance(result, PredictionResult)
-        assert result.prediction in ['id', 'accessibility_id', 'xpath', 'text']
+        assert result.prediction in ["id", "accessibility_id", "xpath", "text"]
 
     def test_recommend_next_step(self):
         """Test next step recommendation via module"""
         module = MLModule()
 
-        context = {
-            'current_screen': 'home',
-            'recent_actions': []
-        }
+        context = {"current_screen": "home", "recent_actions": []}
 
         result = module.recommend_next_step(context)
 
@@ -535,29 +474,21 @@ class TestMLModule:
         """Test element scoring via module"""
         module = MLModule()
 
-        features = {
-            'type': 'button',
-            'visible': True,
-            'enabled': True
-        }
+        features = {"type": "button", "visible": True, "enabled": True}
 
         result = module.score_element(features)
 
         assert isinstance(result, PredictionResult)
         assert 0.0 <= result.prediction <= 1.0
 
-    @patch('framework.ml.ml_module.check_feature')
+    @patch("framework.ml.ml_module.check_feature")
     def test_train_model(self, mock_check):
         """Test training model via module"""
         mock_check.return_value = True
 
         module = MLModule()
 
-        training_data = TrainingData(
-            features=[{'type': 'button'}],
-            labels=[1.0],
-            metadata={}
-        )
+        training_data = TrainingData(features=[{"type": "button"}], labels=[1.0], metadata={})
 
         metrics = module.train_model(ModelType.ELEMENT_SCORER, training_data)
 
@@ -578,7 +509,7 @@ class TestMLModule:
 
         assert isinstance(info, dict)
         assert len(info) > 0
-        assert 'selector_predictor' in info
+        assert "selector_predictor" in info
 
     def test_load_pretrained_models(self, tmp_path):
         """Test loading pre-trained models"""
@@ -586,14 +517,9 @@ class TestMLModule:
         model_dir = tmp_path / "models"
         model_dir.mkdir()
 
-        model_data = {
-            'type': 'selector_predictor',
-            'backend': 'sklearn',
-            'version': '1.0.0',
-            'is_trained': True
-        }
+        model_data = {"type": "selector_predictor", "backend": "sklearn", "version": "1.0.0", "is_trained": True}
 
-        with open(model_dir / "selector_predictor.json", 'w') as f:
+        with open(model_dir / "selector_predictor.json", "w") as f:
             json.dump(model_data, f)
 
         # Initialize module with models_dir
@@ -616,8 +542,8 @@ class TestMLModelIntegration:
 
         # Record screen
         elements = [
-            {'id': 'btn1', 'type': 'button', 'visible': True, 'enabled': True},
-            {'accessibility_id': 'btn2', 'type': 'button', 'visible': True, 'enabled': True}
+            {"id": "btn1", "type": "button", "visible": True, "enabled": True},
+            {"accessibility_id": "btn2", "type": "button", "visible": True, "enabled": True},
         ]
 
         discovery.record_screen("test", "Test", elements)
@@ -633,17 +559,14 @@ class TestMLModelIntegration:
 
         # Simulate flow history
         recommender = module.models[ModelType.STEP_RECOMMENDER]
-        recommender._transition_history = {
-            'login': ['home', 'home', 'error'],
-            'home': ['profile', 'settings']
-        }
+        recommender._transition_history = {"login": ["home", "home", "error"], "home": ["profile", "settings"]}
 
         # Get recommendations
-        result = module.recommend_next_step({'current_screen': 'login'})
-        assert result.prediction == 'home'
+        result = module.recommend_next_step({"current_screen": "login"})
+        assert result.prediction == "home"
 
-        result = module.recommend_next_step({'current_screen': 'home'})
-        assert result.prediction in ['profile', 'settings']
+        result = module.recommend_next_step({"current_screen": "home"})
+        assert result.prediction in ["profile", "settings"]
 
 
 class TestMLModuleErrorHandling:
@@ -693,7 +616,7 @@ class TestMLBackendFlexibility:
         predictor = SelectorPredictor(backend=MLBackend.CUSTOM)
 
         # Should work for prediction (heuristic fallback)
-        features = {'id': 'test'}
+        features = {"id": "test"}
         result = predictor.predict(features)
 
         assert isinstance(result, PredictionResult)

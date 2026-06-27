@@ -33,7 +33,7 @@ from framework.core.exceptions import (
     SessionError,
     SessionNotFoundError,
     ElementNotFoundError,
-    DeviceConnectionError
+    DeviceConnectionError,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,14 +106,11 @@ class AppiumBackend(MobileAutomationBackend):
             supports_type=True,
             supports_gestures=True,
             requires_app_modification=False,
-            execution_speed="fast"  # Appium 3.x improved performance
+            execution_speed="fast",  # Appium 3.x improved performance
         )
 
     def start_session(
-            self,
-            device_id: str,
-            app_path: Optional[str] = None,
-            capabilities: Optional[Dict[str, Any]] = None
+        self, device_id: str, app_path: Optional[str] = None, capabilities: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Start Appium session with auto-configuration.
@@ -169,10 +166,7 @@ class AppiumBackend(MobileAutomationBackend):
 
         try:
             # Start driver
-            driver = webdriver.Remote(
-                command_executor=self.server_url,
-                options=options
-            )
+            driver = webdriver.Remote(command_executor=self.server_url, options=options)
 
             session_id = driver.session_id
             self.sessions[session_id] = driver
@@ -183,18 +177,15 @@ class AppiumBackend(MobileAutomationBackend):
         except WebDriverException as e:
             if "connection refused" in str(e).lower():
                 raise BackendNotAvailableError(
-                    "Appium server not available",
-                    details={"server_url": self.server_url, "error": str(e)}
+                    "Appium server not available", details={"server_url": self.server_url, "error": str(e)}
                 )
             elif "device not found" in str(e).lower():
                 raise DeviceConnectionError(
-                    f"Device not found: {device_id}",
-                    details={"device_id": device_id, "error": str(e)}
+                    f"Device not found: {device_id}", details={"device_id": device_id, "error": str(e)}
                 )
             else:
                 raise SessionError(
-                    f"Failed to start session: {str(e)}",
-                    details={"device_id": device_id, "error": str(e)}
+                    f"Failed to start session: {str(e)}", details={"device_id": device_id, "error": str(e)}
                 )
 
     def stop_session(self, session_id: str) -> None:
@@ -208,10 +199,7 @@ class AppiumBackend(MobileAutomationBackend):
             SessionNotFoundError: If session doesn't exist
         """
         if session_id not in self.sessions:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         driver = self.sessions[session_id]
         try:
@@ -237,10 +225,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         return driver.get_screenshot_as_png()
 
@@ -259,10 +244,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         return driver.page_source
 
@@ -280,10 +262,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         # W3C Actions API (compatible with Appium 2.x/3.x)
         from selenium.webdriver.common.actions.action_builder import ActionBuilder
@@ -297,13 +276,7 @@ class AppiumBackend(MobileAutomationBackend):
         actions.perform()
 
     def swipe(
-            self,
-            session_id: str,
-            start_x: int,
-            start_y: int,
-            end_x: int,
-            end_y: int,
-            duration_ms: int = 300
+        self, session_id: str, start_x: int, start_y: int, end_x: int, end_y: int, duration_ms: int = 300
     ) -> None:
         """
         Swipe gesture.
@@ -321,10 +294,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         driver.swipe(start_x, start_y, end_x, end_y, duration_ms)
 
@@ -343,10 +313,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         if element_id:
             try:
@@ -354,8 +321,7 @@ class AppiumBackend(MobileAutomationBackend):
                 element.send_keys(text)
             except NoSuchElementException:
                 raise ElementNotFoundError(
-                    f"Element not found: {element_id}",
-                    details={"element_id": element_id, "strategy": "id"}
+                    f"Element not found: {element_id}", details={"element_id": element_id, "strategy": "id"}
                 )
         else:
             # Type into active element using mobile command
@@ -378,10 +344,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         try:
             # Map strategy to modern By locators (Appium 2.x/3.x compatible)
@@ -433,10 +396,7 @@ class AppiumBackend(MobileAutomationBackend):
         """
         driver = self.sessions.get(session_id)
         if not driver:
-            raise SessionNotFoundError(
-                f"Session not found: {session_id}",
-                details={"session_id": session_id}
-            )
+            raise SessionNotFoundError(f"Session not found: {session_id}", details={"session_id": session_id})
 
         try:
             # Find element using modern By.ID locator
@@ -444,17 +404,9 @@ class AppiumBackend(MobileAutomationBackend):
             location = element.location
             size = element.size
 
-            return {
-                "x": location["x"],
-                "y": location["y"],
-                "width": size["width"],
-                "height": size["height"]
-            }
+            return {"x": location["x"], "y": location["y"], "width": size["width"], "height": size["height"]}
         except NoSuchElementException:
-            raise ElementNotFoundError(
-                f"Element not found: {element_id}",
-                details={"element_id": element_id}
-            )
+            raise ElementNotFoundError(f"Element not found: {element_id}", details={"element_id": element_id})
 
 
 # Register with factory

@@ -73,7 +73,7 @@ class VisualDetector:
         return text.strip()
 
     def find_element_by_image(
-            self, screenshot_path: Path, template_path: Path, threshold: float = 0.8
+        self, screenshot_path: Path, template_path: Path, threshold: float = 0.8
     ) -> Optional[Tuple[int, int, int, int]]:
         """
         Find element in screenshot by template matching.
@@ -142,7 +142,7 @@ class VisualDetector:
             # Mean Squared Error (lower is better)
             mse = float(np.mean((img1 - img2) ** 2))  # type: ignore[call-overload]
             # Normalize to 0-1 (1 = identical)
-            max_mse = 255.0 ** 2
+            max_mse = 255.0**2
             similarity = 1.0 - (mse / max_mse)
             return similarity
 
@@ -176,7 +176,7 @@ class VisualDetector:
             raise ValueError(f"Unknown method: {method}")
 
     def detect_visual_changes(
-            self, baseline_path: Path, current_path: Path, threshold: float = 0.95
+        self, baseline_path: Path, current_path: Path, threshold: float = 0.95
     ) -> Tuple[bool, float, Optional[np.ndarray]]:
         """
         Detect visual regression between baseline and current screenshot.
@@ -241,11 +241,7 @@ class VisualDetector:
         logger.debug(f"Element screenshot saved to {output_path}")
 
     def find_similar_elements(
-            self,
-            screenshot_path: Path,
-            template_path: Path,
-            threshold: float = 0.7,
-            max_results: int = 5
+        self, screenshot_path: Path, template_path: Path, threshold: float = 0.7, max_results: int = 5
     ) -> List[Tuple[int, int, int, int, float]]:
         """
         Find all elements similar to template in screenshot.
@@ -289,11 +285,11 @@ class VisualDetector:
         return matches[:max_results]
 
     def find_similar_by_bounds(
-            self,
-            screenshot_path: Path,
-            target_bounds: Tuple[int, int, int, int],
-            similarity_threshold: float = 0.7,
-            max_results: int = 5
+        self,
+        screenshot_path: Path,
+        target_bounds: Tuple[int, int, int, int],
+        similarity_threshold: float = 0.7,
+        max_results: int = 5,
     ) -> List[Dict[str, Any]]:
         """
         Find elements similar to a region defined by bounds in a screenshot.
@@ -315,7 +311,7 @@ class VisualDetector:
             return []
 
         # Extract template region from the screenshot at original bounds
-        template = screenshot[y:y + height, x:x + width]
+        template = screenshot[y : y + height, x : x + width]
         if template.size == 0:
             return []
 
@@ -327,14 +323,8 @@ class VisualDetector:
         for pt in zip(*locations[::-1]):
             pt_x, pt_y = int(pt[0]), int(pt[1])
             confidence = float(result[pt_y, pt_x])
-            matches.append({
-                'x': pt_x,
-                'y': pt_y,
-                'width': width,
-                'height': height,
-                'similarity': confidence
-            })
+            matches.append({"x": pt_x, "y": pt_y, "width": width, "height": height, "similarity": confidence})
 
         # Sort by confidence and return top results
-        matches.sort(key=lambda m: m['similarity'], reverse=True)
+        matches.sort(key=lambda m: m["similarity"], reverse=True)
         return matches[:max_results]
