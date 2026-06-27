@@ -31,6 +31,7 @@ dependencies = [
     "jsonschema>=4.20.0",
     "appium-python-client>=3.0.0",
     "selenium>=4.15.0",
+    "argon2-cffi>=23.1.0",
     "pytest>=7.4.0",
     "pytest-bdd>=6.1.0",
 ]

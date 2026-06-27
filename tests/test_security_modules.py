@@ -384,6 +384,7 @@ class TestSecurityConfig:
 
     def test_password_hashing_and_verification(self):
         """Test password hashing with Argon2"""
+        pytest.importorskip("argon2", reason="argon2-cffi required for password hashing")
         password = "test_password_123"
 
         hashed = SecurityConfig.hash_password(password)
@@ -399,6 +400,7 @@ class TestSecurityConfig:
 
     def test_password_needs_rehash(self):
         """Test password rehash detection"""
+        pytest.importorskip("argon2", reason="argon2-cffi required for password hashing")
         password = "test_password"
         hashed = SecurityConfig.hash_password(password)
 
