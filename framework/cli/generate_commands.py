@@ -131,3 +131,70 @@ def features(model: str, output: str):
         print_error(f"Generation failed: {e}")
         logger.error(f"BDD feature generation failed: {e}", exc_info=True)
         raise click.Abort()
+
+
+@generate.command()
+@click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
+@click.option("--app-package", required=True, help="App under test, e.g. com.example.app")
+@click.option("--target", default="python_pytest", help="Codegen target (see --list-targets)")
+@click.option("--output", default="tests/generated", help="Output directory")
+@click.option("--app-activity", default=None, help="Android entry activity, e.g. .MainActivity")
+@click.option("--suite-name", default="SmokeFlow", help="Generated suite/class name")
+@click.option("--list-targets", is_flag=True, help="List available codegen targets and exit")
+def tests(model, app_package, target, output, app_activity, suite_name, list_targets):
+    """
+    Generate runnable test code in any supported language from an app model.
+
+    Uses the language-agnostic codegen pipeline (one IR, many emitters), so the
+    same model can produce Python/Java/JS/Kotlin, imperative or BDD.
+
+    Example:
+        observe generate tests --model app.yaml --app-package com.x.app \\
+            --target java_testng --output tests/java
+    """
+    from framework.codegen import available_targets, get_emitter
+    from framework.codegen.app_model_adapter import build_smoke_model
+    from framework.model.app_model import AppModel
+    import yaml
+
+    if list_targets:
+        print_header("🎯 Available codegen targets")
+        for t in available_targets():
+            print_info(f"{t.id}  —  {t.description}")
+        return
+
+    target_ids = [t.id for t in available_targets()]
+    if target not in target_ids:
+        print_error(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
+        raise click.Abort()
+
+    print_header("🧪 Generating tests", f"Target: {target}")
+
+    try:
+        with open(model) as f:
+            app_model = AppModel(**yaml.safe_load(f))
+
+        test_model = build_smoke_model(
+            app_model, app_package=app_package, suite_name=suite_name, app_activity=app_activity
+        )
+        if not test_model.cases:
+            print_error("App model produced no test cases (no locatable elements found).")
+            raise click.Abort()
+
+        output_path = Path(output)
+        files = get_emitter(target).emit(test_model)
+        for rel_path, content in files.items():
+            dest = output_path / rel_path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content)
+
+        print_success(f"Generated {len(files)} file(s) for {len(test_model.cases)} screen(s)")
+        print_info(f"Output directory: {output_path.absolute()}")
+        logger.info(f"Generated {len(files)} {target} files from {model}")
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        print_error(f"Generation failed: {e}")
+        logger.error(f"Test generation failed: {e}", exc_info=True)
+        raise click.Abort()
