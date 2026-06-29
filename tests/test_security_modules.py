@@ -70,6 +70,7 @@ def hello():
 """
             )
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             analyzer = SASTAnalyzer()
             findings = analyzer.analyze_file(Path(f.name))
@@ -87,6 +88,7 @@ api_key = "AKIAIOSFODNN7EXAMPLE"
 """
             )
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             analyzer = SASTAnalyzer()
             findings = analyzer.analyze_file(Path(f.name))
@@ -110,6 +112,7 @@ hash = hashlib.md5(data.encode())
 """
             )
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             crypto_analyzer = CryptoAnalyzer()
             findings = crypto_analyzer.analyze(Path(f.name))
@@ -129,6 +132,7 @@ result = eval(user_input)
 """
             )
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             api_analyzer = InsecureAPIAnalyzer()
             findings = api_analyzer.analyze(Path(f.name))
@@ -290,6 +294,7 @@ class TestRuntimeProtectionAnalyzer:
         with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f:
             f.write(b"PK")  # Minimal ZIP signature
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             analyzer = RuntimeProtectionAnalyzer()
             result = analyzer.analyze(Path(f.name), platform="android")
@@ -304,6 +309,7 @@ class TestRuntimeProtectionAnalyzer:
         with tempfile.NamedTemporaryFile(suffix=".apk", delete=False) as f:
             f.write(b"PK")
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             analyzer = RuntimeProtectionAnalyzer()
             result = analyzer.quick_check(Path(f.name), platform="android")
@@ -434,6 +440,7 @@ class TestSecurityConfig:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(b"test")
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             result = SecurityConfig.check_file_permissions(Path(f.name))
             # Result depends on actual file permissions
@@ -502,6 +509,7 @@ cursor.execute(user_input)
 """
             )
             f.flush()
+            f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
             analyzer = TaintAnalyzer()
             flows = analyzer.analyze_file(Path(f.name))

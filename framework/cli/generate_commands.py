@@ -186,7 +186,10 @@ def tests(model, app_package, target, output, app_activity, suite_name, list_tar
         for rel_path, content in files.items():
             dest = output_path / rel_path
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content)
+            # utf-8 + LF: generated code contains non-ASCII (em dash) and the
+            # emitter produces LF; the platform default (cp1252 on Windows) would
+            # corrupt it.
+            dest.write_text(content, encoding="utf-8", newline="\n")
 
         print_success(f"Generated {len(files)} file(s) for {len(test_model.cases)} screen(s)")
         print_info(f"Output directory: {output_path.absolute()}")
