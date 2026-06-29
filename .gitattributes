@@ -1,0 +1,5 @@
+# Golden files are exact byte-for-byte emitter output (LF). Keep them LF on all
+# platforms so the codegen golden tests pass on Windows (default autocrlf would
+# check them out with CRLF and break the comparison).
+tests/codegen/golden/** text eol=lf
+framework/codegen/templates/** text eol=lf

@@ -96,12 +96,15 @@ def _js_syntax_ok(js_file: Path) -> None:
 
 def _check_golden(rel_path: str, content: str) -> None:
     golden = GOLDEN_DIR / rel_path
+    # Always UTF-8 / LF: golden files contain non-ASCII (em dash) and the
+    # emitter produces LF. On Windows the default text encoding is cp1252 and
+    # write would translate newlines, both of which break the comparison.
     if os.environ.get("UPDATE_GOLDENS"):
         golden.parent.mkdir(parents=True, exist_ok=True)
-        golden.write_text(content)
+        golden.write_text(content, encoding="utf-8", newline="\n")
         return
     assert golden.exists(), f"Missing golden file: {golden} (run with UPDATE_GOLDENS=1)"
-    assert content == golden.read_text(), (
+    assert content == golden.read_text(encoding="utf-8"), (
         f"Output drifted from golden {rel_path}. " f"If intentional, regenerate with UPDATE_GOLDENS=1."
     )
 
@@ -124,7 +127,7 @@ def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_p
     for path, content in out.items():
         f = tmp_path / path
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(content)
+        f.write_text(content, encoding="utf-8", newline="\n")
         if path.endswith(".py"):
             py_compile.compile(str(f), doraise=True)
             checked += 1
