@@ -410,9 +410,13 @@ impl RustCorrelator {
             return 0.0;
         }
 
-        // Count matching values
+        // Count matching values.
+        // common_keys is Vec<&String>, so .iter() yields &&String and the
+        // closure binds k as &&&String; deref to &String (**k) for the HashMap
+        // lookup, otherwise the key type is &String and String: Borrow<&String>
+        // does not hold (E0277).
         let matches = common_keys.iter()
-            .filter(|k| source.data.get(*k) == target.data.get(*k))
+            .filter(|k| source.data.get(**k) == target.data.get(**k))
             .count();
 
         matches as f64 / common_keys.len() as f64
