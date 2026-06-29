@@ -43,14 +43,7 @@ class DASTTestType(Enum):
     DATA_EXPOSURE = "data_exposure"
 
 
-class DASTSeverity(Enum):
-    """DAST finding severity"""
-
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-    INFO = "info"
+from framework.security.types import Severity as DASTSeverity  # noqa: E402  (canonical)
 
 
 @dataclass

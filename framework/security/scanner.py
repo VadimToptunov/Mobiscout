@@ -19,15 +19,10 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
+from framework.security.types import Severity
 
-class SeverityLevel(Enum):
-    """Security issue severity"""
-
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-    INFO = "info"
+# Canonical severity vocabulary; kept under the historical name for callers.
+SeverityLevel = Severity
 
 
 class SecurityCheckCategory(Enum):

@@ -74,14 +74,7 @@ class VulnerabilityType(Enum):
     XSS = "cross_site_scripting"
 
 
-class Severity(Enum):
-    """Vulnerability severity"""
-
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
-    INFO = "info"
+from framework.security.types import Severity  # noqa: E402  (canonical severity)
 
 
 @dataclass
