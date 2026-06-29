@@ -1,0 +1,13 @@
+# pyo3 builds this crate with the `extension-module` feature, which deliberately
+# does NOT link libpython — the Python symbols are resolved at runtime by the
+# host interpreter when the module is imported. On macOS the linker rejects the
+# resulting undefined symbols (`_PyExc_*`, ...) unless told to defer them, so
+# `cargo build` fails. These flags enable runtime symbol resolution.
+# (Linux allows undefined symbols in cdylibs by default; Windows links against
+# the python lib, so neither needs this.)
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
