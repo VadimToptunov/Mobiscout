@@ -284,13 +284,21 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Gradle
+        # The repo doesn't commit the Gradle wrapper (no gradlew / wrapper jar),
+        # so ./gradlew fails with "No such file or directory". Provision Gradle
+        # 8.5 (the version in gradle-wrapper.properties) and invoke `gradle`.
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
+
       - name: Build plugin
         working-directory: jetbrains-plugin
-        run: ./gradlew buildPlugin
+        run: gradle buildPlugin
 
       - name: Verify plugin
         working-directory: jetbrains-plugin
-        run: ./gradlew verifyPlugin
+        run: gradle verifyPlugin
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
