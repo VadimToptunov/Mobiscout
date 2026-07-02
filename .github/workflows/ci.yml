@@ -264,9 +264,12 @@ jobs:
           # Wait for backend to start
           sleep 5
           
-          # Run CLI tests
+          # Smoke-test the CLI: both load every command group (catching import
+          # regressions) and exit 0. `observe health` never existed (the real
+          # health command is `observe doctor`, which intentionally exits non-zero
+          # when host tooling like adb/appium is absent, so it's unsuitable here).
           observe info
-          observe health
+          observe --help
           
           # Cleanup
           kill $MOCK_PID || true
