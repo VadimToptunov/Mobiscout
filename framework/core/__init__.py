@@ -1,16 +1,14 @@
 """
-Core package - STEP 1: Extended Core Engine with Multi-Language Support
+Core package - shared UI data models (Language, UIElement, Screen).
 """
 
 from framework.core.engine import (
-    CoreEngine,
     UIElement,
     Screen,
     Language,
 )
 
 __all__ = [
-    "CoreEngine",
     "UIElement",
     "Screen",
     "Language",
