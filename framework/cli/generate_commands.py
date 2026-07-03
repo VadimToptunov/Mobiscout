@@ -32,7 +32,7 @@ def pages(model: str, output: str, platform: str):
     print_header("📄 Generating Page Objects", f"Platform: {platform}")
 
     try:
-        from framework.generators.page_object_gen import generate_page_object
+        from framework.codegen.page_object import emit_page_objects
         from framework.model.app_model import AppModel
         import yaml
 
@@ -44,11 +44,12 @@ def pages(model: str, output: str, platform: str):
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Generate page objects
+        # Generate page objects via the codegen pipeline
         generated = []
-        for screen_name, screen in app_model.screens.items():
-            output_file = generate_page_object(screen, output_path)
-            generated.append(output_file)
+        for filename, content in emit_page_objects(app_model).items():
+            dest = output_path / filename
+            dest.write_text(content, encoding="utf-8", newline="\n")
+            generated.append(dest)
 
         print_success(f"Generated {len(generated)} page objects")
         print_info(f"Output directory: {output_path.absolute()}")

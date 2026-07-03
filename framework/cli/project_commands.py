@@ -25,7 +25,7 @@ from framework.cli.rich_output import (
     print_summary,
     create_progress,
 )
-from framework.generators import page_object_gen, api_client_gen, bdd_gen
+from framework.generators import api_client_gen, bdd_gen
 from framework.integration.model_enricher import ProjectIntegrator
 from framework.model.app_model import AppModel
 from framework.utils.error_handling import handle_cli_errors, validate_and_raise
@@ -475,17 +475,14 @@ def generate(
         po_dir.mkdir(exist_ok=True)
 
         try:
-            for screen_id, screen in model.screens.items():
-                try:
-                    # Use the function API directly
-                    output_file = page_object_gen.generate_page_object(screen, po_dir)
-                    if output_file:
-                        stats["page_objects"] += 1
-                        click.echo(f"   ✅ {screen.name}Page -> {output_file.name}")
-                        logger.debug(f"Generated Page Object: {output_file}")
-                except Exception as e:
-                    click.echo(f"   ⚠️  Failed to generate {screen.name}: {e}")
-                    logger.warning(f"Failed to generate Page Object for {screen.name}: {e}")
+            from framework.codegen.page_object import emit_page_objects
+
+            for filename, content in emit_page_objects(model).items():
+                dest = po_dir / filename
+                dest.write_text(content, encoding="utf-8", newline="\n")
+                stats["page_objects"] += 1
+                click.echo(f"   ✅ {dest.name}")
+                logger.debug(f"Generated Page Object: {dest}")
         except Exception as e:
             click.echo(f"   ❌ Page Object generation failed: {e}")
             logger.error(f"Page Object generation failed: {e}", exc_info=True)
