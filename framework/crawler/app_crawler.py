@@ -62,6 +62,7 @@ class CrawlElement:
     class_name: str
     clickable: bool
     bounds: Tuple[int, int, int, int]  # x1, y1, x2, y2
+    package: str = ""  # owning app package (Android); "" for iOS
 
     @property
     def center(self) -> Tuple[int, int]:
@@ -143,6 +144,7 @@ def _parse_android(root: ET.Element) -> List[CrawlElement]:
                 class_name=node.get("class", node.tag),
                 clickable=node.get("clickable") == "true",
                 bounds=bounds,
+                package=node.get("package", ""),
             )
         )
     return elements
@@ -230,16 +232,39 @@ class AppCrawler:
         label = element.label.lower()
         return any(b in label for b in self.blocklist)
 
+    def _own(self, element: CrawlElement) -> bool:
+        """Does this element belong to the app under test? System bars, dialogs
+        and (after any drift) the launcher have a different package, so we never
+        tap them — that is what caused random apps to launch."""
+        return element.package in ("", self.app_package)
+
+    def _on_app(self) -> bool:
+        return self.driver.current_package() == self.app_package
+
+    def _recover(self, tries: int = 3) -> bool:
+        """Press back until we are on the app again (or give up)."""
+        for _ in range(tries):
+            if self._on_app():
+                return True
+            self.driver.back()
+        return self._on_app()
+
+    def _own_interactive(self, screen: CrawlScreen) -> Deque[CrawlElement]:
+        return deque(e for e in screen.interactive() if self._own(e))
+
     def crawl(self) -> CrawlResult:
         result = CrawlResult()
 
+        # Only crawl if we actually start on the app under test.
+        if not self._on_app():
+            return result
         screen = parse_screen(self.driver.page_source())
         if not screen.fingerprint:
             return result
         result.screens[screen.fingerprint] = screen
 
-        # Each stack frame: (screen fingerprint, queue of untried interactive elements).
-        stack: List[Tuple[str, Deque[CrawlElement]]] = [(screen.fingerprint, deque(screen.interactive()))]
+        # Each stack frame: (screen fingerprint, queue of untried app elements).
+        stack: List[Tuple[str, Deque[CrawlElement]]] = [(screen.fingerprint, self._own_interactive(screen))]
 
         while stack and result.steps < self.max_steps:
             current_fp, todo = stack[-1]
@@ -248,19 +273,21 @@ class AppCrawler:
                 if stack:  # return to the parent screen
                     self.driver.back()
                     result.steps += 1
+                    self._recover()  # ensure back stayed inside the app
                 continue
 
             element = todo.popleft()
-            if self._blocked(element):
+            if self._blocked(element) or not self._own(element):
                 continue
 
             x, y = element.center
             self.driver.tap(x, y)
             result.steps += 1
 
-            # Left the app (external app / launcher / system dialog) -> go back.
-            if self.driver.current_package() != self.app_package:
-                self.driver.back()
+            # Left the app (opened another app / launcher / chooser) -> come back
+            # and abandon this branch. Never crawl a foreign screen.
+            if not self._on_app():
+                self._recover()
                 continue
 
             new_screen = parse_screen(self.driver.page_source())
@@ -274,10 +301,11 @@ class AppCrawler:
 
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
                 result.screens[new_screen.fingerprint] = new_screen
-                stack.append((new_screen.fingerprint, deque(new_screen.interactive())))
+                stack.append((new_screen.fingerprint, self._own_interactive(new_screen)))
             else:
                 # Already seen (or depth cap): don't re-explore, return to parent.
                 self.driver.back()
                 result.steps += 1
+                self._recover()
 
         return result

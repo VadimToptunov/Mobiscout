@@ -13,8 +13,10 @@ import subprocess
 import time
 from typing import List, Optional
 
-_FOCUS_RE = re.compile(r"mCurrentFocus=Window\{[^}]*\s([\w.]+)/[\w.]+")
-_FOCUS_RE_ALT = re.compile(r"mResumedActivity[^{]*\{[^ ]*\s([\w.]+)/")
+# The foreground app is the RESUMED activity. mCurrentFocus is unreliable — it
+# points at dialogs / ANR ("Application Not Responding: ...") / system windows.
+_RESUMED_RE = re.compile(r"(?:topResumedActivity|ResumedActivity:|mResumedActivity)[^\n]*?\s([\w.]+)/[\w.$]+")
+_FOCUS_RE = re.compile(r"mCurrentFocus=Window\{[^}]*\s([\w.]+)/[\w.$]+\}")
 
 
 class AdbCrawlerDriver:
@@ -49,10 +51,14 @@ class AdbCrawlerDriver:
         time.sleep(self._settle)
 
     def current_package(self) -> str:
-        out = self._run("shell", "dumpsys", "window")
-        m = _FOCUS_RE.search(out)
+        # Prefer the resumed activity (the app actually in the foreground).
+        m = _RESUMED_RE.search(self._run("shell", "dumpsys", "activity", "activities"))
         if m:
             return m.group(1)
-        out = self._run("shell", "dumpsys", "activity", "activities")
-        m = _FOCUS_RE_ALT.search(out)
-        return m.group(1) if m else ""
+        # Fallback: mCurrentFocus, ignoring ANR / system windows.
+        for line in self._run("shell", "dumpsys", "window").splitlines():
+            if "mCurrentFocus" in line and "Not Responding" not in line:
+                fm = _FOCUS_RE.search(line)
+                if fm:
+                    return fm.group(1)
+        return ""
