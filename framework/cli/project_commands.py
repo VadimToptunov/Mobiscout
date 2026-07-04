@@ -521,7 +521,7 @@ def generate(
                     logger.debug(f"Generated BDD feature: {features_dir / filename}")
                 except Exception as e:
                     click.echo(f"   ⚠️  Failed to generate {filename}: {e}")
-                    logger.warning(f"Failed to generate BDD feature for {flow.name}: {e}")
+                    logger.warning(f"Failed to write BDD feature {filename}: {e}")
         except Exception as e:
             click.echo(f"   ❌ BDD feature generation failed: {e}")
             logger.error(f"BDD feature generation failed: {e}", exc_info=True)
