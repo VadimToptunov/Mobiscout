@@ -70,7 +70,7 @@ def api(model: str, output: str):
     print_header("🌐 Generating API Clients")
 
     try:
-        from framework.generators.api_client_gen import generate_api_client
+        from framework.codegen.api_client import emit_api_client
         from framework.model.app_model import AppModel
         import yaml
 
@@ -81,12 +81,13 @@ def api(model: str, output: str):
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Generate API client
-        api_calls = list(app_model.api_calls.values())
-        if api_calls:
-            output_file = generate_api_client(api_calls, output_path / "api_client.py")
-            print_success(f"Generated API client with {len(api_calls)} endpoints")
-            print_info(f"Output file: {output_file}")
+        # Generate API client via the codegen pipeline
+        files = emit_api_client(app_model)
+        if files:
+            for filename, content in files.items():
+                (output_path / filename).write_text(content, encoding="utf-8", newline="\n")
+            print_success(f"Generated API client with {len(app_model.api_calls)} endpoints")
+            print_info(f"Output file: {output_path / 'api_client.py'}")
         else:
             print_error("No API calls found in model")
 
@@ -106,7 +107,7 @@ def features(model: str, output: str):
     print_header("🥒 Generating BDD Features")
 
     try:
-        from framework.generators.bdd_gen import generate_feature_file
+        from framework.codegen.bdd_feature import emit_feature_files
         from framework.model.app_model import AppModel
         import yaml
 
@@ -117,11 +118,12 @@ def features(model: str, output: str):
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # Generate feature files
+        # Generate feature files via the codegen pipeline
         generated = []
-        for flow in app_model.flows:
-            output_file = generate_feature_file(flow, output_path)
-            generated.append(output_file)
+        for filename, content in emit_feature_files(app_model).items():
+            dest = output_path / filename
+            dest.write_text(content, encoding="utf-8", newline="\n")
+            generated.append(dest)
 
         print_success(f"Generated {len(generated)} feature files")
         print_info(f"Output directory: {output_path.absolute()}")
