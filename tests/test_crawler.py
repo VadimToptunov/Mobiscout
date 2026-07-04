@@ -156,3 +156,59 @@ def test_build_test_model_asserts_noninteractive_text_compose():
     model = build_test_model(result, app_package=APP)
     values = [s.selector.value for c in model.cases for s in c.steps if s.selector]
     assert "Generate Contacts" in values
+
+
+# --- cross-platform parsing --------------------------------------------------
+
+IOS_XML = """<XCUIElementTypeApplication type="XCUIElementTypeApplication" name="MyApp" x="0" y="0" width="390" height="844">
+  <XCUIElementTypeStaticText type="XCUIElementTypeStaticText" name="" label="Welcome" x="20" y="50" width="200" height="30"/>
+  <XCUIElementTypeButton type="XCUIElementTypeButton" name="login_btn" label="Log In" enabled="true" x="20" y="100" width="200" height="44"/>
+</XCUIElementTypeApplication>"""
+
+
+def test_parse_ios_screen():
+    screen = parse_screen(IOS_XML)
+    assert screen.platform == "ios"
+    btn = [e for e in screen.elements if e.class_name == "Button"][0]
+    assert btn.content_desc == "login_btn"  # iOS name -> accessibility id
+    assert btn.text == "Log In"  # iOS label -> text
+    assert btn.clickable and btn.bounds == (20, 100, 220, 144)
+    assert btn.center == (120, 122)
+
+
+def test_detects_hybrid_webview():
+    android = _screen(
+        '<node class="android.webkit.WebView" resource-id="" text="" content-desc="" '
+        'clickable="true" bounds="[0,0][100,100]"/>'
+    )
+    assert parse_screen(android).hybrid is True
+    assert parse_screen(SCREENS["login"]).hybrid is False  # pure native
+
+
+def test_ios_crawl_builds_accessibility_selectors():
+    from framework.crawler.app_crawler import CrawlResult
+    from framework.crawler.to_codegen import build_test_model
+    from framework.codegen.ir import SelectorStrategy
+
+    screen = parse_screen(IOS_XML)
+    model = build_test_model(CrawlResult(screens={screen.fingerprint: screen}), app_package="MyApp")
+    selectors = [s.selector for c in model.cases for s in c.steps if s.selector]
+    # iOS accessibility id must become an ACCESSIBILITY_ID selector (cross-platform)
+    assert any(s.strategy is SelectorStrategy.ACCESSIBILITY_ID and s.value == "login_btn" for s in selectors)
+
+
+def test_detects_toolkit_native_flutter_hybrid():
+    native = parse_screen(SCREENS["login"])
+    assert native.toolkit == "native" and not native.hybrid
+
+    flutter = parse_screen(
+        '<node class="io.flutter.embedding.android.FlutterView" resource-id="" text="" '
+        'content-desc="" clickable="false" bounds="[0,0][400,800]"/>'
+    )
+    assert flutter.toolkit == "flutter"
+
+    hybrid = parse_screen(
+        '<node class="android.webkit.WebView" resource-id="" text="" content-desc="" '
+        'clickable="true" bounds="[0,0][400,800]"/>'
+    )
+    assert hybrid.toolkit == "hybrid" and hybrid.hybrid is True
