@@ -61,8 +61,15 @@ def build_test_model(
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
         steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
-        for element in screen.interactive():
+        # Assert every element with a usable locator (not just the clickable
+        # ones): in Jetpack Compose the tappable node is often empty while its
+        # visible text/description lives on a sibling node.
+        seen = set()
+        for element in screen.elements:
             selector = _selector_for(element)
+            if selector is None or selector.value in seen:
+                continue
+            seen.add(selector.value)
             if selector is None:
                 continue
             steps.append(
