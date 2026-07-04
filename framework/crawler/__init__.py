@@ -17,7 +17,11 @@ from framework.crawler.app_crawler import (
     parse_screen,
 )
 from framework.crawler.adb_driver import AdbCrawlerDriver
-from framework.crawler.to_codegen import build_test_model
+from framework.crawler.to_codegen import (
+    AccessibilityFinding,
+    audit_accessibility,
+    build_test_model,
+)
 
 
 class AppiumCrawlerDriver:
@@ -55,4 +59,6 @@ __all__ = [
     "DEFAULT_BLOCKLIST",
     "parse_screen",
     "build_test_model",
+    "audit_accessibility",
+    "AccessibilityFinding",
 ]

@@ -1,15 +1,17 @@
 """
-Bridge: crawler output -> codegen IR.
+Bridge: crawler output -> codegen IR + audits.
 
-Turns a CrawlResult (discovered screens + elements) into a codegen TestModel so
-the paths the crawler explored can be emitted as tests in any target language.
-This is the "explore -> automate" seam that closes the golden path:
+Turns a CrawlResult into a comprehensive codegen TestModel (not just a smoke
+suite): per-screen state checks, navigation/interaction flows from the recorded
+transitions, plus a standalone accessibility audit. This is the
+"explore -> automate" seam that closes the golden path:
 
     AppCrawler.crawl() -> CrawlResult -> build_test_model -> emitter -> test code
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import List, Optional
 
 from framework.codegen.ir import (
@@ -22,7 +24,7 @@ from framework.codegen.ir import (
     TestCase,
     TestModel,
 )
-from framework.crawler.app_crawler import CrawlElement, CrawlResult
+from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 
 # Stability ranking, mirroring the app-model adapter / selector_scorer.
 _RANKED = (
@@ -46,8 +48,81 @@ def _selector_for(element: CrawlElement) -> Optional[Selector]:
     return primary
 
 
-def _case_name(index: int, element_count: int) -> str:
-    return f"screen_{index + 1}"
+def _owned(screen: CrawlScreen, app_package: str) -> List[CrawlElement]:
+    return [e for e in screen.elements if e.package in ("", app_package)]
+
+
+def _screen_cases(index: int, screen: CrawlScreen, app_package: str) -> Optional[TestCase]:
+    """A per-screen state case: every locatable element is visible, and every
+    interactive one is also enabled (interactability, not just presence)."""
+    steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+    seen = set()
+    for element in _owned(screen, app_package):
+        selector = _selector_for(element)
+        if selector is None or selector.value in seen:
+            continue
+        seen.add(selector.value)
+        label = element.label or element.class_name
+        steps.append(
+            Step(
+                ActionType.ASSERT, selector=selector, assertion=AssertionType.VISIBLE, description=f"{label} is visible"
+            )
+        )
+        if element.clickable:
+            steps.append(
+                Step(
+                    ActionType.ASSERT,
+                    selector=selector,
+                    assertion=AssertionType.ENABLED,
+                    description=f"{label} is enabled",
+                )
+            )
+    if len(steps) == 1:
+        return None
+    return TestCase(
+        name=f"screen_{index + 1}_state", steps=steps, description=f"State checks for discovered screen {index + 1}"
+    )
+
+
+def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
+    """Functional flows: from the start screen, tap an element and assert we
+    reached the destination screen (a distinctive element there is visible)."""
+    if not result.screens:
+        return []
+    start_fp = next(iter(result.screens))
+    cases: List[TestCase] = []
+    seen_taps = set()
+    for from_fp, element, to_fp in result.transitions:
+        if from_fp != start_fp or to_fp == start_fp:
+            continue  # only depth-1, real navigations (path reconstruction is future work)
+        tap = _selector_for(element)
+        if tap is None or tap.value in seen_taps:
+            continue
+        target = result.screens.get(to_fp)
+        landmark = (
+            next((s for s in (_selector_for(e) for e in _owned(target, app_package)) if s), None) if target else None
+        )
+        if landmark is None:
+            continue
+        seen_taps.add(tap.value)
+        steps = [
+            Step(ActionType.LAUNCH, description="Open app"),
+            Step(ActionType.TAP, selector=tap, description=f"Tap {element.label or element.class_name}"),
+            Step(
+                ActionType.ASSERT,
+                selector=landmark,
+                assertion=AssertionType.VISIBLE,
+                description="Destination screen is shown",
+            ),
+        ]
+        cases.append(
+            TestCase(
+                name=f"navigate_{len(cases) + 1}",
+                steps=steps,
+                description=f"Tapping {element.label or element.class_name} navigates onward",
+            )
+        )
+    return cases
 
 
 def build_test_model(
@@ -56,39 +131,14 @@ def build_test_model(
     suite_name: str = "CrawlFlow",
     app_activity: Optional[str] = None,
 ) -> TestModel:
-    """Build a codegen TestModel from a crawl: one smoke case per discovered
-    screen that launches the app and asserts each interactive element is visible."""
+    """Comprehensive TestModel from a crawl: per-screen state checks (visible +
+    enabled) plus navigation flows from the recorded transitions."""
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
-        steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
-        # Assert every element with a usable locator (not just the clickable
-        # ones): in Jetpack Compose the tappable node is often empty while its
-        # visible text/description lives on a sibling node.
-        seen = set()
-        for element in screen.elements:
-            # Only the app's own elements — never system bars / status UI.
-            if element.package not in ("", app_package):
-                continue
-            selector = _selector_for(element)
-            if selector is None or selector.value in seen:
-                continue
-            seen.add(selector.value)
-            steps.append(
-                Step(
-                    ActionType.ASSERT,
-                    selector=selector,
-                    assertion=AssertionType.VISIBLE,
-                    description=f"{element.label or element.class_name} is visible",
-                )
-            )
-        if len(steps) > 1:
-            cases.append(
-                TestCase(
-                    name=_case_name(index, len(steps)),
-                    steps=steps,
-                    description=f"Smoke test for discovered screen {index + 1}",
-                )
-            )
+        case = _screen_cases(index, screen, app_package)
+        if case is not None:
+            cases.append(case)
+    cases.extend(_navigation_cases(result, app_package))
 
     return TestModel(
         name=suite_name,
@@ -96,5 +146,34 @@ def build_test_model(
         platform=Platform.ANDROID,
         app_activity=app_activity,
         cases=cases,
-        description="Auto-generated from an autonomous crawl.",
+        description="Auto-generated from an autonomous crawl (state + navigation).",
     )
+
+
+@dataclass
+class AccessibilityFinding:
+    screen_index: int
+    class_name: str
+    bounds: str
+    issue: str
+
+
+def audit_accessibility(result: CrawlResult, app_package: str = "") -> List[AccessibilityFinding]:
+    """Flag interactive elements a screen reader cannot announce: clickable with
+    no accessible label (no content-desc / text / resource-id)."""
+    findings: List[AccessibilityFinding] = []
+    for index, screen in enumerate(result.screens.values()):
+        for element in _owned(screen, app_package) if app_package else screen.elements:
+            if not element.clickable:
+                continue
+            has_label = element.content_desc or element.text or element.resource_id
+            if not has_label:
+                findings.append(
+                    AccessibilityFinding(
+                        screen_index=index + 1,
+                        class_name=element.class_name,
+                        bounds=str(element.bounds),
+                        issue="clickable element has no accessible label (content-desc/text/id)",
+                    )
+                )
+    return findings

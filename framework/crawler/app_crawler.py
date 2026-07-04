@@ -96,7 +96,9 @@ class CrawlResult:
     """Outcome of a crawl: unique screens, transitions, and steps taken."""
 
     screens: Dict[str, CrawlScreen] = field(default_factory=dict)
-    transitions: List[Tuple[str, str, str]] = field(default_factory=list)  # (from_fp, label, to_fp)
+    # (from_fp, tapped element, to_fp) — the element is kept so navigation tests
+    # can re-tap it, not just its label.
+    transitions: List[Tuple[str, "CrawlElement", str]] = field(default_factory=list)
     steps: int = 0
 
 
@@ -294,7 +296,7 @@ class AppCrawler:
             if not new_screen.fingerprint:
                 continue
 
-            result.transitions.append((current_fp, element.label, new_screen.fingerprint))
+            result.transitions.append((current_fp, element, new_screen.fingerprint))
 
             if new_screen.fingerprint == current_fp:
                 continue  # no navigation; keep trying elements on this screen
