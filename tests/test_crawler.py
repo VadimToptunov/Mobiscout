@@ -138,3 +138,21 @@ def test_crawl_result_generates_compilable_tests(tmp_path):
         f = tmp_path / name
         f.write_text(content, encoding="utf-8", newline="\n")
         py_compile.compile(str(f), doraise=True)
+
+
+def test_build_test_model_asserts_noninteractive_text_compose():
+    """Compose: the tappable node is empty but a sibling carries the text — the
+    generated model must still assert that visible text."""
+    from framework.crawler.app_crawler import CrawlResult, parse_screen
+    from framework.crawler.to_codegen import build_test_model
+    from framework.codegen.ir import SelectorStrategy
+
+    xml = _screen(
+        _node("", "", True, (0, 0, 100, 50)),  # clickable wrapper, no locator
+        _node("Generate Contacts", "", False, (0, 60, 100, 110)),  # text label, not clickable
+    )
+    screen = parse_screen(xml)
+    result = CrawlResult(screens={screen.fingerprint: screen})
+    model = build_test_model(result, app_package=APP)
+    values = [s.selector.value for c in model.cases for s in c.steps if s.selector]
+    assert "Generate Contacts" in values
