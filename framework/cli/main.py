@@ -25,6 +25,7 @@ from framework.cli.docs_commands import docs
 from framework.cli.doctor_command import doctor
 from framework.cli.execute_commands import execute
 from framework.cli.generate_commands import generate
+from framework.cli.crawl_commands import crawl
 from framework.cli.healing_commands import heal
 from framework.cli.load_commands import load
 from framework.cli.ml_commands import ml
@@ -103,6 +104,7 @@ cli.add_command(business)
 cli.add_command(project)
 cli.add_command(record)
 cli.add_command(generate)
+cli.add_command(crawl)
 cli.add_command(dashboard)
 cli.add_command(heal)
 cli.add_command(devices)
