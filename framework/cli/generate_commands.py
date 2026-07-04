@@ -204,3 +204,47 @@ def tests(model, app_package, target, output, app_activity, suite_name, list_tar
         print_error(f"Generation failed: {e}")
         logger.error(f"Test generation failed: {e}", exc_info=True)
         raise click.Abort()
+
+
+@generate.command("api-tests")
+@click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
+@click.option("--output", default="tests/api", help="Output directory")
+@click.option("--base-url", default="http://localhost:8000", help="Backend base URL for the tests")
+def api_tests(model: str, output: str, base_url: str):
+    """
+    Generate runnable API contract tests (pytest + requests) from the app
+    model's recorded api_calls. Complements the UI crawl with backend coverage.
+
+    Example:
+        observe generate api-tests --model app.yaml --base-url https://api.example.com
+    """
+    from framework.codegen.api_test import emit_api_tests
+    from framework.model.app_model import AppModel
+    import yaml
+
+    print_header("🔌 Generating API tests", f"Base URL: {base_url}")
+    try:
+        with open(model) as f:
+            app_model = AppModel(**yaml.safe_load(f))
+
+        files = emit_api_tests(app_model, base_url=base_url)
+        if not files:
+            print_error("No api_calls found in the model — nothing to generate.")
+            raise click.Abort()
+
+        output_path = Path(output)
+        for filename, content in files.items():
+            dest = output_path / filename
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8", newline="\n")
+
+        print_success(f"Generated API tests: {len(files)} file(s)")
+        print_info(f"Output directory: {output_path.absolute()}")
+        logger.info(f"Generated API tests from {model}")
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        print_error(f"Generation failed: {e}")
+        logger.error(f"API test generation failed: {e}", exc_info=True)
+        raise click.Abort()
