@@ -66,12 +66,13 @@ def build_test_model(
         # visible text/description lives on a sibling node.
         seen = set()
         for element in screen.elements:
+            # Only the app's own elements — never system bars / status UI.
+            if element.package not in ("", app_package):
+                continue
             selector = _selector_for(element)
             if selector is None or selector.value in seen:
                 continue
             seen.add(selector.value)
-            if selector is None:
-                continue
             steps.append(
                 Step(
                     ActionType.ASSERT,

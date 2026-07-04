@@ -212,3 +212,60 @@ def test_detects_toolkit_native_flutter_hybrid():
         'clickable="true" bounds="[0,0][400,800]"/>'
     )
     assert hybrid.toolkit == "hybrid" and hybrid.hybrid is True
+
+
+def test_crawler_ignores_foreign_package_elements():
+    """Elements owned by another package (system UI / launcher) must never be
+    tapped — this is what caused random apps to launch."""
+    from framework.crawler.app_crawler import parse_screen
+
+    xml = (
+        "<hierarchy>"
+        '<node class="android.widget.Button" resource-id="" text="App Button" content-desc="" '
+        f'package="{APP}" clickable="true" bounds="[0,0][100,50]"/>'
+        '<node class="android.widget.FrameLayout" resource-id="android:id/navigationBarBackground" '
+        'text="" content-desc="" package="android" clickable="true" bounds="[0,900][100,950]"/>'
+        "</hierarchy>"
+    )
+
+    class OneScreen:
+        def __init__(self):
+            self.pkg = APP
+            self.tapped = []
+
+        def page_source(self):
+            return xml
+
+        def current_package(self):
+            return self.pkg
+
+        def back(self):
+            pass
+
+        def tap(self, x, y):
+            for e in parse_screen(xml).elements:
+                x1, y1, x2, y2 = e.bounds
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    self.tapped.append(e.package)
+
+    d = OneScreen()
+    AppCrawler(d, APP, max_steps=10).crawl()
+    assert "android" not in d.tapped  # never tapped the system nav bar
+
+
+def test_crawler_does_not_start_off_app():
+    class Foreign:
+        def page_source(self):
+            return SCREENS["login"]
+
+        def current_package(self):
+            return "com.android.launcher"
+
+        def back(self):
+            pass
+
+        def tap(self, x, y):
+            raise AssertionError("must not tap when not on the app")
+
+    result = AppCrawler(Foreign(), APP).crawl()
+    assert result.screens == {}
