@@ -25,7 +25,6 @@ from framework.cli.rich_output import (
     print_summary,
     create_progress,
 )
-from framework.generators import api_client_gen, bdd_gen
 from framework.integration.model_enricher import ProjectIntegrator
 from framework.model.app_model import AppModel
 from framework.utils.error_handling import handle_cli_errors, validate_and_raise
@@ -494,16 +493,13 @@ def generate(
         api_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            # Use the function API directly with List of APICall objects
-            api_calls_list = list(model.api_calls.values())
-            output_file = api_dir / "api_client.py"
+            from framework.codegen.api_client import emit_api_client
 
-            api_file = api_client_gen.generate_api_client(api_calls_list, output_file)
-
-            if api_file:
-                stats["api_tests"] = len(model.api_calls)
-                click.echo(f"   ✅ API Client with {len(model.api_calls)} endpoints")
-                logger.info(f"Generated API client: {api_file}")
+            for filename, content in emit_api_client(model).items():
+                (api_dir / filename).write_text(content, encoding="utf-8", newline="\n")
+            stats["api_tests"] = len(model.api_calls)
+            click.echo(f"   ✅ API Client with {len(model.api_calls)} endpoints")
+            logger.info(f"Generated API client in {api_dir}")
         except Exception as e:
             click.echo(f"   ⚠️  API client generation failed: {e}")
             logger.warning(f"API client generation failed: {e}")
@@ -515,16 +511,16 @@ def generate(
         features_dir.mkdir(exist_ok=True)
 
         try:
-            for flow in model.flows:
+            from framework.codegen.bdd_feature import emit_feature_files
+
+            for filename, content in emit_feature_files(model).items():
                 try:
-                    # Use the function API directly
-                    feature_path = bdd_gen.generate_feature_file(flow, features_dir)
-                    if feature_path:
-                        stats["features"] += 1
-                        click.echo(f"   ✅ {flow.name}.feature")
-                        logger.debug(f"Generated BDD feature: {feature_path}")
+                    (features_dir / filename).write_text(content, encoding="utf-8", newline="\n")
+                    stats["features"] += 1
+                    click.echo(f"   ✅ {filename}")
+                    logger.debug(f"Generated BDD feature: {features_dir / filename}")
                 except Exception as e:
-                    click.echo(f"   ⚠️  Failed to generate {flow.name}: {e}")
+                    click.echo(f"   ⚠️  Failed to generate {filename}: {e}")
                     logger.warning(f"Failed to generate BDD feature for {flow.name}: {e}")
         except Exception as e:
             click.echo(f"   ❌ BDD feature generation failed: {e}")
