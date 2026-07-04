@@ -84,8 +84,8 @@ def test_crawler_discovers_all_reachable_screens():
     result = AppCrawler(driver, APP, max_steps=100).crawl()
     # login + home + help + settings = 4 unique screens
     assert len(result.screens) == 4
-    assert any(lbl == "Login" for _, lbl, _ in result.transitions)
-    assert any(lbl == "Settings" for _, lbl, _ in result.transitions)
+    assert any(el.label == "Login" for _, el, _ in result.transitions)
+    assert any(el.label == "Settings" for _, el, _ in result.transitions)
 
 
 def test_crawler_never_taps_blocklisted_elements():
@@ -269,3 +269,33 @@ def test_crawler_does_not_start_off_app():
 
     result = AppCrawler(Foreign(), APP).crawl()
     assert result.screens == {}
+
+
+def test_comprehensive_model_has_navigation_and_enabled_checks():
+    from framework.crawler.to_codegen import build_test_model
+    from framework.codegen.ir import ActionType, AssertionType
+
+    result = AppCrawler(FakeDriver(), APP, max_steps=100).crawl()
+    model = build_test_model(result, app_package=APP)
+
+    # navigation cases: LAUNCH -> TAP -> ASSERT(visible)
+    nav = [c for c in model.cases if c.name.startswith("navigate_")]
+    assert nav, "expected navigation/interaction cases from transitions"
+    assert any(s.action is ActionType.TAP for c in nav for s in c.steps)
+
+    # state cases assert enabled (interactability), not just visible
+    state = [c for c in model.cases if c.name.endswith("_state")]
+    assert any(s.assertion is AssertionType.ENABLED for c in state for s in c.steps)
+
+
+def test_accessibility_audit_flags_unlabelled_clickable():
+    from framework.crawler.app_crawler import CrawlResult, parse_screen
+    from framework.crawler import audit_accessibility as audit
+
+    xml = _screen(
+        _node("", "", True, (0, 0, 100, 50)),  # clickable, NO label -> a11y issue
+        _node("Save", "id/save", True, (0, 60, 100, 110)),  # clickable, labelled -> ok
+    )
+    screen = parse_screen(xml)
+    findings = audit(CrawlResult(screens={screen.fingerprint: screen}))
+    assert len(findings) == 1 and "no accessible label" in findings[0].issue
