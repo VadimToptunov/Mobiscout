@@ -202,6 +202,8 @@ def parse_screen(xml: str) -> CrawlScreen:
         toolkit = "hybrid"  # native shell hosting web content
     elif "Flutter" in classes:
         toolkit = "flutter"  # canvas-rendered; needs Semantics for good locators
+    elif "ComposeView" in classes or "androidx.compose" in classes:
+        toolkit = "compose"  # single AndroidComposeView; locate by text/desc, not id
     else:
         toolkit = "native"
 

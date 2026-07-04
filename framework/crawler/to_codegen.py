@@ -48,6 +48,39 @@ def _selector_for(element: CrawlElement) -> Optional[Selector]:
     return primary
 
 
+def _contains(outer: CrawlElement, inner: CrawlElement) -> bool:
+    ox1, oy1, ox2, oy2 = outer.bounds
+    ix1, iy1, ix2, iy2 = inner.bounds
+    return ox1 <= ix1 and oy1 <= iy1 and ix2 <= ox2 and iy2 <= oy2 and inner.bounds != outer.bounds
+
+
+def selector_for(element: CrawlElement, siblings: Optional[List[CrawlElement]] = None) -> Optional[Selector]:
+    """Locator for an element, with a Jetpack Compose fallback.
+
+    In Compose the clickable node is often an unlabelled wrapper while the
+    visible text sits on a non-clickable child, so a direct locator is empty.
+    When that happens for a clickable element, borrow the locator of the
+    innermost labelled element contained within its bounds — tapping that child
+    (inside the clickable) triggers the same action.
+    """
+    own = _selector_for(element)
+    if own is not None or not element.clickable or not siblings:
+        return own
+    best: Optional[Selector] = None
+    best_area: Optional[int] = None
+    for other in siblings:
+        if other is element or not _contains(element, other):
+            continue
+        sel = _selector_for(other)
+        if sel is None:
+            continue
+        x1, y1, x2, y2 = other.bounds
+        area = (x2 - x1) * (y2 - y1)
+        if best_area is None or area < best_area:
+            best, best_area = sel, area
+    return best
+
+
 def _owned(screen: CrawlScreen, app_package: str) -> List[CrawlElement]:
     return [e for e in screen.elements if e.package in ("", app_package)]
 
@@ -57,8 +90,9 @@ def _screen_cases(index: int, screen: CrawlScreen, app_package: str) -> Optional
     interactive one is also enabled (interactability, not just presence)."""
     steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
     seen = set()
-    for element in _owned(screen, app_package):
-        selector = _selector_for(element)
+    owned = _owned(screen, app_package)
+    for element in owned:
+        selector = selector_for(element, owned)
         if selector is None or selector.value in seen:
             continue
         seen.add(selector.value)
@@ -92,16 +126,17 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
     start_fp = next(iter(result.screens))
     cases: List[TestCase] = []
     seen_taps = set()
+    from_screen = result.screens.get(start_fp)
+    from_elements = _owned(from_screen, app_package) if from_screen else []
     for from_fp, element, to_fp in result.transitions:
         if from_fp != start_fp or to_fp == start_fp:
             continue  # only depth-1, real navigations (path reconstruction is future work)
-        tap = _selector_for(element)
+        tap = selector_for(element, from_elements)
         if tap is None or tap.value in seen_taps:
             continue
         target = result.screens.get(to_fp)
-        landmark = (
-            next((s for s in (_selector_for(e) for e in _owned(target, app_package)) if s), None) if target else None
-        )
+        target_elements = _owned(target, app_package) if target else []
+        landmark = next((s for s in (selector_for(e, target_elements) for e in target_elements) if s), None)
         if landmark is None:
             continue
         seen_taps.add(tap.value)

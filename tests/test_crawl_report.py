@@ -24,6 +24,24 @@ def test_inventory_json_lists_screens_elements_flows():
     json.loads(inventory_json_str(result, APP))
 
 
+def test_compose_clickable_wrapper_borrows_child_label():
+    """Jetpack Compose: the clickable node is an unlabelled wrapper and the text
+    sits on a non-clickable child. selector_for should borrow the child label."""
+    from framework.crawler.app_crawler import CrawlElement
+    from framework.crawler.to_codegen import selector_for
+
+    wrapper = CrawlElement("", "", "", "android.view.View", True, (0, 0, 300, 100))
+    label = CrawlElement("", "Generate Contacts", "", "android.view.View", False, (20, 20, 280, 80))
+    outside = CrawlElement("", "Elsewhere", "", "android.view.View", False, (0, 500, 300, 560))
+
+    # wrapper on its own has no locator...
+    assert selector_for(wrapper) is None
+    # ...but with its screen it borrows the innermost contained label.
+    sel = selector_for(wrapper, [wrapper, label, outside])
+    assert sel is not None
+    assert sel.value == "Generate Contacts"
+
+
 def test_inventory_markdown_has_tables_and_a11y_section():
     result = AppCrawler(FakeDriver(), APP, max_steps=100).crawl()
     md = inventory_markdown(result, APP)

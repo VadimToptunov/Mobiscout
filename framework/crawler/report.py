@@ -14,11 +14,11 @@ import json
 from typing import Any, Dict, List
 
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
-from framework.crawler.to_codegen import _selector_for, audit_accessibility
+from framework.crawler.to_codegen import audit_accessibility, selector_for
 
 
-def _locator(element: CrawlElement) -> Dict[str, str]:
-    sel = _selector_for(element)
+def _locator(element: CrawlElement, siblings: List[CrawlElement]) -> Dict[str, str]:
+    sel = selector_for(element, siblings)
     if sel is None:
         return {"strategy": "", "value": ""}
     return {"strategy": sel.strategy.value, "value": sel.value}
@@ -33,8 +33,9 @@ def inventory_json(result: CrawlResult, app_package: str = "") -> Dict[str, Any]
     fps = list(result.screens)
     screens = []
     for index, (fp, screen) in enumerate(result.screens.items(), 1):
+        owned = _owned(screen, app_package)
         elements = []
-        for e in _owned(screen, app_package):
+        for e in owned:
             elements.append(
                 {
                     "class": e.class_name,
@@ -43,7 +44,7 @@ def inventory_json(result: CrawlResult, app_package: str = "") -> Dict[str, Any]
                     "content_desc": e.content_desc,
                     "clickable": e.clickable,
                     "bounds": list(e.bounds),
-                    "locator": _locator(e),
+                    "locator": _locator(e, owned),
                 }
             )
         screens.append(
