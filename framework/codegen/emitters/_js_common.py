@@ -19,7 +19,10 @@ from framework.codegen.ir import Selector, SelectorStrategy
 def js_str(value: str) -> str:
     """Render a single-quoted JS string literal, safely escaped. Single quotes
     keep the common double-quoted uiAutomator expressions readable."""
-    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+    escaped = (
+        value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    )
+    return "'" + escaped + "'"
 
 
 def _wdio_selector(sel: Selector) -> str:

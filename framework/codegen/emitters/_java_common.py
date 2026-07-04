@@ -22,8 +22,13 @@ _BY_FACTORY = {
 
 
 def java_str(value: str) -> str:
-    """Render a Java double-quoted string literal, safely escaped."""
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    """Render a Java double-quoted string literal, safely escaped. Control
+    characters (newline/tab/cr) are escaped too, or multi-line element text
+    would break the literal."""
+    escaped = (
+        value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    )
+    return '"' + escaped + '"'
 
 
 def by_expr(sel: Selector) -> str:

@@ -26,8 +26,13 @@ APPIUM_BY = {
 
 
 def py_str(value: str) -> str:
-    """Render a Python double-quoted string literal, safely escaped."""
-    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    """Render a Python double-quoted string literal, safely escaped. Control
+    characters (newline/tab/cr) are escaped too, or an element's multi-line text
+    (common in Jetpack Compose paragraphs) would break the literal."""
+    escaped = (
+        value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    )
+    return '"' + escaped + '"'
 
 
 def locator_value(sel: Selector) -> str:
