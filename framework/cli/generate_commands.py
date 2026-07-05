@@ -207,29 +207,44 @@ def tests(model, app_package, target, output, app_activity, suite_name, list_tar
 
 
 @generate.command("api-tests")
-@click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
+@click.option("--model", type=click.Path(exists=True), help="App model YAML file (recorded api_calls)")
+@click.option("--openapi", type=click.Path(exists=True), help="OpenAPI/Swagger spec (JSON or YAML) — richer context")
 @click.option("--output", default="tests/api", help="Output directory")
 @click.option("--base-url", default="http://localhost:8000", help="Backend base URL for the tests")
-def api_tests(model: str, output: str, base_url: str):
+def api_tests(model: str, openapi: str, output: str, base_url: str):
     """
-    Generate runnable API contract tests (pytest + requests) from the app
-    model's recorded api_calls. Complements the UI crawl with backend coverage.
+    Generate runnable API contract tests (pytest + requests).
+
+    Source the endpoints either from a recorded app model (--model) or, for much
+    richer context, straight from the backend's OpenAPI/Swagger spec (--openapi).
 
     Example:
-        observe generate api-tests --model app.yaml --base-url https://api.example.com
+        observe generate api-tests --openapi openapi.yaml --base-url https://api.example.com
     """
     from framework.codegen.api_test import emit_api_tests
-    from framework.model.app_model import AppModel
     import yaml
+
+    if not model and not openapi:
+        print_error("Provide --model or --openapi.")
+        raise click.Abort()
 
     print_header("🔌 Generating API tests", f"Base URL: {base_url}")
     try:
-        with open(model) as f:
-            app_model = AppModel(**yaml.safe_load(f))
+        if openapi:
+            from types import SimpleNamespace
+            from framework.codegen.openapi import load_spec, parse_openapi
+
+            calls = parse_openapi(load_spec(openapi))
+            app_model = SimpleNamespace(api_calls={c.name: c for c in calls})
+        else:
+            from framework.model.app_model import AppModel
+
+            with open(model) as f:
+                app_model = AppModel(**yaml.safe_load(f))
 
         files = emit_api_tests(app_model, base_url=base_url)
         if not files:
-            print_error("No api_calls found in the model — nothing to generate.")
+            print_error("No endpoints found — nothing to generate.")
             raise click.Abort()
 
         output_path = Path(output)
@@ -240,11 +255,53 @@ def api_tests(model: str, output: str, base_url: str):
 
         print_success(f"Generated API tests: {len(files)} file(s)")
         print_info(f"Output directory: {output_path.absolute()}")
-        logger.info(f"Generated API tests from {model}")
+        logger.info(f"Generated API tests from {openapi or model}")
 
     except click.Abort:
         raise
     except Exception as e:
         print_error(f"Generation failed: {e}")
         logger.error(f"API test generation failed: {e}", exc_info=True)
+        raise click.Abort()
+
+
+@generate.command("api-review")
+@click.option("--openapi", required=True, type=click.Path(exists=True), help="OpenAPI/Swagger spec (JSON or YAML)")
+@click.option("--output", default=None, help="Write the API context sheet to this Markdown file")
+def api_review(openapi: str, output: str):
+    """
+    Review an OpenAPI/Swagger spec: emit an endpoint inventory (context for
+    writing tests) plus findings about gaps that weaken generated tests
+    (missing schemas, undocumented responses, undeclared path params, no auth).
+
+    Example:
+        observe generate api-review --openapi openapi.yaml --output api-context.md
+    """
+    from framework.codegen.openapi import load_spec, parse_openapi, review_markdown, review_openapi
+
+    print_header("🔎 Reviewing API spec", openapi)
+    try:
+        spec = load_spec(openapi)
+        calls = parse_openapi(spec)
+        findings = review_openapi(spec)
+        md = review_markdown(spec, calls, findings)
+
+        if output:
+            Path(output).write_text(md, encoding="utf-8", newline="\n")
+            print_info(f"API context written to: {Path(output).absolute()}")
+        else:
+            print_info(md)
+
+        sev = {}
+        for f in findings:
+            sev[f.severity] = sev.get(f.severity, 0) + 1
+        summary = ", ".join(f"{n} {s}" for s, n in sev.items()) or "no issues"
+        print_success(f"{len(calls)} endpoint(s) reviewed — {summary}")
+        logger.info(f"Reviewed OpenAPI spec {openapi}: {len(calls)} endpoints, {len(findings)} findings")
+
+    except click.Abort:
+        raise
+    except Exception as e:
+        print_error(f"Review failed: {e}")
+        logger.error(f"API review failed: {e}", exc_info=True)
         raise click.Abort()
