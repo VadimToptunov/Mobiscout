@@ -17,8 +17,8 @@ from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.to_codegen import audit_accessibility, selector_for
 
 
-def _locator(element: CrawlElement, siblings: List[CrawlElement]) -> Dict[str, str]:
-    sel = selector_for(element, siblings)
+def _locator(element: CrawlElement, siblings: List[CrawlElement], platform: str = "android") -> Dict[str, str]:
+    sel = selector_for(element, siblings, platform)
     if sel is None:
         return {"strategy": "", "value": ""}
     return {"strategy": sel.strategy.value, "value": sel.value}
@@ -44,7 +44,7 @@ def inventory_json(result: CrawlResult, app_package: str = "") -> Dict[str, Any]
                     "content_desc": e.content_desc,
                     "clickable": e.clickable,
                     "bounds": list(e.bounds),
-                    "locator": _locator(e, owned),
+                    "locator": _locator(e, owned, screen.platform),
                 }
             )
         screens.append(
