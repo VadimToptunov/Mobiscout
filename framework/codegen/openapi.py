@@ -25,14 +25,31 @@ _HTTP_METHODS = ("get", "post", "put", "delete", "patch", "head", "options")
 _BODY_METHODS = ("post", "put", "patch")
 
 
-def load_spec(path: str) -> Dict[str, Any]:
-    """Load an OpenAPI/Swagger document from JSON or YAML."""
-    text = Path(path).read_text(encoding="utf-8")
-    if path.endswith((".yaml", ".yml")):
+def load_spec(source: str) -> Dict[str, Any]:
+    """Load an OpenAPI/Swagger document from a local path OR an http(s) URL.
+
+    Specs are commonly served live (``/openapi.json``, ``/v3/api-docs``), so a URL
+    is accepted directly. Format is taken from the ``.yaml``/``.yml`` suffix, else
+    auto-detected (try JSON, fall back to YAML) since URLs often omit an extension.
+    """
+    if source.startswith(("http://", "https://")):
+        import urllib.request
+
+        with urllib.request.urlopen(source, timeout=30) as resp:  # nosec B310 - explicit http(s) scheme
+            text = resp.read().decode("utf-8")
+    else:
+        text = Path(source).read_text(encoding="utf-8")
+
+    if source.endswith((".yaml", ".yml")):
         import yaml
 
         return yaml.safe_load(text)
-    return json.loads(text)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        import yaml
+
+        return yaml.safe_load(text)
 
 
 def _resolve_ref(spec: Dict[str, Any], node: Any, _seen: Optional[set] = None) -> Any:
