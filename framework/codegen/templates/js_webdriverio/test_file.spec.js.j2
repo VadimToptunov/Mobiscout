@@ -7,7 +7,13 @@
  * DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
  *
  * WebdriverIO mobile spec (Mocha). Requires an Appium session configured in
- * wdio.conf.js with app:appPackage = {{ model.app_package }}.
+{% if model.platform.value == "ios" %}
+ * wdio.conf.js with platformName 'iOS', automationName 'XCUITest',
+ * 'appium:bundleId' = {{ model.app_package }}.
+{% else %}
+ * wdio.conf.js with platformName 'Android', automationName 'UiAutomator2',
+ * 'appium:appPackage' = {{ model.app_package }}.
+{% endif %}
  */
 
 const APP_PACKAGE = {{ model.app_package | js_str }};
