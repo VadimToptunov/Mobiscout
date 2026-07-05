@@ -1,7 +1,10 @@
 """OpenAPI/Swagger ingestion + review: spec -> APICalls (for tests) + findings."""
 
+import json
+from unittest.mock import patch
+
 from framework.codegen.api_test import emit_api_tests
-from framework.codegen.openapi import parse_openapi, review_markdown, review_openapi
+from framework.codegen.openapi import load_spec, parse_openapi, review_markdown, review_openapi
 
 SPEC = {
     "openapi": "3.0.0",
@@ -63,3 +66,34 @@ def test_review_flags_spec_gaps():
     # markdown renders inventory + review sections
     md = review_markdown(SPEC, parse_openapi(SPEC), findings)
     assert "## Endpoints" in md and "## Review" in md and "createOrder" in md
+
+
+def test_load_spec_local_json_auto_detected(tmp_path):
+    # Extensionless file with JSON content -> auto-detected.
+    f = tmp_path / "spec"
+    f.write_text(json.dumps(SPEC), encoding="utf-8")
+    assert load_spec(str(f))["info"]["title"] == "Shop API"
+
+
+def test_load_spec_local_yaml(tmp_path):
+    f = tmp_path / "spec.yaml"
+    f.write_text("openapi: 3.0.0\ninfo:\n  title: YamlApi\n  version: '1'\npaths: {}\n", encoding="utf-8")
+    assert load_spec(str(f))["info"]["title"] == "YamlApi"
+
+
+def test_load_spec_from_url_is_fetched():
+    class _Resp:
+        def read(self):
+            return json.dumps(SPEC).encode("utf-8")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    with patch("urllib.request.urlopen", return_value=_Resp()) as m:
+        spec = load_spec("https://api.example.com/openapi.json")
+    assert m.called
+    assert spec["info"]["title"] == "Shop API"
+    assert len(parse_openapi(spec)) == 2

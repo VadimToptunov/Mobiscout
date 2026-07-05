@@ -208,7 +208,7 @@ def tests(model, app_package, target, output, app_activity, suite_name, list_tar
 
 @generate.command("api-tests")
 @click.option("--model", type=click.Path(exists=True), help="App model YAML file (recorded api_calls)")
-@click.option("--openapi", type=click.Path(exists=True), help="OpenAPI/Swagger spec (JSON or YAML) — richer context")
+@click.option("--openapi", help="OpenAPI/Swagger spec: local file OR http(s) URL (JSON or YAML)")
 @click.option("--output", default="tests/api", help="Output directory")
 @click.option("--base-url", default="http://localhost:8000", help="Backend base URL for the tests")
 def api_tests(model: str, openapi: str, output: str, base_url: str):
@@ -266,7 +266,7 @@ def api_tests(model: str, openapi: str, output: str, base_url: str):
 
 
 @generate.command("api-review")
-@click.option("--openapi", required=True, type=click.Path(exists=True), help="OpenAPI/Swagger spec (JSON or YAML)")
+@click.option("--openapi", required=True, help="OpenAPI/Swagger spec: local file OR http(s) URL (JSON or YAML)")
 @click.option("--output", default=None, help="Write the API context sheet to this Markdown file")
 def api_review(openapi: str, output: str):
     """
@@ -274,8 +274,10 @@ def api_review(openapi: str, output: str):
     writing tests) plus findings about gaps that weaken generated tests
     (missing schemas, undocumented responses, undeclared path params, no auth).
 
+    Accepts a local file or a live URL (e.g. https://host/openapi.json).
+
     Example:
-        observe generate api-review --openapi openapi.yaml --output api-context.md
+        observe generate api-review --openapi https://petstore3.swagger.io/api/v3/openapi.json
     """
     from framework.codegen.openapi import load_spec, parse_openapi, review_markdown, review_openapi
 
