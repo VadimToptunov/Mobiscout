@@ -17,6 +17,7 @@ from framework.crawler.app_crawler import (
     parse_screen,
 )
 from framework.crawler.adb_driver import AdbCrawlerDriver
+from framework.crawler.appium_driver import IOSCrawlerDriver
 from framework.crawler.to_codegen import (
     AccessibilityFinding,
     audit_accessibility,
@@ -51,6 +52,7 @@ class AppiumCrawlerDriver:
 __all__ = [
     "AppCrawler",
     "AppiumCrawlerDriver",
+    "IOSCrawlerDriver",
     "AdbCrawlerDriver",
     "CrawlElement",
     "CrawlerDriver",
