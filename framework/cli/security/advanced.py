@@ -152,10 +152,14 @@ def binary(binary_path: Path, platform: str) -> None:
 
     console.print(Panel.fit("Binary Security Analysis", style="bold magenta"))
 
+    if platform == "ios":
+        console.print("[yellow]![/yellow] iOS binary analysis is not supported yet (Android APK/.so only).")
+        raise SystemExit(2)
+
     analyzer = BinarySecurityAnalyzer()
 
     with console.status("[cyan]Analyzing binary security..."):
-        findings = analyzer.analyze(binary_path, platform)
+        findings = analyzer.analyze_android_apk(binary_path)
 
     if not findings:
         console.print("[green]✓[/green] Binary security checks passed!")
@@ -173,13 +177,13 @@ def binary(binary_path: Path, platform: str) -> None:
     table.add_column("Recommendation", style="cyan")
 
     for finding in critical:
-        table.add_row("[red]CRITICAL[/red]", finding.title, finding.recommendation[:50])
+        table.add_row("[red]CRITICAL[/red]", finding.title, finding.remediation[:50])
     for finding in high:
-        table.add_row("[yellow]HIGH[/yellow]", finding.title, finding.recommendation[:50])
+        table.add_row("[yellow]HIGH[/yellow]", finding.title, finding.remediation[:50])
     for finding in medium:
-        table.add_row("[blue]MEDIUM[/blue]", finding.title, finding.recommendation[:50])
+        table.add_row("[blue]MEDIUM[/blue]", finding.title, finding.remediation[:50])
     for finding in low:
-        table.add_row("[dim]LOW[/dim]", finding.title, finding.recommendation[:50])
+        table.add_row("[dim]LOW[/dim]", finding.title, finding.remediation[:50])
 
     console.print(table)
 
