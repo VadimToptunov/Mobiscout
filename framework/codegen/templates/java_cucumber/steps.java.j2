@@ -9,8 +9,14 @@
 package generated;
 
 import io.appium.java_client.AppiumBy;
+import io.appium.java_client.AppiumDriver;
+{% if model.platform.value == "ios" %}
+import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.ios.options.XCUITestOptions;
+{% else %}
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
+{% endif %}
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.Given;
@@ -37,17 +43,26 @@ public class {{ class_name }} {
 {% endfor %}
     }
 
-    private AndroidDriver driver;
+    private AppiumDriver driver;
 
     @Before
     public void setUp() throws Exception {
+{% if model.platform.value == "ios" %}
+        XCUITestOptions options = new XCUITestOptions();
+        options.setPlatformName("iOS");
+        options.setAutomationName("XCUITest");
+        options.setBundleId(APP_PACKAGE);
+        driver = new IOSDriver(new URL("http://localhost:4723"), options);
+{% else %}
         UiAutomator2Options options = new UiAutomator2Options();
-        options.setPlatformName("{{ model.platform.value | capitalize }}");
+        options.setPlatformName("Android");
+        options.setAutomationName("UiAutomator2");
         options.setAppPackage(APP_PACKAGE);
 {% if model.app_activity %}
         options.setAppActivity({{ model.app_activity | java_str }});
 {% endif %}
         driver = new AndroidDriver(new URL("http://localhost:4723"), options);
+{% endif %}
     }
 
     @After

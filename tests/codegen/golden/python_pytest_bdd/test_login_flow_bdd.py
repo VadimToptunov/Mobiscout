@@ -41,6 +41,7 @@ def _find(driver, target):
 def driver():
     options = UiAutomator2Options()
     options.platform_name = "Android"
+    options.automation_name = "UiAutomator2"
     options.app_package = APP_PACKAGE
     options.app_activity = APP_ACTIVITY
     drv = webdriver.Remote("http://localhost:4723", options=options)

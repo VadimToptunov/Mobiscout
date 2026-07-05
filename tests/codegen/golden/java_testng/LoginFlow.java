@@ -7,6 +7,7 @@
 package generated;
 
 import io.appium.java_client.AppiumBy;
+import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import org.openqa.selenium.By;
@@ -22,12 +23,13 @@ import java.time.Duration;
 
 public class LoginFlow {
 
-    private AndroidDriver driver;
+    private AppiumDriver driver;
 
     @BeforeMethod
     public void setUp() throws Exception {
         UiAutomator2Options options = new UiAutomator2Options();
         options.setPlatformName("Android");
+        options.setAutomationName("UiAutomator2");
         options.setAppPackage("com.example.app");
         options.setAppActivity(".MainActivity");
         driver = new AndroidDriver(new URL("http://localhost:4723"), options);

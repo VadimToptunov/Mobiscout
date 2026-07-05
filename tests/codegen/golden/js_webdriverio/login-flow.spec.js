@@ -5,7 +5,8 @@
  * DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
  *
  * WebdriverIO mobile spec (Mocha). Requires an Appium session configured in
- * wdio.conf.js with app:appPackage = com.example.app.
+ * wdio.conf.js with platformName 'Android', automationName 'UiAutomator2',
+ * 'appium:appPackage' = com.example.app.
  */
 
 const APP_PACKAGE = 'com.example.app';

@@ -9,7 +9,11 @@ DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
 
 import pytest
 from appium import webdriver
+{% if model.platform.value == "ios" %}
+from appium.options.ios import XCUITestOptions
+{% else %}
 from appium.options.android import UiAutomator2Options
+{% endif %}
 from appium.webdriver.common.appiumby import AppiumBy
 from selenium.common.exceptions import NoSuchElementException
 
@@ -29,11 +33,19 @@ def _find(driver, primary, fallbacks):
 
 @pytest.fixture()
 def driver():
+{% if model.platform.value == "ios" %}
+    options = XCUITestOptions()
+    options.platform_name = "iOS"
+    options.automation_name = "XCUITest"
+    options.bundle_id = {{ model.app_package | py_str }}
+{% else %}
     options = UiAutomator2Options()
-    options.platform_name = "{{ model.platform.value | capitalize }}"
+    options.platform_name = "Android"
+    options.automation_name = "UiAutomator2"
     options.app_package = {{ model.app_package | py_str }}
 {% if model.app_activity %}
     options.app_activity = {{ model.app_activity | py_str }}
+{% endif %}
 {% endif %}
     drv = webdriver.Remote("http://localhost:4723", options=options)
     yield drv

@@ -7,6 +7,7 @@
 package generated;
 
 import io.appium.java_client.AppiumBy;
+import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import io.cucumber.java.After;
@@ -35,12 +36,13 @@ public class LoginFlowSteps {
         LOCATORS.put("Welcome", new By[]{AppiumBy.androidUIAutomator("new UiSelector().text(\"Welcome\")")});
     }
 
-    private AndroidDriver driver;
+    private AppiumDriver driver;
 
     @Before
     public void setUp() throws Exception {
         UiAutomator2Options options = new UiAutomator2Options();
         options.setPlatformName("Android");
+        options.setAutomationName("UiAutomator2");
         options.setAppPackage(APP_PACKAGE);
         options.setAppActivity(".MainActivity");
         driver = new AndroidDriver(new URL("http://localhost:4723"), options);
