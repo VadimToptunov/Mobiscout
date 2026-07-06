@@ -73,3 +73,17 @@ def test_phrases():
 def test_actiontype_roundtrips_through_dict():
     for step in _STEPS:
         assert Step.from_dict(step.to_dict()).action is step.action
+
+
+@pytest.mark.parametrize(
+    "target,markers",
+    [
+        ("js_webdriverio", ["mobile: deepLink", "longClickGesture", "scrollIntoView", "pressKeyCode"]),
+        ("java_testng", ["mobile: deepLink", "clickAndHold", "androidUIAutomator", "AndroidKey.valueOf"]),
+        ("kotlin_appium", ["mobile: deepLink", "clickAndHold", "androidUIAutomator", "AndroidKey.valueOf"]),
+    ],
+)
+def test_new_actions_render_in_each_language(target, markers):
+    code = "\n".join(get_emitter(target).emit(_model()).values())
+    for marker in markers:
+        assert marker in code, f"{target} missing {marker}"

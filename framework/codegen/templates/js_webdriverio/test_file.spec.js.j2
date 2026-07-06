@@ -44,6 +44,18 @@ describe({{ model.name | js_str }}, () => {
         await (await find({{ step.selector | selector_array }})).setValue({{ step.text | js_str }});
 {% elif step.action.value == "back" %}
         await driver.back();
+{% elif step.action.value == "long_press" %}
+        await driver.execute('mobile: longClickGesture', { elementId: (await find({{ step.selector | selector_array }})).elementId, duration: 1000 });
+{% elif step.action.value == "scroll_to" %}
+        await $({{ ('android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ (step.selector.description or step.selector.value) ~ '"))') | js_str }});
+{% elif step.action.value == "deep_link" %}
+{% if model.platform.value == "ios" %}
+        await driver.url({{ step.text | js_str }});
+{% else %}
+        await driver.execute('mobile: deepLink', { url: {{ step.text | js_str }}, package: APP_PACKAGE });
+{% endif %}
+{% elif step.action.value == "press_key" %}
+        await driver.pressKeyCode({{ step.text | keycode }});
 {% elif step.action.value == "wait" %}
         await driver.pause({{ (step.timeout | int or 5) * 1000 }});
 {% elif step.action.value == "assert" %}

@@ -48,6 +48,23 @@ When('I press back', async () => {
     await driver.back();
 });
 
+When('I long-press {string}', async (target) => {
+    await driver.execute('mobile: longClickGesture', { elementId: (await find(target)).elementId, duration: 1000 });
+});
+
+When('I scroll to {string}', async (target) => {
+    await $(`android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("${target}"))`);
+});
+
+When('I open the deep link {string}', async (url) => {
+    await driver.url(url);
+});
+
+When('I press the {string} key', async (key) => {
+    const codes = { BACK: 4, HOME: 3, ENTER: 66, TAB: 61, SEARCH: 84, APP_SWITCH: 187, DEL: 67 };
+    await driver.pressKeyCode(codes[key.toUpperCase()] || 0);
+});
+
 Then('{string} is visible', async (target) => {
     await expect(await find(target)).toBeDisplayed();
 });
