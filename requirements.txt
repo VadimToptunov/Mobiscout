@@ -47,16 +47,16 @@ plotly>=6.8.0
 # Pin black exactly: formatting changes between black releases, so an
 # unpinned version makes `black --check` in CI fail against code formatted
 # with a different version. Bump deliberately (and reformat) when upgrading.
-black==25.12.0
+black==26.5.1
 flake8>=6.0.0
 mypy>=1.5.0
 pytest-cov>=4.1.0
 
 # Phase 5: Enterprise Integration
-pytest-xdist>=3.5.0          # Parallel test execution
-pytest-rerunfailures>=12.0   # Retry failed tests
+pytest-xdist>=3.8.0          # Parallel test execution
+pytest-rerunfailures>=16.4   # Retry failed tests
 allure-pytest>=2.13.0        # Allure reporting
-pytest-html>=4.1.0           # HTML reports
+pytest-html>=4.2.0           # HTML reports
 pytest-json-report>=1.5.0    # JSON reports
 slack-sdk>=3.43.0            # Slack notifications
 gitpython>=3.1.50             # Git integration
