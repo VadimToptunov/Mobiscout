@@ -15,16 +15,14 @@ python examples/generate.py
 
 What's inside:
 
-| File | What it is |
+| Path | What it is |
 |---|---|
-| [`inventory.md`](shop_demo/inventory.md) | Per-screen element inventory: semantic type + ranked locator per element, plus a flow map, the interaction-graph summary, and an accessibility section |
-| [`graph.mmd`](shop_demo/graph.mmd) | Interaction graph as Mermaid (renders on GitHub) |
-| [`graph.json`](shop_demo/graph.json) | The same graph as JSON — nodes (with type histograms), edges, metrics, dead-ends, hubs |
-| [`python_pytest/`](shop_demo/python_pytest) | pytest + Appium suite: per-screen state checks, depth-1 navigation, and **multi-step paths that fill forms** |
-| [`java_testng/`](shop_demo/java_testng) | The same model as Java + TestNG + Appium |
-| [`js_webdriverio/`](shop_demo/js_webdriverio) | …and JavaScript + WebdriverIO |
-| [`api/`](shop_demo/api) | API contract tests (pytest + requests) generated from an OpenAPI-style spec |
+| [`inventory.md`](shop_demo/inventory.md) | Per-screen element inventory: semantic type + ranked locator per element, the flow map, the interaction-graph summary, and an accessibility section |
+| [`graph.mmd`](shop_demo/graph.mmd) / [`graph.json`](shop_demo/graph.json) | Interaction graph — Mermaid (renders on GitHub) and JSON (nodes, edges, metrics, dead-ends, hubs) |
+| **[`framework/`](shop_demo/framework)** | **A real framework layout**: `pages/` (Page Objects), `conftest.py` (shared Appium fixture), and `tests/` that drive the page objects (POM style) — what `observe crawl --style pom` produces |
+| **[`bdd/`](shop_demo/bdd)** | **BDD**: Gherkin `.feature` files + step definitions, for Python (pytest-bdd) and JavaScript (Cucumber) |
+| [`flat/`](shop_demo/flat) | Standalone single-file suites in Python/Java/JS — the same IR across targets, for comparison (`--style flat`) |
+| [`api/`](shop_demo/api) | API contract tests generated from an OpenAPI-style spec |
 
-The point: **one crawl → an inventory, a navigation map, and a runnable suite in
-several languages**, so a tester can start from real artifacts instead of a blank
-page.
+The point: **one crawl → an inventory, a navigation map, and a runnable suite** —
+as a proper Page-Object framework, as BDD, or as flat files, in several languages.

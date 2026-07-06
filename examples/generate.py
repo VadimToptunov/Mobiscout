@@ -15,6 +15,7 @@ from framework.codegen import get_emitter
 from framework.codegen.api_test import emit_api_tests
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.graph import build_graph, to_json, to_mermaid
+from framework.crawler.page_kit import build_framework_kit
 from framework.crawler.report import inventory_markdown
 from framework.crawler.to_codegen import build_test_model
 
@@ -109,12 +110,28 @@ def main():
     (OUT / "graph.json").write_text(to_json(graph), encoding="utf-8", newline="\n")
 
     model = build_test_model(result, app_package=PKG, app_activity=".MainActivity")
-    for target in ("python_pytest", "java_testng", "js_webdriverio"):
+
+    # 1) Framework-structured output — Page Objects + conftest + POM-style tests.
+    for rel, content in build_framework_kit(result, model, PKG).items():
+        dest = OUT / "framework" / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8", newline="\n")
+
+    # 2) BDD — Gherkin .feature files + step definitions (Python + JS).
+    for target in ("python_pytest_bdd", "js_cucumber"):
         for name, content in get_emitter(target).emit(model).items():
-            dest = OUT / target / name
+            dest = OUT / "bdd" / target / name
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(content, encoding="utf-8", newline="\n")
 
+    # 3) Flat multi-language suites — same IR, many targets (for comparison).
+    for target in ("python_pytest", "java_testng", "js_webdriverio"):
+        for name, content in get_emitter(target).emit(model).items():
+            dest = OUT / "flat" / target / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8", newline="\n")
+
+    # 4) API contract tests.
     for name, content in emit_api_tests(_Api(), base_url="https://api.example-shop.com").items():
         (OUT / "api" / name).parent.mkdir(parents=True, exist_ok=True)
         (OUT / "api" / name).write_text(content, encoding="utf-8", newline="\n")
