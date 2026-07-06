@@ -21,6 +21,18 @@ _RESUMED_RE = re.compile(r"(?:topResumedActivity|ResumedActivity:|mResumedActivi
 _FOCUS_RE = re.compile(r"mCurrentFocus=Window\{[^}]*\s([\w.]+)/[\w.$]+\}")
 
 
+def _extract_hierarchy(raw: str) -> Optional[str]:
+    """From `uiautomator dump /dev/tty` stdout, return the XML up to the closing
+    </hierarchy> tag (dropping the trailing "UI hierarchy dumped..." line), or
+    None if the stream didn't contain a hierarchy (caller falls back)."""
+    end = raw.rfind("</hierarchy>")
+    if end == -1:
+        return None
+    start = raw.find("<?xml")
+    start = start if start != -1 else raw.find("<hierarchy")
+    return raw[start if start != -1 else 0 : end + len("</hierarchy>")]
+
+
 class AdbCrawlerDriver:
     """CrawlerDriver implemented with adb shell commands."""
 
@@ -41,7 +53,13 @@ class AdbCrawlerDriver:
         return proc.stdout
 
     def _dump(self) -> str:
-        # Dump to the device then read it back (uiautomator dump prints only a path).
+        # One adb round-trip: `uiautomator dump /dev/tty` streams the XML straight
+        # to stdout, so we skip the separate file write + `cat` read. exec-out
+        # avoids the shell's CRLF mangling.
+        xml = _extract_hierarchy(self._run("exec-out", "uiautomator", "dump", "/dev/tty"))
+        if xml is not None:
+            return xml
+        # Fallback for devices that won't stream to /dev/tty: file then read back.
         self._run("shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
         return self._run("shell", "cat", "/sdcard/window_dump.xml")
 
