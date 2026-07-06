@@ -7,6 +7,17 @@ the gate and keep going, so an app can be tested end to end.
 """
 
 from framework.fixtures.biometric import pass_biometric
+from framework.fixtures.camera import scan_document, scan_qr
+from framework.fixtures.provider import Provider, detect
 from framework.fixtures.totp import hotp, seconds_remaining, totp
 
-__all__ = ["totp", "hotp", "seconds_remaining", "pass_biometric"]
+__all__ = [
+    "totp",
+    "hotp",
+    "seconds_remaining",
+    "pass_biometric",
+    "scan_qr",
+    "scan_document",
+    "Provider",
+    "detect",
+]
