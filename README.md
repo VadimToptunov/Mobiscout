@@ -3,7 +3,7 @@
 > **Next-Generation Intelligent Mobile Testing Platform** - Now as a powerful JetBrains IDE plugin with interactive UI
 > control, smart selectors, and multi-language support
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/downloads/)
 [![Rust 1.75+](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9%2B-purple.svg)](https://kotlinlang.org/)
 [![JetBrains Plugin](https://img.shields.io/badge/jetbrains-plugin-blue.svg)](jetbrains-plugin/)
@@ -11,6 +11,92 @@
 [![iOS](https://img.shields.io/badge/ios-Appium%20%7C%20XCTest-blue.svg)](demo-app/ios)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Performance](https://img.shields.io/badge/performance-16x%20faster-red.svg)](#performance)
+
+---
+
+## 🔍 See it in action — point at an app, get a test kit
+
+One command autonomously crawls a running app and writes a **test kit**: a
+per-screen element inventory, the app's interaction graph, and runnable tests in
+several languages.
+
+```bash
+observe crawl --package com.example.shop --targets python_pytest,java_testng,js_webdriverio
+```
+
+A full generated example lives in [`examples/shop_demo/`](examples/shop_demo)
+(reproduce with `python examples/generate.py`). Here's what comes out.
+
+### 1. Element inventory — what's on each screen, with a semantic type and a ready locator
+
+| Element | Type | Locator | Interactive |
+|---|---|---|---|
+| Welcome back | text | `text=Welcome back` | |
+| Email | input | `accessibility_id=Email` | ✓ |
+| Password | input | `accessibility_id=Password` | ✓ |
+| Remember me | checkbox | `id=com.example.shop:id/remember` | ✓ |
+| Sign in | button | `id=com.example.shop:id/signin` | ✓ |
+
+Types come from a hybrid ML + heuristic classifier; locators are ranked
+(accessibility-id → resource-id → text) with fallbacks for self-healing.
+
+### 2. Interaction graph — the app's navigation model (renders right here on GitHub)
+
+```mermaid
+flowchart TD
+    N1(["Screen 1<br/>Login · 6 el"])
+    N2["Screen 2<br/>Catalog · 4 el"]
+    N3["Screen 3<br/>Product · 3 el"]
+    N4["Screen 4<br/>Cart · 2 el"]
+    N1 -->|"tap Sign in (button)"| N2
+    N2 -->|"tap Running Shoes (button)"| N3
+    N2 -->|"tap Cart (button)"| N4
+    N3 -->|"tap Add to cart (button)"| N4
+    class N4 deadend;
+    classDef deadend stroke-dasharray: 5 5;
+```
+
+The graph is mined for reachability, depth, cycles, dead-ends and hub screens,
+and exported as Mermaid / Graphviz DOT / JSON.
+
+### 3. Runnable tests — including multi-step paths that *fill forms*, not just navigate
+
+From the graph, the tool generates model-based paths. This one walks
+Login → Catalog → Cart, typing sample data into the login form on the way
+([full file](examples/shop_demo/python_pytest/test_crawl_flow.py)):
+
+```python
+def test_path_1_2_3_4(driver):
+    """Multi-step path (4 screens): screen 1 → screen 2 → screen 3 → screen 4"""
+    driver.activate_app("com.example.shop")
+    _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Email"), [...]).send_keys("test@example.com")
+    _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Password"), [...]).send_keys("Password123!")
+    _find(driver, (AppiumBy.ID, "com.example.shop:id/remember"), [...]).click()   # toggle
+    _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [...]).click()     # Sign in
+    assert _find(driver, ...).is_displayed()                                      # reached Catalog
+    ...
+```
+
+The **same crawl** also emits [Java + TestNG](examples/shop_demo/java_testng) and
+[JavaScript + WebdriverIO](examples/shop_demo/js_webdriverio) — one IR, many
+targets (8 in total, incl. BDD). iOS suites are generated too, with the correct
+XCUITest capabilities and locators.
+
+### 4. API contract tests
+
+Point at an OpenAPI/Swagger spec (file **or URL**) and get contract tests
+alongside the UI suite ([example](examples/shop_demo/api/test_api.py)):
+
+```python
+def test_login(session):
+    """POST /auth/login"""
+    response = session.post(BASE_URL + "/auth/login", json={'email': 'test', 'password': 'test'})
+    assert response.status_code < 500
+```
+
+Plus an accessibility audit and an APK/IPA security scan (OWASP-mapped) round out
+the picture — so a tester gets an inventory, a map, and a running suite from a
+single command.
 
 ---
 

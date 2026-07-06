@@ -1,0 +1,119 @@
+{
+  "entry": 1,
+  "metrics": {
+    "screens": 4,
+    "transitions": 4,
+    "max_depth": 2,
+    "unreachable": 0,
+    "dead_ends": 1,
+    "cycles": 0
+  },
+  "nodes": [
+    {
+      "id": 1,
+      "fingerprint": "login",
+      "platform": "android",
+      "toolkit": "native",
+      "element_count": 6,
+      "type_histogram": {
+        "text": 2,
+        "input": 2,
+        "checkbox": 1,
+        "button": 1
+      },
+      "is_entry": true,
+      "depth": 0
+    },
+    {
+      "id": 2,
+      "fingerprint": "catalog",
+      "platform": "android",
+      "toolkit": "native",
+      "element_count": 4,
+      "type_histogram": {
+        "input": 1,
+        "button": 3
+      },
+      "is_entry": false,
+      "depth": 1
+    },
+    {
+      "id": 3,
+      "fingerprint": "product",
+      "platform": "android",
+      "toolkit": "native",
+      "element_count": 3,
+      "type_histogram": {
+        "text": 2,
+        "button": 1
+      },
+      "is_entry": false,
+      "depth": 2
+    },
+    {
+      "id": 4,
+      "fingerprint": "cart",
+      "platform": "android",
+      "toolkit": "native",
+      "element_count": 2,
+      "type_histogram": {
+        "text": 1,
+        "button": 1
+      },
+      "is_entry": false,
+      "depth": 2
+    }
+  ],
+  "edges": [
+    {
+      "src": 1,
+      "dst": 2,
+      "action": "tap",
+      "label": "Sign in",
+      "element_type": "button",
+      "locator": "id=com.example.shop:id/signin"
+    },
+    {
+      "src": 2,
+      "dst": 3,
+      "action": "tap",
+      "label": "Running Shoes",
+      "element_type": "button",
+      "locator": "id=com.example.shop:id/p_shoes"
+    },
+    {
+      "src": 2,
+      "dst": 4,
+      "action": "tap",
+      "label": "Cart",
+      "element_type": "button",
+      "locator": "accessibility_id=Cart"
+    },
+    {
+      "src": 3,
+      "dst": 4,
+      "action": "tap",
+      "label": "Add to cart",
+      "element_type": "button",
+      "locator": "id=com.example.shop:id/add"
+    }
+  ],
+  "dead_ends": [
+    4
+  ],
+  "unreachable": [],
+  "hubs": [
+    [
+      2,
+      3
+    ],
+    [
+      3,
+      2
+    ],
+    [
+      4,
+      2
+    ]
+  ]
+}
