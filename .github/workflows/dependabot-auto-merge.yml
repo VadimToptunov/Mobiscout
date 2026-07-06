@@ -1,0 +1,53 @@
+# Opt-in auto-update: when enabled, Dependabot's library/action/gradle updates
+# are merged automatically — but ONLY after the full CI suite passes and ONLY
+# for non-breaking (patch/minor) bumps. Major bumps are never auto-merged; they
+# are flagged for a human, because an API change can break generated code.
+#
+# HOW TO ENABLE THE SETTING (the user's opt-in):
+#   1. Repo Settings → General → enable "Allow auto-merge".
+#   2. Repo Settings → Secrets and variables → Actions → Variables →
+#      add  AUTO_MERGE_DEPENDABOT = true
+#   Set it to anything other than "true" (or remove it) to turn auto-update off.
+name: Dependabot auto-merge
+
+on: pull_request_target
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    # Only Dependabot PRs, and only when the opt-in setting is on.
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      vars.AUTO_MERGE_DEPENDABOT == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch update metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Patch/minor → enable GitHub auto-merge. It merges only once the required
+      # CI checks pass, so a broken update never lands.
+      - name: Auto-merge patch & minor updates (after CI passes)
+        if: >-
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --merge "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Major bumps can change APIs — never auto-merge, flag for review instead.
+      - name: Flag major updates for manual review
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr comment "$PR_URL" --body \
+            "🔺 **Major update** of \`${{ steps.meta.outputs.dependency-names }}\` — not auto-merged (an API change can break generated code). Please review and merge manually."
+          gh pr edit "$PR_URL" --add-label "major-update" || true
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
