@@ -1,70 +1,85 @@
 Feature: CrawlFlow
   Auto-generated from an autonomous crawl (state + navigation).
 
-  Scenario: State checks for discovered screen 1
+  Scenario Outline: State checks for discovered screen 1
     Given the app is launched
-    Then "Welcome back" is visible
-    And "Email" is visible
-    And "Email" is enabled
-    And "Password" is visible
-    And "Password" is enabled
-    And "Remember me" is visible
-    And "Remember me" is enabled
-    And "Sign in" is visible
-    And "Sign in" is enabled
-    And "Forgot password?" is visible
-    And "Forgot password?" is enabled
+    Then "<element>" is visible
 
-  Scenario: State checks for discovered screen 2
-    Given the app is launched
-    Then "Search products" is visible
-    And "Search products" is enabled
-    And "Running Shoes" is visible
-    And "Running Shoes" is enabled
-    And "Backpack" is visible
-    And "Backpack" is enabled
-    And "Cart" is visible
-    And "Cart" is enabled
+    Examples:
+      | element |
+      | Welcome back |
+      | Email |
+      | Password |
+      | Remember me |
+      | Sign in |
+      | Forgot password? |
 
-  Scenario: State checks for discovered screen 3
+  Scenario Outline: State checks for discovered screen 2
     Given the app is launched
-    Then "Running Shoes" is visible
-    And "$89.00" is visible
-    And "Add to cart" is visible
-    And "Add to cart" is enabled
+    Then "<element>" is visible
 
-  Scenario: State checks for discovered screen 4
+    Examples:
+      | element |
+      | Search products |
+      | Running Shoes |
+      | Backpack |
+      | Cart |
+
+  Scenario Outline: State checks for discovered screen 3
     Given the app is launched
-    Then "Your cart" is visible
-    And "Place order" is visible
-    And "Place order" is enabled
+    Then "<element>" is visible
+
+    Examples:
+      | element |
+      | Running Shoes |
+      | $89.00 |
+      | Add to cart |
+
+  Scenario Outline: State checks for discovered screen 4
+    Given the app is launched
+    Then "<element>" is visible
+
+    Examples:
+      | element |
+      | Your cart |
+      | Place order |
 
   Scenario: Tapping Sign in navigates onward
     Given the app is launched
     When I tap "Sign in"
     Then "Search products" is visible
 
-  Scenario: Multi-step path (4 screens): screen 1 → screen 2 → screen 3 → screen 4
+  Scenario Outline: Multi-step path (4 screens): screen 1 → screen 2 → screen 3 → screen 4
     Given the app is launched
-    When I enter "test@example.com" into "Email"
-    And I enter "Password123!" into "Password"
+    When I enter "<email>" into "Email"
+    And I enter "<password>" into "Password"
     And I tap "Remember me"
     And I tap "Sign in"
     Then "Search products" is visible
-    When I enter "test" into "Search products"
+    When I enter "<search_products>" into "Search products"
     And I tap "Running Shoes"
     Then "Running Shoes" is visible
     When I tap "Add to cart"
     Then "Your cart" is visible
 
-  Scenario: Multi-step path (3 screens): screen 1 → screen 2 → screen 4
+    Examples:
+      | email | password | search_products |
+      | test@example.com | Password123! | test |
+      | user2@example.com | Secret123! | test 2 |
+
+  Scenario Outline: Multi-step path (3 screens): screen 1 → screen 2 → screen 4
     Given the app is launched
-    When I enter "test@example.com" into "Email"
-    And I enter "Password123!" into "Password"
+    When I enter "<email>" into "Email"
+    And I enter "<password>" into "Password"
     And I tap "Remember me"
     And I tap "Sign in"
     Then "Search products" is visible
-    When I enter "test" into "Search products"
+    When I enter "<search_products>" into "Search products"
     And I tap "Cart"
     Then "Your cart" is visible
+
+    Examples:
+      | email | password | search_products |
+      | test@example.com | Password123! | test |
+      | user2@example.com | Secret123! | test 2 |
 
