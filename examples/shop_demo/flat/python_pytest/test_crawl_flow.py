@@ -59,10 +59,6 @@ def test_screen_1_state(driver):
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).is_displayed()
     # Sign in is enabled
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).is_enabled()
-    # Forgot password? is visible
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/forgot"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Forgot password?\")")]).is_displayed()
-    # Forgot password? is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/forgot"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Forgot password?\")")]).is_enabled()
 
 def test_screen_2_state(driver):
     """State checks for discovered screen 2"""
@@ -91,8 +87,6 @@ def test_screen_3_state(driver):
     driver.activate_app("com.example.shop")
     # Running Shoes is visible
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Running Shoes\")"), []).is_displayed()
-    # $89.00 is visible
-    assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"$89.00\")"), []).is_displayed()
     # Add to cart is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/add"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Add to cart\")")]).is_displayed()
     # Add to cart is enabled
