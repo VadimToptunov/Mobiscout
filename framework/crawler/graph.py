@@ -1,0 +1,311 @@
+"""
+Interaction graph — the app's navigation model, as deep as the crawl allows.
+
+A crawl yields screens and the transitions between them; this turns that into a
+first-class directed graph and mines it:
+
+* Nodes are screens, each carrying platform/toolkit, element count and a
+  semantic-type histogram (buttons/inputs/… from the ML+heuristic classifier).
+* Edges are transitions, each labelled with the action, the tapped element, its
+  semantic type and the recommended locator — so an edge is a runnable step.
+
+On top of the structure it computes reachability and BFS depth from the entry
+screen, dead-ends, unreachable screens, cycles, hub screens, shortest paths from
+the entry to every screen, and a set of paths that together cover every reachable
+edge (the seed for multi-step, model-based test generation).
+
+Exports to Mermaid (renders on GitHub / in a README), Graphviz DOT, and JSON.
+"""
+
+from __future__ import annotations
+
+import json
+from collections import Counter, defaultdict, deque
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+from framework.crawler.app_crawler import CrawlResult, CrawlScreen
+from framework.crawler.classify import classify
+from framework.crawler.to_codegen import _owned, selector_for
+
+
+@dataclass
+class GraphNode:
+    id: int  # 1-based, in crawl-discovery order
+    fingerprint: str
+    platform: str
+    toolkit: str
+    element_count: int
+    type_histogram: Dict[str, int]
+    is_entry: bool = False
+    depth: int = -1  # BFS distance from entry; -1 = unreachable
+
+    def to_dict(self) -> Dict:
+        return {
+            "id": self.id,
+            "fingerprint": self.fingerprint,
+            "platform": self.platform,
+            "toolkit": self.toolkit,
+            "element_count": self.element_count,
+            "type_histogram": self.type_histogram,
+            "is_entry": self.is_entry,
+            "depth": self.depth,
+        }
+
+
+@dataclass
+class GraphEdge:
+    src: int
+    dst: int
+    action: str  # tap | type | ...
+    label: str  # tapped element label
+    element_type: str  # semantic type of the tapped element
+    locator: str  # recommended locator "strategy=value"
+
+    def to_dict(self) -> Dict:
+        return {
+            "src": self.src,
+            "dst": self.dst,
+            "action": self.action,
+            "label": self.label,
+            "element_type": self.element_type,
+            "locator": self.locator,
+        }
+
+
+@dataclass
+class InteractionGraph:
+    nodes: List[GraphNode] = field(default_factory=list)
+    edges: List[GraphEdge] = field(default_factory=list)
+    entry: Optional[int] = None
+
+    # ---- adjacency helpers -------------------------------------------------
+    def _adj(self) -> Dict[int, List[GraphEdge]]:
+        adj: Dict[int, List[GraphEdge]] = defaultdict(list)
+        for e in self.edges:
+            adj[e.src].append(e)
+        return adj
+
+    def _node(self, node_id: int) -> Optional[GraphNode]:
+        return next((n for n in self.nodes if n.id == node_id), None)
+
+    # ---- analysis ----------------------------------------------------------
+    def unreachable(self) -> List[int]:
+        return [n.id for n in self.nodes if n.depth < 0 and not n.is_entry]
+
+    def dead_ends(self) -> List[int]:
+        """Reachable screens with no outgoing transition (a tester may be stuck)."""
+        outs = {e.src for e in self.edges}
+        return [n.id for n in self.nodes if n.id not in outs and n.depth >= 0]
+
+    def hubs(self, k: int = 3) -> List[Tuple[int, int]]:
+        """Screens with the highest total degree (in+out) — navigation hubs."""
+        deg: Counter = Counter()
+        for e in self.edges:
+            deg[e.src] += 1
+            deg[e.dst] += 1
+        return deg.most_common(k)
+
+    def cycles(self) -> List[List[int]]:
+        """Simple cycles via DFS back-edges (deduplicated by rotation)."""
+        adj = self._adj()
+        found: List[List[int]] = []
+        seen = set()
+
+        def dfs(node: int, stack: List[int], onstack: set) -> None:
+            for e in adj.get(node, []):
+                if e.dst in onstack:
+                    cyc = stack[stack.index(e.dst) :]
+                    key = frozenset(cyc)
+                    if key not in seen:
+                        seen.add(key)
+                        found.append(cyc + [e.dst])
+                elif e.dst not in visited:
+                    visited.add(e.dst)
+                    dfs(e.dst, stack + [e.dst], onstack | {e.dst})
+
+        visited: set = set()
+        for n in self.nodes:
+            if n.id not in visited:
+                visited.add(n.id)
+                dfs(n.id, [n.id], {n.id})
+        return found
+
+    def shortest_paths_from_entry(self) -> Dict[int, List[int]]:
+        """BFS shortest path (as node ids) from the entry to every reachable node."""
+        if self.entry is None:
+            return {}
+        adj = self._adj()
+        parent: Dict[int, Optional[int]] = {self.entry: None}
+        q = deque([self.entry])
+        while q:
+            cur = q.popleft()
+            for e in adj.get(cur, []):
+                if e.dst not in parent:
+                    parent[e.dst] = cur
+                    q.append(e.dst)
+        paths: Dict[int, List[int]] = {}
+        for node in parent:
+            path, cur2 = [], node
+            while cur2 is not None:
+                path.append(cur2)
+                cur2 = parent[cur2]
+            paths[node] = list(reversed(path))
+        return paths
+
+    def edge_coverage_paths(self) -> List[List[GraphEdge]]:
+        """A set of entry-rooted walks that together cover every reachable edge —
+        the seed for multi-step test generation (edge coverage)."""
+        if self.entry is None:
+            return []
+        sp = self.shortest_paths_from_entry()
+        adj = self._adj()
+        covered: set = set()
+        walks: List[List[GraphEdge]] = []
+        for e in self.edges:
+            if e.src not in sp or id(e) in covered:
+                continue
+            # walk = shortest path to e.src, then take e.
+            prefix_nodes = sp[e.src]
+            walk: List[GraphEdge] = []
+            for a, b in zip(prefix_nodes, prefix_nodes[1:]):
+                step = next((x for x in adj.get(a, []) if x.dst == b), None)
+                if step:
+                    walk.append(step)
+            walk.append(e)
+            for x in walk:
+                covered.add(id(x))
+            walks.append(walk)
+        return walks
+
+    def metrics(self) -> Dict:
+        depths = [n.depth for n in self.nodes if n.depth >= 0]
+        return {
+            "screens": len(self.nodes),
+            "transitions": len(self.edges),
+            "max_depth": max(depths) if depths else 0,
+            "unreachable": len(self.unreachable()),
+            "dead_ends": len(self.dead_ends()),
+            "cycles": len(self.cycles()),
+        }
+
+    def to_dict(self) -> Dict:
+        return {
+            "entry": self.entry,
+            "metrics": self.metrics(),
+            "nodes": [n.to_dict() for n in self.nodes],
+            "edges": [e.to_dict() for e in self.edges],
+            "dead_ends": self.dead_ends(),
+            "unreachable": self.unreachable(),
+            "hubs": self.hubs(),
+        }
+
+
+def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
+    """Build the interaction graph from a crawl, with typed, locatable edges."""
+    fps = list(result.screens)
+    id_of = {fp: i + 1 for i, fp in enumerate(fps)}
+
+    nodes: List[GraphNode] = []
+    for fp, screen in result.screens.items():
+        owned = _owned(screen, app_package)
+        hist: Counter = Counter(classify(e)[0] for e in owned)
+        nodes.append(
+            GraphNode(
+                id=id_of[fp],
+                fingerprint=fp,
+                platform=screen.platform,
+                toolkit=screen.toolkit,
+                element_count=len(owned),
+                type_histogram=dict(hist),
+                is_entry=(fp == fps[0]) if fps else False,
+            )
+        )
+
+    edges: List[GraphEdge] = []
+    seen = set()
+    for from_fp, element, to_fp in result.transitions:
+        if from_fp not in id_of or to_fp not in id_of:
+            continue
+        src, dst = id_of[from_fp], id_of[to_fp]
+        from_screen: CrawlScreen = result.screens[from_fp]
+        sel = selector_for(element, _owned(from_screen, app_package), from_screen.platform)
+        locator = f"{sel.strategy.value}={sel.value}" if sel else ""
+        etype = classify(element)[0]
+        key = (src, dst, element.label, etype)
+        if key in seen:
+            continue
+        seen.add(key)
+        edges.append(
+            GraphEdge(
+                src=src,
+                dst=dst,
+                action="tap",
+                label=element.label or element.class_name,
+                element_type=etype,
+                locator=locator,
+            )
+        )
+
+    graph = InteractionGraph(nodes=nodes, edges=edges, entry=id_of[fps[0]] if fps else None)
+    _annotate_depth(graph)
+    return graph
+
+
+def _annotate_depth(graph: InteractionGraph) -> None:
+    if graph.entry is None:
+        return
+    adj = graph._adj()
+    depth = {graph.entry: 0}
+    q = deque([graph.entry])
+    while q:
+        cur = q.popleft()
+        for e in adj.get(cur, []):
+            if e.dst not in depth:
+                depth[e.dst] = depth[cur] + 1
+                q.append(e.dst)
+    for n in graph.nodes:
+        n.depth = depth.get(n.id, -1)
+
+
+# ---- exports ---------------------------------------------------------------
+def _mm_escape(text: str) -> str:
+    return text.replace('"', "&quot;").replace("\n", " ")[:40]
+
+
+def to_mermaid(graph: InteractionGraph) -> str:
+    """Mermaid flowchart — renders inline on GitHub and in a README."""
+    out = ["```mermaid", "flowchart TD"]
+    for n in graph.nodes:
+        top = f"Screen {n.id}"
+        sub = f"{n.toolkit}·{n.platform} · {n.element_count} el"
+        shape_l, shape_r = ("([", "])") if n.is_entry else ("[", "]")
+        out.append(f'    N{n.id}{shape_l}"{top}<br/>{sub}"{shape_r}')
+    for e in graph.edges:
+        lbl = _mm_escape(f"{e.action} {e.label} ({e.element_type})")
+        out.append(f'    N{e.src} -->|"{lbl}"| N{e.dst}')
+    # highlight unreachable / dead-end screens
+    for nid in graph.dead_ends():
+        out.append(f"    class N{nid} deadend;")
+    out.append("    classDef deadend stroke-dasharray: 5 5;")
+    out.append("```")
+    return "\n".join(out)
+
+
+def to_dot(graph: InteractionGraph) -> str:
+    """Graphviz DOT."""
+    out = ["digraph InteractionGraph {", "  rankdir=TB;", '  node [shape=box, fontname="Helvetica"];']
+    for n in graph.nodes:
+        shape = "doublecircle" if n.is_entry else "box"
+        out.append(
+            f'  N{n.id} [label="Screen {n.id}\\n{n.toolkit}·{n.platform} ({n.element_count} el)", shape={shape}];'
+        )
+    for e in graph.edges:
+        lbl = f"{e.action} {e.label} ({e.element_type})".replace('"', "'")[:40]
+        out.append(f'  N{e.src} -> N{e.dst} [label="{lbl}"];')
+    out.append("}")
+    return "\n".join(out)
+
+
+def to_json(graph: InteractionGraph) -> str:
+    return json.dumps(graph.to_dict(), indent=2)

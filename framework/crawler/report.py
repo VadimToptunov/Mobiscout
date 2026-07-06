@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
+from framework.crawler.graph import build_graph, to_mermaid
 from framework.crawler.to_codegen import audit_accessibility, selector_for
 
 
@@ -93,6 +94,22 @@ def inventory_markdown(result: CrawlResult, app_package: str = "") -> str:
         out.append("|---|---|---|")
         for f in data["flows"]:
             out.append(f"| Screen {f['from']} | {f['tap'][:30]} | Screen {f['to']} |")
+        out.append("")
+
+    graph = build_graph(result, app_package)
+    if graph.nodes:
+        m = graph.metrics()
+        out.append("## Interaction graph")
+        out.append(
+            f"_{m['screens']} screens · {m['transitions']} transitions · max depth {m['max_depth']} · "
+            f"{m['cycles']} cycle(s) · {m['dead_ends']} dead-end(s) · {m['unreachable']} unreachable_\n"
+        )
+        if graph.dead_ends():
+            out.append(f"- **Dead-ends** (no way onward): {', '.join('Screen ' + str(i) for i in graph.dead_ends())}")
+        if graph.unreachable():
+            out.append(f"- **Unreachable**: {', '.join('Screen ' + str(i) for i in graph.unreachable())}")
+        out.append("")
+        out.append(to_mermaid(graph))
         out.append("")
 
     findings = audit_accessibility(result, app_package)

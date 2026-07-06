@@ -48,6 +48,7 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
     from framework.codegen import available_targets, get_emitter
     from framework.crawler import AdbCrawlerDriver, AppCrawler, IOSCrawlerDriver, build_test_model
     from framework.crawler.classify import ensure_model
+    from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
     from framework.crawler.report import inventory_json_str, inventory_markdown
 
     print_header("🕷️  Crawling app", f"{package} ({platform})")
@@ -95,7 +96,15 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
     (out / "inventory.json").write_text(inventory_json_str(result, package), encoding="utf-8", newline="\n")
     print_info(f"Inventory: {out / 'inventory.md'}")
 
-    # 2) Tests in each requested language.
+    # 2) Interaction graph — Mermaid (renders on GitHub), Graphviz DOT, JSON.
+    graph = build_graph(result, package)
+    (out / "graph.mmd").write_text(to_mermaid(graph), encoding="utf-8", newline="\n")
+    (out / "graph.dot").write_text(to_dot(graph), encoding="utf-8", newline="\n")
+    (out / "graph.json").write_text(to_json(graph), encoding="utf-8", newline="\n")
+    gm = graph.metrics()
+    print_info(f"Graph: {gm['screens']} screens, {gm['transitions']} transitions, {gm['dead_ends']} dead-end(s)")
+
+    # 3) Tests in each requested language.
     target_ids = {t.id for t in available_targets()}
     model = build_test_model(result, app_package=package, app_activity=app_activity)
     if not model.cases:
