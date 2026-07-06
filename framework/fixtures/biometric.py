@@ -12,7 +12,10 @@ iOS simulator: enrol via Appium, then send a match / non-match.
 
 from __future__ import annotations
 
+import json
 from typing import List, Optional
+
+from framework.fixtures.provider import Provider, RealDeviceGateError
 
 
 def android_adb_fingerprint(finger_id: int = 1, serial: Optional[str] = None, adb: str = "adb") -> List[str]:
@@ -39,10 +42,31 @@ def ios_biometric_match(driver, match: bool = True, biometric_type: str = "touch
     driver.execute_script("mobile: sendBiometricMatch", {"type": biometric_type, "match": match})
 
 
-def pass_biometric(driver, platform: str, *, match: bool = True, finger_id: int = 1) -> None:
-    """Platform-agnostic: satisfy the biometric prompt on whichever platform the
-    session is running (the one call a generated test or a crawler waypoint uses)."""
-    if platform == "ios":
+def browserstack_biometric(driver, match: bool = True) -> None:
+    """Satisfy a biometric prompt on BrowserStack via its executor command."""
+    payload = json.dumps({"action": "biometric", "arguments": {"action": "match" if match else "noMatch"}})
+    driver.execute_script(f"browserstack_executor: {payload}")
+
+
+def pass_biometric(
+    driver,
+    platform: str,
+    *,
+    match: bool = True,
+    finger_id: int = 1,
+    provider: Provider = Provider.LOCAL,
+) -> None:
+    """Satisfy the biometric prompt wherever the session runs — one call for a
+    generated test or a crawler waypoint. Real devices can't be faked externally.
+    """
+    if provider is Provider.BROWSERSTACK:
+        browserstack_biometric(driver, match=match)
+    elif provider is Provider.REAL:
+        raise RealDeviceGateError(
+            "Biometric can't be emulated on a real device — use a test-build hook "
+            "that bypasses the prompt, or run on an emulator / BrowserStack."
+        )
+    elif platform == "ios":
         ios_biometric_match(driver, match=match)
     else:
         android_fingerprint(driver, finger_id=finger_id)
