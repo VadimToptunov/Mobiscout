@@ -32,9 +32,16 @@ logger = get_logger(__name__)
 @click.option("--output", default="crawl-kit", help="Output directory for the artifacts")
 @click.option("--targets", default="python_pytest", help="Comma-separated codegen targets for the tests")
 @click.option("--app-activity", default=None, help="Android entry activity (for the generated test setup)")
+@click.option(
+    "--scaffold",
+    is_flag=True,
+    help="Also write a runnable project shell (deps + runner config + README) around the tests",
+)
 @click.option("--max-steps", default=40, show_default=True, help="Crawl step budget")
 @click.option("--max-depth", default=8, show_default=True, help="Crawl depth budget")
-def crawl(package, platform, serial, udid, device_name, server, output, targets, app_activity, max_steps, max_depth):
+def crawl(
+    package, platform, serial, udid, device_name, server, output, targets, app_activity, scaffold, max_steps, max_depth
+):
     """
     Crawl a running app and export an element inventory + tests.
 
@@ -109,7 +116,8 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
     model = build_test_model(result, app_package=package, app_activity=app_activity)
     if not model.cases:
         print_info("No locatable elements — no tests generated (see inventory.md).")
-    for target in [t.strip() for t in targets.split(",") if t.strip()]:
+    requested = [t.strip() for t in targets.split(",") if t.strip()]
+    for target in requested:
         if target not in target_ids:
             print_error(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
             continue
@@ -118,6 +126,24 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(content, encoding="utf-8", newline="\n")
         print_info(f"Tests ({target}): {out / target}")
+
+    # 4) Optional: a runnable project shell (deps + runner config + README) so the
+    # output is `install && test` away from running — a new framework in place.
+    if scaffold and model.cases:
+        from framework.codegen.scaffold import scaffold_files
+
+        wrote = False
+        for target in requested:
+            files = scaffold_files(model, target, server=server)
+            if not files:
+                continue
+            for rel, content in files.items():
+                (out / rel).write_text(content, encoding="utf-8", newline="\n")
+            print_success(f"Scaffolded a runnable {target} project in {out} (see README.md)")
+            wrote = True
+            break  # one project shell per output dir
+        if not wrote:
+            print_info(f"No project scaffold for {', '.join(requested)} yet (specs written; add to your framework).")
 
     print_success(f"Kit written to {out.absolute()}")
     logger.info(f"Crawl kit for {package}: {len(result.screens)} screens -> {out}")
