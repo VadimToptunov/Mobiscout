@@ -253,19 +253,63 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     return graph
 
 
+def _sample_value(element) -> str:
+    """A realistic sample for a form field, inferred from its label/id/class."""
+    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
+    if "email" in hint or "e-mail" in hint:
+        return "test@example.com"
+    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
+        return "Password123!"
+    if any(k in hint for k in ("phone", "tel", "mobile")):
+        return "1234567890"
+    if "search" in hint or "query" in hint:
+        return "test"
+    if "name" in hint:
+        return "Test User"
+    return "Test"
+
+
+def _form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
+    """Type-aware interactions on one screen: fill inputs with sample data and
+    toggle checkboxes/switches — so a path exercises forms, not just navigation."""
+    steps: List[Step] = []
+    owned = _owned(screen, app_package)
+    seen = set()
+    for e in owned:
+        etype = classify(e)[0]
+        if etype not in ("input", "checkbox", "switch"):
+            continue
+        sel = selector_for(e, owned, screen.platform)
+        if sel is None or sel.value in seen:
+            continue
+        seen.add(sel.value)
+        if etype == "input":
+            steps.append(
+                Step(
+                    ActionType.TYPE, selector=sel, text=_sample_value(e), description=f"Type into {e.label or 'input'}"
+                )
+            )
+        else:  # checkbox / switch -> toggle
+            steps.append(Step(ActionType.TAP, selector=sel, description=f"Toggle {e.label or etype}"))
+    return steps
+
+
 def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int = 12) -> List[TestCase]:
     """Model-based test cases: walk real paths through the interaction graph.
 
-    Where the depth-1 navigation cases tap once, these traverse multi-step paths
-    (login -> catalog -> cart -> pay) drawn from the graph's edge-coverage walks,
-    asserting a landmark on each screen reached. Only paths with >= 2 taps are
-    emitted here — single taps are already covered by the navigation cases.
+    Beyond navigating (login -> catalog -> cart -> pay), each screen along the way
+    has its form filled — inputs get sample data, checkboxes/switches get toggled —
+    so the paths exercise forms too. Paths are prioritised deepest/most-critical
+    first, then capped, so the most valuable ones survive max_cases.
     """
     graph = build_graph(result, app_package)
     fps = list(result.screens)
     fp_of = {i + 1: fp for i, fp in enumerate(fps)}
+    degree = {n.id: 0 for n in graph.nodes}
+    for e in graph.edges:
+        degree[e.src] = degree.get(e.src, 0) + 1
+        degree[e.dst] = degree.get(e.dst, 0) + 1
 
-    # (from_fp, to_fp) -> tapped elements, so a graph edge maps back to a locator.
     by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
     for from_fp, element, to_fp in result.transitions:
         by_pair[(from_fp, to_fp)].append(element)
@@ -274,30 +318,27 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
         owned = _owned(screen, app_package)
         return next((s for s in (selector_for(e, owned, screen.platform) for e in owned) if s), None)
 
-    # Drop any walk whose node path is a strict prefix of a longer one — the
-    # longer path already exercises (and asserts) the shorter one's screens.
-    raw_paths = []
-    for walk in graph.edge_coverage_paths():
-        if len(walk) >= 2:
-            raw_paths.append(tuple([walk[0].src] + [e.dst for e in walk]))
-    maximal = [p for p in raw_paths if not any(other != p and other[: len(p)] == p for other in raw_paths)]
+    # Keep only maximal walks (drop those that are a strict prefix of a longer one).
+    raw_paths = [tuple([w[0].src] + [e.dst for e in w]) for w in graph.edge_coverage_paths() if len(w) >= 2]
+    maximal = {p for p in raw_paths if not any(other != p and other[: len(p)] == p for other in raw_paths)}
 
-    cases: List[TestCase] = []
+    scored: List[Tuple[tuple, TestCase]] = []
     seen_paths = set()
     for walk in graph.edge_coverage_paths():
-        if len(walk) < 2:  # multi-step only
+        if len(walk) < 2:
             continue
         node_path = tuple([walk[0].src] + [e.dst for e in walk])
         if node_path in seen_paths or node_path not in maximal:
             continue
 
         steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+        form_steps = 0
         ok = True
         for edge in walk:
             from_fp, to_fp = fp_of[edge.src], fp_of[edge.dst]
             candidates = by_pair.get((from_fp, to_fp), [])
             element = next(
-                ((e) for e in candidates if (e.label or e.class_name) == edge.label),
+                (e for e in candidates if (e.label or e.class_name) == edge.label),
                 candidates[0] if candidates else None,
             )
             if element is None:
@@ -309,6 +350,10 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
             if tap is None or landmark is None:
                 ok = False
                 break
+            # Fill this screen's form before advancing.
+            fs = _form_steps(from_screen, app_package)
+            form_steps += len(fs)
+            steps.extend(fs)
             steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {edge.label}"))
             steps.append(
                 Step(
@@ -318,20 +363,26 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
                     description=f"Reached screen {edge.dst}",
                 )
             )
+        if not ok:
+            continue
+        # Fill the terminal screen's form too.
+        terminal_forms = _form_steps(result.screens[fp_of[node_path[-1]]], app_package)
+        form_steps += len(terminal_forms)
+        steps.extend(terminal_forms)
 
-        if ok and sum(1 for s in steps if s.action is ActionType.TAP) >= 2:
-            seen_paths.add(node_path)
-            label = " → ".join(f"screen {n}" for n in node_path)
-            cases.append(
-                TestCase(
-                    name=f"path_{'_'.join(str(n) for n in node_path)}",
-                    steps=steps,
-                    description=f"Multi-step path: {label}",
-                )
-            )
-        if len(cases) >= max_cases:
-            break
-    return cases
+        seen_paths.add(node_path)
+        label = " → ".join(f"screen {n}" for n in node_path)
+        case = TestCase(
+            name=f"path_{'_'.join(str(n) for n in node_path)}",
+            steps=steps,
+            description=f"Multi-step path ({len(node_path)} screens): {label}",
+        )
+        # Priority: deepest first, then most form interaction, then most hub traffic.
+        hub_score = sum(degree.get(n, 0) for n in node_path)
+        scored.append(((len(node_path), form_steps, hub_score), case))
+
+    scored.sort(key=lambda sc: sc[0], reverse=True)
+    return [case for _, case in scored[:max_cases]]
 
 
 def _annotate_depth(graph: InteractionGraph) -> None:
