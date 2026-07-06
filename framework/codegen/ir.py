@@ -28,6 +28,10 @@ class ActionType(Enum):
     WAIT = "wait"  # wait for an element / timeout
     BACK = "back"  # press the system back button
     ASSERT = "assert"  # verify an expectation
+    LONG_PRESS = "long_press"  # long-press an element
+    SCROLL_TO = "scroll_to"  # scroll until an element is on screen
+    DEEP_LINK = "deep_link"  # open a deep link / URL scheme (step.text = url)
+    PRESS_KEY = "press_key"  # press a hardware/soft key (step.text = key name)
 
 
 class AssertionType(Enum):

@@ -89,6 +89,28 @@ def _back(driver):
     driver.back()
 
 
+@when(parsers.parse('I long-press "{target}"'))
+def _long_press(driver, target):
+    driver.execute_script("mobile: longClickGesture", {"elementId": _find(driver, target).id, "duration": 1000})
+
+
+@when(parsers.parse('I scroll to "{target}"'))
+def _scroll_to(driver, target):
+    selector = 'new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("%s"))'
+    driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, selector % target)
+
+
+@when(parsers.parse('I open the deep link "{url}"'))
+def _deep_link(driver, url):
+    driver.get(url)
+
+
+@when(parsers.parse('I press the "{key}" key'))
+def _press_key(driver, key):
+    codes = {"BACK": 4, "HOME": 3, "ENTER": 66, "TAB": 61, "SEARCH": 84, "APP_SWITCH": 187, "DEL": 67}
+    driver.press_keycode(codes.get(key.upper(), 0))
+
+
 @then(parsers.parse('"{target}" is visible'))
 def _visible(driver, target):
     assert _find(driver, target).is_displayed()
