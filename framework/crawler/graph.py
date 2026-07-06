@@ -24,6 +24,7 @@ from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+from framework.codegen.ir import ActionType, AssertionType, Step, TestCase
 from framework.crawler.app_crawler import CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
 from framework.crawler.to_codegen import _owned, selector_for
@@ -250,6 +251,87 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     graph = InteractionGraph(nodes=nodes, edges=edges, entry=id_of[fps[0]] if fps else None)
     _annotate_depth(graph)
     return graph
+
+
+def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int = 12) -> List[TestCase]:
+    """Model-based test cases: walk real paths through the interaction graph.
+
+    Where the depth-1 navigation cases tap once, these traverse multi-step paths
+    (login -> catalog -> cart -> pay) drawn from the graph's edge-coverage walks,
+    asserting a landmark on each screen reached. Only paths with >= 2 taps are
+    emitted here — single taps are already covered by the navigation cases.
+    """
+    graph = build_graph(result, app_package)
+    fps = list(result.screens)
+    fp_of = {i + 1: fp for i, fp in enumerate(fps)}
+
+    # (from_fp, to_fp) -> tapped elements, so a graph edge maps back to a locator.
+    by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
+    for from_fp, element, to_fp in result.transitions:
+        by_pair[(from_fp, to_fp)].append(element)
+
+    def _landmark(screen: CrawlScreen):
+        owned = _owned(screen, app_package)
+        return next((s for s in (selector_for(e, owned, screen.platform) for e in owned) if s), None)
+
+    # Drop any walk whose node path is a strict prefix of a longer one — the
+    # longer path already exercises (and asserts) the shorter one's screens.
+    raw_paths = []
+    for walk in graph.edge_coverage_paths():
+        if len(walk) >= 2:
+            raw_paths.append(tuple([walk[0].src] + [e.dst for e in walk]))
+    maximal = [p for p in raw_paths if not any(other != p and other[: len(p)] == p for other in raw_paths)]
+
+    cases: List[TestCase] = []
+    seen_paths = set()
+    for walk in graph.edge_coverage_paths():
+        if len(walk) < 2:  # multi-step only
+            continue
+        node_path = tuple([walk[0].src] + [e.dst for e in walk])
+        if node_path in seen_paths or node_path not in maximal:
+            continue
+
+        steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+        ok = True
+        for edge in walk:
+            from_fp, to_fp = fp_of[edge.src], fp_of[edge.dst]
+            candidates = by_pair.get((from_fp, to_fp), [])
+            element = next(
+                ((e) for e in candidates if (e.label or e.class_name) == edge.label),
+                candidates[0] if candidates else None,
+            )
+            if element is None:
+                ok = False
+                break
+            from_screen = result.screens[from_fp]
+            tap = selector_for(element, _owned(from_screen, app_package), from_screen.platform)
+            landmark = _landmark(result.screens[to_fp])
+            if tap is None or landmark is None:
+                ok = False
+                break
+            steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {edge.label}"))
+            steps.append(
+                Step(
+                    ActionType.ASSERT,
+                    selector=landmark,
+                    assertion=AssertionType.VISIBLE,
+                    description=f"Reached screen {edge.dst}",
+                )
+            )
+
+        if ok and sum(1 for s in steps if s.action is ActionType.TAP) >= 2:
+            seen_paths.add(node_path)
+            label = " → ".join(f"screen {n}" for n in node_path)
+            cases.append(
+                TestCase(
+                    name=f"path_{'_'.join(str(n) for n in node_path)}",
+                    steps=steps,
+                    description=f"Multi-step path: {label}",
+                )
+            )
+        if len(cases) >= max_cases:
+            break
+    return cases
 
 
 def _annotate_depth(graph: InteractionGraph) -> None:
