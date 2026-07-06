@@ -18,7 +18,9 @@ the pipeline (inventory, IR, codegen) is unchanged.
 from __future__ import annotations
 
 import time
-from typing import Optional
+from typing import Optional, Tuple
+
+from framework.crawler.settle import settle_until_stable
 
 
 class IOSCrawlerDriver:
@@ -40,7 +42,8 @@ class IOSCrawlerDriver:
         from appium.options.ios import XCUITestOptions
 
         self.bundle_id = bundle_id
-        self._settle = settle
+        self._settle_max = settle
+        self._cache: Optional[Tuple[float, str]] = None  # (monotonic ts, source)
 
         options = XCUITestOptions()
         options.platform_name = "iOS"
@@ -58,11 +61,23 @@ class IOSCrawlerDriver:
         self._driver = webdriver.Remote(server, options=options)
 
     def page_source(self) -> str:
+        # Serve the page source captured while settling (fresh) to avoid a second
+        # WDA round-trip right after a gesture.
+        if self._cache and (time.monotonic() - self._cache[0]) < 1.0:
+            source = self._cache[1]
+            self._cache = None
+            return source
         return self._driver.page_source
+
+    def _remember(self, source: str) -> None:
+        self._cache = (time.monotonic(), source)
+
+    def _settle_wait(self) -> None:
+        settle_until_stable(lambda: self._driver.page_source, self._remember, max_wait=self._settle_max)
 
     def tap(self, x: int, y: int) -> None:
         self._driver.execute_script("mobile: tap", {"x": x, "y": y})
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def back(self) -> None:
         # iOS has no hardware Back; the near-universal gesture is an edge swipe
@@ -76,7 +91,7 @@ class IOSCrawlerDriver:
             )
         except Exception:
             pass
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def current_package(self) -> str:
         try:
