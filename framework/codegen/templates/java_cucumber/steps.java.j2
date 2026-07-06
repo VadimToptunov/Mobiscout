@@ -108,6 +108,29 @@ public class {{ class_name }} {
         driver.navigate().back();
     }
 
+    @When("I long-press {string}")
+    public void iLongPress(String target) {
+        new org.openqa.selenium.interactions.Actions(driver).clickAndHold(find(target)).pause(java.time.Duration.ofSeconds(1)).release().perform();
+    }
+
+    @When("I scroll to {string}")
+    public void iScrollTo(String target) {
+        driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator(
+            "new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains(\"" + target + "\"))"));
+    }
+
+    @When("I open the deep link {string}")
+    public void iOpenDeepLink(String url) {
+        driver.get(url);
+    }
+
+    @When("I press the {string} key")
+    public void iPressKey(String key) {
+        ((io.appium.java_client.android.AndroidDriver) driver).pressKey(
+            new io.appium.java_client.android.nativekey.KeyEvent(
+                io.appium.java_client.android.nativekey.AndroidKey.valueOf(key.toUpperCase())));
+    }
+
     @Then("{string} is visible")
     public void isVisible(String target) {
         if (!find(target).isDisplayed()) {

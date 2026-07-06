@@ -21,8 +21,11 @@ class JsWebdriverIOEmitter(Emitter):
     target_id = "js_webdriverio"
 
     def _register_filters(self) -> None:
+        from framework.codegen.emitters._python_common import keycode
+
         self.env.filters["selector_array"] = selector_array
         self.env.filters["js_str"] = js_str
+        self.env.filters["keycode"] = keycode
 
     def emit(self, model: TestModel) -> Dict[str, str]:
         content = self.env.get_template("test_file.spec.js.j2").render(model=model)
