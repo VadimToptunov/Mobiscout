@@ -34,7 +34,23 @@ class JSONRPCServer:
             "action/tap": self.handle_tap,
             "action/swipe": self.handle_swipe,
             "action/type": self.handle_type,
+            "kit/generate": self.handle_kit_generate,
         }
+
+    def handle_kit_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Parameterized crawl → kit for the IDE plugin: the same config the CLI
+        takes as flags, as JSON. Crawls the app described by ``params`` and writes
+        the inventory, interaction graph, tests (in the chosen targets), and — if
+        ``scaffold`` — a runnable project. Returns a summary of what was written.
+
+        params: {package, platform, targets[], output, app_activity, scaffold,
+                 max_steps, max_depth, serial/udid/device_name/server/extra_caps}
+        """
+        from framework.crawler.pipeline import run_kit
+
+        if not params.get("package"):
+            raise ValueError("kit/generate requires 'package'")
+        return run_kit(params)
 
     def handle_health_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """

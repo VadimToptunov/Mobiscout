@@ -739,6 +739,52 @@ Generate test code from session.
 
 ---
 
+#### `kit/generate` ✅ implemented
+
+The parameterized "configure what you want, get the result" call: crawls the app
+described by `params` and writes the full kit (inventory, interaction graph, tests
+in the chosen targets, and — if `scaffold` — a runnable project). Every plugin
+form field maps to one param; nothing is a magic default.
+
+**Request**:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "method": "kit/generate",
+  "params": {
+    "package": "com.example.app",     // required: Android package or iOS bundle id
+    "platform": "android",             // "android" | "ios"
+    "driver": "appium",                // Android only: "adb" | "appium"
+    "targets": ["js_webdriverio"],     // codegen targets (languages/frameworks)
+    "output": "e2e/generated",         // where results land (new or existing framework)
+    "scaffold": true,                  // true = new runnable project; false = drop-in specs
+    "app_activity": ".MainActivity",   // Android entry activity (optional)
+    "udid": "…", "device_name": "…", "server": "http://localhost:4723",
+    "extra_caps": { "…": "…" },        // cloud/grid capabilities
+    "max_steps": 40, "max_depth": 8
+  }
+}
+```
+
+**Response** — a summary of what was produced:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "result": {
+    "package": "com.example.app", "platform": "android",
+    "screens": 6, "transitions": 9, "cases": 12,
+    "targets": ["js_webdriverio"], "scaffolded": "js_webdriverio",
+    "output": "/abs/path/e2e/generated"
+  }
+}
+```
+
+---
+
 ## Notifications (Server → Client)
 
 The server can send notifications (no `id` field) to the client:
