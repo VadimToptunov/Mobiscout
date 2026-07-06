@@ -22,10 +22,9 @@ def session():
 
 def test_login(session):
     """POST /auth/login"""
-    response = session.post(BASE_URL + "/auth/login", json={"email": "test", "password": "test"})
+    response = session.post(BASE_URL + "/auth/login", json={'email': 'test', 'password': 'test'})
     # Contract check: endpoint is reachable and the server did not 5xx.
     assert response.status_code < 500, f"server error {response.status_code}: {response.text[:200]}"
-
 
 def test_list_products(session):
     """GET /products"""
@@ -33,9 +32,9 @@ def test_list_products(session):
     # Contract check: endpoint is reachable and the server did not 5xx.
     assert response.status_code < 500, f"server error {response.status_code}: {response.text[:200]}"
 
-
 def test_add_to_cart(session):
     """POST /cart/items"""
-    response = session.post(BASE_URL + "/cart/items", json={"product_id": "test", "qty": "test"})
+    response = session.post(BASE_URL + "/cart/items", json={'product_id': 'test', 'qty': 'test'})
     # Contract check: endpoint is reachable and the server did not 5xx.
     assert response.status_code < 500, f"server error {response.status_code}: {response.text[:200]}"
+

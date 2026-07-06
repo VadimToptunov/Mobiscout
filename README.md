@@ -10,7 +10,7 @@
 [![Android](https://img.shields.io/badge/android-Appium%20%7C%20Espresso-green.svg)](demo-app/android)
 [![iOS](https://img.shields.io/badge/ios-Appium%20%7C%20XCTest-blue.svg)](demo-app/ios)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Performance](https://img.shields.io/badge/performance-16x%20faster-red.svg)](#performance)
+[![Targets](https://img.shields.io/badge/codegen-8%20targets-red.svg)](#-see-it-in-action--point-at-an-app-get-a-test-kit)
 
 ---
 
@@ -63,7 +63,7 @@ and exported as Mermaid / Graphviz DOT / JSON.
 
 From the graph, the tool generates model-based paths. This one walks
 Login → Catalog → Cart, typing sample data into the login form on the way
-([full file](examples/shop_demo/python_pytest/test_crawl_flow.py)):
+([flat file](examples/shop_demo/flat/python_pytest/test_crawl_flow.py)):
 
 ```python
 def test_path_1_2_3_4(driver):
@@ -77,15 +77,40 @@ def test_path_1_2_3_4(driver):
     ...
 ```
 
-The **same crawl** also emits [Java + TestNG](examples/shop_demo/java_testng) and
-[JavaScript + WebdriverIO](examples/shop_demo/js_webdriverio) — one IR, many
-targets (8 in total, incl. BDD). iOS suites are generated too, with the correct
-XCUITest capabilities and locators.
+**Framework structure, not loose files** (`--style pom`): the same crawl produces a
+proper layout —
+[Page Objects](examples/shop_demo/framework/pages) +
+[`conftest.py`](examples/shop_demo/framework/conftest.py) +
+[POM-style tests](examples/shop_demo/framework/tests/test_navigation.py) that read
+like intent:
+
+```python
+def test_navigate_1(driver):
+    WelcomeBackPage(driver).sign_in().click()
+    assert CatalogPage(driver).search_products().is_displayed()
+```
+
+**BDD too** — Gherkin `.feature` files + step definitions, in
+[Python (pytest-bdd)](examples/shop_demo/bdd/python_pytest_bdd) and
+[JavaScript (Cucumber)](examples/shop_demo/bdd/js_cucumber):
+
+```gherkin
+Scenario: State checks for discovered screen 1
+  Given the app is launched
+  Then "Email" is visible
+  And "Sign in" is enabled
+```
+
+The **same crawl** also emits [Java + TestNG](examples/shop_demo/flat/java_testng)
+and [JavaScript + WebdriverIO](examples/shop_demo/flat/js_webdriverio) — one IR, 8
+targets. iOS suites are generated too, with the correct XCUITest capabilities and
+locators.
 
 ### 4. API contract tests
 
 Point at an OpenAPI/Swagger spec (file **or URL**) and get contract tests
-alongside the UI suite ([example](examples/shop_demo/api/test_api.py)):
+alongside the UI suite ([example](examples/shop_demo/api/test_api.py)). A full
+generated kit lives in [`examples/shop_demo/`](examples/shop_demo):
 
 ```python
 def test_login(session):
@@ -111,20 +136,16 @@ single command.
 - ✅ **Session Management** - Start/stop automation sessions
 - ✅ **JSON-RPC Protocol** - Fast, reliable CLI ↔ Plugin communication
 
-### Phase 0-2 Complete (3/11 phases)
+### Multi-Language & Structured Output — available now
 
-**✅ Phase 0**: Foundation - JSON-RPC protocol, daemon, health check
-**✅ Phase 1**: Plugin MVP - ToolWindow, tabs, device list, logs
-**✅ Phase 2**: Interactive UI - Screenshot viewer, click-to-tap, actions
-
-**🚧 Phase 3-11**: Multi-backend, smart selectors, flow analysis, static analysis, PRO features
-
-### Multi-Language & Multi-Backend (Coming in Phase 3-7)
-
-- 🌍 **6 Languages** - Python, Java, Kotlin, JS/TS, Go, Ruby
-- 🔌 **6 Automation Backends** - Appium, Espresso, XCTest, Detox, Maestro, Playwright
-- 🧠 **Smart Selectors** - AI-powered stability scoring & healing
-- 🔄 **Flow Analysis** - Automatic app state & transition detection
+- 🌍 **4 languages, 8 targets** — Python (pytest), Java (TestNG), Kotlin (Appium/Espresso),
+  JavaScript (WebdriverIO), each in an imperative **or BDD/Gherkin** style
+- 🏗️ **Framework-structured output** — Page Objects + a shared `conftest` + POM-style tests
+  (`--style pom`), or standalone files (`--style flat`)
+- 🔌 **Backends** — Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso
+- 🧠 **Ranked, self-healing selectors** — accessibility-id → resource-id → text, with fallbacks
+- 🔄 **Interaction graph** — the app's navigation map, mined into multi-step, form-filling tests
+- 🤖 **ML element typing** — a hybrid ML + heuristic classifier labels each element (button / input / …)
 
 ---
 
@@ -192,7 +213,7 @@ source .venv/bin/activate  # or activate.sh on macOS
 pip install -r requirements.txt
 pip install -e .
 
-# 4. (Optional) Install Rust core for 16x speedup
+# 4. (Optional) Build the native Rust core for the CPU-heavy analysis paths
 cd rust_core
 maturin develop --release
 cd ..
@@ -228,15 +249,18 @@ observe docs generate framework/ --format html
 
 ---
 
-## 🦀 Performance: Python vs Rust
+## 🦀 Architecture: Python + Rust core
 
-| Operation                          | Python | Rust | Speedup   |
-|------------------------------------|--------|------|-----------|
-| **AST Analysis** (1000 files)      | 45s    | 2.5s | **18x** ⚡ |
-| **Event Correlation** (10K events) | 8s     | 0.4s | **20x** ⚡ |
-| **File I/O** (100 files)           | 5s     | 0.3s | **16x** ⚡ |
-| **Business Logic Analysis**        | 12s    | 1.1s | **11x** ⚡ |
-| **Overall Pipeline**               | 70s    | 4.3s | **16x** ⚡ |
+The tool is I/O/device-bound (adb / Appium / the emulator dominate wall-clock),
+so it stays in Python for the orchestration, CLI, codegen and ML glue — where the
+ecosystem lives — and pushes the genuinely CPU-heavy work (AST/SAST analysis,
+event correlation, I/O) into a native **Rust core** (`rust_core/`, built in CI for
+macOS/Linux/Windows). The ML stack (scikit-learn) is C under the hood.
+
+Crawl speed comes from doing less waiting, not from a rewrite: an **adaptive
+settle** polls the UI until it stabilises (instead of a fixed sleep) and folds the
+post-action UI dump into one round-trip — ~20% faster on adb, ~46% on iOS in
+measurement.
 
 ---
 
@@ -244,11 +268,15 @@ observe docs generate framework/ --format html
 
 ### Universal Element Classifier
 
-- **Accuracy:** 94%
-- **Training Data:** 10,000+ elements
-- **Platforms:** Android Native/Compose, iOS UIKit/SwiftUI, Flutter, React Native
-- **Inference:** <5ms per element
-- **Model Size:** 2.5 MB
+- **What it does:** labels each element's semantic type (button / input / checkbox / text / …)
+- **Model:** scikit-learn RandomForest, trained on ~2,500 synthetic samples across
+  Android (native + Compose), iOS (UIKit + SwiftUI), Flutter and React Native
+- **Accuracy:** ~88% on a held-out synthetic split; paired with a class-name
+  heuristic in a hybrid that beats either alone (the heuristic covers inputs/toggles
+  the model is weak on)
+- **Shipping:** trained from code on first use (~1 s) and cached — no binary in the
+  repo, and no sklearn pickle-version fragility
+- **Wired in:** the type shows up in the inventory and drives type-aware test steps
 
 ### Self-Learning
 
@@ -275,24 +303,16 @@ observe ml info
 
 ---
 
-## 🔧 Self-Healing
+## 🔧 Self-healing selectors
 
-### How It Works
+Every generated locator is **ranked with fallbacks** — accessibility-id first, then
+resource-id, then text — so when the primary breaks the test transparently tries
+the next. In the generated code this is the `_find(primary, fallbacks)` helper (or
+the page object's `LOCATORS` list).
 
-```
-Test Fails → Screenshot Captured → ML Analyzes → 8 Repair Strategies → Verify → Auto-Commit
-```
-
-### Success Rates by Strategy
-
-| Strategy                      | Success Rate |
-|-------------------------------|--------------|
-| **Fuzzy Text Match**          | 95%          |
-| **Sibling Navigation**        | 88%          |
-| **ML Element Classification** | 94%          |
-| **Position-Based**            | 76%          |
-| **Visual Similarity**         | 82%          |
-| **Combined (All Strategies)** | **92%**      |
+A `heal` command and a selector-healer module (fuzzy text, attribute, hierarchy,
+position and visual strategies) are also available to repair broken locators from a
+failed run; wiring them into the crawl→codegen loop is on the roadmap.
 
 ### Example
 
@@ -511,33 +531,26 @@ observe load compare baseline.json current.json
 └────────────────────────┬──────────────────────────────────┘
                          │
 ┌────────────────────────▼──────────────────────────────────┐
-│              Rust Core (90% of logic)                     │
-│  • AST Analysis        • Event Correlation                │
-│  • Business Logic      • File I/O (Parallel)              │
-│  • Selector Generation • Performance Profiling            │
-│  • Test Execution      • Device Manager                   │
-│                                                            │
-│  Performance: 16x faster | Memory safe | Concurrent       │
+│         Python engine (orchestration + codegen)           │
+│  • Autonomous crawler   • Interaction graph               │
+│  • IR → 8 codegen targets (+ BDD, POM)                    │
+│  • ML element typing (scikit-learn RandomForest)          │
+│  • Security / a11y / API / fuzz                           │
 └────────────────────────┬──────────────────────────────────┘
                          │
 ┌────────────────────────▼──────────────────────────────────┐
-│          Python ML Layer (Python-only)                    │
-│  • Element Classifier (Random Forest, 94%)                │
-│  • Self-Learning System (Privacy-first)                   │
-│  • Model Training & Evaluation                            │
-│                                                            │
-│  Why Python? Best ML ecosystem (scikit-learn, PyTorch)    │
+│            Rust core (CPU-heavy hot paths)                │
+│  • AST/SAST analysis   • Event correlation • File I/O     │
 └───────────────────────────────────────────────────────────┘
 ```
 
-**Key Design Principles:**
+**Key design principles:**
 
-- 🦀 **Rust Core** - 90% of logic, 16x speedup, multi-language support
-- 🤖 **Python ML** - Best ML ecosystem, not performance-critical
-- 🔌 **Multi-Language** - Bindings for Python, JS, Go, Ruby, etc.
-- 📊 **Observable** - Full metrics & tracing
-- 🔒 **Secure** - Privacy-first design
-- 📦 **Binary Distribution** - Single executable, no runtime
+- 🐍 **Python engine** - orchestration, codegen and ML glue, where the ecosystem lives
+- 🦀 **Rust core** - only the genuinely CPU-heavy analysis paths
+- 🔌 **Multi-language codegen** - Python, Java, Kotlin, JavaScript (imperative + BDD)
+- 📊 **Observable** - metrics & tracing commands
+- 🔒 **Privacy-first** - the ML model trains locally; no data leaves the machine
 
 **Supported Languages:**
 
@@ -598,11 +611,9 @@ refactor: Code refactoring
 | **Python Code**          | 35,000 lines               |
 | **Rust Code**            | 8,000 lines                |
 | **Test Coverage**        | 85%+                       |
-| **Supported Platforms**  | 4 (Android/iOS/Flutter/RN) |
-| **CLI Commands**         | 150+                       |
-| **Performance Boost**    | 16x average                |
-| **ML Accuracy**          | 94%                        |
-| **Healing Success Rate** | 92%                        |
+| **Platforms crawled live** | Android (adb + Appium), iOS (Appium/XCUITest) |
+| **Codegen targets**      | 8 (Python/Java/Kotlin/JS, imperative + BDD) |
+| **ML element typing**    | hybrid ML + heuristic (~88% model on synthetic) |
 
 ---
 
@@ -614,7 +625,7 @@ refactor: Code refactoring
 - ✅ Self-healing tests
 - ✅ ML element classification
 - ✅ Self-learning system
-- ✅ Rust core migration (16x speedup)
+- ✅ Rust core for CPU-heavy analysis paths
 - ✅ API mocking
 - ✅ Advanced selectors
 - ✅ Parallel execution
