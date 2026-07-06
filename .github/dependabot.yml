@@ -1,0 +1,44 @@
+# Dependency-update monitoring. Dependabot opens weekly PRs when Python
+# packages (incl. appium-python-client, selenium), GitHub Actions, or the
+# JetBrains-plugin Gradle deps change — so the tool tracks the Appium
+# ecosystem and its libraries automatically.
+version: 2
+updates:
+  # Python runtime + dev dependencies.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for the Appium/Selenium client stack — they move together.
+      appium-stack:
+        patterns:
+          - "appium-python-client"
+          - "selenium"
+      dev-tooling:
+        patterns:
+          - "pytest*"
+          - "black"
+          - "flake8"
+          - "mypy"
+    labels:
+      - "dependencies"
+
+  # GitHub Actions used by CI.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
+
+  # JetBrains plugin Gradle dependencies (IntelliJ platform, Kotlin, etc.).
+  - package-ecosystem: "gradle"
+    directory: "/jetbrains-plugin"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "plugin"
