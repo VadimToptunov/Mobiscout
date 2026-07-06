@@ -181,4 +181,12 @@ class MTRSettings : PersistentStateComponent<MTRSettings.State> {
     var screenshotRefreshInterval: Int
         get() = myState.screenshotRefreshInterval
         set(value) { myState.screenshotRefreshInterval = value }
+
+    var createNewFramework: Boolean
+        get() = myState.createNewFramework
+        set(value) { myState.createNewFramework = value }
+
+    var existingFrameworkPath: String
+        get() = myState.existingFrameworkPath
+        set(value) { myState.existingFrameworkPath = value }
 }

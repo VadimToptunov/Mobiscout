@@ -85,6 +85,11 @@
             <action id="MTR.SetupWizard" class="com.mobiletest.recorder.actions.SetupWizardAction"
                     text="Setup Wizard..." description="Run the initial setup wizard"
                     icon="AllIcons.General.Settings"/>
+
+            <action id="MTR.GenerateKit" class="com.mobiletest.recorder.actions.GenerateKitAction"
+                    text="Generate Test Kit..."
+                    description="Configure parameters and generate an inventory, interaction graph and tests"
+                    icon="AllIcons.Actions.Download"/>
             <separator/>
 
             <action id="MTR.SecurityScan" class="com.mobiletest.recorder.actions.SecurityScanAction"
