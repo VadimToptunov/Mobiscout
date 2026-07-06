@@ -25,28 +25,52 @@ logger = get_logger(__name__)
     show_default=True,
     help="android crawls over adb; ios crawls over an Appium/XCUITest session",
 )
-@click.option("--serial", default=None, help="adb device serial (Android; default: the only connected device)")
-@click.option("--udid", default=None, help="iOS simulator/device UDID (booted device)")
-@click.option("--device-name", default="iPhone 17", show_default=True, help="iOS device name for the Appium session")
-@click.option("--server", default="http://localhost:4723", show_default=True, help="Appium server URL (iOS)")
+@click.option(
+    "--driver",
+    type=click.Choice(["adb", "appium"]),
+    default="adb",
+    show_default=True,
+    help="Android UI backend: adb (no server) or an Appium/UiAutomator2 session (real devices, cloud)",
+)
+@click.option("--serial", default=None, help="adb device serial (Android/adb; default: the only connected device)")
+@click.option("--udid", default=None, help="Device/simulator UDID for an Appium session")
+@click.option("--device-name", default=None, help="Device name for the Appium session")
+@click.option("--server", default="http://localhost:4723", show_default=True, help="Appium server URL")
+@click.option("--cap", "caps", multiple=True, help="Extra Appium capability KEY=VALUE (repeatable; e.g. cloud grids)")
 @click.option("--output", default="crawl-kit", help="Output directory for the artifacts")
 @click.option("--targets", default="python_pytest", help="Comma-separated codegen targets for the tests")
 @click.option("--app-activity", default=None, help="Android entry activity (for the generated test setup)")
 @click.option("--max-steps", default=40, show_default=True, help="Crawl step budget")
 @click.option("--max-depth", default=8, show_default=True, help="Crawl depth budget")
-def crawl(package, platform, serial, udid, device_name, server, output, targets, app_activity, max_steps, max_depth):
+def crawl(
+    package,
+    platform,
+    driver,
+    serial,
+    udid,
+    device_name,
+    server,
+    caps,
+    output,
+    targets,
+    app_activity,
+    max_steps,
+    max_depth,
+):
     """
     Crawl a running app and export an element inventory + tests.
 
-    Android (over adb) or iOS (over an Appium/XCUITest session — requires a
-    running Appium server and a booted simulator/device).
+    Android over adb (default) or over an Appium/UiAutomator2 session
+    (--driver appium, which unlocks real devices and cloud grids via --cap), and
+    iOS over an Appium/XCUITest session.
 
     Examples:
         observe crawl --package com.example.app --targets python_pytest,java_testng
+        observe crawl --package com.example.app --driver appium --udid <UDID>
         observe crawl --platform ios --package com.apple.Preferences --udid <UDID>
     """
     from framework.codegen import available_targets, get_emitter
-    from framework.crawler import AdbCrawlerDriver, AppCrawler, IOSCrawlerDriver, build_test_model
+    from framework.crawler import AdbCrawlerDriver, AndroidAppiumDriver, AppCrawler, IOSCrawlerDriver, build_test_model
     from framework.crawler.classify import ensure_model
     from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
     from framework.crawler.report import inventory_json_str, inventory_markdown
@@ -58,18 +82,35 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
     if ensure_model() is None:
         print_info("Element typing: using the rule heuristic (ML model unavailable).")
 
-    ios_driver = None
+    extra_caps = dict(c.split("=", 1) for c in caps if "=" in c)
+    appium_session = None  # any Appium-owned driver we must quit() at the end
     if platform == "ios":
         try:
-            driver = IOSCrawlerDriver(bundle_id=package, udid=udid, device_name=device_name, server=server)
+            crawl_driver = IOSCrawlerDriver(
+                bundle_id=package, udid=udid, device_name=device_name or "iPhone 17", server=server
+            )
         except Exception as e:
             print_error(f"Could not open an Appium iOS session ({e}). Is the Appium server running at {server}?")
             raise click.Abort()
-        ios_driver = driver
+        appium_session = crawl_driver
+    elif driver == "appium":
+        try:
+            crawl_driver = AndroidAppiumDriver(
+                app_package=package,
+                app_activity=app_activity,
+                udid=udid,
+                device_name=device_name or "Android Device",
+                server=server,
+                extra_caps=extra_caps,
+            )
+        except Exception as e:
+            print_error(f"Could not open an Appium Android session ({e}). Is the Appium server running at {server}?")
+            raise click.Abort()
+        appium_session = crawl_driver
     else:
-        driver = AdbCrawlerDriver(serial=serial)
+        crawl_driver = AdbCrawlerDriver(serial=serial)
 
-    current = driver.current_package()
+    current = crawl_driver.current_package()
     if current != package:
         hint = (
             f"adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1"
@@ -77,15 +118,15 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
             else f"xcrun simctl launch booted {package}"
         )
         print_error(f"App '{package}' is not in the foreground (found '{current}'). Launch it first: {hint}")
-        if ios_driver:
-            ios_driver.quit()
+        if appium_session:
+            appium_session.quit()
         raise click.Abort()
 
     try:
-        result = AppCrawler(driver, package, max_steps=max_steps, max_depth=max_depth).crawl()
+        result = AppCrawler(crawl_driver, package, max_steps=max_steps, max_depth=max_depth).crawl()
     finally:
-        if ios_driver:
-            ios_driver.quit()
+        if appium_session:
+            appium_session.quit()
     print_success(f"Discovered {len(result.screens)} screen(s), {len(result.transitions)} transition(s)")
 
     out = Path(output)
