@@ -202,6 +202,12 @@ def build_test_model(
             cases.append(case)
     cases.extend(_navigation_cases(result, app_package))
 
+    # Multi-step, model-based paths through the interaction graph (lazy import:
+    # graph.py imports this module, so importing it here avoids a cycle).
+    from framework.crawler.graph import multi_step_cases
+
+    cases.extend(multi_step_cases(result, app_package))
+
     # The suite's platform follows the crawled screens (any iOS screen -> iOS),
     # so the emitters pick the right Appium client and text locators.
     is_ios = any(s.platform == "ios" for s in result.screens.values())

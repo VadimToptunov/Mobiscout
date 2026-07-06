@@ -82,3 +82,39 @@ def test_exports_render():
     assert "digraph InteractionGraph" in G.to_dot(g)
     data = json.loads(G.to_json(g))
     assert data["metrics"]["screens"] == 4 and len(data["nodes"]) == 4
+
+
+def _linear_result():
+    """A -> B -> C -> D chain (a login->catalog->cart->pay style flow)."""
+    res = CrawlResult(
+        screens={
+            "A": _screen("A", [_btn("Login", "id/login")]),
+            "B": _screen("B", [_btn("Catalog", "id/cat")]),
+            "C": _screen("C", [_btn("AddToCart", "id/add")]),
+            "D": _screen("D", [_btn("Pay", "id/pay")]),
+        }
+    )
+    res.transitions = [
+        ("A", _btn("Login", "id/login"), "B"),
+        ("B", _btn("Catalog", "id/cat"), "C"),
+        ("C", _btn("AddToCart", "id/add"), "D"),
+    ]
+    return res
+
+
+def test_multi_step_case_walks_the_full_path():
+    cases = G.multi_step_cases(_linear_result(), "com.x")
+    # only the maximal path survives (prefixes dropped)
+    assert [c.name for c in cases] == ["path_1_2_3_4"]
+    steps = cases[0].steps
+    taps = [s for s in steps if s.action.value == "tap"]
+    asserts = [s for s in steps if s.action.value == "assert"]
+    assert len(taps) == 3 and len(asserts) == 3  # login, catalog, add-to-cart + a landmark each
+    assert steps[0].action.value == "launch"
+
+
+def test_multi_step_included_in_model():
+    from framework.crawler.to_codegen import build_test_model
+
+    model = build_test_model(_linear_result(), app_package="com.x")
+    assert any(c.name.startswith("path_") for c in model.cases)
