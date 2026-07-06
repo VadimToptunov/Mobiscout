@@ -16,7 +16,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
     
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
-    testImplementation("org.mockito:mockito-core:5.8.0")
+    testImplementation("org.mockito:mockito-core:5.23.0")
 }
 
 // Configure Gradle IntelliJ Plugin
