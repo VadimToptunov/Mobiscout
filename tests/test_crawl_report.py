@@ -46,6 +46,6 @@ def test_inventory_markdown_has_tables_and_a11y_section():
     result = AppCrawler(FakeDriver(), APP, max_steps=100).crawl()
     md = inventory_markdown(result, APP)
     assert "# Screen inventory" in md
-    assert "| Element | Locator | Interactive |" in md
+    assert "| Element | Type | Locator | Interactive |" in md
     assert "## Discovered flows" in md
     assert "## Accessibility" in md
