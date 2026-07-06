@@ -1,0 +1,13 @@
+```mermaid
+flowchart TD
+    N1(["Screen 1<br/>native·android · 6 el"])
+    N2["Screen 2<br/>native·android · 4 el"]
+    N3["Screen 3<br/>native·android · 3 el"]
+    N4["Screen 4<br/>native·android · 2 el"]
+    N1 -->|"tap Sign in (button)"| N2
+    N2 -->|"tap Running Shoes (button)"| N3
+    N2 -->|"tap Cart (button)"| N4
+    N3 -->|"tap Add to cart (button)"| N4
+    class N4 deadend;
+    classDef deadend stroke-dasharray: 5 5;
+```
