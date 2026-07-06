@@ -1,8 +1,12 @@
 # Multi-Language Architecture
 
-**Version:** 2.0  
-**Date:** 2026-01-12  
-**Status:** Production
+> ⚠️ **Aspirational design blueprint — NOT implemented.** The JavaScript/Go/Ruby/
+> C# bindings (NAPI-RS / CGO / FFI / P-Invoke) described here do not exist. Today
+> the Rust core is exposed to **Python only** (PyO3); the tool's real
+> multi-language story is **test codegen** (Python/Java/Kotlin/JavaScript). Treat
+> this document as a future proposal, not current behaviour.
+
+**Status:** Proposal / not built
 
 ---
 

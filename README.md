@@ -522,26 +522,21 @@ observe load compare baseline.json current.json
 
 ## 🏗️ Architecture
 
-### Multi-Language Core
+### Architecture
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│         Language Bindings (Wrappers)                      │
-│  Python | JavaScript | Go | Ruby | Java | C# | ...       │
-└────────────────────────┬──────────────────────────────────┘
-                         │
-┌────────────────────────▼──────────────────────────────────┐
+┌────────────────────────────────────────────────────────────┐
 │         Python engine (orchestration + codegen)           │
 │  • Autonomous crawler   • Interaction graph               │
-│  • IR → 8 codegen targets (+ BDD, POM)                    │
+│  • IR → 8 codegen targets (Python/Java/Kotlin/JS, +BDD/POM)│
 │  • ML element typing (scikit-learn RandomForest)          │
 │  • Security / a11y / API / fuzz                           │
 └────────────────────────┬──────────────────────────────────┘
-                         │
+                         │  PyO3
 ┌────────────────────────▼──────────────────────────────────┐
 │            Rust core (CPU-heavy hot paths)                │
 │  • AST/SAST analysis   • Event correlation • File I/O     │
-└───────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────┘
 ```
 
 **Key design principles:**
@@ -552,15 +547,8 @@ observe load compare baseline.json current.json
 - 📊 **Observable** - metrics & tracing commands
 - 🔒 **Privacy-first** - the ML model trains locally; no data leaves the machine
 
-**Supported Languages:**
-
-- ✅ Python (PyO3) - Production ready
-- 🔄 JavaScript/TypeScript (NAPI-RS) - Planned Phase 6
-- 🔄 Go (CGO) - Planned Phase 6
-- 🔄 Ruby (FFI) - Planned Phase 6
-- 🔄 Java/Kotlin (JNI) - Planned Phase 7
-
-See [Multi-Language Architecture](docs/MULTI_LANGUAGE_ARCHITECTURE.md) for details.
+The Rust core is exposed to Python via PyO3. Generated **tests** target Python,
+Java, Kotlin and JavaScript — 8 codegen targets (imperative + BDD).
 
 ---
 
@@ -639,10 +627,6 @@ refactor: Code refactoring
 
 ### 🔮 Planned Features
 
-- 🔄 JavaScript/TypeScript bindings (NAPI-RS)
-- 🔄 Go bindings (CGO)
-- 🔄 Ruby bindings (FFI)
-- 🔄 Java/Kotlin bindings (JNI)
 - 🔄 Visual regression testing
 - 🔄 AI-powered test generation
 - 🔄 Advanced analytics dashboard
