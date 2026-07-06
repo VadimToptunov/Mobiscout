@@ -47,9 +47,15 @@ def crawl(package, platform, serial, udid, device_name, server, output, targets,
     """
     from framework.codegen import available_targets, get_emitter
     from framework.crawler import AdbCrawlerDriver, AppCrawler, IOSCrawlerDriver, build_test_model
+    from framework.crawler.classify import ensure_model
     from framework.crawler.report import inventory_json_str, inventory_markdown
 
     print_header("🕷️  Crawling app", f"{package} ({platform})")
+
+    # Provision the element-classification model (trains from synthetic data in
+    # ~1s on first run, then cached). Never fatal: falls back to the heuristic.
+    if ensure_model() is None:
+        print_info("Element typing: using the rule heuristic (ML model unavailable).")
 
     ios_driver = None
     if platform == "ios":

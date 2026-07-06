@@ -162,3 +162,6 @@ inspection_reports/
 # ML models (generated, not committed — regenerate with `observe ml create-universal-model`)
 ml_models/
 *.pkl
+
+# Runtime ML update-check marker
+.observe_ml_check

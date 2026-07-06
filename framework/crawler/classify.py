@@ -29,19 +29,69 @@ from framework.crawler.app_crawler import CrawlElement
 # Confidence at/above which we trust the ML label over the heuristic.
 ML_CONFIDENCE = 0.80
 
-# Default model location; override with OBSERVE_ML_MODEL.
-_DEFAULT_MODEL = "ml_models/universal_element_classifier.pkl"
-
 _UNSET = object()
 _model = _UNSET  # cached classifier | None (None = unavailable, heuristic-only)
 
 
+def _cache_path() -> Path:
+    """Where the auto-provisioned model lives — a user cache dir, never the repo.
+
+    The model is trained from code-generated synthetic data, so we ship the
+    *recipe* (see ensure_model) and never commit a 5 MB binary. Training locally
+    also sidesteps sklearn pickle-version fragility."""
+    base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    return Path(base) / "mobile-test-recorder" / "universal_element_classifier.pkl"
+
+
+def _model_path() -> Path:
+    """Explicit override wins; otherwise the user cache location."""
+    override = os.environ.get("OBSERVE_ML_MODEL")
+    return Path(override) if override else _cache_path()
+
+
+def ensure_model(force: bool = False) -> Optional[Path]:
+    """Make a trained model available, training one (~1 s, from synthetic data)
+    into the cache on first use. Returns the model path, or None if unavailable
+    (e.g. sklearn missing, or disabled via OBSERVE_ML_AUTOTRAIN=0).
+
+    Called by the CLI so users get real ML transparently; the library layer
+    (classify) never trains implicitly, so tests/imports stay fast."""
+    if os.environ.get("OBSERVE_ML_AUTOTRAIN") == "0":
+        return _model_path() if _model_path().exists() else None
+    path = _model_path()
+    if path.exists() and not force:
+        return path
+    try:
+        import json
+        import warnings
+
+        from framework.ml.element_classifier import ElementClassifier
+        from framework.ml.universal_model import UniversalModelBuilder
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with warnings.catch_warnings():  # rare synthetic classes -> sklearn noise
+            warnings.simplefilter("ignore")
+            dataset = UniversalModelBuilder().generate_training_data(
+                output_path=path.parent / "training_data.json", samples_per_type=250
+            )
+            with open(dataset) as f:
+                data = json.load(f)
+            clf = ElementClassifier()
+            clf.train_from_data(data, test_size=0.2)
+            clf.save_model(path)
+        reset_cache()
+        return path
+    except Exception:
+        return None
+
+
 def _load_model():
-    """Lazily load the universal classifier once; None if unavailable."""
+    """Lazily load the classifier once; None if unavailable (-> heuristic).
+    Does NOT train — provisioning is an explicit ensure_model() call."""
     global _model
     if _model is not _UNSET:
         return _model
-    path = Path(os.environ.get("OBSERVE_ML_MODEL", _DEFAULT_MODEL))
+    path = _model_path()
     if not path.exists():
         _model = None
         return None
