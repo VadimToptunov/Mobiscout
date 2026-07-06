@@ -79,10 +79,6 @@ public class CrawlFlow {
         Assert.assertTrue(find(AppiumBy.id("com.example.shop:id/signin"), new By[]{AppiumBy.androidUIAutomator("new UiSelector().text(\"Sign in\")")}).isDisplayed());
         // Sign in is enabled
         Assert.assertTrue(find(AppiumBy.id("com.example.shop:id/signin"), new By[]{AppiumBy.androidUIAutomator("new UiSelector().text(\"Sign in\")")}).isEnabled());
-        // Forgot password? is visible
-        Assert.assertTrue(find(AppiumBy.id("com.example.shop:id/forgot"), new By[]{AppiumBy.androidUIAutomator("new UiSelector().text(\"Forgot password?\")")}).isDisplayed());
-        // Forgot password? is enabled
-        Assert.assertTrue(find(AppiumBy.id("com.example.shop:id/forgot"), new By[]{AppiumBy.androidUIAutomator("new UiSelector().text(\"Forgot password?\")")}).isEnabled());
     }
 
     @Test
@@ -113,8 +109,6 @@ public class CrawlFlow {
         driver.activateApp("com.example.shop");
         // Running Shoes is visible
         Assert.assertTrue(find(AppiumBy.androidUIAutomator("new UiSelector().text(\"Running Shoes\")"), new By[]{}).isDisplayed());
-        // $89.00 is visible
-        Assert.assertTrue(find(AppiumBy.androidUIAutomator("new UiSelector().text(\"$89.00\")"), new By[]{}).isDisplayed());
         // Add to cart is visible
         Assert.assertTrue(find(AppiumBy.id("com.example.shop:id/add"), new By[]{AppiumBy.androidUIAutomator("new UiSelector().text(\"Add to cart\")")}).isDisplayed());
         // Add to cart is enabled

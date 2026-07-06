@@ -44,10 +44,6 @@ describe('CrawlFlow', () => {
         await expect(await find(['android=new UiSelector().resourceId("com.example.shop:id/signin")', 'android=new UiSelector().text("Sign in")'])).toBeDisplayed();
         // Sign in is enabled
         await expect(await find(['android=new UiSelector().resourceId("com.example.shop:id/signin")', 'android=new UiSelector().text("Sign in")'])).toBeEnabled();
-        // Forgot password? is visible
-        await expect(await find(['android=new UiSelector().resourceId("com.example.shop:id/forgot")', 'android=new UiSelector().text("Forgot password?")'])).toBeDisplayed();
-        // Forgot password? is enabled
-        await expect(await find(['android=new UiSelector().resourceId("com.example.shop:id/forgot")', 'android=new UiSelector().text("Forgot password?")'])).toBeEnabled();
     });
 });
 
@@ -80,8 +76,6 @@ describe('CrawlFlow', () => {
         await driver.activateApp(APP_PACKAGE);
         // Running Shoes is visible
         await expect(await find(['android=new UiSelector().text("Running Shoes")'])).toBeDisplayed();
-        // $89.00 is visible
-        await expect(await find(['android=new UiSelector().text("$89.00")'])).toBeDisplayed();
         // Add to cart is visible
         await expect(await find(['android=new UiSelector().resourceId("com.example.shop:id/add")', 'android=new UiSelector().text("Add to cart")'])).toBeDisplayed();
         // Add to cart is enabled

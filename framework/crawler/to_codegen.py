@@ -108,13 +108,35 @@ def _owned(screen: CrawlScreen, app_package: str) -> List[CrawlElement]:
     return [e for e in screen.elements if e.package in ("", app_package)]
 
 
+# Semantic types worth asserting on a screen — the things a user acts on. Static
+# text, images, prices and decoration are left to the inventory, not the tests.
+_MEANINGFUL_TYPES = {"button", "input", "checkbox", "switch", "radio"}
+_MAX_SCREEN_ELEMENTS = 8
+
+
+def _significant(owned: List[CrawlElement]) -> List[CrawlElement]:
+    """The elements worth a state assertion: one title landmark (so the screen is
+    identifiable) plus the actionable elements — not every label."""
+    from framework.crawler.classify import classify
+
+    landmark = None
+    actionable: List[CrawlElement] = []
+    for e in owned:
+        etype = classify(e)[0]
+        if etype in _MEANINGFUL_TYPES:
+            actionable.append(e)
+        elif etype == "text" and landmark is None and (e.text or "").strip():
+            landmark = e
+    return ([landmark] if landmark else []) + actionable[:_MAX_SCREEN_ELEMENTS]
+
+
 def _screen_cases(index: int, screen: CrawlScreen, app_package: str) -> Optional[TestCase]:
-    """A per-screen state case: every locatable element is visible, and every
-    interactive one is also enabled (interactability, not just presence)."""
+    """A per-screen state case — meaningful, not exhaustive: assert the screen's
+    landmark and its actionable elements (buttons/inputs/…), not every label."""
     steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
     seen = set()
     owned = _owned(screen, app_package)
-    for element in owned:
+    for element in _significant(owned):
         selector = selector_for(element, owned, screen.platform)
         if selector is None or selector.value in seen:
             continue

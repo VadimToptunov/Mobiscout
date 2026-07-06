@@ -12,7 +12,6 @@ Feature: CrawlFlow
       | Password |
       | Remember me |
       | Sign in |
-      | Forgot password? |
 
   Scenario Outline: State checks for discovered screen 2
     Given the app is launched
@@ -32,7 +31,6 @@ Feature: CrawlFlow
     Examples:
       | element |
       | Running Shoes |
-      | $89.00 |
       | Add to cart |
 
   Scenario Outline: State checks for discovered screen 4
