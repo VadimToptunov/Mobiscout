@@ -17,15 +17,15 @@
         <li><strong>🔍 UI Tree Inspector</strong> - Explore app UI hierarchy with Appium XML viewer</li>
         <li><strong>📊 Live Device Logs</strong> - Stream and filter logcat/simctl logs in real-time</li>
         <li><strong>🎯 Interactive Control</strong> - Tap, swipe, type on device screen from IDE</li>
-        <li><strong>🧠 Smart Selectors</strong> - AI-powered selector generation with stability scoring</li>
-        <li><strong>🔄 Flow Analysis</strong> - Automatic detection of app flows and states</li>
-        <li><strong>🌍 Multi-Language</strong> - Generate tests in Python, Java, Kotlin, JS/TS, Go, Ruby</li>
-        <li><strong>🔌 Multi-Backend</strong> - Support for Appium, Espresso, XCTest, Detox, Maestro</li>
+        <li><strong>🧠 Smart Selectors</strong> - Ranked, self-healing selectors (accessibility-id → id → text)</li>
+        <li><strong>🔄 Interaction Graph</strong> - Automatic app navigation map with multi-step, form-filling test paths</li>
+        <li><strong>🌍 Multi-Language</strong> - Generate tests in Python, Java, Kotlin and JavaScript (imperative or BDD)</li>
+        <li><strong>🔌 Backends</strong> - Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso</li>
     </ul>
     
     <h2>Requirements:</h2>
     <ul>
-        <li>Python 3.8+ installed</li>
+        <li>Python 3.13+ installed</li>
         <li><code>mobile-observe-test</code> CLI: <code>pip install mobile-observe-test</code></li>
         <li>For Android: Android SDK with adb</li>
         <li>For iOS: Xcode with simctl</li>
