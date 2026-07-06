@@ -87,8 +87,10 @@ class AdbCrawlerDriver:
         self._settle_wait()
 
     def current_package(self) -> str:
-        # Prefer the resumed activity (the app actually in the foreground).
-        m = _RESUMED_RE.search(self._run("shell", "dumpsys", "activity", "activities"))
+        # Prefer the resumed activity (the app actually in the foreground). grep
+        # on-device so adb transfers only the matching line(s), not the whole
+        # multi-KB activity dump — this runs 2x per crawl step.
+        m = _RESUMED_RE.search(self._run("shell", "dumpsys activity activities | grep -E 'ResumedActivity'"))
         if m:
             return m.group(1)
         # Fallback: mCurrentFocus, ignoring ANR / system windows.
