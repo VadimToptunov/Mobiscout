@@ -13,8 +13,10 @@ own rendering of the LOCATORS registry (primary + ranked fallbacks).
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple
+import re
+from typing import Dict, List, Optional, Tuple
 
+from framework.codegen.emitters._naming import snake
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestModel
 
 
@@ -37,14 +39,19 @@ _CLAUSE = {
 }
 
 
-def phrase(step: Step) -> str:
+def phrase(step: Step, type_param: Optional[str] = None) -> str:
     """The canonical Gherkin step text — must match the step-def parser in every
-    language (Cucumber expressions: {string}, {int})."""
+    language (Cucumber expressions: {string}, {int}).
+
+    ``type_param``: when set, a TYPE step's value is rendered as a
+    ``<placeholder>`` so the scenario becomes a data-driven Scenario Outline.
+    """
     a = step.action
     if a is ActionType.LAUNCH:
         return "the app is launched"
     if a is ActionType.TYPE:
-        return f'I enter "{step.text}" into "{target_key(step.selector)}"'
+        value = f"<{type_param}>" if type_param else step.text
+        return f'I enter "{value}" into "{target_key(step.selector)}"'
     if a is ActionType.TAP:
         return f'I tap "{target_key(step.selector)}"'
     if a is ActionType.WAIT:
@@ -90,16 +97,96 @@ def collect_targets(model: TestModel) -> List[Tuple[str, Selector]]:
     return [(k, seen[k]) for k in order]
 
 
+def _param_name(target: str, used: set) -> str:
+    """A clean Examples-column name for a form field (e.g. Email -> email)."""
+    base = re.sub(r"[^0-9a-zA-Z_]", "_", snake(target)).strip("_") or "value"
+    name, i = base, 2
+    while name in used:
+        name, i = f"{base}{i}", i + 1
+    used.add(name)
+    return name
+
+
+def _variant(param: str, value: str) -> str:
+    """A second, illustrative Examples row so the table reads as a template."""
+    p = param.lower()
+    if "email" in p:
+        return "user2@example.com"
+    if "pass" in p or "pwd" in p or "secure" in p:
+        return "Secret123!"
+    if "phone" in p or "tel" in p:
+        return "0987654321"
+    return f"{value} 2".strip()
+
+
+def _type_outline(case) -> Optional[List[str]]:
+    """If the case fills a form, render it as a Scenario Outline whose typed
+    values are Examples columns — the tester plugs their own data in the table."""
+    type_steps = [s for s in case.steps if s.action is ActionType.TYPE and s.selector is not None]
+    if not type_steps:
+        return None
+    used: set = set()
+    params = {id(s): _param_name(target_key(s.selector), used) for s in type_steps}
+    lines = [f"  Scenario Outline: {case.description or case.name}"]
+    prev = None
+    for step in case.steps:
+        clause = _CLAUSE[step.action]
+        keyword = "And" if clause == prev else clause
+        lines.append(f"    {keyword} {phrase(step, params.get(id(step)))}")
+        prev = clause
+    names = [params[id(s)] for s in type_steps]
+    lines.append("")
+    lines.append("    Examples:")
+    lines.append("      | " + " | ".join(names) + " |")
+    lines.append("      | " + " | ".join((s.text or "").strip() for s in type_steps) + " |")
+    lines.append("      | " + " | ".join(_variant(params[id(s)], (s.text or "").strip()) for s in type_steps) + " |")
+    return lines
+
+
+def _visible_outline(case) -> Optional[List[str]]:
+    """If the case only asserts visibility of many elements, collapse it to one
+    Scenario Outline over "<element>" is visible with an Examples table."""
+    targets: List[str] = []
+    seen: set = set()
+    for step in case.steps:
+        if step.action is ActionType.LAUNCH:
+            continue
+        if step.action is not ActionType.ASSERT or step.selector is None:
+            return None  # has taps/types -> not a plain state case
+        if step.assertion is AssertionType.VISIBLE:
+            key = target_key(step.selector)
+            if key not in seen:
+                seen.add(key)
+                targets.append(key)
+        # ENABLED asserts are folded away — visibility already covers presence.
+    if len(targets) < 2:
+        return None
+    lines = [
+        f"  Scenario Outline: {case.description or case.name}",
+        "    Given the app is launched",
+        '    Then "<element>" is visible',
+        "",
+        "    Examples:",
+        "      | element |",
+    ]
+    lines += [f"      | {t} |" for t in targets]
+    return lines
+
+
 def render_feature(model: TestModel) -> str:
-    """Render the language-agnostic Gherkin feature file (one Scenario per
-    TestCase). Identical bytes regardless of step-definition language."""
+    """Render the language-agnostic Gherkin feature file. Cases that fill forms or
+    assert many elements become parameterized Scenario Outlines (Examples tables);
+    the rest stay plain Scenarios. Identical bytes across step-def languages."""
     out: List[str] = [f"Feature: {model.name}"]
     if model.description:
         out.append(f"  {model.description}")
     out.append("")
     for case in model.cases:
-        out.append(f"  Scenario: {case.description or case.name}")
-        for line in scenario_lines(case.steps):
-            out.append(f"    {line['keyword']} {line['phrase']}")
+        block = _type_outline(case) or _visible_outline(case)
+        if block is None:
+            block = [f"  Scenario: {case.description or case.name}"]
+            for line in scenario_lines(case.steps):
+                block.append(f"    {line['keyword']} {line['phrase']}")
+        out.extend(block)
         out.append("")
     return "\n".join(out) + "\n"
