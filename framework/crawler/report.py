@@ -14,6 +14,7 @@ import json
 from typing import Any, Dict, List
 
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
+from framework.crawler.classify import classify
 from framework.crawler.to_codegen import audit_accessibility, selector_for
 
 
@@ -36,6 +37,7 @@ def inventory_json(result: CrawlResult, app_package: str = "") -> Dict[str, Any]
         owned = _owned(screen, app_package)
         elements = []
         for e in owned:
+            etype, econf, esource = classify(e)
             elements.append(
                 {
                     "class": e.class_name,
@@ -44,6 +46,9 @@ def inventory_json(result: CrawlResult, app_package: str = "") -> Dict[str, Any]
                     "content_desc": e.content_desc,
                     "clickable": e.clickable,
                     "bounds": list(e.bounds),
+                    "type": etype,
+                    "type_confidence": round(econf, 2),
+                    "type_source": esource,
                     "locator": _locator(e, owned, screen.platform),
                 }
             )
@@ -74,12 +79,12 @@ def inventory_markdown(result: CrawlResult, app_package: str = "") -> str:
     for screen in data["screens"]:
         out.append(f"## Screen {screen['index']} · {screen['toolkit']} · {screen['platform']}")
         out.append(f"_{screen['element_count']} element(s) · fingerprint `{screen['fingerprint'][:12]}`_\n")
-        out.append("| Element | Locator | Interactive |")
-        out.append("|---|---|---|")
+        out.append("| Element | Type | Locator | Interactive |")
+        out.append("|---|---|---|---|")
         for e in screen["elements"]:
             label = e["text"] or e["content_desc"] or e["resource_id"] or e["class"]
             loc = f"`{e['locator']['strategy']}={e['locator']['value']}`" if e["locator"]["value"] else "—"
-            out.append(f"| {label[:40]} | {loc} | {'✓' if e['clickable'] else ''} |")
+            out.append(f"| {label[:40]} | {e['type']} | {loc} | {'✓' if e['clickable'] else ''} |")
         out.append("")
 
     if data["flows"]:
