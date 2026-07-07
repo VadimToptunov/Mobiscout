@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Dict
 
 from framework.codegen.emitters._naming import snake
-from framework.codegen.emitters._python_common import by_value, py_str
+from framework.codegen.emitters._python_common import by_value, keycode, py_str
 from framework.codegen.emitters.base import Emitter
 from framework.codegen.ir import TestModel
 from framework.codegen.targets import Target, register
@@ -25,6 +25,7 @@ class PythonPytestEmitter(Emitter):
     def _register_filters(self) -> None:
         self.env.filters["by_value"] = by_value
         self.env.filters["py_str"] = py_str
+        self.env.filters["keycode"] = keycode
 
     def emit(self, model: TestModel) -> Dict[str, str]:
         template = self.env.get_template("test_file.py.j2")

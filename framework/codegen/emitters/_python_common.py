@@ -25,6 +25,16 @@ APPIUM_BY = {
 }
 
 
+# Android keycodes for the press_key action, by friendly name.
+_KEYCODES = {"BACK": 4, "HOME": 3, "ENTER": 66, "TAB": 61, "SEARCH": 84, "APP_SWITCH": 187, "DEL": 67}
+
+
+def keycode(name: str) -> int:
+    """Resolve a friendly key name (BACK/HOME/…) to its Android keycode."""
+    text = str(name)
+    return int(text) if text.isdigit() else _KEYCODES.get(text.upper(), 0)
+
+
 def py_str(value: str) -> str:
     """Render a Python double-quoted string literal, safely escaped. Control
     characters (newline/tab/cr) are escaped too, or an element's multi-line text

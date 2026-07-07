@@ -71,6 +71,18 @@ class {{ class_name }} {
         find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).sendKeys({{ step.text | kotlin_str }})
 {% elif step.action.value == "back" %}
         driver.navigate().back()
+{% elif step.action.value == "long_press" %}
+        org.openqa.selenium.interactions.Actions(driver).clickAndHold(find({{ step.selector | by_expr }}, {{ step.selector | by_array }})).pause(java.time.Duration.ofSeconds(1)).release().perform()
+{% elif step.action.value == "scroll_to" %}
+        driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator({{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ (step.selector.description or step.selector.value) ~ '"))') | kotlin_str }}))
+{% elif step.action.value == "deep_link" %}
+{% if model.platform.value == "ios" %}
+        driver.get({{ step.text | kotlin_str }})
+{% else %}
+        driver.executeScript("mobile: deepLink", mapOf("url" to {{ step.text | kotlin_str }}, "package" to {{ model.app_package | kotlin_str }}))
+{% endif %}
+{% elif step.action.value == "press_key" %}
+        (driver as io.appium.java_client.android.AndroidDriver).pressKey(io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | kotlin_str }})))
 {% elif step.action.value == "wait" %}
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds({{ step.timeout | int or 5 }}))
 {% elif step.action.value == "assert" %}

@@ -69,6 +69,18 @@ def test_{{ case.name }}(driver):
     _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys({{ step.text | py_str }})
 {% elif step.action.value == "back" %}
     driver.back()
+{% elif step.action.value == "long_press" %}
+    driver.execute_script("mobile: longClickGesture", {"elementId": _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).id, "duration": 1000})
+{% elif step.action.value == "scroll_to" %}
+    driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, {{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ (step.selector.description or step.selector.value) ~ '"))') | py_str }})
+{% elif step.action.value == "deep_link" %}
+{% if model.platform.value == "ios" %}
+    driver.get({{ step.text | py_str }})
+{% else %}
+    driver.execute_script("mobile: deepLink", {"url": {{ step.text | py_str }}, "package": {{ model.app_package | py_str }}})
+{% endif %}
+{% elif step.action.value == "press_key" %}
+    driver.press_keycode({{ step.text | keycode }})
 {% elif step.action.value == "wait" %}
     driver.implicitly_wait({{ step.timeout or 5 }})
 {% elif step.action.value == "assert" %}

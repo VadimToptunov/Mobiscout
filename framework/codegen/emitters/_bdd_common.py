@@ -36,6 +36,10 @@ _CLAUSE = {
     ActionType.WAIT: "When",
     ActionType.BACK: "When",
     ActionType.ASSERT: "Then",
+    ActionType.LONG_PRESS: "When",
+    ActionType.SCROLL_TO: "When",
+    ActionType.DEEP_LINK: "When",
+    ActionType.PRESS_KEY: "When",
 }
 
 
@@ -54,6 +58,14 @@ def phrase(step: Step, type_param: Optional[str] = None) -> str:
         return f'I enter "{value}" into "{target_key(step.selector)}"'
     if a is ActionType.TAP:
         return f'I tap "{target_key(step.selector)}"'
+    if a is ActionType.LONG_PRESS:
+        return f'I long-press "{target_key(step.selector)}"'
+    if a is ActionType.SCROLL_TO:
+        return f'I scroll to "{target_key(step.selector)}"'
+    if a is ActionType.DEEP_LINK:
+        return f'I open the deep link "{step.text}"'
+    if a is ActionType.PRESS_KEY:
+        return f'I press the "{step.text}" key'
     if a is ActionType.WAIT:
         return f"I wait {int(step.timeout or 5)} seconds"
     if a is ActionType.BACK:
