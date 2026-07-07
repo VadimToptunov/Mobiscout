@@ -53,7 +53,10 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            recommended()
+            // Pin released IDEs — `recommended()` pulls unreleased EAP versions
+            // (e.g. ideaIC:2025.3) that aren't in the repository yet, failing CI.
+            ide("IC", "2024.2")
+            ide("IC", "2024.3")
         }
     }
 }
