@@ -148,12 +148,18 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     owns = False
     if driver is None:
         driver, owns = _make_driver(config)
+    # Gate-passing instructions (login/OTP/biometric/permission) as JSON dicts from
+    # the CLI/plugin -> Waypoint objects, so the crawl explores behind gates.
+    from framework.crawler.waypoints import Waypoint
+
+    waypoints = [Waypoint(**w) for w in config.get("waypoints") or []]
     try:
         result = AppCrawler(
             driver,
             config["package"],
             max_steps=int(config.get("max_steps", 40)),
             max_depth=int(config.get("max_depth", 8)),
+            waypoints=waypoints,
         ).crawl()
     finally:
         if owns and hasattr(driver, "quit"):
