@@ -40,7 +40,9 @@ def _model(platform=Platform.ANDROID):
 
 def _compiles(code: str):
     p = Path(tempfile.mkdtemp()) / "gen.py"
-    p.write_text(code)
+    # utf-8 explicitly: generated headers contain an em dash, and Windows' default
+    # cp1252 would write byte 0x97 that py_compile then fails to decode as utf-8.
+    p.write_text(code, encoding="utf-8")
     py_compile.compile(str(p), doraise=True)
 
 
