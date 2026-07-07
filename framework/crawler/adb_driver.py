@@ -82,6 +82,12 @@ class AdbCrawlerDriver:
         self._run("shell", "input", "tap", str(x), str(y))
         self._settle_wait()
 
+    def type_text(self, text: str) -> None:
+        # `adb shell input text` needs spaces as %s; good enough for waypoint
+        # form-filling (emails, sample data, OTP codes).
+        self._run("shell", "input", "text", text.replace(" ", "%s"))
+        self._settle_wait()
+
     def back(self) -> None:
         self._run("shell", "input", "keyevent", "4")
         self._settle_wait()

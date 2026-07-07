@@ -39,6 +39,12 @@ class AppiumCrawlerDriver:
     def page_source(self) -> str:
         return self._driver.page_source
 
+    def type_text(self, text: str) -> None:
+        try:
+            self._driver.switch_to.active_element.send_keys(text)
+        except Exception:
+            pass
+
     def tap(self, x: int, y: int) -> None:
         # uiautomator2's tap-by-coordinates gesture (TouchAction is deprecated).
         self._driver.execute_script("mobile: clickGesture", {"x": x, "y": y})
