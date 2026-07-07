@@ -114,3 +114,37 @@ def test_crawler_passes_gate_and_reaches_screen_behind():
     # The home screen (behind the gate) is now part of the crawl.
     assert any("welcome" in " ".join(e.resource_id for e in s.elements) for s in result.screens.values())
     assert any(c[0] == "type" for c in driver.calls)  # the gate was filled
+
+
+def test_pipeline_run_kit_applies_config_waypoints(tmp_path, monkeypatch):
+    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    from framework.crawler.pipeline import run_kit
+
+    login_xml = (
+        '<hierarchy><node class="android.widget.EditText" resource-id="email" content-desc="Email" '
+        'clickable="true" bounds="[0,0][100,40]" package="com.x"/>'
+        '<node class="android.widget.Button" resource-id="signin" text="Sign in" '
+        'clickable="true" bounds="[0,50][100,90]" package="com.x"/></hierarchy>'
+    )
+    home_xml = (
+        '<hierarchy><node class="android.widget.Button" resource-id="home" text="Home" '
+        'clickable="true" bounds="[0,0][100,40]" package="com.x"/></hierarchy>'
+    )
+    driver = RecordingDriver([login_xml, home_xml])
+    run_kit(
+        {
+            "package": "com.x",
+            "targets": ["python_pytest"],
+            "output": str(tmp_path),
+            "waypoints": [
+                {
+                    "when": {"text_contains": "sign in"},
+                    "action": "fill",
+                    "data": {"fields": {"email": "a@b.com"}, "submit": "Sign in"},
+                }
+            ],
+        },
+        driver=driver,
+    )
+    assert any(c[0] == "type" for c in driver.calls)  # config waypoint -> gate filled
