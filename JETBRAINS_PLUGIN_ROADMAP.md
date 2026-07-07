@@ -122,16 +122,28 @@ monetization last.
 
 ## Monetization (when the product is ready)
 
-One-time purchase, no subscriptions, no servers.
+Graduated tiers so a free user is genuinely useful, but the tool's differentiators
+(interaction graph, gates, coverage-diff, healing) are what you pay for. Requires
+the license/gating system — the LAST task; this is the plan, not built yet.
 
-| Tier | Price | Adds |
-|---|---|---|
-| Free | — | device control, inspector, basic crawl |
-| Individual (PRO) | $79 | multi-language codegen, framework-structured output, healing, flow analysis |
-| Team (5 seats) | $299 | shared flow models, team policies |
-| Enterprise | $1,499 | static analysis, security audit, TestRail/CI reporting, priority support |
+| Tier | Adds |
+|---|---|
+| **Free** (the hook) | device control, inspector, logs, screenshot + click-to-tap; a basic crawl → element inventory + tests in **one** language (Python), flat files |
+| **Individual · Starter** | the full generator: all **4 languages** + **BDD** + **Page-Object** structure + the **interaction graph** + structural invariants |
+| **Individual · Pro** | gates & completeness: **gates** (TOTP/biometric/QR/document-scan/permission) + **waypoints** + **coverage-diff** ("only what's new") + **API contract tests** + **self-healing** + security (OWASP) / accessibility |
+| **Team** (seats) | everything in Pro + shared flow models + team policies |
+| **Enterprise** | + static analysis + security audit + **TestRail / CI reporting** + priority support |
 
-Distribution: JetBrains Marketplace (primary) + direct sales for Enterprise.
+Two individual steps (not more) keep the choice simple while capturing the extra
+willingness-to-pay for the differentiators.
+
+**Distribution & billing (honest constraints):**
+- JetBrains Marketplace's paid model is **subscription** (monthly/annual) with a
+  *perpetual fallback license* — pure "buy once, use forever" isn't native there.
+  So either adopt subscription on Marketplace, or sell **one-time licenses via a
+  direct channel** (Gumroad/Stripe) with a free-with-activation Marketplace listing.
+- Trader status must be declared on Marketplace (DSA, 2025) before selling.
+- Local-first, no servers: license keys are offline (RSA), no SaaS to run.
 
 ---
 
