@@ -20,6 +20,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Protocol, Tuple
 
+from framework.crawler.errors import CrawlerDriverError
+
 if TYPE_CHECKING:
     from framework.crawler.waypoints import Waypoint
 
@@ -277,14 +279,28 @@ class AppCrawler:
         return deque(e for e in screen.interactive() if self._own(e))
 
     def crawl(self) -> CrawlResult:
-        result = CrawlResult()
+        """Explore the app and return the screen/flow map.
 
+        A transient driver failure (e.g. a wedged adb round-trip that outlived its
+        retries, surfaced as :class:`CrawlerDriverError`) ends the crawl early but
+        never loses work — every screen and transition gathered before the failure
+        is returned, so a single device hiccup degrades to a partial kit instead of
+        crashing the whole run.
+        """
+        result = CrawlResult()
+        try:
+            self._explore(result)
+        except CrawlerDriverError:
+            pass  # keep the partial map gathered so far
+        return result
+
+    def _explore(self, result: CrawlResult) -> None:
         # Only crawl if we actually start on the app under test.
         if not self._on_app():
-            return result
+            return
         screen = parse_screen(self.driver.page_source())
         if not screen.fingerprint:
-            return result
+            return
         result.screens[screen.fingerprint] = screen
 
         # Pass any gate on the entry screen (e.g. a login form) before exploring.
@@ -345,5 +361,3 @@ class AppCrawler:
                 self.driver.back()
                 result.steps += 1
                 self._recover()
-
-        return result
