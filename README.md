@@ -278,29 +278,6 @@ measurement.
   repo, and no sklearn pickle-version fragility
 - **Wired in:** the type shows up in the inventory and drives type-aware test steps
 
-### Self-Learning
-
-```bash
-# Enable contribution (opt-in, privacy-first)
-observe ml contribute --enable
-
-# Check model stats
-observe ml stats
-
-# Update to latest model
-observe ml update-model
-
-# View contribution info
-observe ml info
-```
-
-**Privacy Guarantee:**
-
-- ✅ No screenshots collected
-- ✅ No text content sent
-- ✅ No package names shared
-- ✅ All data anonymized locally
-
 ---
 
 ## 🔧 Self-healing selectors
@@ -505,7 +482,6 @@ observe load compare baseline.json current.json
 
 - **[Architecture](docs/ARCHITECTURE.md)** - System design & components
 - **[Phase 5: Rust Core](docs/PHASE5_RUST_CORE.md)** - Performance migration guide
-- **[Self-Learning ML](docs/SELF_LEARNING_ML.md)** - ML system details
 - **[Load Testing](docs/LOAD_TESTING.md)** - Performance testing guide
 - **[API Mocking](docs/API_MOCKING.md)** - Mock & replay APIs
 - **[Advanced Selectors](docs/ADVANCED_SELECTORS.md)** - Robust selectors
