@@ -72,7 +72,6 @@ def set(key: str, value: str, config: Optional[Path]) -> None:
 
     Example:
         observe config set framework.timeout 60
-        observe config set ml.contribute false
         observe config set integrations.slack.webhook_url "https://..."
     """
     manager = ConfigManager(config_path=config)

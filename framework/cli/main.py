@@ -7,7 +7,6 @@ Simplified main module that imports command groups from separate modules.
 import click
 
 from framework import __version__
-from framework.cli import ml_selflearn_commands
 from framework.cli.a11y_commands import a11y
 
 # Import command groups
@@ -42,46 +41,6 @@ from framework.cli.security_commands import security
 from framework.cli.selection_commands import select
 from framework.cli.selector_commands import selector
 from framework.cli.visual_commands import visual
-from framework.ml.self_learning import ModelUpdater
-
-
-def _check_ml_updates() -> None:
-    """Check for ML model updates on CLI startup (once per day)."""
-    try:
-        from pathlib import Path
-        import datetime
-        import json
-
-        # Check if we should update (once per day)
-        update_check_file = Path(".observe_ml_check")
-        should_check = True
-
-        if update_check_file.exists():
-            try:
-                with open(update_check_file, "r") as f:
-                    last_check = json.load(f).get("last_check")
-                    last_check_date = datetime.datetime.fromisoformat(last_check)
-
-                    # Check if last check was today
-                    if last_check_date.date() == datetime.datetime.now().date():
-                        should_check = False
-            except (OSError, json.JSONDecodeError, KeyError, ValueError):
-                pass  # If error reading, just check anyway
-
-        if should_check:
-            updater = ModelUpdater()
-            update = updater.check_for_updates()
-
-            # Save check timestamp
-            with open(update_check_file, "w") as f:
-                json.dump({"last_check": datetime.datetime.now().isoformat()}, f)
-
-            if update:
-                click.echo(f"\n💡 New ML model available: v{update['version']}")
-                click.echo("   Run: observe ml update-model")
-
-    except (OSError, ImportError, KeyError, ValueError):
-        pass  # Silently fail - don't interrupt user workflow
 
 
 @click.group()
@@ -94,9 +53,6 @@ def cli(ctx):
     Intelligent Mobile Testing Platform - Observe, Analyze, Automate
     """
     ctx.ensure_object(dict)
-
-    # Check for ML model updates on startup (once per day)
-    _check_ml_updates()
 
 
 # Register command groups
@@ -131,16 +87,6 @@ cli.add_command(daemon_command, name="daemon")
 cli.add_command(fuzz)
 cli.add_command(license)
 cli.add_command(verify)
-
-# Add self-learning ML commands as subgroup
-ml.add_command(ml_selflearn_commands.check_updates)
-ml.add_command(ml_selflearn_commands.update_model)
-ml.add_command(ml_selflearn_commands.stats)
-ml.add_command(ml_selflearn_commands.contribute)
-ml.add_command(ml_selflearn_commands.export_cache)
-ml.add_command(ml_selflearn_commands.clear_cache)
-ml.add_command(ml_selflearn_commands.correct)
-ml.add_command(ml_selflearn_commands.info)
 
 
 @cli.command()
