@@ -1,8 +1,11 @@
 """
-Recording session commands for capturing mobile app behavior.
+`observe record` — capture a live manual session into a runnable test.
+
+Streams the device's touch events, resolves each tap to the element under it, and
+on Ctrl+C emits a test in the chosen target. HTTP mocking of the session's API
+traffic is a separate concern — see `observe mock record`.
 """
 
-from pathlib import Path
 from typing import Optional
 
 import click
@@ -13,91 +16,68 @@ from framework.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-@click.group()
-def record():
-    """Record observe sessions"""
-    pass
-
-
-@record.command()
-@click.option("--device", default="emulator-5554", help="Device ID or emulator name")
-@click.option("--session-name", help="Custom session name")
-@click.option("--package", required=True, help="App package name")
-def start(device: str, session_name: Optional[str], package: str):
+@click.command()
+@click.option("--package", required=True, help="App under test (Android package)")
+@click.option("--serial", default=None, help="adb device serial (default: the only connected device)")
+@click.option("--target", default="python_pytest", help="Codegen target for the recorded test")
+@click.option("--output", default="recorded-kit", help="Output directory for the test kit")
+@click.option("--platform", default="android", type=click.Choice(["android"]), help="Platform (Android only)")
+@click.option("--app-activity", default=None, help="Android entry activity (for the generated setup)")
+@click.option("--no-launch", is_flag=True, help="Don't auto-launch the app before recording")
+def record(
+    package: str,
+    serial: Optional[str],
+    target: str,
+    output: str,
+    platform: str,
+    app_activity: Optional[str],
+    no_launch: bool,
+):
     """
-    Start a new recording session
+    Record a live session and generate a test from your taps.
 
-    Example:
-        observe record start --device emulator-5554 --package com.myapp
+    Point at a running app, interact by hand, then press Ctrl+C — each tap becomes
+    a step with a ranked, self-healing locator. Text input is not captured (add it
+    by editing the test). Example:
+
+        observe record --package com.myapp --target python_pytest
     """
-    print_header("🎬 Starting Recording Session", f"Device: {device} | Package: {package}")
+    from framework.recorder import SessionRecorder
 
-    import uuid
-    from datetime import datetime
+    print_header("🎬 Recording session", f"{package} ({platform})")
 
-    session_id = session_name or f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    recorder = SessionRecorder(package=package, serial=serial, platform=platform)
+
+    if not no_launch:
+        try:
+            recorder._run("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
+        except Exception as e:  # best-effort; recording still works if already foregrounded
+            logger.warning(f"Could not auto-launch {package}: {e}")
+
+    print_info("Interact with the app now. Each tap is captured as a step.")
+    print_info("Press Ctrl+C to stop and generate the test.\n")
+
+    def _on_step(step) -> None:
+        loc = step.selector.value if step.selector else "?"
+        print_info(f"  • tap {step.description or loc}")
 
     try:
-        # Create session directory
-        session_dir = Path("sessions") / session_id
-        session_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save session metadata
-        metadata = {
-            "session_id": session_id,
-            "device": device,
-            "package": package,
-            "started_at": datetime.now().isoformat(),
-            "status": "recording",
-        }
-
-        import json
-
-        with (session_dir / "metadata.json").open("w") as f:
-            json.dump(metadata, f, indent=2)
-
-        print_success(f"Session started: {session_id}")
-        print_info(f"Session directory: {session_dir.absolute()}")
-        print_info("Recording UI interactions and network traffic...")
-
-        logger.info(f"Recording session started: {session_id}")
-
-    except Exception as e:
-        print_error(f"Failed to start recording: {e}")
-        logger.error(f"Recording start failed: {e}", exc_info=True)
+        recorder.record(on_step=_on_step)
+    except KeyboardInterrupt:
+        print_info("\nStopping recording...")
+    except (RuntimeError, OSError) as e:
+        print_error(f"Recording failed: {e}")
         raise click.Abort()
 
+    summary = recorder.emit(output, target=target, app_activity=app_activity)
 
-@record.command()
-@click.option("--device", default="emulator-5554", help="Device ID")
-@click.option("--package", required=True, help="App package name")
-def stop(device: str, package: str):
-    """Stop current recording session and pull remaining events"""
-    print_header("⏹️  Stopping Recording Session", f"Device: {device}")
+    if summary["steps"] == 0:
+        print_error("No taps resolved to elements — nothing to generate.")
+        if summary.get("skipped"):
+            print_info(f"({summary['skipped']} tap(s) landed outside any locatable element.)")
+        return
 
-    print_info("Stopping recording...")
-    print_info("Pulling remaining events...")
-    print_success("Recording stopped successfully")
-
-    logger.info(f"Recording session stopped for {package} on {device}")
-
-
-@record.command()
-@click.option("--session-id", required=True, help="Session ID to correlate")
-@click.option("--output", default="models", help="Output directory for app model")
-def correlate(session_id: str, output: str):
-    """
-    Correlate UI events with API calls
-
-    Analyzes recorded session and builds app model
-    """
-    print_header("🔗 Correlating Session Data", f"Session: {session_id}")
-
-    output_path = Path(output)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    print_info("Correlating UI events with API calls...")
-    print_info("Building app model...")
-    print_success(f"Correlation complete! Model saved to: {output_path / 'app_model.yaml'}")
-
-    logger.info(f"Session correlation completed: {session_id}")
+    skipped = f" ({summary['skipped']} unresolved)" if summary.get("skipped") else ""
+    print_success(f"Recorded {summary['steps']} step(s){skipped} → {summary['target']}")
+    print_info(f"Test kit written to: {summary['output']}")
+    logger.info(f"Recording complete: {summary['steps']} steps for {package}")

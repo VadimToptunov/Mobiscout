@@ -70,6 +70,7 @@ class Selector:
     fallbacks: List["Selector"] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a JSON-safe dict (enum → value; fallbacks recursed)."""
         return {
             "strategy": self.strategy.value,
             "value": self.value,
@@ -80,6 +81,7 @@ class Selector:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Selector":
+        """Rebuild a Selector (and its fallback chain) from :meth:`to_dict` output."""
         return cls(
             strategy=SelectorStrategy(data["strategy"]),
             value=data["value"],
@@ -103,6 +105,7 @@ class Step:
     description: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize to a compact dict, omitting the fields this action doesn't use."""
         out: Dict[str, Any] = {"action": self.action.value}
         if self.selector is not None:
             out["selector"] = self.selector.to_dict()
@@ -122,6 +125,7 @@ class Step:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Step":
+        """Rebuild a Step from :meth:`to_dict` output, restoring enums and nested selector."""
         return cls(
             action=ActionType(data["action"]),
             selector=Selector.from_dict(data["selector"]) if data.get("selector") else None,

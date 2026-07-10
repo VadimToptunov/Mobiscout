@@ -8,19 +8,22 @@
     <description><![CDATA[
     <h1>Mobile Test Recorder - Intelligent Mobile Testing Platform</h1>
     
-    <p>Transform your mobile testing workflow with AI-powered test generation, interactive UI control, 
-    and smart selector management.</p>
-    
+    <p>Point the IDE at a running app and get the artifacts a tester needs — a per-screen element
+    inventory, the app's interaction graph, and runnable tests — into a new or existing framework,
+    without leaving the IDE. Local-first: the engine runs on your machine, no servers.</p>
+
     <h2>Key Features:</h2>
     <ul>
         <li><strong>📱 Device Management</strong> - Control Android emulators and iOS simulators directly from IDE</li>
-        <li><strong>🔍 UI Tree Inspector</strong> - Explore app UI hierarchy with Appium XML viewer</li>
+        <li><strong>🔍 UI Tree Inspector</strong> - Explore app UI hierarchy with the Appium XML viewer</li>
         <li><strong>📊 Live Device Logs</strong> - Stream and filter logcat/simctl logs in real-time</li>
-        <li><strong>🎯 Interactive Control</strong> - Tap, swipe, type on device screen from IDE</li>
-        <li><strong>🧠 Smart Selectors</strong> - Ranked, self-healing selectors (accessibility-id → id → text)</li>
-        <li><strong>🔄 Interaction Graph</strong> - Automatic app navigation map with multi-step, form-filling test paths</li>
-        <li><strong>🌍 Multi-Language</strong> - Generate tests in Python, Java, Kotlin and JavaScript (imperative or BDD)</li>
+        <li><strong>🎯 Interactive Control</strong> - Tap, swipe, type on the device screen from the IDE</li>
+        <li><strong>🧠 Ranked, self-healing selectors</strong> - accessibility-id → resource-id → text, with fallbacks; element types from a hybrid ML + heuristic classifier</li>
+        <li><strong>🔄 Interaction Graph</strong> - the app's navigation map, mined into multi-step, form-filling test paths, with structural findings (unreachable / dead-end screens)</li>
+        <li><strong>🌍 Multi-Language</strong> - generate tests in Python, Java, Kotlin and JavaScript, imperative or BDD, flat files or Page-Object structure</li>
         <li><strong>🔌 Backends</strong> - Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso</li>
+        <li><strong>🔐 Gates</strong> - pass login, TOTP/2FA, biometric, QR/document-scan and permission prompts to test behind them</li>
+        <li><strong>➕ Only what's new</strong> - generate tests only for what your existing suite doesn't already cover</li>
     </ul>
     
     <h2>Requirements:</h2>
