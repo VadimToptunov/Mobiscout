@@ -35,7 +35,16 @@ class JSONRPCServer:
             "action/swipe": self.handle_swipe,
             "action/type": self.handle_type,
             "kit/generate": self.handle_kit_generate,
+            "environment/detect": self.handle_environment_detect,
         }
+
+    def handle_environment_detect(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Report the automation toolchain (Appium/drivers/SDK/Java/Xcode) with
+        versions + install hints, so the IDE plugin can tell the user what to set
+        up before crawling. Runs no device — safe to call anytime."""
+        from framework.health.environment import detect_environment
+
+        return detect_environment().to_dict()
 
     def handle_kit_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Parameterized crawl → kit for the IDE plugin: the same config the CLI
