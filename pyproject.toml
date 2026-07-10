@@ -98,6 +98,17 @@ max-line-length = 120
 extend-ignore = ["E501"]
 exclude = [".git", "__pycache__", ".venv", "venv", "build", "dist"]
 
+# Docstring-coverage gate. Owner wants the code documented in detail; this keeps
+# coverage from regressing (ratchet fail-under upward as gaps are filled).
+[tool.interrogate]
+fail-under = 90
+ignore-init-method = true
+ignore-magic = true
+ignore-nested-functions = true
+ignore-private = false
+exclude = ["tests", "demo-app", "build", "dist", ".venv", "setup.py"]
+verbose = 1
+
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q --strict-markers"

@@ -13,6 +13,7 @@ import subprocess
 import time
 from typing import List, Optional, Tuple
 
+from framework.crawler.errors import CrawlerDriverError
 from framework.crawler.settle import settle_until_stable
 
 # The foreground app is the RESUMED activity. mCurrentFocus is unreliable — it
@@ -36,26 +37,70 @@ def _extract_hierarchy(raw: str) -> Optional[str]:
 class AdbCrawlerDriver:
     """CrawlerDriver implemented with adb shell commands."""
 
-    def __init__(self, serial: Optional[str] = None, adb: str = "adb", settle: float = 0.8):
+    def __init__(
+        self,
+        serial: Optional[str] = None,
+        adb: str = "adb",
+        settle: float = 0.8,
+        timeout: float = 60.0,
+        retries: int = 2,
+    ):
         self._adb = adb
         self._serial = serial
         self._settle_max = settle
+        self._timeout = timeout
+        self._retries = max(0, retries)  # extra attempts after the first
         self._cache: Optional[Tuple[float, str]] = None  # (monotonic ts, source)
 
     def _cmd(self, *args: str) -> List[str]:
+        """Build the full adb argv, inserting ``-s <serial>`` when a serial is set."""
         base = [self._adb]
         if self._serial:
             base += ["-s", self._serial]
         return base + list(args)
 
     def _run(self, *args: str) -> str:
-        proc = subprocess.run(self._cmd(*args), capture_output=True, text=True, timeout=60)
-        return proc.stdout
+        """Run an adb command and return its stdout.
+
+        adb round-trips hang intermittently on real devices and emulators — a busy
+        ``uiautomator`` service, a device mid-animation, a momentary socket stall.
+        A single hiccup must not abort a whole crawl, so a timed-out command is
+        retried up to ``retries`` times (with a short pause to let the device
+        recover). Only a timeout that outlives every attempt raises
+        :class:`CrawlerDriverError`, which the crawl loop catches to finish
+        gracefully with the screens gathered so far.
+
+        Args:
+            *args: adb arguments (after any ``-s <serial>``), e.g. ``"shell",
+                "input", "tap", "10", "20"``.
+
+        Returns:
+            The command's stdout as text.
+
+        Raises:
+            CrawlerDriverError: the command timed out on every attempt.
+        """
+        last: Optional[subprocess.TimeoutExpired] = None
+        for attempt in range(self._retries + 1):
+            try:
+                proc = subprocess.run(self._cmd(*args), capture_output=True, text=True, timeout=self._timeout)
+                return proc.stdout
+            except subprocess.TimeoutExpired as exc:
+                last = exc
+                if attempt < self._retries:
+                    time.sleep(0.5)  # let the device settle before retrying
+        raise CrawlerDriverError(
+            f"adb command timed out after {self._retries + 1} attempt(s): {' '.join(args)}"
+        ) from last
 
     def _dump(self) -> str:
-        # One adb round-trip: `uiautomator dump /dev/tty` streams the XML straight
-        # to stdout, so we skip the separate file write + `cat` read. exec-out
-        # avoids the shell's CRLF mangling.
+        """Capture the current UI hierarchy as XML in one adb round-trip.
+
+        ``uiautomator dump /dev/tty`` streams the XML straight to stdout, so we
+        skip the separate file write + ``cat`` read; ``exec-out`` avoids the
+        shell's CRLF mangling. Falls back to dump-to-file then read-back for
+        devices that won't stream to ``/dev/tty``.
+        """
         xml = _extract_hierarchy(self._run("exec-out", "uiautomator", "dump", "/dev/tty"))
         if xml is not None:
             return xml
@@ -64,8 +109,11 @@ class AdbCrawlerDriver:
         return self._run("shell", "cat", "/sdcard/window_dump.xml")
 
     def page_source(self) -> str:
-        # Serve the dump captured while settling (fresh) to avoid a second, costly
-        # uiautomator dump right after a tap.
+        """Return the current screen's UI-tree XML (CrawlerDriver protocol).
+
+        Serves the dump captured while settling (still fresh, <1s old) to avoid a
+        second, costly ``uiautomator dump`` right after a tap; otherwise dumps now.
+        """
         if self._cache and (time.monotonic() - self._cache[0]) < 1.0:
             source = self._cache[1]
             self._cache = None
@@ -73,20 +121,39 @@ class AdbCrawlerDriver:
         return self._dump()
 
     def _settle_wait(self) -> None:
+        """Block until the UI stops animating (or the settle cap elapses),
+        caching the final dump so the next ``page_source`` is free."""
         settle_until_stable(self._dump, self._remember, max_wait=self._settle_max)
 
     def _remember(self, source: str) -> None:
+        """Cache a dump with its capture time so ``page_source`` can reuse it."""
         self._cache = (time.monotonic(), source)
 
     def tap(self, x: int, y: int) -> None:
+        """Tap the screen at ``(x, y)`` and wait for the UI to settle."""
         self._run("shell", "input", "tap", str(x), str(y))
         self._settle_wait()
 
+    def type_text(self, text: str) -> None:
+        """Type ``text`` into the focused field and wait for the UI to settle.
+
+        ``adb shell input text`` needs spaces as ``%s``; good enough for waypoint
+        form-filling (emails, sample data, OTP codes).
+        """
+        self._run("shell", "input", "text", text.replace(" ", "%s"))
+        self._settle_wait()
+
     def back(self) -> None:
+        """Press the hardware/system Back key and wait for the UI to settle."""
         self._run("shell", "input", "keyevent", "4")
         self._settle_wait()
 
     def current_package(self) -> str:
+        """Return the package of the app currently in the foreground ("" if none).
+
+        Prefers the resumed activity (the app actually focused), falling back to
+        ``mCurrentFocus`` while ignoring ANR / system windows.
+        """
         # Prefer the resumed activity (the app actually in the foreground). grep
         # on-device so adb transfers only the matching line(s), not the whole
         # multi-KB activity dump — this runs 2x per crawl step.

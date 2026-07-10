@@ -79,6 +79,14 @@ class IOSCrawlerDriver:
         self._driver.execute_script("mobile: tap", {"x": x, "y": y})
         self._settle_wait()
 
+    def type_text(self, text: str) -> None:
+        # Type into the field the previous tap focused (waypoint form-filling).
+        try:
+            self._driver.switch_to.active_element.send_keys(text)
+        except Exception:
+            pass
+        self._settle_wait()
+
     def back(self) -> None:
         # iOS has no hardware Back; the near-universal gesture is an edge swipe
         # from the left. dragFromToForDuration works on the simulator too.

@@ -31,7 +31,7 @@ jobs:
           pip install -r requirements.txt
           # black is pinned in requirements.txt — don't reinstall (would pull
           # the latest, whose formatting differs and breaks --check).
-          pip install flake8 mypy
+          pip install flake8 mypy interrogate
 
       - name: Run Black (code formatter check)
         run: black --check framework tests
@@ -42,6 +42,9 @@ jobs:
           flake8 framework --count --select=E9,F63,F7,F82 --show-source --statistics
           # Exit-zero treats all errors as warnings
           flake8 framework --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+      - name: Check docstring coverage (interrogate)
+        run: interrogate framework
 
       - name: Run MyPy (type checker)
         run: mypy framework --ignore-missing-imports --no-error-summary
@@ -124,6 +127,7 @@ jobs:
             --cov-report=xml \
             --cov-report=html \
             --cov-report=term \
+            --cov-fail-under=30 \
             -v \
             -n auto
 
@@ -281,11 +285,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Set up Gradle
         # The repo doesn't commit the Gradle wrapper (no gradlew / wrapper jar),
@@ -350,11 +354,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Publish plugin
         working-directory: jetbrains-plugin

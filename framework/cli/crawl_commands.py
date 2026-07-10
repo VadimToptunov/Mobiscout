@@ -41,6 +41,13 @@ logger = get_logger(__name__)
 @click.option("--targets", default="python_pytest", help="Comma-separated codegen targets for the tests")
 @click.option("--app-activity", default=None, help="Android entry activity (for the generated test setup)")
 @click.option(
+    "--style",
+    type=click.Choice(["flat", "pom"]),
+    default="flat",
+    show_default=True,
+    help="flat = standalone test files; pom = a framework (Page Objects + conftest + tests). pom: python targets",
+)
+@click.option(
     "--scaffold",
     is_flag=True,
     help="Also write a runnable project shell (deps + runner config + README) around the tests",
@@ -59,6 +66,7 @@ def crawl(
     output,
     targets,
     app_activity,
+    style,
     scaffold,
     max_steps,
     max_depth,
@@ -151,15 +159,31 @@ def crawl(
     gm = graph.metrics()
     print_info(f"Graph: {gm['screens']} screens, {gm['transitions']} transitions, {gm['dead_ends']} dead-end(s)")
 
-    # 3) Tests in each requested language.
+    # 3) Tests. flat = one standalone file per target; pom = a framework layout
+    # (Page Objects + conftest + POM-style tests) for the Python targets.
     target_ids = {t.id for t in available_targets()}
     model = build_test_model(result, app_package=package, app_activity=app_activity)
     if not model.cases:
         print_info("No locatable elements — no tests generated (see inventory.md).")
     requested = [t.strip() for t in targets.split(",") if t.strip()]
+
+    if style == "pom" and model.cases:
+        from framework.crawler.page_kit import build_framework_kit
+
+        framework_files = build_framework_kit(result, model, package)
+        for rel, content in framework_files.items():
+            dest = out / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8", newline="\n")
+        if framework_files:
+            print_info(f"Framework (Page Objects + conftest + tests): {out}")
+
     for target in requested:
         if target not in target_ids:
             print_error(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
+            continue
+        # In pom mode the Python framework layout above already covers pytest.
+        if style == "pom" and target == "python_pytest":
             continue
         for name, content in get_emitter(target).emit(model).items():
             dest = out / target / name

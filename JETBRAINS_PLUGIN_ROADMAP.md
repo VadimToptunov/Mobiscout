@@ -1,654 +1,170 @@
-# Mobile Test Recorder → JetBrains IDE Plugin: Complete Roadmap
+# Mobile Test Recorder → JetBrains IDE Plugin: Roadmap
+
+_Last reality-check: 2026-07-07. Target: a polished, sellable product by ~September 2026._
+
+This roadmap is kept honest: it describes what actually exists in the code, not
+what we hope to build. Quality over speed — each item ships tested and documented
+before the next begins.
+
+---
 
 ## Vision
 
-Transform `mobile-test-recorder` into a **professional JetBrains IDE plugin** that provides:
+A **JetBrains IDE plugin** (works in every JetBrains IDE via the platform SDK)
+backed by a local Python + Rust engine. You point it at a running app, say what
+you want by parameters, and get the artifacts a tester needs — an element
+inventory, an interaction graph, structural findings, and runnable tests — into a
+new or existing framework, without leaving the IDE. Local-first: no servers, no
+SaaS.
 
-- **Interactive UI control** (tap, swipe, type, inspect) within the IDE
-- **Multi-language support** (Python, Java, Kotlin, JS/TS, Go, Ruby)
-- **Multi-backend automation** (Appium v1/v2, Espresso, XCTest, Detox, Maestro, Playwright)
-- **Smart selectors** with AI-powered stability scoring and healing
-- **Flow & state analysis** with invariant detection
-- **Static code analysis** (when source available): security, API tracing, fuzzing
-- **Local-first architecture** - no servers, no SaaS, pure desktop product
-- **Monetization**: One-time purchase model for PRO and Enterprise features
-
----
-
-## Architecture Overview
-
-```
-JetBrains IDE Plugin (Kotlin)
-│
-├── ToolWindow / Side Panels
-│   ├── Device Management (Android/iOS)
-│   ├── Emulator/Simulator Viewer
-│   ├── Appium XML Inspector
-│   ├── Device Logs (logcat/simctl)
-│   ├── Selector Hints & Stability
-│   ├── Flow Graph Visualization
-│   └── Static Analysis Results
-│
-├── Interactive UI Control
-│   ├── Screenshot/Video Stream
-│   ├── Element Overlay
-│   └── Actions: Tap / Swipe / Type / Rotate / Inspect
-│
-├── LSP Client / DSL Support
-│   ├── Smart Autocomplete (flow-aware)
-│   ├── Go-to-Screen Navigation
-│   └── Inline Diagnostics
-│
-└── Protocol Layer (JSON-RPC / gRPC)
-     │
-     └── mobile-test-recorder CLI (Backend)
-         ├── Core Engine (Rust)
-         │   ├── AST Analysis
-         │   ├── Event Correlation
-         │   ├── Business Logic Detection
-         │   └── File I/O
-         │
-         ├── Python ML Layer
-         │   ├── Element Classification
-         │   ├── Self-Learning
-         │   └── Selector Stability Scoring
-         │
-         ├── Recorder & Selector Engine
-         │   ├── Event Capture
-         │   ├── Fallback Chains
-         │   ├── Healing Logic
-         │   └── Stability Metrics
-         │
-         ├── Business Model
-         │   ├── Flow Graph
-         │   ├── State Detection
-         │   └── Invariant Rules
-         │
-         ├── Multi-Language Codegen
-         │   ├── Python (pytest/unittest)
-         │   ├── Java (JUnit/TestNG)
-         │   ├── Kotlin (KotlinTest)
-         │   ├── JavaScript/TypeScript (WebdriverIO)
-         │   ├── Go (testing)
-         │   └── Ruby (RSpec)
-         │
-         ├── Backend Adapters
-         │   ├── Appium v1/v2 + plugins
-         │   ├── Espresso / UIAutomator (Android)
-         │   ├── XCTest / XCUITest (iOS)
-         │   ├── Detox (React Native)
-         │   ├── Maestro (YAML-based)
-         │   └── Playwright Mobile (future)
-         │
-         └── Static Analysis Module (when source available)
-             ├── Flow Reconstruction
-             ├── Security Checks
-             ├── API Call Tracing
-             ├── Fuzzing Point Detection
-             └── Edge-Case Identification
-```
+Supported today: **4 languages** (Python, Java, Kotlin, JavaScript), each
+imperative **or** BDD; **Appium** (Android UiAutomator2 + iOS XCUITest) and
+on-device **Espresso**.
 
 ---
 
-## Development Phases (Evening/Weekend Work)
+## Status at a glance
 
-### **Phase 0: Foundation ✅ COMPLETED (1-2 weeks, 4-6 evenings)**
-
-**Status**: ✅ Merged to master
-**Branch**: `feature/phase0-foundation` (merged)
-
-**Completed**:
-
-- ✅ JSON-RPC 2.0 protocol specification (docs/PROTOCOL.md)
-- ✅ Health check system (framework/health/)
-- ✅ Daemon command for IDE plugin communication (stdio mode)
-- ✅ CLI API documentation (docs/CLI_API.md)
-- ✅ Protocol testing with manual clients
-
-**Deliverables**:
-
-- Clean, documented CLI API ✅
-- Protocol specification (10 core methods) ✅
-- Basic health check command ✅
-- Updated architecture docs ✅
-
----
-
-### **Phase 1: JetBrains Plugin MVP ✅ COMPLETED (1-2 months, 8-12 evenings)**
-
-**Status**: ✅ Merged to master
-**Branch**: `feature/phase1-ide-plugin-mvp` (merged)
-
-**Completed**:
-
-- ✅ Gradle build configuration (Kotlin + IntelliJ Platform SDK)
-- ✅ plugin.xml with ToolWindow, Settings, Actions
-- ✅ JSON-RPC Client (full async support)
-- ✅ MTRDaemonService (application service)
-- ✅ ToolWindow with 3 tabs (Devices, Inspector, Logs)
-- ✅ DevicesPanel with device list table
-- ✅ LogsPanel with auto-scroll
-- ✅ Actions: Start/Stop Daemon, Refresh, Screenshot
-
-**Deliverables**:
-
-- JetBrains plugin installable locally ✅
-- Device list (adb + simctl) ✅
-- XML viewer placeholder ✅
-- Logs streaming with notifications ✅
-- Screenshot capture action ✅
-
-**Tech Stack**:
-
-- Kotlin 1.9.21 ✅
-- IntelliJ SDK 2023.2+ ✅
-- Gson for JSON ✅
+| Area | State |
+|---|---|
+| Plugin shell (ToolWindow, devices, screenshot+click-to-tap, session, settings, wizard) | ✅ done |
+| Daemon bridge (JSON-RPC) | ⚠️ partial — 11 methods; the codegen/analysis half needs wiring |
+| Autonomous crawl → kit (inventory + graph + tests) | ✅ done, proven live (Compose app, iOS Settings) |
+| Interaction graph + Mermaid/DOT/JSON + structural invariants | ✅ done |
+| Multi-language codegen (8 targets, POM + BDD, 11 IR actions) | ✅ done |
+| Gates layer (TOTP, biometric, QR/document scan, permissions) — provider-aware | ✅ done |
+| Crawler waypoints (pass login/OTP/biometric to explore behind gates) | ✅ done |
+| Coverage-diff (generate only what isn't already tested) | ✅ done |
+| Security (OWASP), accessibility (WCAG), fuzzing | ✅ done |
+| ML element typing (hybrid RF + heuristic, auto-provisioned) | ✅ done |
+| Environment intelligence (Appium/driver/SDK version checks) | ❌ not started |
+| Self-healing wired into the flow (`selector_healer` module exists but isolated) | ⚠️ island |
+| Rust-core benchmarks (the perf numbers are unmeasured) | ❌ not started |
+| Static analysis: flow reconstruction from source | ❌ not started |
+| LSP (flow-aware autocomplete, go-to-screen) | ❌ not started |
+| Monetization / licensing | ❌ explicitly LAST |
 
 ---
 
-### **Phase 2: Interactive UI Control ✅ COMPLETED (3-4 weeks, 6-8 evenings)**
+## What's built (the engine + plugin)
 
-**Status**: ✅ Merged to master
-**Branch**: `feature/phase2-interactive-ui` (merged)
+**Plugin (Kotlin, all JetBrains IDEs):** ToolWindow with Devices / Screen /
+Inspector / Logs; live screenshot with click-to-tap; session management; a Setup
+Wizard + settings that capture the user's context (app, source path, platform,
+language/framework, credentials, output dir); a JSON-RPC client to the engine.
 
-**Completed**:
+**Engine (Python + `rust_core`):** one parameterized entry (`run_kit`) drives
+both the CLI and the plugin. From a running app it produces:
 
-- ✅ DeviceManager for listing Android/iOS devices
-- ✅ Session management (start/stop)
-- ✅ Screenshot capture (adb/simctl)
-- ✅ Actions: tap, swipe, type via adb
-- ✅ ScreenPanel - new tab in ToolWindow
-- ✅ Interactive screenshot viewer with click-to-tap
-- ✅ Coordinate mapping (screen → device)
-- ✅ Auto-refresh after tap
+- a per-screen **element inventory** (semantic type + ranked, self-healing locator);
+- the **interaction graph** (reachability, depth, cycles, dead-ends, hubs) exported
+  as Mermaid / DOT / JSON, plus **structural invariants** (unreachable / dead-end /
+  no-return screens);
+- **runnable tests** in 4 languages × imperative/BDD, flat **or** framework-structured
+  (Page Objects + conftest), including **multi-step, form-filling paths**;
+- **API contract tests** from an OpenAPI/Swagger file or URL;
+- an **accessibility audit** and an **APK/IPA security scan** (OWASP-mapped).
 
-**Deliverables**:
-
-- Live device screen in ToolWindow ✅
-- Clickable element overlay ✅
-- Action execution (tap/swipe/type) ✅
-- Visual feedback ✅
-
-**Tech Stack**:
-
-- BufferedImage + Graphics2D ✅
-- adb exec-out screencap ✅
-- xcrun simctl io screenshot ✅
-- Base64 encoding/decoding ✅
+Cross-cutting: a **gates/fixtures** layer (TOTP, biometric, QR/document scan,
+permissions — provider-aware for emulator / BrowserStack / real device),
+**crawler waypoints** to explore behind gates, and **coverage-diff** to generate
+only what a team's existing tests don't already cover.
 
 ---
 
-### **Phase 3: Multi-Backend Abstraction 🚧 IN PROGRESS (1-2 months, 8-12 evenings)**
+## Remaining work to September 2026 (prioritized, quality-first)
 
-**Status**: 🚧 Starting now
-**Branch**: `feature/phase3-multi-backend`
+The order favours hardening and the plugin's real usefulness first, features next,
+monetization last.
 
-**Goals**:
+### 1. Hardening — live end-to-end + clean+cover
+- Run the whole kit on real apps (Android Compose + iOS) and **actually execute**
+  the generated tests; fix what device-reality surfaces.
+- Remove vaporware/stubs (`observe record` print-stubs, the unimplemented `mock
+  record` proxy, the dead self-learning upload endpoint, unused `backends/`),
+  making the docs honest and raising **real** test coverage.
+- Ratchet the docstring + coverage gates up.
 
-- Stabilize current CLI core
-- Define clear API/DSL contract
-- Implement protocol layer (JSON-RPC)
-- Documentation cleanup
+### 2. Daemon protocol completion (unblocks the plugin doing real work)
+- Wire the engine's power through the daemon: `codegen/generate` (via `run_kit`),
+  `flow/getGraph` (via the interaction graph), `environment/detect`,
+  device start/stop, log streaming, `selector/generate`.
+- Fix `ui/getTree` (currently a hardcoded mock) and `session/start` (no real
+  Appium session) to return real data.
 
-**Deliverables**:
+### 3. Environment Intelligence (roadmap Phase 4)
+- Detect installed Appium server + drivers (uiautomator2/xcuitest), Android SDK,
+  Xcode; compare against latest; flag incompatibilities and **deprecated Appium
+  APIs**; offer copy-paste install/fix commands. An Environment panel in the IDE.
 
-- Clean, documented CLI API
-- Protocol specification
-- Basic health check command
-- Updated architecture docs
+### 4. Wire self-healing (roadmap Phase 6)
+- Connect the existing `selector_healer` to the real flow (as ML typing and the
+  graph were): when a locator breaks, heal from the inventory / fallback chain;
+  surface healing + stability hints in the IDE editor.
 
----
+### 5. Honest Rust benchmarks (roadmap Phase 5)
+- Criterion benchmarks for the Rust modules; publish measured numbers and delete
+  the unverified "16x" claims (or back them with data).
 
-### **Phase 1: JetBrains Plugin MVP (1-2 months, 8-12 evenings)**
+### 6. Static analysis: flow-from-source (roadmap Phase 9)
+- When source is available, reconstruct flows and identify edge/fuzz points, to
+  complement the runtime crawl. (Security/fuzzing already exist.)
 
-**Branch**: `feature/phase1-ide-plugin-mvp`
+### 7. LSP (roadmap Phase 10)
+- A language server for flow-aware autocomplete of screen/action names and
+  go-to-screen navigation in the IDE.
 
-**Goals**:
-
-- Create basic JetBrains plugin structure
-- Implement ToolWindow with device management
-- UI Tree inspector (Appium XML viewer)
-- Device logs panel
-- Basic CLI integration
-
-**Deliverables**:
-
-- JetBrains plugin installable locally
-- Device list (adb + simctl)
-- XML viewer with element tree
-- Logs streaming
-- Screenshot capture
-
-**Tech Stack**:
-
-- Kotlin (IntelliJ SDK)
-- Swing/JBSplitter for UI
-- ProcessBuilder for CLI calls
-
----
-
-### **Phase 2: Interactive UI Control (3-4 weeks, 6-8 evenings)**
-
-**Branch**: `feature/phase2-interactive-ui`
-
-**Goals**:
-
-- Screenshot/video stream in IDE
-- Element overlay on screen
-- Interactive actions: tap, swipe, type, rotate
-- Coordinate mapping
-
-**Deliverables**:
-
-- Live device screen in ToolWindow
-- Clickable element overlay
-- Action execution (tap/swipe/type)
-- Visual feedback
-
-**Tech Stack**:
-
-- scrcpy (Android screen mirroring)
-- simctl io (iOS screenshot streaming)
-- Canvas/Graphics2D for overlay
+### 8. Monetization (roadmap Phase 11) — LAST
+- Offline license keys + PRO/Enterprise feature gating, and configurable CI/CD +
+  **TestRail** result reporting. Not started until the above are solid.
 
 ---
 
-### **Phase 3: Multi-Backend Abstraction (1-2 months, 8-12 evenings)**
+## Monetization (when the product is ready)
 
-**Branch**: `feature/phase3-multi-backend`
+Graduated tiers so a free user is genuinely useful, but the tool's differentiators
+(interaction graph, gates, coverage-diff, healing) are what you pay for. Requires
+the license/gating system — the LAST task; this is the plan, not built yet.
 
-**Goals**:
+| Tier | Adds |
+|---|---|
+| **Free** (the hook) | device control, inspector, logs, screenshot + click-to-tap; a basic crawl → element inventory + tests in **one** language (Python), flat files |
+| **Individual · Starter** | the full generator: all **4 languages** + **BDD** + **Page-Object** structure + the **interaction graph** + structural invariants |
+| **Individual · Pro** | gates & completeness: **gates** (TOTP/biometric/QR/document-scan/permission) + **waypoints** + **coverage-diff** ("only what's new") + **API contract tests** + **self-healing** + security (OWASP) / accessibility |
+| **Team** (seats) | everything in Pro + shared flow models + team policies |
+| **Enterprise** | + static analysis + security audit + **TestRail / CI reporting** + priority support |
 
-- Backend adapter interface
-- Appium v1/v2 support
-- Espresso/UIAutomator adapter (Android)
-- XCTest/XCUITest adapter (iOS)
-- Backend switching in UI
+Two individual steps (not more) keep the choice simple while capturing the extra
+willingness-to-pay for the differentiators.
 
-**Deliverables**:
-
-- Abstract `MobileAutomationBackend` interface
-- 3+ working adapters
-- Backend selection in Settings
-- Capability-driven feature flags
-
-**Tech Stack**:
-
-- Strategy pattern for adapters
-- Appium (WebDriver protocol)
-- adb/aapt for Espresso
-- xcrun/xcodebuild for XCTest
-
----
-
-### **Phase 4: Environment Intelligence (2-3 weeks, 4-6 evenings)**
-
-**Branch**: `feature/phase4-environment`
-
-**Goals**:
-
-- Auto-detect Appium version and plugins
-- SDK detection (Android/Xcode)
-- Compatibility warnings
-- Quick actions (install/update commands)
-
-**Deliverables**:
-
-- Environment panel in ToolWindow
-- Version checking
-- Compatibility matrix
-- "Copy install command" actions
-
-**Tech Stack**:
-
-- npm registry API
-- appium plugin list
-- android list sdk / xcode-select
+**Distribution & billing (honest constraints):**
+- JetBrains Marketplace's paid model is **subscription** (monthly/annual) with a
+  *perpetual fallback license* — pure "buy once, use forever" isn't native there.
+  So either adopt subscription on Marketplace, or sell **one-time licenses via a
+  direct channel** (Gumroad/Stripe) with a free-with-activation Marketplace listing.
+- Trader status must be declared on Marketplace (DSA, 2025) before selling.
+- Local-first, no servers: license keys are offline (RSA), no SaaS to run.
 
 ---
 
-### **Phase 5: Rust Core Integration (2-3 weeks, 6-8 evenings)**
+## Principles
 
-**Branch**: `feature/phase5-rust-core` (already exists, needs polish)
-
-**Goals**:
-
-- Polish existing Rust modules
-- Fix remaining bugs
-- Performance benchmarks
-- Python bindings optimization
-
-**Deliverables**:
-
-- Production-ready Rust core
-- <50ms AST analysis
-- <100ms event correlation
-- Comprehensive tests
-
-**Tech Stack**:
-
-- Rust (pyo3, rayon, regex)
-- Criterion for benchmarks
+1. **Quality > speed.** Each item is production-ready — tested, documented, honest —
+   before the next.
+2. **Local-first.** Everything runs on the user's machine.
+3. **Parameterized, not magic.** The user configures what they want; the tool
+   doesn't guess or force upgrades.
+4. **One IR, many targets.** Adding a language/framework is adding an emitter.
+5. **Rust for genuine hot paths only** (`rust_core`); Python for orchestration and
+   ML; the tool is device/IO-bound, so no rewrite is warranted.
+6. **Honest docs.** No claimed feature without working code behind it.
 
 ---
 
-### **Phase 6: Smart Selectors & Healing (1-2 months, 8-12 evenings)**
-
-**Branch**: `feature/phase6-smart-selectors`
-
-**Goals**:
-
-- Selector stability scoring
-- Fallback chain generation
-- Element matching (healing)
-- Visual stability indicators in IDE
-
-**Deliverables**:
-
-- Selector scoring (0-100%)
-- Hover hints in code editor
-- Auto-healing suggestions
-- Stability annotations
-
-**Tech Stack**:
-
-- ML (scikit-learn for scoring)
-- Levenshtein distance (element matching)
-- IntelliJ Intention/Inspection API
-
----
-
-### **Phase 7: Multi-Language Codegen (1-2 months, 8-12 evenings)**
-
-**Branch**: `feature/phase7-codegen`
-
-**Goals**:
-
-- Abstract action model
-- Language-specific generators
-- Support: Python, Java, Kotlin, JS/TS, Go, Ruby
-- Page Object pattern support
-
-**Deliverables**:
-
-- Unified action DSL
-- 6 language generators
-- Customizable templates
-- POM generation
-
-**Tech Stack**:
-
-- Jinja2 templates
-- Abstract Syntax Trees
-- Language wrappers (PyO3, NAPI-RS, CGO, FFI, JNI)
-
----
-
-### **Phase 8: Flow & State Analysis (3-4 weeks, 6-8 evenings)**
-
-**Branch**: `feature/phase8-flow-analysis`
-
-**Goals**:
-
-- Flow graph visualization in IDE
-- State detection and tracking
-- Invariant rule engine
-- Coverage metrics
-
-**Deliverables**:
-
-- Interactive flow graph
-- State transition diagram
-- Invariant violation warnings
-- Test coverage by flow
-
-**Tech Stack**:
-
-- GraphViz/PlantUML for visualization
-- State machine pattern
-- Rule engine (Python)
-
----
-
-### **Phase 9: Static Analysis Module (1-2 months, 8-12 evenings)**
-
-**Branch**: `feature/phase9-static-analysis`
-
-**Goals** (when source code available):
-
-- Flow reconstruction from source
-- Security vulnerability detection
-- API call tracing
-- Fuzzing point identification
-- Edge-case detection
-
-**Deliverables**:
-
-- Android (APK/source) analyzer
-- iOS (IPA/source) analyzer
-- Security report in IDE
-- Annotated flow graph
-- Auto-generated edge-case tests
-
-**Tech Stack**:
-
-- APKTool (Android)
-- class-dump/Hopper (iOS)
-- Semgrep (security rules)
-- Custom AST parsers
-
----
-
-### **Phase 10: LSP & Smart Autocomplete (3-4 weeks, 6-8 evenings)**
-
-**Branch**: `feature/phase10-lsp`
-
-**Goals**:
-
-- Language Server Protocol implementation
-- Flow-aware autocomplete
-- Go-to-screen navigation
-- Inline diagnostics
-
-**Deliverables**:
-
-- LSP server
-- Autocomplete for screens/actions
-- Jump to definition (screen)
-- Real-time validation
-
-**Tech Stack**:
-
-- LSP protocol (JSON-RPC)
-- IntelliJ LSP client
-- Custom DSL parser
-
----
-
-### **Phase 11: PRO Features & Monetization (1-2 months, 8-12 evenings)**
-
-**Branch**: `feature/phase11-pro-features`
-
-**Goals**:
-
-- License key system (offline)
-- PRO feature gating
-- Enterprise policies
-- Audit reports
-
-**Deliverables**:
-
-- License activation UI
-- Feature flags by tier
-- Team policy engine
-- Usage reports
-
-**Monetization Tiers**:
-
-| Feature         | Free | PRO | Enterprise |
-|-----------------|------|-----|------------|
-| Device control  | ✅    | ✅   | ✅          |
-| UI Inspector    | ✅    | ✅   | ✅          |
-| Basic recording | ✅    | ✅   | ✅          |
-| Smart selectors | ❌    | ✅   | ✅          |
-| Healing         | ❌    | ✅   | ✅          |
-| Multi-language  | ❌    | ✅   | ✅          |
-| Flow analysis   | ❌    | ✅   | ✅          |
-| Static analysis | ❌    | ❌   | ✅          |
-| Security audit  | ❌    | ❌   | ✅          |
-| Team policies   | ❌    | ❌   | ✅          |
-
-**Pricing** (one-time purchase):
-
-- **Individual**: $79 (PRO features)
-- **Team** (5 seats): $299
-- **Enterprise**: $1,499 (includes static analysis + support)
-
-**Tech Stack**:
-
-- RSA licensing
-- Hardware fingerprinting
-- JetBrains Marketplace integration
-
----
-
-## Technology Stack
-
-### **Core**
-
-- **Rust**: High-performance modules (AST, correlation, file I/O)
-- **Python**: ML layer, CLI orchestration
-- **Kotlin**: JetBrains plugin
-
-### **IDE Integration**
-
-- IntelliJ Platform SDK
-- Swing/JavaFX for UI
-- LSP protocol
-
-### **Mobile Automation**
-
-- Appium (WebDriver)
-- adb / xcrun
-- scrcpy / simctl
-- Espresso / XCTest
-
-### **ML & Analytics**
-
-- scikit-learn (Random Forest)
-- NetworkX (flow graphs)
-- SpaCy (NLP, if needed)
-
-### **Build & Distribution**
-
-- Gradle (plugin build)
-- Cargo (Rust)
-- Poetry (Python)
-- GitHub Actions (CI/CD)
-- JetBrains Marketplace
-
----
-
-## Monetization Strategy (NO Servers, NO SaaS)
-
-### **Business Model**: Sell Once, Use Forever
-
-1. **Individual License**: $79
-    - Smart selectors
-    - Multi-language codegen
-    - Flow analysis
-    - Healing hints
-
-2. **Team License**: $299 (5 seats)
-    - All PRO features
-    - Shared flow models
-    - Team policies
-
-3. **Enterprise License**: $1,499
-    - All PRO features
-    - Static analysis
-    - Security audit
-    - Priority email support (1 year)
-    - Custom integrations
-
-### **Distribution**:
-
-- JetBrains Marketplace (primary)
-- Direct sales (Gumroad / Stripe for Enterprise)
-- No recurring subscriptions
-- No servers to maintain
-- Updates included (for 1 year)
-
-### **Support Model**:
-
-- Documentation + video tutorials (free)
-- Community forum (free)
-- Email support (Enterprise only, 1 year)
-- No active consulting
-- No workshops
-
----
-
-## Development Principles
-
-1. **Evening/Weekend Pace**: Each phase = 4-12 evenings, achievable in spare time
-2. **Incremental Value**: Each phase delivers usable features
-3. **No Servers**: Everything runs locally
-4. **User Control**: Tool doesn't force upgrades or changes
-5. **Backend Agnostic**: Support Appium first, expand gradually
-6. **Multi-Language**: Wrappers for all popular languages
-7. **Rust Core**: Performance-critical operations in Rust
-8. **Python ML**: ML stays in Python ecosystem
-9. **Extensible**: Plugin architecture for new backends/analyzers
-
----
-
-## Success Metrics
-
-### **Technical**:
-
-- AST analysis: <50ms
-- Event correlation: <100ms
-- Selector healing: >85% success rate
-- Plugin startup: <2s
-- No memory leaks
-
-### **Business** (Year 1):
-
-- 1,000 free users
-- 50 PRO licenses ($3,950)
-- 5 team licenses ($1,495)
-- 2 enterprise licenses ($2,998)
-- **Total**: ~$8,500 first year
-
-### **Year 2+**:
-
-- 10,000 free users
-- 200 PRO licenses
-- 20 team licenses
-- 10 enterprise licenses
-- **Target**: $30K+ ARR
-
----
-
-## Next Steps
-
-1. **Commit this roadmap**
-2. **Create Phase 0 branch** (`feature/phase0-foundation`)
-3. **Start with protocol design** (JSON-RPC spec)
-4. **Implement health check** (`mtr health`)
-5. **Document CLI API** for plugin integration
-
----
-
-## Notes for Solo Founder
-
-- **You**: Strategy, UX, testing, product decisions
-- **Cursor**: Implementation, refactoring, integration
-- **Pace**: Sustainable, no burnout
-- **Focus**: One phase at a time
-- **Ship**: Release early, iterate based on feedback
-- **Monetize**: As soon as Phase 6 (smart selectors) is done
-
-**Remember**: This is a marathon, not a sprint. Quality > speed. Each phase should be production-ready before moving to
-the next.
+## Success metrics (measured, not aspirational)
+
+- Generated code compiles/parses across all targets — **enforced in CI**.
+- Every module unit-tested; coverage + docstring gates ratcheting up — **enforced**.
+- Crawl → kit proven live on real Android + iOS apps — **partially done, expanding**.
+- Rust-core latency — **TODO: benchmark, then state real numbers**.
+- Selector healing success rate — **TODO: wire healing, then measure**.

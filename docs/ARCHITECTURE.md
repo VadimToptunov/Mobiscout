@@ -126,11 +126,11 @@ Mobile Test Recorder is a **next-generation intelligent mobile testing framework
 
 ✅ **Performance**: Rust core for 16x speedup  
 ✅ **Flexibility**: Python for ML (best ecosystem)  
-✅ **Portability**: Multi-language bindings  
 ✅ **Maintainability**: Clear separation  
 ✅ **Binary Distribution**: Single executable
 
-See [Multi-Language Architecture](MULTI_LANGUAGE_ARCHITECTURE.md) for details.
+Multi-language support is delivered as **codegen targets** (Python/Java/Kotlin/JS,
+imperative + BDD), not language bindings — see the README.
 
 ### Layered Architecture
 

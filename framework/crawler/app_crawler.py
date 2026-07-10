@@ -18,7 +18,12 @@ import re
 import xml.etree.ElementTree as ET
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Dict, List, Optional, Protocol, Tuple
+from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Protocol, Tuple
+
+from framework.crawler.errors import CrawlerDriverError
+
+if TYPE_CHECKING:
+    from framework.crawler.waypoints import Waypoint
 
 # Element labels containing any of these are never tapped — they are
 # destructive or would leave the app / session.
@@ -46,6 +51,8 @@ class CrawlerDriver(Protocol):
     def page_source(self) -> str: ...
 
     def tap(self, x: int, y: int) -> None: ...
+
+    def type_text(self, text: str) -> None: ...  # type into the focused field
 
     def back(self) -> None: ...
 
@@ -225,12 +232,27 @@ class AppCrawler:
         max_steps: int = 100,
         max_depth: int = 20,
         blocklist: Tuple[str, ...] = DEFAULT_BLOCKLIST,
+        waypoints: Optional[List["Waypoint"]] = None,
     ):
         self.driver = driver
         self.app_package = app_package
         self.max_steps = max_steps
         self.max_depth = max_depth
         self.blocklist = tuple(b.lower() for b in blocklist)
+        # Gate-passing instructions (login, TOTP, biometric, permission dialogs)
+        # applied on first sight of a matching screen so the crawl goes deeper.
+        self.waypoints = list(waypoints or [])
+        self._waypointed: set = set()
+
+    def _pass_gates(self, screen: CrawlScreen) -> bool:
+        """Apply a matching waypoint once per screen; True if one fired (the
+        caller should re-read the screen since the app moved on)."""
+        if not self.waypoints or screen.fingerprint in self._waypointed:
+            return False
+        from framework.crawler.waypoints import apply_first_match
+
+        self._waypointed.add(screen.fingerprint)
+        return apply_first_match(self.waypoints, self.driver, screen)
 
     def _blocked(self, element: CrawlElement) -> bool:
         label = element.label.lower()
@@ -257,15 +279,36 @@ class AppCrawler:
         return deque(e for e in screen.interactive() if self._own(e))
 
     def crawl(self) -> CrawlResult:
-        result = CrawlResult()
+        """Explore the app and return the screen/flow map.
 
+        A transient driver failure (e.g. a wedged adb round-trip that outlived its
+        retries, surfaced as :class:`CrawlerDriverError`) ends the crawl early but
+        never loses work — every screen and transition gathered before the failure
+        is returned, so a single device hiccup degrades to a partial kit instead of
+        crashing the whole run.
+        """
+        result = CrawlResult()
+        try:
+            self._explore(result)
+        except CrawlerDriverError:
+            pass  # keep the partial map gathered so far
+        return result
+
+    def _explore(self, result: CrawlResult) -> None:
         # Only crawl if we actually start on the app under test.
         if not self._on_app():
-            return result
+            return
         screen = parse_screen(self.driver.page_source())
         if not screen.fingerprint:
-            return result
+            return
         result.screens[screen.fingerprint] = screen
+
+        # Pass any gate on the entry screen (e.g. a login form) before exploring.
+        if self._pass_gates(screen):
+            passed = parse_screen(self.driver.page_source())
+            if passed.fingerprint:
+                screen = passed
+                result.screens.setdefault(screen.fingerprint, screen)
 
         # Each stack frame: (screen fingerprint, queue of untried app elements).
         stack: List[Tuple[str, Deque[CrawlElement]]] = [(screen.fingerprint, self._own_interactive(screen))]
@@ -305,11 +348,16 @@ class AppCrawler:
 
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
                 result.screens[new_screen.fingerprint] = new_screen
+                # Pass a gate on this new screen too (OTP/biometric behind a step).
+                if self._pass_gates(new_screen):
+                    behind = parse_screen(self.driver.page_source())
+                    if behind.fingerprint and behind.fingerprint not in result.screens:
+                        result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
+                        result.screens[behind.fingerprint] = behind
+                        new_screen = behind
                 stack.append((new_screen.fingerprint, self._own_interactive(new_screen)))
             else:
                 # Already seen (or depth cap): don't re-explore, return to parent.
                 self.driver.back()
                 result.steps += 1
                 self._recover()
-
-        return result

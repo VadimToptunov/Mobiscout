@@ -56,6 +56,18 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     _write(out / "graph.json", to_json(graph))
 
     model = build_test_model(result, app_package=package, app_activity=config.get("app_activity"))
+
+    # Only-new mode: drop cases already covered by the team's existing tests, so a
+    # crawl of a new feature yields tests for just that feature.
+    gap = None
+    if config.get("only_new"):
+        from framework.crawler.coverage import existing_test_text, filter_to_new
+
+        covered = existing_test_text(Path(config.get("existing_tests", "")))
+        model, report = filter_to_new(model, covered)
+        gap = report.summary()
+        _write(out / "coverage_gap.txt", gap + "\n" + "\n".join(f"- {n}" for n in report.new_case_names) + "\n")
+
     target_ids = {t.id for t in available_targets()}
     targets: List[str] = [t for t in (config.get("targets") or _DEFAULT_TARGETS) if t]
     written: List[str] = []
@@ -90,6 +102,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "cases": len(model.cases),
         "targets": written,
         "scaffolded": scaffolded,
+        "gap": gap,
         "output": str(out.absolute()),
     }
 
@@ -135,12 +148,18 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     owns = False
     if driver is None:
         driver, owns = _make_driver(config)
+    # Gate-passing instructions (login/OTP/biometric/permission) as JSON dicts from
+    # the CLI/plugin -> Waypoint objects, so the crawl explores behind gates.
+    from framework.crawler.waypoints import Waypoint
+
+    waypoints = [Waypoint(**w) for w in config.get("waypoints") or []]
     try:
         result = AppCrawler(
             driver,
             config["package"],
             max_steps=int(config.get("max_steps", 40)),
             max_depth=int(config.get("max_depth", 8)),
+            waypoints=waypoints,
         ).crawl()
     finally:
         if owns and hasattr(driver, "quit"):
