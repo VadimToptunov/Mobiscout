@@ -9,7 +9,6 @@ broad Exception catches throughout the codebase.
 
 from typing import Optional, Dict, Any
 
-
 # ============================================================================
 # Base Exceptions
 # ============================================================================
