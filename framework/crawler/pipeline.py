@@ -55,6 +55,12 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     _write(out / "graph.dot", to_dot(graph))
     _write(out / "graph.json", to_json(graph))
 
+    # Structural findings read off the graph (unreachable / dead-end / no-return).
+    from framework.crawler.invariants import check_invariants, invariants_markdown
+
+    _write(out / "invariants.md", invariants_markdown(graph))
+    invariant_count = len(check_invariants(graph))
+
     model = build_test_model(result, app_package=package, app_activity=config.get("app_activity"))
 
     # Only-new mode: drop cases already covered by the team's existing tests, so a
@@ -103,6 +109,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "targets": written,
         "scaffolded": scaffolded,
         "gap": gap,
+        "invariants": invariant_count,
         "output": str(out.absolute()),
     }
 
@@ -142,9 +149,9 @@ def _make_driver(config: Dict[str, Any]):
     return AdbCrawlerDriver(serial=config.get("serial")), False
 
 
-def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
-    """Crawl the app described by ``config`` (or use an injected ``driver``) and
-    build the kit. The one call the CLI and the IDE plugin both drive."""
+def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
+    """Crawl the app described by ``config`` (or use an injected ``driver``),
+    passing any configured gates. Shared by run_kit and crawl_graph."""
     owns = False
     if driver is None:
         driver, owns = _make_driver(config)
@@ -154,7 +161,7 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
 
     waypoints = [Waypoint(**w) for w in config.get("waypoints") or []]
     try:
-        result = AppCrawler(
+        return AppCrawler(
             driver,
             config["package"],
             max_steps=int(config.get("max_steps", 40)),
@@ -164,4 +171,17 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     finally:
         if owns and hasattr(driver, "quit"):
             driver.quit()
-    return build_kit(result, config)
+
+
+def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
+    """Crawl the app described by ``config`` (or use an injected ``driver``) and
+    build the kit. The one call the CLI and the IDE plugin both drive."""
+    return build_kit(_crawl(config, driver), config)
+
+
+def crawl_graph(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
+    """Crawl and return just the interaction graph as a dict — the IDE plugin's
+    ``flow/getGraph``, with no files written."""
+    from framework.crawler.graph import build_graph
+
+    return build_graph(_crawl(config, driver), config.get("package", "")).to_dict()
