@@ -14,6 +14,34 @@ from framework.health import HealthChecker
 logger = logging.getLogger(__name__)
 
 
+def ui_tree(source: str) -> Dict[str, Any]:
+    """Parse a device page source into the IDE's UI-tree response: the platform,
+    toolkit and a flat element list, each with a semantic type. Pure function of
+    the XML, so it's testable without a device."""
+    from framework.crawler.app_crawler import parse_screen
+    from framework.crawler.classify import classify
+
+    screen = parse_screen(source)
+    elements = [
+        {
+            "class": e.class_name,
+            "resource_id": e.resource_id,
+            "text": e.text,
+            "content_desc": e.content_desc,
+            "clickable": e.clickable,
+            "bounds": list(e.bounds),
+            "type": classify(e)[0],
+        }
+        for e in screen.elements
+    ]
+    return {
+        "platform": screen.platform,
+        "toolkit": screen.toolkit,
+        "element_count": len(elements),
+        "elements": elements,
+    }
+
+
 class JSONRPCServer:
     """JSON-RPC 2.0 server for IDE plugin communication."""
 
@@ -35,8 +63,19 @@ class JSONRPCServer:
             "action/swipe": self.handle_swipe,
             "action/type": self.handle_type,
             "kit/generate": self.handle_kit_generate,
+            "codegen/generate": self.handle_kit_generate,  # alias: same parameterized pipeline
+            "flow/getGraph": self.handle_flow_get_graph,
             "environment/detect": self.handle_environment_detect,
         }
+
+    def handle_flow_get_graph(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Crawl the app and return its interaction graph (nodes/edges + reachability,
+        dead-ends, hubs) for the IDE to visualize. Same config as kit/generate."""
+        from framework.crawler.pipeline import crawl_graph
+
+        if not params.get("package"):
+            raise ValueError("flow/getGraph requires 'package'")
+        return crawl_graph(params)
 
     def handle_environment_detect(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Report the automation toolchain (Appium/drivers/SDK/Java/Xcode) with
@@ -90,15 +129,17 @@ class JSONRPCServer:
         }
 
     def handle_get_ui_tree(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle UI tree request."""
+        """Return the real UI tree for the session's device — the parsed element
+        list with a semantic type per element (not a mock). Android over adb."""
         session_id = params.get("session_id")
-
         if session_id not in self.sessions:
             raise ValueError(f"Session not found: {session_id}")
 
-        # In production: get actual UI tree from Appium
-        # For now, return mock structure
-        return {"tree": {"type": "View", "bounds": [0, 0, 1080, 1920], "children": []}}
+        from framework.crawler.adb_driver import AdbCrawlerDriver
+
+        device_id = self.sessions[session_id]["device_id"]
+        source = AdbCrawlerDriver(serial=device_id).page_source()
+        return ui_tree(source)
 
     def handle_session_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle session start request."""
