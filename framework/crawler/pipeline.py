@@ -55,6 +55,12 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     _write(out / "graph.dot", to_dot(graph))
     _write(out / "graph.json", to_json(graph))
 
+    # Structural findings read off the graph (unreachable / dead-end / no-return).
+    from framework.crawler.invariants import check_invariants, invariants_markdown
+
+    _write(out / "invariants.md", invariants_markdown(graph))
+    invariant_count = len(check_invariants(graph))
+
     model = build_test_model(result, app_package=package, app_activity=config.get("app_activity"))
 
     # Only-new mode: drop cases already covered by the team's existing tests, so a
@@ -103,6 +109,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "targets": written,
         "scaffolded": scaffolded,
         "gap": gap,
+        "invariants": invariant_count,
         "output": str(out.absolute()),
     }
 
