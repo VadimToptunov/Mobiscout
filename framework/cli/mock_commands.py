@@ -25,44 +25,52 @@ def mock():
 @click.option("--appium-server", help="Appium server URL to proxy")
 @click.option("--port", default=8888, help="Mock server port")
 def record(session_id: str, appium_server: str, port: int):
-    """Start recording API calls for a test session."""
+    """Start recording API calls for a test session.
+
+    Runs a forward HTTP proxy on ``--port``; point the app/emulator's HTTP proxy at
+    it. Every request is forwarded to its real destination and the round-trip is
+    saved into the session; HTTPS is tunnelled through un-recorded (see the note on
+    stop). Press Ctrl+C to stop and persist.
+    """
+    from framework.mocking.proxy import MockProxy
+
     mocker = APIMocker()
-    session = mocker.start_recording(session_id)
+    mocker.start_recording(session_id)
+    proxy = MockProxy(mocker, port=port)
 
     console.print(
         Panel(
             f"[green]🔴 Recording API calls[/green]\n\n"
             f"Session ID: [cyan]{session_id}[/cyan]\n"
             f"Port: [cyan]{port}[/cyan]\n\n"
-            f"[bold]Configure your app to use this proxy:[/bold]\n"
+            f"[bold]Configure your app/emulator to use this HTTP proxy:[/bold]\n"
             f"http://localhost:{port}\n\n"
-            f"[dim]All API calls will be recorded.\n"
-            f"Press Ctrl+C to stop recording.[/dim]",
+            f"[dim]HTTP API calls are recorded. HTTPS is passed through but not\n"
+            f"recorded (needs TLS interception). Press Ctrl+C to stop.[/dim]",
             title="API Mock Recording",
             border_style="green",
         )
     )
 
     try:
-        # TODO: Start proxy server
-        console.print("\n[yellow]Note:[/yellow] Proxy server not yet implemented.")
-        console.print("Use programmatic API for now:\n")
-        console.print("[cyan]from framework.mocking import APIMocker[/cyan]")
-        console.print("[cyan]mocker = APIMocker()[/cyan]")
-        console.print(f"[cyan]session = mocker.start_recording('{session_id}')[/cyan]")
-
-        input("\nPress Enter to stop recording...")
-
+        proxy.serve_forever()
     except KeyboardInterrupt:
         console.print("\n\n[yellow]Stopping recording...[/yellow]")
+    finally:
+        proxy.stop()
 
     stats = mocker.stop()
     if stats:
+        https_note = (
+            f"\n[yellow]HTTPS tunnels passed through un-recorded: {proxy.https_tunnels}[/yellow]"
+            if proxy.https_tunnels
+            else ""
+        )
         console.print(
             Panel(
                 f"[green]✅ Recording complete![/green]\n\n"
                 f"Total requests: {stats['total_requests']}\n"
-                f"Session saved: [cyan]{session_id}[/cyan]\n\n"
+                f"Session saved: [cyan]{session_id}[/cyan]{https_note}\n\n"
                 f"[dim]Use 'observe mock replay {session_id}' to replay[/dim]",
                 title="Recording Stats",
                 border_style="green",
@@ -75,16 +83,25 @@ def record(session_id: str, appium_server: str, port: int):
 @click.option("--strict/--fuzzy", default=False, help="Strict matching (body + URL)")
 @click.option("--port", default=8888, help="Mock server port")
 def replay(session_id: str, strict: bool, port: int):
-    """Replay recorded API calls."""
+    """Replay recorded API calls.
+
+    Runs the proxy in replay mode: recorded requests are answered from the session
+    with no network call; an unrecorded request gets a ``504`` so the gap is
+    visible. Point the app's HTTP proxy at ``--port`` and press Ctrl+C to stop.
+    """
+    from framework.mocking.proxy import MockProxy
+
     mocker = APIMocker()
 
     try:
-        session = mocker.start_replay(session_id, strict=strict)
+        mocker.start_replay(session_id, strict=strict)
     except FileNotFoundError:
         console.print(f"[red]❌ Session '{session_id}' not found[/red]")
         console.print("\nAvailable sessions:")
         _list_sessions()
         return
+
+    proxy = MockProxy(mocker, port=port)
 
     console.print(
         Panel(
@@ -102,16 +119,11 @@ def replay(session_id: str, strict: bool, port: int):
     )
 
     try:
-        console.print("\n[yellow]Note:[/yellow] Proxy server not yet implemented.")
-        console.print("Use programmatic API for now:\n")
-        console.print("[cyan]from framework.mocking import APIMocker[/cyan]")
-        console.print("[cyan]mocker = APIMocker()[/cyan]")
-        console.print(f"[cyan]session = mocker.start_replay('{session_id}')[/cyan]")
-
-        input("\nPress Enter to stop replay...")
-
+        proxy.serve_forever()
     except KeyboardInterrupt:
         console.print("\n\n[yellow]Stopping replay...[/yellow]")
+    finally:
+        proxy.stop()
 
     stats = mocker.stop()
     if stats:
