@@ -20,11 +20,14 @@ heuristic, so a crawl never depends on shipping a binary. Generate one with
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Optional, Tuple
 
 from framework.crawler.app_crawler import CrawlElement
+
+logger = logging.getLogger(__name__)
 
 # Confidence at/above which we trust the ML label over the heuristic.
 ML_CONFIDENCE = 0.80
@@ -82,6 +85,10 @@ def ensure_model(force: bool = False) -> Optional[Path]:
         reset_cache()
         return path
     except Exception:
+        # Training is best-effort and must never be fatal: a constrained env
+        # (missing/oom sklearn, unwritable cache) degrades to the heuristic. Log
+        # at debug so the cause is diagnosable without breaking a crawl.
+        logger.debug("ensure_model: training failed; using heuristic", exc_info=True)
         return None
 
 
