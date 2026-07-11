@@ -128,12 +128,37 @@ class JSONRPCServer:
             "flow/getGraph": self.handle_flow_get_graph,
             "environment/detect": self.handle_environment_detect,
             "selector/generate": self.handle_selector_generate,
+            "device/start": self.handle_device_start,
+            "device/stop": self.handle_device_stop,
+            "device/listAvds": self.handle_list_avds,
         }
 
     def handle_selector_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Ranked, self-healing locator for an element — from a page source + tap
         point, or from raw element attributes. See :func:`generate_selector`."""
         return generate_selector(params)
+
+    def handle_device_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Boot an emulator/simulator so the IDE can start a session on it.
+
+        params: {platform: "android"|"ios", target: AVD name | simulator UDID}.
+        """
+        platform = params.get("platform", "android")
+        target = params.get("target") or params.get("avd") or params.get("udid", "")
+        return self.device_manager.start_device(platform, target)
+
+    def handle_device_stop(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Shut down a running emulator/simulator.
+
+        params: {platform: "android"|"ios", device_id: adb serial | simulator UDID}.
+        """
+        platform = params.get("platform", "android")
+        device_id = params.get("device_id") or params.get("udid", "")
+        return self.device_manager.stop_device(platform, device_id)
+
+    def handle_list_avds(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """List installed Android AVDs the plugin can offer to boot."""
+        return {"avds": self.device_manager.list_avds()}
 
     def handle_flow_get_graph(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Crawl the app and return its interaction graph (nodes/edges + reachability,
