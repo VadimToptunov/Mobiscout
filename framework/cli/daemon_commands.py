@@ -42,6 +42,67 @@ def ui_tree(source: str) -> Dict[str, Any]:
     }
 
 
+def generate_selector(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Ranked, self-healing locator for one element — the engine behind the IDE's
+    "generate a locator for this element" action.
+
+    Accepts either form:
+
+    * ``{"source": "<page xml>", "x": .., "y": ..}`` — resolve the most specific
+      element under that tap point (as the recorder does), or
+    * ``{"element": {resource_id, text, content_desc, class, clickable, bounds}}``
+      — build the locator straight from known attributes.
+
+    Returns ``{found, type, label, selector}`` where ``selector`` is the ranked
+    locator dict (accessibility-id → resource-id → text, with fallbacks) or None.
+    Pure function — testable without a device.
+    """
+    from framework.crawler.app_crawler import CrawlElement, parse_screen
+    from framework.crawler.classify import classify
+    from framework.crawler.to_codegen import selector_for
+
+    platform = params.get("platform", "android")
+
+    if params.get("source") is not None and "x" in params and "y" in params:
+        screen = parse_screen(params["source"])
+        x, y = int(params["x"]), int(params["y"])
+        siblings = screen.elements
+        contained = [e for e in siblings if e.bounds[0] <= x <= e.bounds[2] and e.bounds[1] <= y <= e.bounds[3]]
+        contained.sort(key=lambda e: (e.bounds[2] - e.bounds[0]) * (e.bounds[3] - e.bounds[1]))
+        element = None
+        for candidate in contained:  # smallest element that yields a locator wins
+            if selector_for(candidate, siblings, platform) is not None:
+                element = candidate
+                break
+        if element is None:
+            element = contained[0] if contained else None
+    elif params.get("element"):
+        e = params["element"]
+        element = CrawlElement(
+            resource_id=e.get("resource_id", ""),
+            text=e.get("text", ""),
+            content_desc=e.get("content_desc", ""),
+            class_name=e.get("class") or e.get("class_name", ""),
+            clickable=bool(e.get("clickable", False)),
+            bounds=tuple(e.get("bounds", (0, 0, 0, 0))),
+            package=e.get("package", ""),
+        )
+        siblings = [element]
+    else:
+        raise ValueError("selector/generate requires either {source, x, y} or {element}")
+
+    if element is None:
+        return {"found": False, "type": None, "label": None, "selector": None}
+
+    selector = selector_for(element, siblings, platform)
+    return {
+        "found": selector is not None,
+        "type": classify(element)[0],
+        "label": element.label,
+        "selector": selector.to_dict() if selector else None,
+    }
+
+
 class JSONRPCServer:
     """JSON-RPC 2.0 server for IDE plugin communication."""
 
@@ -66,7 +127,13 @@ class JSONRPCServer:
             "codegen/generate": self.handle_kit_generate,  # alias: same parameterized pipeline
             "flow/getGraph": self.handle_flow_get_graph,
             "environment/detect": self.handle_environment_detect,
+            "selector/generate": self.handle_selector_generate,
         }
+
+    def handle_selector_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Ranked, self-healing locator for an element — from a page source + tap
+        point, or from raw element attributes. See :func:`generate_selector`."""
+        return generate_selector(params)
 
     def handle_flow_get_graph(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Crawl the app and return its interaction graph (nodes/edges + reachability,
