@@ -149,3 +149,75 @@ class DeviceManager:
     def get_all_devices() -> List[Dict[str, Any]]:
         """Get all devices (alias for list_all_devices)."""
         return DeviceManager.list_all_devices()
+
+    @staticmethod
+    def list_avds() -> List[str]:
+        """List installed Android AVDs (bootable emulator images) via ``emulator``."""
+        try:
+            result = subprocess.run(["emulator", "-list-avds"], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+        return []
+
+    @staticmethod
+    def start_device(platform: str, target: str) -> Dict[str, Any]:
+        """Boot an emulator/simulator.
+
+        Args:
+            platform: "android" or "ios".
+            target: the Android AVD name, or the iOS simulator UDID.
+
+        Returns:
+            A status dict. Android boots asynchronously (the emulator process is
+            launched detached and takes a while to come online), so it reports
+            ``"starting"``; iOS reports the ``simctl boot`` outcome. On a missing
+            tool or failure, ``{"started": False, "error": ...}``.
+        """
+        if not target:
+            return {"started": False, "error": "target (AVD name / simulator UDID) is required"}
+        try:
+            if platform == "android":
+                # Detached: the emulator runs for the length of the session, well
+                # beyond this RPC call, so we don't wait on it.
+                subprocess.Popen(
+                    ["emulator", "-avd", target],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return {"started": True, "platform": "android", "target": target, "status": "starting"}
+            if platform == "ios":
+                result = subprocess.run(["xcrun", "simctl", "boot", target], capture_output=True, text=True, timeout=30)
+                # simctl exits non-zero if the device is already booted — treat that
+                # as success rather than an error.
+                already = "current state: Booted" in (result.stderr or "")
+                if result.returncode == 0 or already:
+                    return {"started": True, "platform": "ios", "target": target, "status": "booted"}
+                return {"started": False, "error": result.stderr.strip() or "simctl boot failed"}
+            return {"started": False, "error": f"unsupported platform: {platform}"}
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            return {"started": False, "error": str(e)}
+
+    @staticmethod
+    def stop_device(platform: str, device_id: str) -> Dict[str, Any]:
+        """Shut down a running emulator/simulator.
+
+        Android uses ``adb -s <id> emu kill``; iOS uses ``xcrun simctl shutdown``.
+        Returns ``{"stopped": bool, ...}``.
+        """
+        if not device_id:
+            return {"stopped": False, "error": "device_id is required"}
+        try:
+            if platform == "android":
+                cmd = ["adb", "-s", device_id, "emu", "kill"]
+            elif platform == "ios":
+                cmd = ["xcrun", "simctl", "shutdown", device_id]
+            else:
+                return {"stopped": False, "error": f"unsupported platform: {platform}"}
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            if result.returncode == 0:
+                return {"stopped": True, "platform": platform, "device_id": device_id}
+            return {"stopped": False, "error": result.stderr.strip() or "shutdown failed"}
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            return {"stopped": False, "error": str(e)}
