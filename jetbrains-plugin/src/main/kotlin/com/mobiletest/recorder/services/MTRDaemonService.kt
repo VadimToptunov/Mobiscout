@@ -28,11 +28,12 @@ class MTRDaemonService {
         }
         
         try {
-            // Find observe command
-            val observePath = findObserveCommand() ?: throw Exception("observe command not found")
-            
+            // Resolve the engine: a self-contained standalone binary (downloaded on
+            // first use, no user Python) or a PATH `observe` CLI for development.
+            val command = EngineProvider.resolveDaemonCommand()
+
             // Start daemon
-            val processBuilder = ProcessBuilder(observePath, "daemon", "--stdio")
+            val processBuilder = ProcessBuilder(command)
             processBuilder.redirectError(ProcessBuilder.Redirect.to(File("mtr-daemon.log")))
             
             process = processBuilder.start()
@@ -90,36 +91,6 @@ class MTRDaemonService {
      */
     fun removeNotificationListener(listener: (JsonRpcNotification) -> Unit) {
         listeners.remove(listener)
-    }
-    
-    /**
-     * Find observe command in PATH.
-     */
-    private fun findObserveCommand(): String? {
-        val paths = System.getenv("PATH")?.split(File.pathSeparator) ?: return null
-        
-        for (path in paths) {
-            val file = File(path, "observe")
-            if (file.exists() && file.canExecute()) {
-                return file.absolutePath
-            }
-        }
-        
-        // Try common Python locations
-        val commonPaths = listOf(
-            "/usr/local/bin/observe",
-            System.getProperty("user.home") + "/.local/bin/observe",
-            System.getProperty("user.home") + "/Library/Python/*/bin/observe"
-        )
-        
-        for (path in commonPaths) {
-            val file = File(path)
-            if (file.exists() && file.canExecute()) {
-                return file.absolutePath
-            }
-        }
-        
-        return null
     }
     
     // API Methods
