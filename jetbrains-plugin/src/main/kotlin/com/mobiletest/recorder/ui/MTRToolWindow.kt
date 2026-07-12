@@ -56,7 +56,8 @@ class MTRToolWindow(private val project: Project) {
                     } else {
                         JOptionPane.showMessageDialog(
                             mainPanel,
-                            "Failed to start daemon. Make sure 'observe' command is installed.",
+                            "Failed to start the engine. It is downloaded automatically on first use; " +
+                                "check your internet connection, or install the 'observe' CLI on PATH.",
                             "Error",
                             JOptionPane.ERROR_MESSAGE
                         )

@@ -24,9 +24,15 @@ paths (`selector/generate`) and the codegen templates (bundled as data).
 ## Status / remaining work
 
 - [x] Freeze feasibility spike — standalone binary, heavy deps, ~122 MB (macOS arm64).
-- [ ] CI matrix: build on macOS (x86_64 + arm64), Windows, Linux → attach to a GitHub Release.
-- [ ] macOS codesign + notarize (else Gatekeeper blocks it).
-- [ ] Plugin: download the matching binary for the user's OS on first run (the
-      400 MB Marketplace limit rules out bundling every platform in the plugin zip),
-      cache it, and launch it instead of a PATH `observe`.
-- [ ] Version pinning: plugin fetches the engine build matching its own version.
+- [x] CI matrix (`build-engine.yml`): build on macOS (x86_64 + arm64), Windows, Linux;
+      smoke-test each; upload artifacts; attach to a Release. Proven green on
+      Linux / Windows / macOS-arm64.
+- [x] Plugin: `EngineProvider` downloads the matching binary for the user's OS on
+      first run (cached under `~/.mobile-observe/engine/<version>/`), falls back to a
+      PATH `observe` CLI for development, and launches it.
+- [ ] macOS codesign + notarize (else Gatekeeper blocks the downloaded binary) —
+      needs an Apple Developer identity.
+- [ ] Publish a release tagged to match `EngineProvider.ENGINE_VERSION` so the
+      download resolves (until then the plugin falls back to a PATH `observe`).
+- [ ] Version pinning + integrity: fetch the engine build matching the plugin
+      version and verify a checksum.
