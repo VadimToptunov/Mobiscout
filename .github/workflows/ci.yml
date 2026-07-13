@@ -249,7 +249,7 @@ jobs:
           pip install -e .
 
       - name: Download Rust wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: rust-wheel-ubuntu-latest
           path: wheels/
@@ -328,7 +328,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Download all wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: wheels/
           merge-multiple: true
