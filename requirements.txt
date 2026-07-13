@@ -55,7 +55,7 @@ pytest-cov>=4.1.0
 # Phase 5: Enterprise Integration
 pytest-xdist>=3.8.0          # Parallel test execution
 pytest-rerunfailures>=16.4   # Retry failed tests
-allure-pytest>=2.13.0        # Allure reporting
+allure-pytest>=2.16.0        # Allure reporting
 pytest-html>=4.2.0           # HTML reports
 pytest-json-report>=1.5.0    # JSON reports
 slack-sdk>=3.43.0            # Slack notifications
