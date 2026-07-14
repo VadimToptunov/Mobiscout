@@ -21,7 +21,7 @@ repositories {
 dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.1")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.2")
     testImplementation("org.mockito:mockito-core:5.23.0")
 
     intellijPlatform {
