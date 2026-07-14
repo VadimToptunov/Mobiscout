@@ -63,21 +63,33 @@ jobs:
           echo "$out"
           echo "$out" | grep -q '"status": "ok"' || { echo "engine did not respond ok"; exit 1; }
 
-      - name: Rename to platform artifact
+      - name: Rename + checksum
         shell: bash
         run: |
           mkdir -p out
           cp "${{ matrix.binary }}" "out/${{ matrix.artifact }}"
+          cd out
+          # sha256sum on Linux/Windows(git-bash), shasum on macOS.
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          else
+            shasum -a 256 "${{ matrix.artifact }}" > "${{ matrix.artifact }}.sha256"
+          fi
+          cat "${{ matrix.artifact }}.sha256"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: out/${{ matrix.artifact }}
+          path: |
+            out/${{ matrix.artifact }}
+            out/${{ matrix.artifact }}.sha256
           if-no-files-found: error
 
       - name: Attach to release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: out/${{ matrix.artifact }}
+          files: |
+            out/${{ matrix.artifact }}
+            out/${{ matrix.artifact }}.sha256

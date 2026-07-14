@@ -96,7 +96,12 @@ jobs:
   test:
     name: Test Suite
     runs-on: ${{ matrix.os }}
+    # 3.13 is the supported target and gates merges. 3.14 is forward-looking and
+    # non-blocking: its scientific-stack wheels (scipy/opencv under xdist) can
+    # segfault into a pytest INTERNALERROR — track it, don't let it block the queue.
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
     strategy:
+      fail-fast: false  # one job's failure must not cancel the others
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
         python-version: [ '3.13', '3.14' ]
