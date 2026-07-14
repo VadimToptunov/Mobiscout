@@ -2,6 +2,7 @@ package com.mobiletest.recorder.services
 
 import java.io.File
 import java.net.URI
+import java.security.MessageDigest
 
 /**
  * Resolves the command that starts the Observe engine's JSON-RPC daemon.
@@ -51,12 +52,45 @@ object EngineProvider {
                 readTimeout = READ_TIMEOUT_MS
             }
             conn.getInputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
+            // Never run an unverified downloaded executable: the release publishes a
+            // <asset>.sha256; fail closed (delete + fall back) if it's missing or wrong.
+            if (target.length() == 0L || !checksumMatches(target, asset)) {
+                target.delete()
+                return null
+            }
             target.setExecutable(true)
-            if (target.length() > 0) target else null
+            target
         } catch (e: Exception) {
             if (target.exists()) target.delete() // don't leave a half-written binary behind
             null
         }
+    }
+
+    /** Verify the binary against the published `<asset>.sha256`. */
+    private fun checksumMatches(binary: File, asset: String): Boolean {
+        return try {
+            val published = URI("$RELEASE_BASE/$ENGINE_VERSION/$asset.sha256").toURL().openConnection().apply {
+                connectTimeout = CONNECT_TIMEOUT_MS
+                readTimeout = CONNECT_TIMEOUT_MS
+            }.getInputStream().use { it.readBytes().decodeToString() }
+            val expected = published.trim().split(Regex("\\s+")).firstOrNull()?.lowercase() ?: return false
+            expected == sha256Hex(binary)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun sha256Hex(file: File): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { stream ->
+            val buffer = ByteArray(8192)
+            var read = stream.read(buffer)
+            while (read > 0) {
+                md.update(buffer, 0, read)
+                read = stream.read(buffer)
+            }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
     }
 
     /** Release asset name for the current OS/arch, or null if unsupported. */
