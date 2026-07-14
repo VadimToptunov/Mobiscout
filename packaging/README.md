@@ -34,5 +34,7 @@ paths (`selector/generate`) and the codegen templates (bundled as data).
       needs an Apple Developer identity.
 - [ ] Publish a release tagged to match `EngineProvider.ENGINE_VERSION` so the
       download resolves (until then the plugin falls back to a PATH `observe`).
-- [ ] Version pinning + integrity: fetch the engine build matching the plugin
-      version and verify a checksum.
+- [x] Integrity: the workflow publishes a `<asset>.sha256` and the plugin verifies
+      the download against it (fail-closed — mismatch/missing hash falls back to PATH).
+- [ ] Version pinning: fetch the engine build matching the plugin version (today
+      `EngineProvider.ENGINE_VERSION` is a constant).
