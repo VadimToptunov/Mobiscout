@@ -120,3 +120,13 @@ markers = [
     "integration: marks tests as integration tests",
 ]
 
+[tool.coverage.run]
+# Non-Python assets under the package must never be measured or rendered: coverage
+# 7.15's HTML report tries to tokenize them as Python and crashes with a
+# SyntaxError on Jinja syntax (`{% ... %}`) — the codegen .j2 templates — which
+# surfaces as a pytest INTERNALERROR and fails the whole suite.
+omit = [
+    "*/codegen/templates/*",
+    "*.j2",
+]
+
