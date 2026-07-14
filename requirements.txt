@@ -41,7 +41,7 @@ pytesseract>=0.3.10
 # Visualization & Analytics
 matplotlib>=3.11.0
 seaborn>=0.12.0
-plotly>=6.8.0
+plotly>=6.9.0
 
 # Development tools (optional)
 # Pin black exactly: formatting changes between black releases, so an
