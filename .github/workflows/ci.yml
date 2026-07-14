@@ -225,7 +225,7 @@ jobs:
         run: maturin build --release
 
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-wheel-${{ matrix.os }}
           path: rust_core/target/wheels/*.whl
@@ -313,7 +313,7 @@ jobs:
         run: gradle verifyPlugin
 
       - name: Upload plugin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jetbrains-plugin
           path: jetbrains-plugin/build/distributions/*.zip
