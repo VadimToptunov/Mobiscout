@@ -57,6 +57,13 @@ class CodeParser:
 
         tree = ast.parse(source, filename=str(file_path))
 
+        # ast.walk() doesn't record parents, but the top-level function/constant
+        # extraction below checks node.parent is the Module — so set them first,
+        # otherwise those are silently dropped.
+        for parent in ast.walk(tree):
+            for child in ast.iter_child_nodes(parent):
+                child.parent = parent
+
         module_doc = ModuleDoc(
             name=file_path.stem,
             path=file_path,
