@@ -156,7 +156,7 @@ single command.
 1. **Install CLI Backend**:
 
 ```bash
-# From source (PyPI release TBD — will publish as `mobile-observe-test-framework`):
+# From source (for developers; end users just install the plugin — it bundles the engine, no Python needed):
 git clone https://github.com/VadimToptunov/mobile_test_recorder.git
 cd mobile_test_recorder
 pip install -e .
