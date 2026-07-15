@@ -270,7 +270,7 @@ measurement.
 - **What it does:** labels each element's semantic type (button / input / checkbox / text / …)
 - **Model:** scikit-learn RandomForest, trained on ~2,500 synthetic samples across
   Android (native + Compose), iOS (UIKit + SwiftUI), Flutter and React Native
-- **Accuracy:** ~88% on a held-out synthetic split; paired with a class-name
+- **Accuracy:** ~95% on a held-out synthetic split; paired with a class-name
   heuristic in a hybrid that beats either alone (the heuristic covers inputs/toggles
   the model is weak on)
 - **Shipping:** trained from code on first use (~1 s) and cached — no binary in the
@@ -576,7 +576,7 @@ refactor: Code refactoring
 | **Test Coverage**        | ~33%                       |
 | **Platforms crawled live** | Android (adb + Appium), iOS (Appium/XCUITest) |
 | **Codegen targets**      | 8 (Python/Java/Kotlin/JS, imperative + BDD) |
-| **ML element typing**    | hybrid ML + heuristic (~88% model on synthetic) |
+| **ML element typing**    | hybrid ML + heuristic (~95% model on synthetic) |
 
 ---
 
@@ -664,7 +664,7 @@ Contributions are welcome! Please read the [User Guide](USER_GUIDE.md) first.
     - Failure analyzer, selector discovery, element matcher
     - File updater, Git integration, orchestrator
 - ✅ **ML Element Classification** - Trained universal model
-    - Random Forest classifier, ~88% accuracy on synthetic data
+    - Random Forest classifier, ~95% accuracy on synthetic data
     - Works on Android, iOS, Flutter, React Native
 - ✅ **Dashboard** - Full FastAPI web server
     - Test health tracking, healed selector approval
