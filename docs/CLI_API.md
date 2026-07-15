@@ -2,12 +2,12 @@
 
 ## Overview
 
-This document describes how to integrate `mobile-test-recorder` CLI with external tools (IDE plugins, CI/CD, etc.).
+This document describes how to integrate the `observe` CLI (from `mobile-observe-test-framework`) with external tools (IDE plugins, CI/CD, etc.).
 
 ## Installation
 
 ```bash
-pip install mobile-observe-test
+pip install -e .
 ```
 
 ## Running as Daemon

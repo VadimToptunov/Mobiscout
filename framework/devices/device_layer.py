@@ -18,8 +18,6 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Protocol
 
-from framework.licensing.validator import check_feature
-
 
 class Platform(Enum):
     """Supported platforms"""
@@ -447,12 +445,9 @@ class CloudDeviceProvider:
     """
     Provider for cloud devices (BrowserStack, Sauce Labs, etc.)
 
-    This is a PAID feature requiring PRO or ENTERPRISE license
     """
 
     def __init__(self, provider: str, username: str, access_key: str):
-        if not check_feature("cloud_devices"):
-            raise PermissionError("Cloud devices require PRO or ENTERPRISE license")
 
         self.provider = provider.lower()
         self.username = username
