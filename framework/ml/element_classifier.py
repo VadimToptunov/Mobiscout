@@ -109,16 +109,30 @@ class ElementClassifier:
         features["medium"] = 1.0 if 100 <= width < 300 and 100 <= height < 300 else 0.0
         features["large"] = 1.0 if width >= 300 or height >= 300 else 0.0
 
-        # Class name hints
+        # Class name hints. The widget class is the single strongest type signal,
+        # so these need to disambiguate the look-alikes: WebView vs a scrollable
+        # list (both are "...View"), RadioButton vs Button ("radiobutton" contains
+        # "button"), and the many scroll/collection containers that are lists.
         class_name = element_data.get("class", "").lower()
-        features["class_button"] = 1.0 if "button" in class_name else 0.0
+        _list_kw = ("list", "recycler", "scroll", "table", "collection", "grid", "pager")
+        features["class_webview"] = 1.0 if "webview" in class_name or "web_view" in class_name else 0.0
+        features["class_radio"] = 1.0 if "radio" in class_name else 0.0
+        # RadioButton is a radio, not a button; keep them apart.
+        features["class_button"] = 1.0 if "button" in class_name and "radio" not in class_name else 0.0
         features["class_text"] = 1.0 if "text" in class_name and "edit" not in class_name else 0.0
-        features["class_edit"] = 1.0 if "edit" in class_name or "input" in class_name else 0.0
+        features["class_edit"] = 1.0 if "edit" in class_name or "input" in class_name or "field" in class_name else 0.0
         features["class_image"] = 1.0 if "image" in class_name else 0.0
-        features["class_list"] = 1.0 if "list" in class_name or "recycler" in class_name else 0.0
-        features["class_view"] = 1.0 if "view" in class_name and "text" not in class_name else 0.0
+        features["class_list"] = 1.0 if any(k in class_name for k in _list_kw) and "webview" not in class_name else 0.0
+        # A bare container "…View" — but not the specific view types above.
+        features["class_view"] = (
+            1.0
+            if "view" in class_name
+            and not any(k in class_name for k in ("text", "web", "image"))
+            and not any(k in class_name for k in _list_kw)
+            else 0.0
+        )
         features["class_switch"] = 1.0 if "switch" in class_name or "toggle" in class_name else 0.0
-        features["class_checkbox"] = 1.0 if "checkbox" in class_name or "check" in class_name else 0.0
+        features["class_checkbox"] = 1.0 if "checkbox" in class_name else 0.0
 
         return features
 
