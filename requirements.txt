@@ -35,7 +35,7 @@ joblib>=1.5.3
 
 # Image processing & OCR
 pillow>=10.0.0
-opencv-python>=4.8.0
+opencv-python>=5.0.0.93
 pytesseract>=0.3.13
 
 # Visualization & Analytics
