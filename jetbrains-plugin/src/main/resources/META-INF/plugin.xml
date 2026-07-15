@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.mobiletest.recorder</id>
     <name>Observe</name>
-    <vendor email="support@mobile-observe.dev" url="https://github.com/VadimToptunov/mobile_test_recorder">
+    <vendor email="support@mobile-observe.dev" url="https://github.com/VadimToptunov/Observe">
         Observe
     </vendor>
 
@@ -42,7 +42,7 @@
         <li>Select your device and start testing!</li>
     </ol>
     
-    <p>See <a href="https://github.com/VadimToptunov/mobile_test_recorder">documentation</a> for more details.</p>
+    <p>See <a href="https://github.com/VadimToptunov/Observe">documentation</a> for more details.</p>
     ]]>    </description>
 
     <depends>com.intellij.modules.platform</depends>

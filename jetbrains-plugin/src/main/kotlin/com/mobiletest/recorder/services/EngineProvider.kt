@@ -20,7 +20,7 @@ object EngineProvider {
     // The engine build to fetch. Must match a published release tag whose assets
     // are the per-platform binaries produced by .github/workflows/build-engine.yml.
     private const val ENGINE_VERSION = "v0.5.0"
-    private const val RELEASE_BASE = "https://github.com/VadimToptunov/mobile_test_recorder/releases/download"
+    private const val RELEASE_BASE = "https://github.com/VadimToptunov/Observe/releases/download"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000
 

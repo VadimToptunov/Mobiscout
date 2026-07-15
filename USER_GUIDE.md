@@ -1129,7 +1129,7 @@ def test_checkout():
 **Get Help:**
 
 - GitHub
-  Issues: [github.com/VadimToptunov/mobile_test_recorder/issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
+  Issues: [github.com/VadimToptunov/Observe/issues](https://github.com/VadimToptunov/Observe/issues)
 - Documentation: [Full docs](https://mobile-test-recorder.readthedocs.io)
 
 **Contribute:**

@@ -8,7 +8,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/VadimToptunov/mobile_test_recorder.git
+git clone https://github.com/VadimToptunov/Observe.git
 cd mobile_test_recorder
 
 # Create virtual environment
@@ -386,7 +386,7 @@ observe business report api-analysis.json | grep -A 10 "API Contracts"
 1. **Read Full Documentation:** [USER_GUIDE.md](USER_GUIDE.md)
 2. **Try Demo Apps:** `cd demo-app/` (Android & iOS examples included)
 3. **View Examples:** Check `tests/` directory for sample outputs
-4. **Report Issues:** [GitHub Issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
+4. **Report Issues:** [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
 
 ---
 
@@ -473,7 +473,7 @@ observe project --help            # Project commands
 
 - **Documentation:** [USER_GUIDE.md](USER_GUIDE.md) (complete reference)
 - **Examples:** `demo-app/` directory
-- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
+- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
 
 ---
 

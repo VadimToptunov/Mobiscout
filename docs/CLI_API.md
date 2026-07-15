@@ -303,9 +303,9 @@ See [JETBRAINS_PLUGIN_ROADMAP.md](../JETBRAINS_PLUGIN_ROADMAP.md) for complete r
 
 ## Support
 
-- **Documentation**: [GitHub Wiki](https://github.com/VadimToptunov/mobile_test_recorder/wiki)
-- **Issues**: [GitHub Issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/VadimToptunov/mobile_test_recorder/discussions)
+- **Documentation**: [GitHub Wiki](https://github.com/VadimToptunov/Observe/wiki)
+- **Issues**: [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/VadimToptunov/Observe/discussions)
 
 ## Examples
 
