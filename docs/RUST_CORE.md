@@ -408,11 +408,11 @@ class AstAnalyzer:
 ### Option 1: Pre-compiled Wheels (maturin)
 
 ```bash
-# Build wheels for all platforms
+# Build the wheel (target/wheels/)
 maturin build --release --manylinux 2014
 
-# Upload to PyPI
-maturin publish
+# Not published to PyPI: the wheel ships bundled inside the frozen engine
+# (variant C) or is attached to a GitHub Release.
 ```
 
 Users install with:
