@@ -5,7 +5,7 @@ pyyaml>=6.0
 jinja2>=3.1.0
 requests>=2.31.0
 jsonschema>=4.20.0
-rich>=14.0.0
+rich>=15.0.0
 types-PyYAML>=6.0.12.20260518
 argon2-cffi>=23.1.0  # Secure password hashing
 
@@ -35,7 +35,7 @@ joblib>=1.5.3
 
 # Image processing & OCR
 pillow>=12.3.0
-opencv-python>=4.8.0
+opencv-python>=5.0.0.93
 pytesseract>=0.3.13
 
 # Visualization & Analytics
