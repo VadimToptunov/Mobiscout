@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.mobiletest"
-version = "0.1.0-SNAPSHOT"
+version = "0.5.0-SNAPSHOT"
 
 repositories {
     mavenCentral()

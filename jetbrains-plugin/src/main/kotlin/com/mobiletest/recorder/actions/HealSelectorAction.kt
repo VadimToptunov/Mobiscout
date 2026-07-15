@@ -23,7 +23,7 @@ import java.io.InputStreamReader
 /**
  * STEP 11: JetBrains Plugin Enhancement
  *
- * AI-powered selector healing suggestions.
+ * Selector-healing suggestions.
  * When a selector fails, this action suggests alternative selectors.
  */
 class HealSelectorAction : AnAction() {

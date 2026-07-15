@@ -7,7 +7,7 @@ Includes positive, negative, and edge case tests.
 
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -175,22 +175,8 @@ class TestSelectorPredictor:
         assert feature_vector[0] == 1.0  # has_id
         assert feature_vector[1] == 1.0  # has_accessibility_id
 
-    @patch("framework.ml.ml_module.check_feature")
-    def test_train_without_license(self, mock_check):
-        """Test training without license (negative test)"""
-        mock_check.return_value = False
-
-        predictor = SelectorPredictor()
-        training_data = TrainingData(features=[{"id": "test"}], labels=["id"], metadata={})
-
-        with pytest.raises(PermissionError):
-            predictor.train(training_data)
-
-    @patch("framework.ml.ml_module.check_feature")
-    def test_train_with_sklearn(self, mock_check):
+    def test_train_with_sklearn(self):
         """Test training with sklearn backend"""
-        mock_check.return_value = True
-
         predictor = SelectorPredictor(backend=MLBackend.SKLEARN)
 
         # Create training data
@@ -216,9 +202,8 @@ class TestSelectorPredictor:
 
         training_data = TrainingData(features=[{"id": "test"}], labels=["id"], metadata={})
 
-        with patch("framework.ml.ml_module.check_feature", return_value=True):
-            with pytest.raises(NotImplementedError):
-                predictor.train(training_data)
+        with pytest.raises(NotImplementedError):
+            predictor.train(training_data)
 
     def test_save_and_load(self, tmp_path):
         """Test saving and loading model"""
@@ -307,10 +292,8 @@ class TestNextStepRecommender:
         assert result.prediction == "profile"
         assert len(result.alternatives) > 0
 
-    @patch("framework.ml.ml_module.check_feature")
-    def test_train_recommender(self, mock_check):
+    def test_train_recommender(self):
         """Test training recommender"""
-        mock_check.return_value = True
 
         recommender = NextStepRecommender()
 
@@ -403,10 +386,8 @@ class TestElementScorer:
 
         assert result.prediction == 0.0
 
-    @patch("framework.ml.ml_module.check_feature")
-    def test_train_scorer(self, mock_check):
+    def test_train_scorer(self):
         """Test training scorer"""
-        mock_check.return_value = True
 
         scorer = ElementScorer()
 
@@ -481,10 +462,8 @@ class TestMLModule:
         assert isinstance(result, PredictionResult)
         assert 0.0 <= result.prediction <= 1.0
 
-    @patch("framework.ml.ml_module.check_feature")
-    def test_train_model(self, mock_check):
+    def test_train_model(self):
         """Test training model via module"""
-        mock_check.return_value = True
 
         module = MLModule()
 
