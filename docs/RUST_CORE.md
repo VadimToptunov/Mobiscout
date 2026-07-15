@@ -418,7 +418,7 @@ maturin publish
 Users install with:
 
 ```bash
-pip install mobile-observe-test  # Includes Rust core!
+pip install -e ".[rust]"  # Includes Rust core!
 ```
 
 ### Option 2: Source Distribution
@@ -426,7 +426,7 @@ pip install mobile-observe-test  # Includes Rust core!
 Users with Rust installed can compile:
 
 ```bash
-pip install mobile-observe-test --no-binary :all:
+pip install -e . --no-binary :all:
 ```
 
 ---

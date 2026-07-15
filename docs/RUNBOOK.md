@@ -8,7 +8,7 @@ another language (Python/Java/Kotlin) any time.
 ## 0. Prerequisites (once)
 
 ```bash
-pip install -e .                       # the observe CLI (or: pip install mobile-observe-test)
+pip install -e .                       # the observe CLI (PyPI release TBD)
 npm i -g appium                        # Appium 2 server
 appium driver install uiautomator2     # Android
 appium driver install xcuitest         # iOS
