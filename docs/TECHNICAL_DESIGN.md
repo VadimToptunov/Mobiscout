@@ -1,6 +1,6 @@
 # Technical Design Document
 
-**Project:** Mobile Test Recorder  
+**Project:** Observe  
 **Version:** 2.0  
 **Date:** 2026-01-12  
 **Status:** Production
@@ -26,7 +26,7 @@
 
 ### High-Level Design
 
-Mobile Test Recorder is a **hybrid Python + Rust system** designed for:
+Observe is a **hybrid Python + Rust system** designed for:
 
 - **High Performance**: CPU-intensive operations in Rust (16x speedup)
 - **Flexibility**: Application logic, ML, integrations in Python
@@ -94,7 +94,7 @@ observe
 # framework/cli/main.py
 @click.group()
 def cli():
-    """Mobile Test Recorder CLI"""
+    """Observe CLI"""
     pass
 
 cli.add_command(business)
@@ -1096,7 +1096,7 @@ cargo test
 
 ## Conclusion
 
-Mobile Test Recorder is architected for:
+Observe is architected for:
 
 ✅ **Performance** - Rust core for 16x speedup  
 ✅ **Intelligence** - ML-powered self-healing  

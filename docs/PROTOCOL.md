@@ -1,8 +1,8 @@
-# Mobile Test Recorder Protocol Specification
+# Observe Protocol Specification
 
 ## Overview
 
-The Mobile Test Recorder uses a **JSON-RPC 2.0** protocol for communication between the JetBrains IDE plugin (client)
+The Observe uses a **JSON-RPC 2.0** protocol for communication between the JetBrains IDE plugin (client)
 and the CLI backend (server). This ensures a clean separation of concerns and allows for future extensibility.
 
 ## Transport

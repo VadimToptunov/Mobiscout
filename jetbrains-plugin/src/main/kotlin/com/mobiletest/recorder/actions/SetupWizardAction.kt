@@ -19,8 +19,8 @@ class SetupWizardAction : AnAction() {
         if (completed) {
             Messages.showInfoMessage(
                 project,
-                "Mobile Test Recorder has been configured successfully!\n\n" +
-                "Open View → Tool Windows → Mobile Test Recorder to get started.",
+                "Observe has been configured successfully!\n\n" +
+                "Open View → Tool Windows → Observe to get started.",
                 "Setup Complete"
             )
         }

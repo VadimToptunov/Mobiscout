@@ -1,10 +1,10 @@
-# Mobile Test Recorder — JetBrains IDE Plugin
+# Observe — JetBrains IDE Plugin
 
 > **Point your IDE at a running app → get an element inventory, an interaction
 > graph, and runnable tests — without leaving IntelliJ / Android Studio /
 > PyCharm.**
 
-The plugin is the IDE front-end for the [Mobile Test Recorder](../README.md)
+The plugin is the IDE front-end for the [Observe](../README.md)
 engine: you tell it *what you have* (an app, maybe its source, known logins,
 where to put results), and it hands back the artifacts a tester actually needs.
 
@@ -21,7 +21,7 @@ GoLand, …) via the platform SDK — one plugin, all IDEs.
 │                                                                        │
 │   app (apk / bundle id) ─┐                                             │
 │   source code (optional) ─┤                                            │
-│   platform: Android / iOS ─┤   ▶  Mobile Test Recorder  ▶   ┌────────┐ │
+│   platform: Android / iOS ─┤   ▶  Observe  ▶   ┌────────┐ │
 │   language + framework    ─┤        (in your IDE)            │  tests │ │
 │   known logins/passwords  ─┤                                 │  graph │ │
 │   where to put results    ─┘                                 │ report │ │
@@ -34,7 +34,7 @@ GoLand, …) via the platform SDK — one plugin, all IDEs.
 ## Inside the IDE — the tool window
 
 ```
- Mobile Test Recorder ▾                                              ⟳  ⚙
+ Observe ▾                                              ⟳  ⚙
 ┌──────────┬──────────┬───────────┬────────┐
 │ Devices  │  Screen  │ Inspector │  Logs  │
 ├──────────┴──────────┴───────────┴────────┴───────────────────────────┐
@@ -138,7 +138,7 @@ Plus API contract tests, an accessibility audit, and an APK/IPA security scan.
 cd jetbrains-plugin
 ./gradlew buildPlugin
 # then IDE ▸ Settings ▸ Plugins ▸ ⚙ ▸ Install Plugin from Disk…
-#   build/distributions/mobile-test-recorder-*.zip
+#   build/distributions/observe-*.zip
 ./gradlew runIde   # or launch a sandbox IDE with the plugin
 ```
 *Marketplace listing: coming soon.*

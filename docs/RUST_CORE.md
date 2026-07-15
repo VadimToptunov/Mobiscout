@@ -1,4 +1,4 @@
-# Rust Core - High-Performance Engine for Mobile Test Recorder
+# Rust Core - High-Performance Engine for Observe
 
 > Hybrid architecture: Rust core for performance + Python for ML/UX
 

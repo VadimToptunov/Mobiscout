@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class RecorderError(Exception):
-    """Base exception for Mobile Test Recorder errors."""
+    """Base exception for Observe errors."""
 
     pass
 

@@ -337,7 +337,8 @@ class HTMLReportGenerator:
                     f'<div class="test-screenshot">' f'<img src="{test.screenshot_path}" alt="Screenshot" />' f"</div>"
                 )
 
-            test_items.append(f"""
+            test_items.append(
+                f"""
             <div class="test-item">
                 <div class="test-status {status_class}">{status_symbol}</div>
                 <div class="test-info">
@@ -350,7 +351,8 @@ class HTMLReportGenerator:
                     {screenshot_html}
                 </div>
             </div>
-            """)
+            """
+            )
 
         # Render template
         html = self.HTML_TEMPLATE.format(

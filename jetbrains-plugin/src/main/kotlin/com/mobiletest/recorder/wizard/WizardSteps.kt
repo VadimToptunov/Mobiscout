@@ -469,8 +469,8 @@ class SummaryStep(model: SetupWizardModel) : SetupWizardStep(model) {
 
         panel.add(JBLabel(
             "<html>Click <b>Finish</b> to save your configuration and start using<br>" +
-            "Mobile Test Recorder. You can modify these settings anytime<br>" +
-            "in <b>Preferences → Mobile Test Recorder</b>.</html>"
+            "Observe. You can modify these settings anytime<br>" +
+            "in <b>Preferences → Observe</b>.</html>"
         ), gbc)
         gbc.gridy++
 

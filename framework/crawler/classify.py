@@ -43,7 +43,7 @@ def _cache_path() -> Path:
     *recipe* (see ensure_model) and never commit a 5 MB binary. Training locally
     also sidesteps sklearn pickle-version fragility."""
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / "mobile-test-recorder" / "universal_element_classifier.pkl"
+    return Path(base) / "observe" / "universal_element_classifier.pkl"
 
 
 def _model_path() -> Path:

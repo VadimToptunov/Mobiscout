@@ -54,7 +54,8 @@ class DashboardDB:
         cursor = self.conn.cursor()
 
         # Test results table
-        cursor.execute("""
+        cursor.execute(
+            """
                        CREATE TABLE IF NOT EXISTS test_results
                        (
                            id
@@ -80,10 +81,12 @@ class DashboardDB:
                            error_message
                            TEXT
                        )
-                       """)
+                       """
+        )
 
         # Healed selectors table
-        cursor.execute("""
+        cursor.execute(
+            """
                        CREATE TABLE IF NOT EXISTS healed_selectors
                        (
                            id
@@ -137,7 +140,8 @@ class DashboardDB:
                            DEFAULT
                            0
                        )
-                       """)
+                       """
+        )
 
         # Create indexes
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_results_name ON test_results(name)")

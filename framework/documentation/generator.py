@@ -371,11 +371,13 @@ class DocGenerator:
         # Generate conf.py
         conf_path = self.config.output_dir / "conf.py"
         with open(conf_path, "w") as f:
-            f.write(f"""
+            f.write(
+                f"""
 project = '{self.config.title}'
 html_theme = '{self.config.theme}'
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
-""")
+"""
+            )
 
         # Generate index.rst
         index_path = self.config.output_dir / "index.rst"

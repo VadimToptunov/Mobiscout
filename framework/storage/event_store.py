@@ -29,7 +29,8 @@ class EventStore:
     def _init_database(self):
         """Initialize database schema"""
         with self._get_connection() as conn:
-            conn.executescript("""
+            conn.executescript(
+                """
                                CREATE TABLE IF NOT EXISTS sessions
                                (
                                    session_id
@@ -176,7 +177,8 @@ class EventStore:
                                    session_id
                                )
                                    );
-                               """)
+                               """
+            )
 
     @contextmanager
     def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
@@ -301,13 +303,15 @@ class EventStore:
     def get_sessions(self) -> List[Dict[str, Any]]:
         """Get all sessions"""
         with self._get_connection() as conn:
-            rows = conn.execute("""
+            rows = conn.execute(
+                """
                                 SELECT s.*, COUNT(e.id) as event_count
                                 FROM sessions s
                                          LEFT JOIN events e ON s.session_id = e.session_id
                                 GROUP BY s.session_id
                                 ORDER BY s.start_time DESC
-                                """).fetchall()
+                                """
+            ).fetchall()
 
             return [dict(row) for row in rows]
 

@@ -1,1 +1,1 @@
-rootProject.name = "mobile-test-recorder-plugin"
+rootProject.name = "observe-plugin"

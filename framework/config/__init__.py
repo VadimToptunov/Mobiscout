@@ -1,5 +1,5 @@
 """
-Configuration package for the Mobile Test Recorder framework.
+Configuration package for the Observe framework.
 
 Centralized configuration management with environment variable support.
 """

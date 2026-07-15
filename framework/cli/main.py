@@ -1,5 +1,5 @@
 """
-Main CLI entry point for Mobile Test Recorder
+Main CLI entry point for Observe
 
 Simplified main module that imports command groups from separate modules.
 """
@@ -47,7 +47,7 @@ from framework.cli.visual_commands import visual
 @click.pass_context
 def cli(ctx):
     """
-    📱 Mobile Test Recorder
+    📱 Observe
 
     Intelligent Mobile Testing Platform - Observe, Analyze, Automate
     """
