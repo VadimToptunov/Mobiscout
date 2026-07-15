@@ -72,7 +72,7 @@ Mobile Test Recorder is a **next-generation intelligent mobile testing framework
 │  └────────────────────────────────────────────────────────────────┘ │
 │                                                                      │
 │  Language: Rust 1.75+                                                │
-│  Size: ~8,000 lines (90% of core logic)                             │
+│  Size: ~1,830 lines                             │
 │  Performance: 16x faster than Python                                 │
 └──────────────────────────────────────────────────────────────────────┘
                                 │
@@ -709,7 +709,7 @@ jobs:
       
       - name: Install Framework
         run: |
-          pip install mobile-test-recorder
+          pip install -e .
       
       - name: Run Tests
         run: |
@@ -824,10 +824,10 @@ jobs:
 
 ```bash
 # 1. Install Python package
-pip install mobile-test-recorder
+pip install -e .
 
 # 2. Install Rust core (optional, for 16x speedup)
-pip install mobile-test-recorder[rust]
+pip install -e ".[rust]"
 
 # 3. Setup Appium
 npm install -g appium

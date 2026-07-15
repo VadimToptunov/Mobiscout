@@ -156,8 +156,7 @@ single command.
 1. **Install CLI Backend**:
 
 ```bash
-pip install mobile-observe-test
-# or from source:
+# From source (PyPI release TBD — will publish as `mobile-observe-test-framework`):
 git clone https://github.com/VadimToptunov/mobile_test_recorder.git
 cd mobile_test_recorder
 pip install -e .
@@ -350,7 +349,7 @@ jobs:
       
       - name: Setup
         run: |
-          pip install mobile-test-recorder
+          pip install -e .
       
       - name: Run Tests
         run: |
@@ -573,8 +572,8 @@ refactor: Code refactoring
 |--------------------------|----------------------------|
 | **Total Lines**          | ~50,000                    |
 | **Python Code**          | 35,000 lines               |
-| **Rust Code**            | 8,000 lines                |
-| **Test Coverage**        | 85%+                       |
+| **Rust Code**            | 1,830 lines                |
+| **Test Coverage**        | ~33%                       |
 | **Platforms crawled live** | Android (adb + Appium), iOS (Appium/XCUITest) |
 | **Codegen targets**      | 8 (Python/Java/Kotlin/JS, imperative + BDD) |
 | **ML element typing**    | hybrid ML + heuristic (~88% model on synthetic) |
@@ -665,7 +664,7 @@ Contributions are welcome! Please read the [User Guide](USER_GUIDE.md) first.
     - Failure analyzer, selector discovery, element matcher
     - File updater, Git integration, orchestrator
 - ✅ **ML Element Classification** - Trained universal model
-    - Random Forest classifier with 90%+ accuracy
+    - Random Forest classifier, ~88% accuracy on synthetic data
     - Works on Android, iOS, Flutter, React Native
 - ✅ **Dashboard** - Full FastAPI web server
     - Test health tracking, healed selector approval

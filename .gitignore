@@ -165,3 +165,6 @@ ml_models/
 
 # Runtime ML update-check marker
 .observe_ml_check
+
+coverage.xml
+htmlcov/

@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.mobiletest"
-version = "0.1.0-SNAPSHOT"
+version = "0.5.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -21,7 +21,7 @@ repositories {
 dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:6.1.1")
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.2")
     testImplementation("org.mockito:mockito-core:5.23.0")
 
     intellijPlatform {
