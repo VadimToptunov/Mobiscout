@@ -511,5 +511,5 @@ mocker.record_response(
 ## Support
 
 - **Documentation**: See README.md
-- **Issues**: https://github.com/VadimToptunov/mobile_test_recorder/issues
+- **Issues**: https://github.com/VadimToptunov/Observe/issues
 - **Examples**: See `tests/test_mocking.py`

@@ -104,7 +104,7 @@ def info():
     click.echo("   • Dashboard & Analytics")
     click.echo("   • Rich CLI Interface")
     click.echo("\n📚 Documentation: See README.md")
-    click.echo("🐛 Issues: https://github.com/VadimToptunov/mobile_test_recorder/issues")
+    click.echo("🐛 Issues: https://github.com/VadimToptunov/Observe/issues")
 
 
 if __name__ == "__main__":

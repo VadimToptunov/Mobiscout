@@ -157,7 +157,7 @@ single command.
 
 ```bash
 # From source (for developers; end users just install the plugin — it bundles the engine, no Python needed):
-git clone https://github.com/VadimToptunov/mobile_test_recorder.git
+git clone https://github.com/VadimToptunov/Observe.git
 cd mobile_test_recorder
 pip install -e .
 ```
@@ -201,7 +201,7 @@ See [Plugin Documentation](jetbrains-plugin/README.md) and [Roadmap](JETBRAINS_P
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/VadimToptunov/mobile_test_recorder.git
+git clone https://github.com/VadimToptunov/Observe.git
 cd mobile_test_recorder
 
 # 2. Setup environment
@@ -630,7 +630,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Author:** Vadim Toptunov
 - **GitHub:** [@VadimToptunov](https://github.com/VadimToptunov)
-- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/mobile_test_recorder/issues)
+- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
 
 ---
 
