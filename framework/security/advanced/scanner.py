@@ -228,9 +228,9 @@ class AdvancedSecurityScanner:
                 {
                     "tool": {
                         "driver": {
-                            "name": "Mobile Test Recorder Security Scanner",
+                            "name": "Observe Security Scanner",
                             "version": "1.0.0",
-                            "informationUri": "https://github.com/example/mobile-test-recorder",
+                            "informationUri": "https://github.com/example/observe",
                             "rules": [],
                         }
                     },

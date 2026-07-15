@@ -192,7 +192,7 @@ def print_banner() -> None:
     banner = """
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
-    ║   📱 Mobile Test Recorder                                 ║
+    ║   📱 Observe                                             ║
     ║                                                           ║
     ║   Intelligent Mobile Testing Platform                    ║
     ║   Observe • Analyze • Automate                           ║

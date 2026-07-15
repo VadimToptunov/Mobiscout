@@ -1,7 +1,7 @@
 """
 Security Configuration and Best Practices
 
-Centralized security configuration for the Mobile Test Recorder framework.
+Centralized security configuration for the Observe framework.
 """
 
 import logging

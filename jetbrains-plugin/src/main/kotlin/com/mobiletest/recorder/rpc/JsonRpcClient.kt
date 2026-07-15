@@ -6,7 +6,7 @@ import java.io.*
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * JSON-RPC 2.0 client for mobile-test-recorder daemon communication.
+ * JSON-RPC 2.0 client for observe daemon communication.
  */
 class JsonRpcClient(
     private val process: Process

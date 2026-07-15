@@ -248,7 +248,7 @@ class APIAnalyzer:
 
     def export_har(self, output_path: Path):
         """Export API calls in HAR format"""
-        har = {"log": {"version": "1.2", "creator": {"name": "Mobile Test Recorder", "version": "1.0"}, "entries": []}}
+        har = {"log": {"version": "1.2", "creator": {"name": "Observe", "version": "1.0"}, "entries": []}}
 
         for call in self.api_calls:
             entry = {

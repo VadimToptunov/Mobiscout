@@ -8,7 +8,7 @@ import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.XmlSerializerUtil
 
 /**
- * Persistent settings for Mobile Test Recorder plugin.
+ * Persistent settings for Observe plugin.
  *
  * Settings are stored in IDE configuration and persist across restarts.
  */

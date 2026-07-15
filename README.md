@@ -1,4 +1,4 @@
-# Mobile Test Recorder 🦀 → JetBrains IDE Plugin
+# Observe 🦀 → JetBrains IDE Plugin
 
 > **Next-Generation Intelligent Mobile Testing Platform** - Now as a powerful JetBrains IDE plugin with interactive UI
 > control, smart selectors, and multi-language support
@@ -167,11 +167,11 @@ pip install -e .
 ```bash
 cd jetbrains-plugin
 ./gradlew buildPlugin
-# Install from: build/distributions/mobile-test-recorder-*.zip
+# Install from: build/distributions/observe-*.zip
 ```
 
 3. **Start Testing**:
-    - Open View → Tool Windows → Mobile Test Recorder
+    - Open View → Tool Windows → Observe
     - Click "Start Daemon"
     - Go to "Screen" tab
     - Click "Load Devices", select device
@@ -640,7 +640,7 @@ If you find this project useful, please consider giving it a star! ⭐
 
 ---
 
-**Built with ❤️ and 🦀 by the Mobile Test Recorder team**
+**Built with ❤️ and 🦀 by the Observe team**
 
 ---
 

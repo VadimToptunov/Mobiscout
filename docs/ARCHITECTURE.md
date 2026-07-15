@@ -1,4 +1,4 @@
-# Mobile Test Recorder - Architecture Overview
+# Observe - Architecture Overview
 
 **Version:** 2.0  
 **Date:** 2026-01-12  
@@ -23,7 +23,7 @@
 
 ## Executive Summary
 
-Mobile Test Recorder is a **next-generation intelligent mobile testing framework** that combines:
+Observe is a **next-generation intelligent mobile testing framework** that combines:
 
 - 🦀 **Rust Core** for 16x performance boost
 - 🤖 **Self-Learning ML** for universal element classification
@@ -894,7 +894,7 @@ observability:
 
 ## Conclusion
 
-Mobile Test Recorder is built on a **modern, scalable architecture** that balances:
+Observe is built on a **modern, scalable architecture** that balances:
 
 ✅ **Performance** (Rust core)  
 ✅ **Intelligence** (ML-powered)  

@@ -1,5 +1,5 @@
 """
-Custom Exception Hierarchy for Mobile Test Recorder
+Custom Exception Hierarchy for Observe
 
 STEP 7: Paid Modules Enhancement - Exception System Refactoring
 

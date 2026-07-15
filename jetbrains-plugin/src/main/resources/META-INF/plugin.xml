@@ -1,12 +1,12 @@
 <idea-plugin>
     <id>com.mobiletest.recorder</id>
-    <name>Mobile Test Recorder</name>
+    <name>Observe</name>
     <vendor email="support@mobile-observe.dev" url="https://github.com/VadimToptunov/mobile_test_recorder">
-        Mobile Test Recorder
+        Observe
     </vendor>
 
     <description><![CDATA[
-    <h1>Mobile Test Recorder - Intelligent Mobile Testing Platform</h1>
+    <h1>Observe - Intelligent Mobile Testing Platform</h1>
     
     <p>Point the IDE at a running app and get the artifacts a tester needs — a per-screen element
     inventory, the app's interaction graph, and runnable tests — into a new or existing framework,
@@ -37,7 +37,7 @@
     <h2>Quick Start:</h2>
     <ol>
         <li>Install <code>mobile-observe-test</code> CLI</li>
-        <li>Open View → Tool Windows → Mobile Test Recorder</li>
+        <li>Open View → Tool Windows → Observe</li>
         <li>Click "Start Daemon" button</li>
         <li>Select your device and start testing!</li>
     </ol>
@@ -49,11 +49,11 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Tool Window -->
-        <toolWindow id="Mobile Test Recorder" anchor="right"
+        <toolWindow id="Observe" anchor="right"
                     factoryClass="com.mobiletest.recorder.ui.MTRToolWindowFactory" icon="/icons/mtr-icon.svg"/>
 
         <!-- Settings -->
-        <applicationConfigurable id="com.mobiletest.recorder.settings" displayName="Mobile Test Recorder"
+        <applicationConfigurable id="com.mobiletest.recorder.settings" displayName="Observe"
                                  instance="com.mobiletest.recorder.settings.MTRSettingsConfigurable"/>
 
         <!-- Application Services -->
@@ -68,9 +68,9 @@
 
     <actions>
         <!-- Main Toolbar Actions -->
-        <group id="MTR.ToolbarActions" text="Mobile Test Recorder" popup="false">
+        <group id="MTR.ToolbarActions" text="Observe" popup="false">
             <action id="MTR.StartDaemon" class="com.mobiletest.recorder.actions.StartDaemonAction" text="Start Daemon"
-                    description="Start mobile-test-recorder daemon" icon="AllIcons.Actions.Execute"/>
+                    description="Start observe daemon" icon="AllIcons.Actions.Execute"/>
             <action id="MTR.StopDaemon" class="com.mobiletest.recorder.actions.StopDaemonAction" text="Stop Daemon"
                     description="Stop daemon" icon="AllIcons.Actions.Suspend"/>
             <separator/>

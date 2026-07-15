@@ -1,5 +1,5 @@
 """
-Utilities package for the Mobile Test Recorder framework.
+Utilities package for the Observe framework.
 
 This package provides common utilities used across the framework:
 - logger: Structured logging with Rich formatting

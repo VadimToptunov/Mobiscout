@@ -8,7 +8,7 @@ import com.mobiletest.recorder.rpc.JsonRpcNotification
 import java.io.File
 
 /**
- * Application-level service for managing the mobile-test-recorder daemon.
+ * Application-level service for managing the observe daemon.
  */
 @Service
 class MTRDaemonService {
