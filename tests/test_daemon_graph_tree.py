@@ -15,8 +15,8 @@ _SCREEN_XML = (
 
 @pytest.fixture(autouse=True)
 def _heuristic_only(monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
 
 
 def test_crawl_graph_returns_graph_dict():

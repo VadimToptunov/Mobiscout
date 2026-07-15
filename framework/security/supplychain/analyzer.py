@@ -242,7 +242,7 @@ class SupplyChainAnalyzer:
             "version": 1,
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
-                "tools": [{"name": "Observe Framework", "version": "1.0.0"}],
+                "tools": [{"name": "Mobiscout Framework", "version": "1.0.0"}],
             },
             "components": [
                 {

@@ -1,12 +1,12 @@
 """
-Configuration package for the Observe framework.
+Configuration package for the Mobiscout framework.
 
 Centralized configuration management with environment variable support.
 """
 
 from .config_manager import (
     ConfigManager,
-    ObserveConfig,
+    MobiscoutConfig,
     FrameworkConfig,
     DeviceConfig,
     MLConfig,
@@ -15,7 +15,7 @@ from .config_manager import (
 
 __all__ = [
     "ConfigManager",
-    "ObserveConfig",
+    "MobiscoutConfig",
     "FrameworkConfig",
     "DeviceConfig",
     "MLConfig",

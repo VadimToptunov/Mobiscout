@@ -15,7 +15,7 @@ from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
-from framework.config import ConfigManager, ObserveConfig
+from framework.config import ConfigManager, MobiscoutConfig
 
 console = Console()
 
@@ -31,16 +31,16 @@ def config() -> None:
 
 
 @config.command()
-@click.option("--path", "-p", type=Path, default=Path(".observe.yaml"), help="Config file path")
+@click.option("--path", "-p", type=Path, default=Path(".mobiscout.yaml"), help="Config file path")
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing config")
 def init(path: Path, force: bool) -> None:
     """
     Initialize default configuration file.
 
     Example:
-        observe config init
-        observe config init --path custom.yaml
-        observe config init --force
+        mobiscout config init
+        mobiscout config init --path custom.yaml
+        mobiscout config init --force
     """
     if path.exists() and not force:
         console.print(f"[yellow]⚠[/yellow] Config already exists: {path}")
@@ -71,8 +71,8 @@ def set(key: str, value: str, config: Optional[Path]) -> None:
     VALUE: New value
 
     Example:
-        observe config set framework.timeout 60
-        observe config set integrations.slack.webhook_url "https://..."
+        mobiscout config set framework.timeout 60
+        mobiscout config set integrations.slack.webhook_url "https://..."
     """
     manager = ConfigManager(config_path=config)
 
@@ -105,8 +105,8 @@ def get(key: str, config: Optional[Path]) -> None:
     KEY: Dot-notation key (e.g., framework.timeout)
 
     Example:
-        observe config get framework.timeout
-        observe config get ml.confidence_threshold
+        mobiscout config get framework.timeout
+        mobiscout config get ml.confidence_threshold
     """
     manager = ConfigManager(config_path=config)
 
@@ -127,9 +127,9 @@ def list_config(config: Optional[Path], format: str) -> None:
     List all configuration values.
 
     Example:
-        observe config list
-        observe config list --format yaml
-        observe config list --format json
+        mobiscout config list
+        mobiscout config list --format yaml
+        mobiscout config list --format json
     """
     manager = ConfigManager(config_path=config)
     config_data = manager.list_all()
@@ -182,7 +182,7 @@ def validate(config: Optional[Path]) -> None:
     - Integration settings
 
     Example:
-        observe config validate
+        mobiscout config validate
     """
     manager = ConfigManager(config_path=config)
     errors = manager.validate()
@@ -205,13 +205,13 @@ def show(config: Optional[Path]) -> None:
     Show configuration file content with syntax highlighting.
 
     Example:
-        observe config show
+        mobiscout config show
     """
     manager = ConfigManager(config_path=config)
 
     if not manager.config_path.exists():
         console.print(f"[yellow]⚠[/yellow] Config file not found: {manager.config_path}")
-        console.print("Run [cyan]observe config init[/cyan] to create one")
+        console.print("Run [cyan]mobiscout config init[/cyan] to create one")
         raise SystemExit(1)
 
     with open(manager.config_path, "r") as f:
@@ -235,7 +235,7 @@ def path(config: Optional[Path]) -> None:
     Show configuration file path.
 
     Example:
-        observe config path
+        mobiscout config path
     """
     manager = ConfigManager(config_path=config)
 
@@ -257,10 +257,10 @@ def reset(key: str, config: Optional[Path]) -> None:
     KEY: Dot-notation key (e.g., framework.timeout)
 
     Example:
-        observe config reset framework.timeout
+        mobiscout config reset framework.timeout
     """
     manager = ConfigManager(config_path=config)
-    default_config = ObserveConfig()
+    default_config = MobiscoutConfig()
 
     default_value = default_config.get(key)
 

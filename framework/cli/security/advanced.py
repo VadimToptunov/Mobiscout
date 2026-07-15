@@ -42,9 +42,9 @@ def secrets(source_path: Path, output: Optional[Path], format: str) -> None:
     Uses GitHub-level pattern detection with entropy analysis.
 
     Example:
-        observe security secrets ./src
-        observe security secrets ./project -o secrets_report.json
-        observe security secrets ./app --format sarif
+        mobiscout security secrets ./src
+        mobiscout security secrets ./project -o secrets_report.json
+        mobiscout security secrets ./app --format sarif
     """
     if not validate_path(source_path):
         raise SystemExit(1)
@@ -106,8 +106,8 @@ def pinning(app_path: Path, platform: str) -> None:
     Checks for proper SSL/TLS pinning configuration.
 
     Example:
-        observe security pinning app.apk --platform android
-        observe security pinning app.ipa --platform ios
+        mobiscout security pinning app.apk --platform android
+        mobiscout security pinning app.ipa --platform ios
     """
     if not validate_path(app_path):
         raise SystemExit(1)
@@ -144,8 +144,8 @@ def binary(binary_path: Path, platform: str) -> None:
     Checks for PIE, stack canaries, debuggable flags, etc.
 
     Example:
-        observe security binary app.apk --platform android
-        observe security binary app.ipa --platform ios
+        mobiscout security binary app.apk --platform android
+        mobiscout security binary app.ipa --platform ios
     """
     if not validate_path(binary_path):
         raise SystemExit(1)
@@ -205,8 +205,8 @@ def privacy(source_path: Path, regulation: str, output: Optional[Path]) -> None:
     Analyzes code for privacy-related issues.
 
     Example:
-        observe security privacy ./src --regulation gdpr
-        observe security privacy ./app -r all -o privacy_report.json
+        mobiscout security privacy ./src --regulation gdpr
+        mobiscout security privacy ./app -r all -o privacy_report.json
     """
     if not validate_path(source_path):
         raise SystemExit(1)
@@ -253,8 +253,8 @@ def rootcheck(source_path: Path, platform: str) -> None:
     Checks for proper detection mechanisms.
 
     Example:
-        observe security rootcheck ./src --platform android
-        observe security rootcheck ./app -p ios
+        mobiscout security rootcheck ./src --platform android
+        mobiscout security rootcheck ./app -p ios
     """
     if not validate_path(source_path):
         raise SystemExit(1)
@@ -292,8 +292,8 @@ def code(source_path: Path, language: str, output: Optional[Path]) -> None:
     Checks for common vulnerabilities like SQL injection, XSS, etc.
 
     Example:
-        observe security code ./src --language python
-        observe security code ./app -l all -o code_report.json
+        mobiscout security code ./src --language python
+        mobiscout security code ./app -l all -o code_report.json
     """
     if not validate_path(source_path):
         raise SystemExit(1)
@@ -361,8 +361,8 @@ def full(
     Combines all security checks into one comprehensive scan.
 
     Example:
-        observe security full app.apk -p android -n MyApp -o ./reports
-        observe security full app.ipa -p ios -n MyApp --format html
+        mobiscout security full app.apk -p android -n MyApp -o ./reports
+        mobiscout security full app.ipa -p ios -n MyApp --format html
     """
     if not validate_path(app_path):
         raise SystemExit(1)
@@ -463,7 +463,7 @@ def owasp() -> None:
     Display OWASP Mobile Top 10 2024 categories.
 
     Example:
-        observe security owasp
+        mobiscout security owasp
     """
     console.print(Panel.fit("OWASP Mobile Top 10 (2024)", style="bold cyan"))
 
@@ -490,4 +490,4 @@ def owasp() -> None:
 
     console.print(table)
 
-    console.print("\n[dim]Run 'observe security full' for comprehensive OWASP coverage[/dim]")
+    console.print("\n[dim]Run 'mobiscout security full' for comprehensive OWASP coverage[/dim]")

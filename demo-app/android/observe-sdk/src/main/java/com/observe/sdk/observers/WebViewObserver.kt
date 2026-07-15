@@ -1,4 +1,4 @@
-package com.observe.sdk.observers
+package com.mobiscout.sdk.observers
 
 import android.content.Context
 import android.os.Build
@@ -6,9 +6,9 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
-import com.observe.sdk.ObserveSDK
-import com.observe.sdk.events.Event
-import com.observe.sdk.events.EventBus
+import com.mobiscout.sdk.MobiscoutSDK
+import com.mobiscout.sdk.events.Event
+import com.mobiscout.sdk.events.EventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /**
- * Observes WebView interactions and DOM elements
+ * Mobiscouts WebView interactions and DOM elements
  * 
  * Captures:
  * - Page loads
@@ -27,20 +27,20 @@ import org.json.JSONObject
  * - Navigation events
  * - Element hierarchy (similar to native)
  */
-class WebViewObserver(
+class WebViewMobiscoutr(
     private val context: Context,
     private val eventBus: EventBus
 ) {
     
     companion object {
-        private const val TAG = "WebViewObserver"
-        private const val JS_INTERFACE_NAME = "ObserveSDK"
+        private const val TAG = "WebViewMobiscoutr"
+        private const val JS_INTERFACE_NAME = "MobiscoutSDK"
         
         // JavaScript injection for observing web interactions
         // Note: Using trimIndent() and string interpolation with ${} for proper variable substitution
         private val INJECTION_SCRIPT = """
             (function() {
-                console.log('[ObserveSDK] Injecting WebView observer...');
+                console.log('[MobiscoutSDK] Injecting WebView observer...');
                 
                 // Capture click events
                 document.addEventListener('click', function(e) {
@@ -68,7 +68,7 @@ class WebViewObserver(
                     try {
                         ${JS_INTERFACE_NAME}.onWebInteraction(JSON.stringify(data));
                     } catch(e) {
-                        console.error('[ObserveSDK] Error sending click event:', e);
+                        console.error('[MobiscoutSDK] Error sending click event:', e);
                     }
                 }, true);
                 
@@ -95,7 +95,7 @@ class WebViewObserver(
                         try {
                             ${JS_INTERFACE_NAME}.onWebInteraction(JSON.stringify(data));
                         } catch(e) {
-                            console.error('[ObserveSDK] Error sending input event:', e);
+                            console.error('[MobiscoutSDK] Error sending input event:', e);
                         }
                     }
                 }, true);
@@ -117,7 +117,7 @@ class WebViewObserver(
                     try {
                         ${JS_INTERFACE_NAME}.onWebInteraction(JSON.stringify(data));
                     } catch(e) {
-                        console.error('[ObserveSDK] Error sending submit event:', e);
+                        console.error('[MobiscoutSDK] Error sending submit event:', e);
                     }
                 }, true);
                 
@@ -307,7 +307,7 @@ class WebViewObserver(
                         var hierarchy = captureHierarchy();
                         ${JS_INTERFACE_NAME}.onPageLoad(window.location.href, JSON.stringify(hierarchy));
                     } catch(e) {
-                        console.error('[ObserveSDK] Error capturing hierarchy:', e);
+                        console.error('[MobiscoutSDK] Error capturing hierarchy:', e);
                     }
                 });
                 
@@ -317,11 +317,11 @@ class WebViewObserver(
                         var hierarchy = captureHierarchy();
                         ${JS_INTERFACE_NAME}.onPageLoad(window.location.href, JSON.stringify(hierarchy));
                     } catch(e) {
-                        console.error('[ObserveSDK] Error capturing hierarchy:', e);
+                        console.error('[MobiscoutSDK] Error capturing hierarchy:', e);
                     }
                 }
                 
-                console.log('[ObserveSDK] WebView observer injected successfully');
+                console.log('[MobiscoutSDK] WebView observer injected successfully');
             })();
         """.trimIndent()
     }
@@ -334,7 +334,7 @@ class WebViewObserver(
     
     fun start() {
         if (isStarted) {
-            Log.w(TAG, "WebViewObserver already started")
+            Log.w(TAG, "WebViewMobiscoutr already started")
             return
         }
         
@@ -343,7 +343,7 @@ class WebViewObserver(
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         
         isStarted = true
-        Log.d(TAG, "WebViewObserver started with new coroutine scope")
+        Log.d(TAG, "WebViewMobiscoutr started with new coroutine scope")
         
         // Enable WebView debugging (for Chrome DevTools)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -362,7 +362,7 @@ class WebViewObserver(
         scope?.cancel()
         scope = null  // Set to null so it can be recreated on next start()
         
-        Log.d(TAG, "WebViewObserver stopped and coroutine scope cancelled")
+        Log.d(TAG, "WebViewMobiscoutr stopped and coroutine scope cancelled")
     }
     
     /**
@@ -371,7 +371,7 @@ class WebViewObserver(
      */
     fun observeWebView(webView: WebView, screenName: String) {
         if (!isStarted) {
-            Log.w(TAG, "WebViewObserver not started, cannot observe WebView")
+            Log.w(TAG, "WebViewMobiscoutr not started, cannot mobiscout WebView")
             return
         }
         
@@ -405,7 +405,7 @@ class WebViewObserver(
                     
                     // Inject observer script
                     webView.evaluateJavascript(INJECTION_SCRIPT) { result ->
-                        Log.d(TAG, "Observer script injected, result: $result")
+                        Log.d(TAG, "Mobiscoutr script injected, result: $result")
                     }
                     
                     // Emit page load event
@@ -415,7 +415,7 @@ class WebViewObserver(
                             eventBus.publish(
                                 Event.WebViewEvent(
                                     timestamp = System.currentTimeMillis(),
-                                    sessionId = ObserveSDK.getSession()?.sessionId ?: "",
+                                    sessionId = MobiscoutSDK.getSession()?.sessionId ?: "",
                                     screen = screenName,
                                     url = it,
                                     eventType = "page_load",
@@ -599,7 +599,7 @@ class WebViewObserver(
                         eventBus.publish(
                             Event.WebViewEvent(
                                 timestamp = System.currentTimeMillis(),
-                                sessionId = ObserveSDK.getSession()?.sessionId ?: "",
+                                sessionId = MobiscoutSDK.getSession()?.sessionId ?: "",
                                 screen = screenName,
                                 url = "", // Will be set by WebViewClient
                                 eventType = eventType,
@@ -632,7 +632,7 @@ class WebViewObserver(
                         eventBus.publish(
                             Event.HierarchyEvent(
                                 timestamp = System.currentTimeMillis(),
-                                sessionId = ObserveSDK.getSession()?.sessionId ?: "",
+                                sessionId = MobiscoutSDK.getSession()?.sessionId ?: "",
                                 screen = "$screenName (WebView)",
                                 hierarchy = hierarchyJson
                             )

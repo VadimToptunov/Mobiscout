@@ -19,7 +19,7 @@ What's inside:
 |---|---|
 | [`inventory.md`](shop_demo/inventory.md) | Per-screen element inventory: semantic type + ranked locator per element, the flow map, the interaction-graph summary, and an accessibility section |
 | [`graph.mmd`](shop_demo/graph.mmd) / [`graph.json`](shop_demo/graph.json) | Interaction graph — Mermaid (renders on GitHub) and JSON (nodes, edges, metrics, dead-ends, hubs) |
-| **[`framework/`](shop_demo/framework)** | **A real framework layout**: `pages/` (Page Objects), `conftest.py` (shared Appium fixture), and `tests/` that drive the page objects (POM style) — what `observe crawl --style pom` produces |
+| **[`framework/`](shop_demo/framework)** | **A real framework layout**: `pages/` (Page Objects), `conftest.py` (shared Appium fixture), and `tests/` that drive the page objects (POM style) — what `mobiscout crawl --style pom` produces |
 | **[`bdd/`](shop_demo/bdd)** | **BDD**: Gherkin `.feature` files + step definitions, for Python (pytest-bdd) and JavaScript (Cucumber) |
 | [`flat/`](shop_demo/flat) | Standalone single-file suites in Python/Java/JS — the same IR across targets, for comparison (`--style flat`) |
 | [`api/`](shop_demo/api) | API contract tests generated from an OpenAPI-style spec |

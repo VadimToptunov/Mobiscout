@@ -238,7 +238,7 @@ class GitHubActionsGenerator:
                     "with": {"python-version": python_version},
                 },
                 {"name": "Install dependencies", "run": "pip install -r requirements.txt"},
-                {"name": "Upload app to BrowserStack", "run": "observe browserstack upload --app app-debug.apk"},
+                {"name": "Upload app to BrowserStack", "run": "mobiscout browserstack upload --app app-debug.apk"},
                 {
                     "name": "Run tests on BrowserStack",
                     "run": 'pytest tests/ --browserstack --device="${{ matrix.device }}" --junit-xml=reports/junit.xml',
@@ -295,7 +295,7 @@ class GitHubActionsGenerator:
                 },
                 {
                     "name": "Aggregate results",
-                    "run": "observe report generate --input all-results/ --output final-report.html",
+                    "run": "mobiscout report generate --input all-results/ --output final-report.html",
                 },
                 {
                     "name": "Upload final report",
@@ -305,7 +305,7 @@ class GitHubActionsGenerator:
                 {
                     "name": "Comment on PR",
                     "if": "github.event_name == 'pull_request'",
-                    "run": "observe ci comment --report final-report.html",
+                    "run": "mobiscout ci comment --report final-report.html",
                 },
             ],
         }

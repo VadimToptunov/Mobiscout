@@ -1,4 +1,4 @@
-# Observe - Architecture Overview
+# Mobiscout - Architecture Overview
 
 **Version:** 2.0  
 **Date:** 2026-01-12  
@@ -23,7 +23,7 @@
 
 ## Executive Summary
 
-Observe is a **next-generation intelligent mobile testing framework** that combines:
+Mobiscout is a **next-generation intelligent mobile testing framework** that combines:
 
 - 🦀 **Rust Core** for 16x performance boost
 - 🤖 **Self-Learning ML** for universal element classification
@@ -63,7 +63,7 @@ Observe is a **next-generation intelligent mobile testing framework** that combi
           └──────────────┴──────────────┴──────────────┘
                                 │
 ┌───────────────────────────────▼─────────────────────────────────────┐
-│                    Rust Core (observe_core)                          │
+│                    Rust Core (mobiscout_core)                          │
 │  ┌────────────────────────────────────────────────────────────────┐ │
 │  │ • AST Analysis (18x)      • Event Correlation (20x)           │ │
 │  │ • Business Logic (11x)    • File I/O Parallel (16x)           │ │
@@ -179,7 +179,7 @@ imperative + BDD), not language bindings — see the README.
 
 ## Core Components
 
-### 1. 🦀 Rust Core (`observe_core`)
+### 1. 🦀 Rust Core (`mobiscout_core`)
 
 **Purpose:** High-performance CPU-intensive operations
 
@@ -548,7 +548,7 @@ imperative + BDD), not language bindings — see the README.
 ```
 ┌─────────────┐
 │ User runs   │
-│ observe test│
+│ mobiscout test│
 └──────┬──────┘
        │
        v
@@ -713,12 +713,12 @@ jobs:
       
       - name: Run Tests
         run: |
-          observe parallel run tests/ --workers 4
+          mobiscout parallel run tests/ --workers 4
       
       - name: Auto-Heal Failures
         if: failure()
         run: |
-          observe heal auto --commit
+          mobiscout heal auto --commit
       
       - name: Upload Reports
         uses: actions/upload-artifact@v3
@@ -838,7 +838,7 @@ appium driver install xcuitest       # iOS
 ### Configuration
 
 ```yaml
-# observe.yaml
+# mobiscout.yaml
 framework:
   version: "2.0"
   log_level: INFO
@@ -894,7 +894,7 @@ observability:
 
 ## Conclusion
 
-Observe is built on a **modern, scalable architecture** that balances:
+Mobiscout is built on a **modern, scalable architecture** that balances:
 
 ✅ **Performance** (Rust core)  
 ✅ **Intelligence** (ML-powered)  

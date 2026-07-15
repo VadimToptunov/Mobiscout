@@ -1,7 +1,7 @@
 """
 Framework Extension - Integration with Existing Test Frameworks
 
-This module extends mobile-observe-test-framework with:
+This module extends mobile-mobiscout-test-framework with:
 1. Ability to enrich existing App Models
 2. Merge analysis results with existing test artifacts
 3. Non-destructive integration

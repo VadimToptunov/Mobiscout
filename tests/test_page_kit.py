@@ -12,8 +12,8 @@ from framework.crawler.to_codegen import build_test_model
 
 @pytest.fixture(autouse=True)
 def _heuristic_only(monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
 
 
 def _el(cls, text="", rid="", desc="", clk=True):

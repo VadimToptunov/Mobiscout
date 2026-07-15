@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how to integrate the `observe` CLI (from `mobile-observe-test-framework`) with external tools (IDE plugins, CI/CD, etc.).
+This document describes how to integrate the `mobiscout` CLI (from `mobile-mobiscout-test-framework`) with external tools (IDE plugins, CI/CD, etc.).
 
 ## Installation
 
@@ -15,7 +15,7 @@ pip install -e .
 ### Stdio Mode (Recommended for IDE plugins)
 
 ```bash
-observe daemon --stdio
+mobiscout daemon --stdio
 ```
 
 Communication via stdin/stdout using JSON-RPC 2.0 protocol.
@@ -23,7 +23,7 @@ Communication via stdin/stdout using JSON-RPC 2.0 protocol.
 ### TCP Mode (For debugging)
 
 ```bash
-observe daemon --tcp 33333
+mobiscout daemon --tcp 33333
 ```
 
 **Note**: TCP mode not yet implemented in Phase 0.
@@ -74,7 +74,7 @@ See [PROTOCOL.md](./PROTOCOL.md) for complete JSON-RPC 2.0 specification.
 
 ```kotlin
 // Kotlin example
-val process = ProcessBuilder("observe", "daemon", "--stdio")
+val process = ProcessBuilder("mobiscout", "daemon", "--stdio")
     .redirectError(ProcessBuilder.Redirect.to(File("daemon.log")))
     .start()
 
@@ -88,7 +88,7 @@ import subprocess
 import json
 
 process = subprocess.Popen(
-    ["observe", "daemon", "--stdio"],
+    ["mobiscout", "daemon", "--stdio"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -179,7 +179,7 @@ if (process.isAlive) {
 Daemon logs go to **stderr** (not stdout, to avoid interfering with JSON-RPC):
 
 ```bash
-observe daemon --stdio 2>daemon.log
+mobiscout daemon --stdio 2>daemon.log
 ```
 
 Log format:
@@ -196,7 +196,7 @@ Log format:
 Use `echo` and pipe:
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | observe daemon --stdio
+echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | mobiscout daemon --stdio
 ```
 
 ### Interactive Testing
@@ -205,7 +205,7 @@ Use `jq` for pretty output:
 
 ```bash
 echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | \
-  observe daemon --stdio 2>/dev/null | \
+  mobiscout daemon --stdio 2>/dev/null | \
   jq '.'
 ```
 
@@ -217,7 +217,7 @@ import json
 
 def call_rpc(method, params=None, request_id=1):
     process = subprocess.Popen(
-        ["observe", "daemon", "--stdio"],
+        ["mobiscout", "daemon", "--stdio"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         text=True
@@ -258,8 +258,8 @@ print(response)
 ### Daemon won't start
 
 ```bash
-# Check if observe is installed
-observe --version
+# Check if mobiscout is installed
+mobiscout --version
 
 # Check Python environment
 which python
@@ -303,9 +303,9 @@ See [JETBRAINS_PLUGIN_ROADMAP.md](../JETBRAINS_PLUGIN_ROADMAP.md) for complete r
 
 ## Support
 
-- **Documentation**: [GitHub Wiki](https://github.com/VadimToptunov/Observe/wiki)
-- **Issues**: [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/VadimToptunov/Observe/discussions)
+- **Documentation**: [GitHub Wiki](https://github.com/VadimToptunov/Mobiscout/wiki)
+- **Issues**: [GitHub Issues](https://github.com/VadimToptunov/Mobiscout/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/VadimToptunov/Mobiscout/discussions)
 
 ## Examples
 
@@ -319,7 +319,7 @@ import sys
 class MTRClient:
     def __init__(self):
         self.process = subprocess.Popen(
-            ["observe", "daemon", "--stdio"],
+            ["mobiscout", "daemon", "--stdio"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

@@ -1,14 +1,14 @@
 //
-//  NetworkObserver.swift
-//  ObserveSDK
+//  NetworkMobiscoutr.swift
+//  MobiscoutSDK
 //
-//  Observes network requests and responses
+//  Mobiscouts network requests and responses
 //
 
 import Foundation
 
-/// Observes network traffic via URLProtocol
-public class NetworkObserver {
+/// Mobiscouts network traffic via URLProtocol
+public class NetworkMobiscoutr {
     
     // MARK: - Properties
     
@@ -26,40 +26,40 @@ public class NetworkObserver {
     /// Start observing network traffic
     public func start() {
         guard !isObserving else {
-            print("[NetworkObserver] Already observing")
+            print("[NetworkMobiscoutr] Already observing")
             return
         }
         
-        print("[NetworkObserver] Starting...")
+        print("[NetworkMobiscoutr] Starting...")
         isObserving = true
         
         // Register custom URLProtocol
-        URLProtocol.registerClass(ObserveURLProtocol.self)
-        ObserveURLProtocol.eventBus = eventBus
+        URLProtocol.registerClass(MobiscoutURLProtocol.self)
+        MobiscoutURLProtocol.eventBus = eventBus
         
-        print("[NetworkObserver] Started")
+        print("[NetworkMobiscoutr] Started")
     }
     
     /// Stop observing
     public func stop() {
         guard isObserving else {
-            print("[NetworkObserver] Not observing")
+            print("[NetworkMobiscoutr] Not observing")
             return
         }
         
-        print("[NetworkObserver] Stopping...")
+        print("[NetworkMobiscoutr] Stopping...")
         isObserving = false
         
-        URLProtocol.unregisterClass(ObserveURLProtocol.self)
+        URLProtocol.unregisterClass(MobiscoutURLProtocol.self)
         
-        print("[NetworkObserver] Stopped")
+        print("[NetworkMobiscoutr] Stopped")
     }
 }
 
 // MARK: - Custom URLProtocol
 
 /// Custom URLProtocol to intercept network requests
-class ObserveURLProtocol: URLProtocol {
+class MobiscoutURLProtocol: URLProtocol {
     
     static var eventBus: EventBus?
     
@@ -71,7 +71,7 @@ class ObserveURLProtocol: URLProtocol {
     
     override class func canInit(with request: URLRequest) -> Bool {
         // Only intercept if we haven't already processed this request
-        guard URLProtocol.property(forKey: "ObserveURLProtocolHandled", in: request) == nil else {
+        guard URLProtocol.property(forKey: "MobiscoutURLProtocolHandled", in: request) == nil else {
             return false
         }
         return true
@@ -87,11 +87,11 @@ class ObserveURLProtocol: URLProtocol {
         }
         
         // Mark request as handled
-        URLProtocol.setProperty(true, forKey: "ObserveURLProtocolHandled", in: newRequest)
+        URLProtocol.setProperty(true, forKey: "MobiscoutURLProtocolHandled", in: newRequest)
         
         // Generate correlation ID
         let correlationId = UUID().uuidString
-        newRequest.setValue(correlationId, forHTTPHeaderField: "X-Observe-Correlation-ID")
+        newRequest.setValue(correlationId, forHTTPHeaderField: "X-Mobiscout-Correlation-ID")
         
         // Capture request start time
         requestStartTime = Date()
@@ -150,7 +150,7 @@ class ObserveURLProtocol: URLProtocol {
         guard let eventBus = Self.eventBus else { return }
         
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
-        let sessionId = ObserveSDK.shared.getSession()?.sessionId ?? "unknown"
+        let sessionId = MobiscoutSDK.shared.getSession()?.sessionId ?? "unknown"
         
         let duration: Int64?
         if let startTime = requestStartTime {
@@ -189,7 +189,7 @@ class ObserveURLProtocol: URLProtocol {
         )
         
         eventBus.publish(event)
-        print("[NetworkObserver] \(request.httpMethod ?? "GET") \(request.url?.path ?? "") → \(response?.statusCode ?? 0)")
+        print("[NetworkMobiscoutr] \(request.httpMethod ?? "GET") \(request.url?.path ?? "") → \(response?.statusCode ?? 0)")
     }
 }
 

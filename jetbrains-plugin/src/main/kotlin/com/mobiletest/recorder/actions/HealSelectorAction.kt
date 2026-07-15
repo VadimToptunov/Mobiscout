@@ -63,7 +63,7 @@ class HealSelectorAction : AnAction() {
 
                     // Run healing suggestions via CLI
                     val process = ProcessBuilder(
-                        "observe", "heal", "suggest",
+                        "mobiscout", "heal", "suggest",
                         "--file", filePath,
                         "--line", lineNumber.toString(),
                         "--format", "json"
@@ -224,7 +224,7 @@ class HealSelectorAction : AnAction() {
 
     private fun showNotification(project: Project, title: String, content: String, type: NotificationType) {
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Observe Framework")
+            .getNotificationGroup("Mobiscout Framework")
             .createNotification(title, content, type)
             .notify(project)
     }

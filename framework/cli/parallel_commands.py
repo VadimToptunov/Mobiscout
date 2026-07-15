@@ -175,7 +175,7 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
     console.print(table)
 
     console.print("\n[yellow]Note:[/yellow] Multi-device execution is a work in progress.")
-    console.print("For now, use [cyan]observe parallel run[/cyan] for parallel execution on single device.")
+    console.print("For now, use [cyan]mobiscout parallel run[/cyan] for parallel execution on single device.")
 
 
 @parallel.command()

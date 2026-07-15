@@ -1,4 +1,4 @@
-package com.observe.sdk.selectors
+package com.mobiscout.sdk.selectors
 
 import android.view.View
 import android.view.ViewGroup

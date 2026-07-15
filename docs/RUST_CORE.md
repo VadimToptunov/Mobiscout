@@ -1,4 +1,4 @@
-# Rust Core - High-Performance Engine for Observe
+# Rust Core - High-Performance Engine for Mobiscout
 
 > Hybrid architecture: Rust core for performance + Python for ML/UX
 
@@ -53,7 +53,7 @@ ecosystem.
 **Python Interface:**
 
 ```python
-from observe_core import RustAstAnalyzer
+from mobiscout_core import RustAstAnalyzer
 
 analyzer = RustAstAnalyzer()
 results = analyzer.analyze_directory("./src")  # 100x faster!
@@ -78,7 +78,7 @@ results = analyzer.analyze_directory("./src")  # 100x faster!
 **Python Interface:**
 
 ```python
-from observe_core import RustCorrelator
+from mobiscout_core import RustCorrelator
 
 correlator = RustCorrelator()
 result = correlator.correlate_events(ui_events, api_events)
@@ -205,7 +205,7 @@ mobile_test_recorder/
    use pyo3::prelude::*;
 
    #[pymodule]
-   fn observe_core(_py: Python, m: &PyModule) -> PyResult<()> {
+   fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
        m.add_class::<RustAstAnalyzer>()?;
        m.add_class::<RustCorrelator>()?;
        Ok(())
@@ -277,7 +277,7 @@ mobile_test_recorder/
    ```python
    # framework/analyzers/ast_analyzer.py
    try:
-       from observe_core import RustAstAnalyzer as _RustImpl
+       from mobiscout_core import RustAstAnalyzer as _RustImpl
        USE_RUST = True
    except ImportError:
        USE_RUST = False
@@ -385,7 +385,7 @@ Memory Usage:
 ```python
 # Auto-fallback if Rust not available
 try:
-    from observe_core import RustAstAnalyzer
+    from mobiscout_core import RustAstAnalyzer
     RUST_AVAILABLE = True
 except ImportError:
     RUST_AVAILABLE = False

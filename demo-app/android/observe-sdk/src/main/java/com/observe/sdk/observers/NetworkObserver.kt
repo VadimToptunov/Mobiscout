@@ -1,11 +1,11 @@
-package com.observe.sdk.observers
+package com.mobiscout.sdk.observers
 
 import android.util.Log
-import com.observe.sdk.core.ObserveConfig
-import com.observe.sdk.events.Event
-import com.observe.sdk.events.EventBus
-import com.observe.sdk.security.SSLKeyCapture
-import com.observe.sdk.security.bypassCertificatePinning
+import com.mobiscout.sdk.core.MobiscoutConfig
+import com.mobiscout.sdk.events.Event
+import com.mobiscout.sdk.events.EventBus
+import com.mobiscout.sdk.security.SSLKeyCapture
+import com.mobiscout.sdk.security.bypassCertificatePinning
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,7 +26,7 @@ import java.util.UUID
  * - Tracks timing information
  * - Emits network events to EventBus
  */
-class NetworkObserver(
+class NetworkMobiscoutr(
     private val eventBus: EventBus
 ) : Interceptor {
     
@@ -35,14 +35,14 @@ class NetworkObserver(
     private var isEnabled = true
     
     fun start() {
-        Log.d(TAG, "NetworkObserver started")
+        Log.d(TAG, "NetworkMobiscoutr started")
         // Create new coroutine scope for this start/stop cycle
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         isEnabled = true
     }
     
     fun stop() {
-        Log.d(TAG, "NetworkObserver stopped")
+        Log.d(TAG, "NetworkMobiscoutr stopped")
         isEnabled = false
         
         // Cancel the coroutine scope to prevent memory leaks
@@ -196,19 +196,19 @@ class NetworkObserver(
     }
     
     companion object {
-        private const val TAG = "NetworkObserver"
+        private const val TAG = "NetworkMobiscoutr"
         
         /**
-         * Create OkHttp client with NetworkObserver
+         * Create OkHttp client with NetworkMobiscoutr
          * 
          * @param eventBus Event bus for publishing network events
-         * @param config Observe configuration (optional, for SSL key capture)
+         * @param config Mobiscout configuration (optional, for SSL key capture)
          */
         fun createClient(
             eventBus: EventBus,
-            config: ObserveConfig? = null
+            config: MobiscoutConfig? = null
         ): okhttp3.OkHttpClient {
-            val observer = NetworkObserver(eventBus)
+            val observer = NetworkMobiscoutr(eventBus)
             observer.start()
             
             val builder = okhttp3.OkHttpClient.Builder()

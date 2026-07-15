@@ -1,6 +1,6 @@
 //
 //  WebViewJavaScript.swift
-//  ObserveSDK
+//  MobiscoutSDK
 //
 //  Enhanced JavaScript injection for WebView observation
 //  with multiple selector strategies and uniqueness validation
@@ -34,7 +34,7 @@ public struct WebViewJavaScript {
                     return document.querySelectorAll(selector).length === 1;
                 }
             } catch (e) {
-                console.warn('[ObserveSDK] Selector uniqueness check failed for', selector, e);
+                console.warn('[MobiscoutSDK] Selector uniqueness check failed for', selector, e);
             }
             return false;
         }
@@ -301,7 +301,7 @@ public struct WebViewJavaScript {
                     data: data
                 });
             } catch(e) {
-                console.error('[ObserveSDK] Error sending click event:', e);
+                console.error('[MobiscoutSDK] Error sending click event:', e);
             }
         }, true);
         
@@ -332,7 +332,7 @@ public struct WebViewJavaScript {
                         data: data
                     });
                 } catch(e) {
-                    console.error('[ObserveSDK] Error sending input event:', e);
+                    console.error('[MobiscoutSDK] Error sending input event:', e);
                 }
             }
         }, true);
@@ -363,7 +363,7 @@ public struct WebViewJavaScript {
                         data: data
                     });
                 } catch(e) {
-                    console.error('[ObserveSDK] Error sending submit event:', e);
+                    console.error('[MobiscoutSDK] Error sending submit event:', e);
                 }
             }
         }, true);
@@ -377,7 +377,7 @@ public struct WebViewJavaScript {
                 hierarchy: JSON.stringify(hierarchy)
             });
         } catch(e) {
-            console.error('[ObserveSDK] Error capturing initial hierarchy:', e);
+            console.error('[MobiscoutSDK] Error capturing initial hierarchy:', e);
         }
     })();
     """

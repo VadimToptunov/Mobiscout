@@ -1,4 +1,4 @@
-package com.observe.sdk.observers
+package com.mobiscout.sdk.observers
 
 import android.app.Activity
 import android.view.View
@@ -6,8 +6,8 @@ import android.view.ViewGroup
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.getAllSemanticsNodes
-import com.observe.sdk.events.UIHierarchyEvent
-import com.observe.sdk.events.UIElementInfo
+import com.mobiscout.sdk.events.UIHierarchyEvent
+import com.mobiscout.sdk.events.UIElementInfo
 
 /**
  * Collects full UI hierarchy for analysis

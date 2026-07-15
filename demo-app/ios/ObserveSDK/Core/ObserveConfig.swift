@@ -1,14 +1,14 @@
 //
-//  ObserveConfig.swift
-//  ObserveSDK
+//  MobiscoutConfig.swift
+//  MobiscoutSDK
 //
-//  Configuration for Observe SDK
+//  Configuration for Mobiscout SDK
 //
 
 import Foundation
 
-/// Configuration for ObserveSDK
-public struct ObserveConfig {
+/// Configuration for MobiscoutSDK
+public struct MobiscoutConfig {
     
     /// Enable/disable SDK
     public let enabled: Bool
@@ -69,8 +69,8 @@ public struct ObserveConfig {
     // MARK: - Presets
     
     /// Development configuration (high detail, frequent exports)
-    public static func development(appVersion: String = "dev") -> ObserveConfig {
-        return ObserveConfig(
+    public static func development(appVersion: String = "dev") -> MobiscoutConfig {
+        return MobiscoutConfig(
             enabled: true,
             autoStart: true,
             appVersion: appVersion,
@@ -85,8 +85,8 @@ public struct ObserveConfig {
     }
     
     /// Production configuration (SDK disabled)
-    public static func production() -> ObserveConfig {
-        return ObserveConfig(
+    public static func production() -> MobiscoutConfig {
+        return MobiscoutConfig(
             enabled: false,
             autoStart: false,
             appVersion: "prod",
@@ -101,8 +101,8 @@ public struct ObserveConfig {
     }
     
     /// Test configuration (SDK disabled, for automation)
-    public static func test() -> ObserveConfig {
-        return ObserveConfig(
+    public static func test() -> MobiscoutConfig {
+        return MobiscoutConfig(
             enabled: false,
             autoStart: false,
             appVersion: "test",

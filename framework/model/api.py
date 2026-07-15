@@ -20,7 +20,7 @@ class APICall(BaseModel):
     endpoint: str = Field(..., description="API endpoint path")
     method: str = Field(..., description="HTTP method (GET, POST, PUT, DELETE, PATCH)")
     request_schema: Dict[str, Any] = Field(default_factory=dict, description="Request/Response schema definition")
-    responses: List[Dict[str, Any]] = Field(default_factory=list, description="Observed responses from API calls")
+    responses: List[Dict[str, Any]] = Field(default_factory=list, description="Mobiscoutd responses from API calls")
     triggers_state_change: Optional[str] = Field(None, description="State machine event this API triggers")
 
     # Pydantic v2 configuration

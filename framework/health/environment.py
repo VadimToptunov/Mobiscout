@@ -1,7 +1,7 @@
 """
 Environment detection — is this machine ready to automate, and what's missing?
 
-The IDE plugin (and `observe`) needs to know, before offering to crawl: is Appium
+The IDE plugin (and `mobiscout`) needs to know, before offering to crawl: is Appium
 installed, which drivers, is the Android SDK (adb) there, Xcode/simctl for iOS,
 a JDK for Appium? This probes the toolchain and reports versions + copy-paste
 install hints for whatever is missing — the Phase-4 "Environment Intelligence"

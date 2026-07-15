@@ -401,5 +401,5 @@ Full interactive documentation available at:
 
 ---
 
-**Built for Mobile Observe & Test Framework**   
+**Built for Mobile Mobiscout & Test Framework**   
 **Simulating Revolut/Wise experience** 

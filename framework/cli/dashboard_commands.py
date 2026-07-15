@@ -97,7 +97,7 @@ def import_results(junit_path: str, repo: str) -> None:
             imported += 1
 
         print_success(f"✅ Imported {imported} test results")
-        print_info("View results: observe dashboard start")
+        print_info("View results: mobiscout dashboard start")
 
     except Exception as e:
         print_error(f"Failed to import results: {e}")
@@ -116,7 +116,7 @@ def stats(repo: str, days: int) -> None:
 
     if not db_path.exists():
         print_error("No dashboard database found. Import test results first:")
-        print_info("  observe dashboard import-results --junit-xml results.xml")
+        print_info("  mobiscout dashboard import-results --junit-xml results.xml")
         raise click.Abort()
 
     try:

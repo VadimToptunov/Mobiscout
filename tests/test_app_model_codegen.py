@@ -1,6 +1,6 @@
 """
 Tests for the AppModel -> codegen path: the pydantic app model adapter and the
-`observe generate tests` CLI command that wires codegen into the CLI.
+`mobiscout generate tests` CLI command that wires codegen into the CLI.
 """
 
 import py_compile

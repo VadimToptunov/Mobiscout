@@ -21,7 +21,7 @@ from framework.notifications.notifiers import (
 from framework.reporting.junit_parser import JUnitParser
 
 # Configuration file path
-CONFIG_FILE = Path.home() / ".observe" / "config.json"
+CONFIG_FILE = Path.home() / ".mobiscout" / "config.json"
 
 
 def load_config() -> Dict[str, Any]:
@@ -89,12 +89,12 @@ def configure(
 
     if updated:
         save_config(cfg)
-        print_info("\nConfiguration saved. Test it with: observe notify test")
+        print_info("\nConfiguration saved. Test it with: mobiscout notify test")
     else:
         print_error("No configuration provided")
         print_info("\nUsage examples:")
-        print_info("  observe notify configure --slack-webhook https://hooks.slack.com/...")
-        print_info("  observe notify configure --teams-webhook https://outlook.office.com/webhook/...")
+        print_info("  mobiscout notify configure --slack-webhook https://hooks.slack.com/...")
+        print_info("  mobiscout notify configure --teams-webhook https://outlook.office.com/webhook/...")
         raise click.Abort()
 
 
@@ -142,7 +142,7 @@ def test(channel: str) -> None:
 
     if not added_channels:
         print_error(f"No {channel} notification configured")
-        print_info("\nConfigure first: observe notify configure --help")
+        print_info("\nConfigure first: mobiscout notify configure --help")
         raise click.Abort()
 
     # Send test notification
@@ -159,7 +159,7 @@ def test(channel: str) -> None:
 
     print_info(f"\nSending test notification to: {', '.join(added_channels)}")
 
-    results = manager.send_all(test_summary, "🧪 Test Notification from Mobile Observe")
+    results = manager.send_all(test_summary, "🧪 Test Notification from Mobile Mobiscout")
 
     # Display results
     print_info("\n📊 Results:")
@@ -259,7 +259,7 @@ def send(
 
     if not added_channels:
         print_error(f"No {channel} notification configured")
-        print_info("\nConfigure first: observe notify configure --help")
+        print_info("\nConfigure first: mobiscout notify configure --help")
         raise click.Abort()
 
     # Send notifications
@@ -354,7 +354,7 @@ def list_channels() -> None:
             print_info(f"   {info}")
     else:
         print_info("No notification channels configured")
-        print_info("\nConfigure channels: observe notify configure --help")
+        print_info("\nConfigure channels: mobiscout notify configure --help")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 //
-//  ObserveSDK.swift
-//  ObserveSDK
+//  MobiscoutSDK.swift
+//  MobiscoutSDK
 //
-//  Main entry point for iOS Observe SDK
+//  Main entry point for iOS Mobiscout SDK
 //
 
 import Foundation
@@ -11,11 +11,11 @@ import SwiftUI
 import WebKit
 
 /// Main SDK class for observing app behavior
-public class ObserveSDK {
+public class MobiscoutSDK {
     
     // MARK: - Singleton
     
-    public static let shared = ObserveSDK()
+    public static let shared = MobiscoutSDK()
     
     private init() {}
     
@@ -25,27 +25,27 @@ public class ObserveSDK {
     private var isStarted = false
     
     private var application: UIApplication?
-    private var config: ObserveConfig?
-    private var session: ObserveSession?
+    private var config: MobiscoutConfig?
+    private var session: MobiscoutSession?
     
     private var eventBus: EventBus?
     private var eventExporter: EventExporter?
     
-    private var uiObserver: UIObserver?
-    private var navigationObserver: NavigationObserver?
-    private var networkObserver: NetworkObserver?
+    private var uiMobiscoutr: UIMobiscoutr?
+    private var navigationMobiscoutr: NavigationMobiscoutr?
+    private var networkMobiscoutr: NetworkMobiscoutr?
     private var hierarchyCollector: HierarchyCollector?
-    private var webViewObserver: WebViewObserver?
+    private var webViewMobiscoutr: WebViewMobiscoutr?
     
     // MARK: - Public API
     
-    /// Initialize the Observe SDK
+    /// Initialize the Mobiscout SDK
     /// - Parameters:
     ///   - application: UIApplication instance
     ///   - config: Configuration for the SDK
-    public func initialize(application: UIApplication, config: ObserveConfig) {
+    public func initialize(application: UIApplication, config: MobiscoutConfig) {
         guard !isInitializedFlag else {
-            print("[ObserveSDK] Already initialized")
+            print("[MobiscoutSDK] Already initialized")
             return
         }
         
@@ -56,14 +56,14 @@ public class ObserveSDK {
         isInitializedFlag = true
         
         guard config.enabled else {
-            print("[ObserveSDK] Disabled by config (initialized but inactive)")
+            print("[MobiscoutSDK] Disabled by config (initialized but inactive)")
             return
         }
         
-        print("[ObserveSDK] Initializing...")
+        print("[MobiscoutSDK] Initializing...")
         
         // Create session
-        session = ObserveSession.create()
+        session = MobiscoutSession.create()
         
         // Initialize components
         eventBus = EventBus()
@@ -74,11 +74,11 @@ public class ObserveSDK {
         ))
         
         // Initialize observers
-        uiObserver = UIObserver(eventBus: eventBus!)
-        navigationObserver = NavigationObserver(eventBus: eventBus!)
-        networkObserver = NetworkObserver(eventBus: eventBus!)
+        uiMobiscoutr = UIMobiscoutr(eventBus: eventBus!)
+        navigationMobiscoutr = NavigationMobiscoutr(eventBus: eventBus!)
+        networkMobiscoutr = NetworkMobiscoutr(eventBus: eventBus!)
         hierarchyCollector = HierarchyCollector(eventBus: eventBus!)
-        webViewObserver = WebViewObserver(eventBus: eventBus!)
+        webViewMobiscoutr = WebViewMobiscoutr(eventBus: eventBus!)
         
         // Subscribe to events
         subscribeToEvents()
@@ -88,63 +88,63 @@ public class ObserveSDK {
             start()
         }
         
-        print("[ObserveSDK] Initialized successfully. Session: \(session?.sessionId ?? "unknown")")
+        print("[MobiscoutSDK] Initialized successfully. Session: \(session?.sessionId ?? "unknown")")
     }
     
     /// Start observing
     public func start() {
         guard isInitializedFlag else {
-            print("[ObserveSDK] Cannot start - not initialized")
+            print("[MobiscoutSDK] Cannot start - not initialized")
             return
         }
         
         guard !isStarted else {
-            print("[ObserveSDK] Already started")
+            print("[MobiscoutSDK] Already started")
             return
         }
         
         guard config?.enabled == true else {
-            print("[ObserveSDK] Cannot start - disabled by config")
+            print("[MobiscoutSDK] Cannot start - disabled by config")
             return
         }
         
-        print("[ObserveSDK] Starting observation...")
+        print("[MobiscoutSDK] Starting observation...")
         
         isStarted = true
         
         // Start components
         eventExporter?.start()
-        uiObserver?.start()
-        navigationObserver?.start()
-        networkObserver?.start()
+        uiMobiscoutr?.start()
+        navigationMobiscoutr?.start()
+        networkMobiscoutr?.start()
         hierarchyCollector?.start()
-        webViewObserver?.start()
+        webViewMobiscoutr?.start()
         
-        print("[ObserveSDK] Started")
+        print("[MobiscoutSDK] Started")
     }
     
     /// Stop observing
     public func stop() {
         guard isStarted else {
-            print("[ObserveSDK] Not started")
+            print("[MobiscoutSDK] Not started")
             return
         }
         
-        print("[ObserveSDK] Stopping...")
+        print("[MobiscoutSDK] Stopping...")
         
         // Stop observers first
-        uiObserver?.stop()
-        navigationObserver?.stop()
-        networkObserver?.stop()
+        uiMobiscoutr?.stop()
+        navigationMobiscoutr?.stop()
+        networkMobiscoutr?.stop()
         hierarchyCollector?.stop()
-        webViewObserver?.stop()
+        webViewMobiscoutr?.stop()
         
         // Stop exporter (will flush remaining events)
         eventExporter?.stop()
         
         isStarted = false
         
-        print("[ObserveSDK] Stopped")
+        print("[MobiscoutSDK] Stopped")
     }
     
     /// Shutdown SDK completely
@@ -152,11 +152,11 @@ public class ObserveSDK {
         stop()
         
         // Clear all components
-        uiObserver = nil
-        navigationObserver = nil
-        networkObserver = nil
+        uiMobiscoutr = nil
+        navigationMobiscoutr = nil
+        networkMobiscoutr = nil
         hierarchyCollector = nil
-        webViewObserver = nil
+        webViewMobiscoutr = nil
         eventExporter = nil
         eventBus = nil
         
@@ -166,7 +166,7 @@ public class ObserveSDK {
         
         isInitializedFlag = false
         
-        print("[ObserveSDK] Shutdown complete")
+        print("[MobiscoutSDK] Shutdown complete")
     }
     
     // MARK: - Getters
@@ -179,24 +179,24 @@ public class ObserveSDK {
         return isStarted
     }
     
-    public func getSession() -> ObserveSession? {
+    public func getSession() -> MobiscoutSession? {
         return session
     }
     
-    public func getConfig() -> ObserveConfig? {
+    public func getConfig() -> MobiscoutConfig? {
         return config
     }
     
-    public func getNetworkObserver() -> NetworkObserver? {
-        return networkObserver
+    public func getNetworkMobiscoutr() -> NetworkMobiscoutr? {
+        return networkMobiscoutr
     }
     
     public func getHierarchyCollector() -> HierarchyCollector? {
         return hierarchyCollector
     }
     
-    internal func getUIObserver() -> UIObserver? {
-        return uiObserver
+    internal func getUIMobiscoutr() -> UIMobiscoutr? {
+        return uiMobiscoutr
     }
     
     // MARK: - WebView Observation
@@ -204,20 +204,20 @@ public class ObserveSDK {
     /// Register a WKWebView for observation
     /// Call this when a WKWebView is displayed on screen
     /// - Parameters:
-    ///   - webView: The WKWebView instance to observe
+    ///   - webView: The WKWebView instance to mobiscout
     ///   - screenName: Name of the screen containing the WebView
     public func observeWebView(_ webView: WKWebView, screenName: String) {
         guard isInitializedFlag else {
-            print("[ObserveSDK] Cannot observe WebView - not initialized")
+            print("[MobiscoutSDK] Cannot mobiscout WebView - not initialized")
             return
         }
         
         guard config?.enabled == true else {
-            print("[ObserveSDK] Cannot observe WebView - disabled by config")
+            print("[MobiscoutSDK] Cannot mobiscout WebView - disabled by config")
             return
         }
         
-        webViewObserver?.observe(webView: webView, screenName: screenName)
+        webViewMobiscoutr?.mobiscout(webView: webView, screenName: screenName)
     }
     
     /// Stop observing a WKWebView
@@ -231,7 +231,7 @@ public class ObserveSDK {
     public func stopObservingWebView(_ webView: WKWebView) {
         // NO guard here - cleanup must always proceed to prevent resource leaks
         // Even if SDK is stopped, WebViews may still be deallocated and need cleanup
-        webViewObserver?.stopObserving(webView: webView)
+        webViewMobiscoutr?.stopObserving(webView: webView)
     }
     
     // MARK: - Private Methods

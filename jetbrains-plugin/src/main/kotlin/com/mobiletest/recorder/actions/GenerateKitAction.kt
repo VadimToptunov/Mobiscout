@@ -28,7 +28,7 @@ class GenerateKitAction : AnAction() {
 
         val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
         if (daemonService.getClient() == null && !daemonService.start()) {
-            Messages.showErrorDialog(project, "Could not start the observe daemon. Is the CLI installed?", "Error")
+            Messages.showErrorDialog(project, "Could not start the mobiscout daemon. Is the CLI installed?", "Error")
             return
         }
 
@@ -65,7 +65,7 @@ class GenerateKitAction : AnAction() {
 
     private fun notify(project: com.intellij.openapi.project.Project, title: String, content: String, type: NotificationType) {
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Observe Framework")
+            .getNotificationGroup("Mobiscout Framework")
             .createNotification(title, content, type)
             .notify(project)
     }

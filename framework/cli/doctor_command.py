@@ -31,9 +31,9 @@ def doctor(verbose: bool, export: Optional[Path], fix: bool) -> None:
     - Performance
 
     Example:
-        observe doctor
-        observe doctor --verbose
-        observe doctor --export health.json
+        mobiscout doctor
+        mobiscout doctor --verbose
+        mobiscout doctor --export health.json
     """
     console.print("\n[bold cyan]🏥 Running System Health Check...[/bold cyan]\n")
 

@@ -144,7 +144,7 @@ class GitLabCIGenerator:
         return {
             "stage": "report",
             "dependencies": test_job_names,  # Dynamic dependencies based on actual test jobs
-            "script": ["observe report generate --input reports/ --output final-report.html"],
+            "script": ["mobiscout report generate --input reports/ --output final-report.html"],
             "artifacts": {"paths": ["final-report.html"], "expose_as": "Test Report"},
             "when": "always",
         }

@@ -204,7 +204,7 @@ class StructuredLogger:
     """
 
     def __init__(self, log_path: Optional[Path] = None):
-        self.log_path = log_path or Path("logs/observe.json")
+        self.log_path = log_path or Path("logs/mobiscout.json")
         self.context: Dict[str, Any] = {}
 
     def add_context(self, **kwargs: Any) -> None:

@@ -3,9 +3,9 @@ requires = ["setuptools>=65.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "observe"
+name = "mobiscout"
 version = "0.5.0"
-description = "Intelligent Mobile Testing Platform - Observe, Analyze, Automate"
+description = "Intelligent Mobile Testing Platform - Scout, Analyze, Automate"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "MIT" }
@@ -55,7 +55,7 @@ backend = [
 ]
 
 [project.scripts]
-observe = "framework.cli.main:cli"
+mobiscout = "framework.cli.main:cli"
 
 [project.urls]
 Homepage = "https://github.com/vadimtoptunov/mobile-test-recorder"

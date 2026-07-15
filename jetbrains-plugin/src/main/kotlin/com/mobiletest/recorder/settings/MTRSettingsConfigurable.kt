@@ -14,7 +14,7 @@ import java.awt.FlowLayout
 import javax.swing.*
 
 /**
- * Settings UI for Observe plugin.
+ * Settings UI for Mobiscout plugin.
  *
  * Provides comprehensive configuration options organized into sections:
  * - Project Configuration
@@ -75,7 +75,7 @@ class MTRSettingsConfigurable : Configurable {
 
     private var mainPanel: JPanel? = null
 
-    override fun getDisplayName(): String = "Observe"
+    override fun getDisplayName(): String = "Mobiscout"
 
     override fun createComponent(): JComponent {
         setupBrowseButtons()

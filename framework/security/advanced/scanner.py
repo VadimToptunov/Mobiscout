@@ -228,9 +228,9 @@ class AdvancedSecurityScanner:
                 {
                     "tool": {
                         "driver": {
-                            "name": "Observe Security Scanner",
+                            "name": "Mobiscout Security Scanner",
                             "version": "1.0.0",
-                            "informationUri": "https://github.com/example/observe",
+                            "informationUri": "https://github.com/example/mobiscout",
                             "rules": [],
                         }
                     },

@@ -11,8 +11,8 @@ from tests.test_crawler import APP, FakeDriver
 
 @pytest.fixture(autouse=True)
 def _heuristic_only(monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
 
 
 def test_run_kit_writes_full_kit(tmp_path):

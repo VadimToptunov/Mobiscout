@@ -1,6 +1,6 @@
 # Demo FinTech Application
 
-Simplified fintech application to demonstrate Mobile Observe & Test Framework capabilities.
+Simplified fintech application to demonstrate Mobile Mobiscout & Test Framework capabilities.
 
 ---
 
@@ -46,7 +46,7 @@ Simplified fintech application to demonstrate Mobile Observe & Test Framework ca
 - **Kotlin** - Primary language
 - **Jetpack Compose** - Modern UI
 - **Navigation Component** - Navigation
-- **OkHttp** - Network layer (with Observe SDK interceptor)
+- **OkHttp** - Network layer (with Mobiscout SDK interceptor)
 
 **iOS:**
 
@@ -60,7 +60,7 @@ Simplified fintech application to demonstrate Mobile Observe & Test Framework ca
 **Android:**
 
 ```
-observe  - Instrumented build with Observe SDK
+mobiscout  - Instrumented build with Mobiscout SDK
 test     - Clean build for automated testing
 prod     - Production build (with security features)
 ```
@@ -68,7 +68,7 @@ prod     - Production build (with security features)
 **iOS:**
 
 ```
-Observe  - Scheme with Observe SDK
+Mobiscout  - Scheme with Mobiscout SDK
 Test     - Clean scheme for automated testing
 Release  - Production scheme (future)
 ```
@@ -100,14 +100,14 @@ Release  - Production scheme (future)
 # Clone and navigate
 cd demo-app/android
 
-# Build observe variant
-./gradlew assembleObserveDebug
+# Build mobiscout variant
+./gradlew assembleMobiscoutDebug
 
 # Install on device
-adb install app/build/outputs/apk/observe/debug/app-observe-debug.apk
+adb install app/build/outputs/apk/mobiscout/debug/app-mobiscout-debug.apk
 
 # Or run directly from Android Studio
-# Select "observe" build variant
+# Select "mobiscout" build variant
 # Click Run
 ```
 
@@ -120,7 +120,7 @@ cd demo-app/ios/FinDemo
 # Open in Xcode
 open FinDemo.xcodeproj
 
-# Select scheme: Observe
+# Select scheme: Mobiscout
 # Select target device/simulator
 # Click Run (⌘R)
 ```
@@ -147,20 +147,20 @@ android/
                  security/
           res/
       
-       observe/           # Observe build specific
+       mobiscout/           # Mobiscout build specific
           java/
-              ObserveInitializer.kt
+              MobiscoutInitializer.kt
       
        test/              # Test build specific
            java/
    
     build.gradle.kts
 
- observe-sdk/               # Observe SDK module
+ mobiscout-sdk/               # Mobiscout SDK module
      src/
         main/
             java/
-                com/observe/sdk/
+                com/mobiscout/sdk/
                     core/
                     observers/
                     export/
@@ -188,17 +188,17 @@ ios/
     
     FinDemo.xcodeproj/
 
- ObserveSDK/
-    ObserveSDK.swift       # SDK entry point
+ MobiscoutSDK/
+    MobiscoutSDK.swift       # SDK entry point
     Core/
-       ObserveConfig.swift
-       ObserveSession.swift
-    Observers/
-       UIObserver.swift
-       NavigationObserver.swift
-       NetworkObserver.swift
+       MobiscoutConfig.swift
+       MobiscoutSession.swift
+    Mobiscoutrs/
+       UIMobiscoutr.swift
+       NavigationMobiscoutr.swift
+       NetworkMobiscoutr.swift
        HierarchyCollector.swift
-       WebViewObserver.swift
+       WebViewMobiscoutr.swift
     Selectors/
        SelectorBuilder.swift
     Export/
@@ -282,16 +282,16 @@ Edit `app/build.gradle.kts`:
 
 ```kotlin
 productFlavors {
-    create("observe") {
-        applicationIdSuffix = ".observe"
-        versionNameSuffix = "-observe"
-        buildConfigField("boolean", "OBSERVE_ENABLED", "true")
+    create("mobiscout") {
+        applicationIdSuffix = ".mobiscout"
+        versionNameSuffix = "-mobiscout"
+        buildConfigField("boolean", "MOBISCOUT_ENABLED", "true")
     }
     
     create("test") {
         applicationIdSuffix = ".test"
         versionNameSuffix = "-test"
-        buildConfigField("boolean", "OBSERVE_ENABLED", "false")
+        buildConfigField("boolean", "MOBISCOUT_ENABLED", "false")
         buildConfigField("boolean", "TEST_MODE", "true")
     }
 }
@@ -316,10 +316,10 @@ API will be available at: `http://localhost:8000`
 ### Manual Testing:
 
 ```bash
-# Install observe build
-./gradlew installObserveDebug
+# Install mobiscout build
+./gradlew installMobiscoutDebug
 
-# Use app and observe SDK will record events
+# Use app and mobiscout SDK will record events
 ```
 
 ### Automated Testing:
@@ -344,13 +344,13 @@ pytest tests/
 
 **Android:**
 
-- **Observe build** includes SDK and records events
+- **Mobiscout build** includes SDK and records events
 - **Test build** is clean, without SDK, for automated tests
 - **Prod build** has security features enabled
 
 **iOS:**
 
-- **Observe scheme** includes SDK and records events
+- **Mobiscout scheme** includes SDK and records events
 - **Test scheme** is clean for automated tests
 - Event exports to app's Documents directory
 
@@ -363,14 +363,14 @@ pytest tests/
 ```bash
 # Clean and rebuild
 ./gradlew clean
-./gradlew assembleObserveDebug
+./gradlew assembleMobiscoutDebug
 ```
 
 ### Android SDK not recording:
 
-- Check that observe build is installed (not test)
-- Check logcat: `adb logcat | grep ObserveSDK`
-- Verify events: `adb shell "ls /sdcard/Android/data/com.findemo.observe/files/observe/"`
+- Check that mobiscout build is installed (not test)
+- Check logcat: `adb logcat | grep MobiscoutSDK`
+- Verify events: `adb shell "ls /sdcard/Android/data/com.findemo.mobiscout/files/mobiscout/"`
 
 ### iOS Build fails:
 
@@ -380,8 +380,8 @@ pytest tests/
 
 ### iOS SDK not recording:
 
-- Check that Observe scheme is selected
-- Check console logs for ObserveSDK messages
+- Check that Mobiscout scheme is selected
+- Check console logs for MobiscoutSDK messages
 - Verify events in app's Documents directory
 
 ---

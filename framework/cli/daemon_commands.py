@@ -456,8 +456,8 @@ def daemon_command(stdio: bool, tcp: Optional[int]):
     Run JSON-RPC daemon for IDE plugin communication.
 
     Examples:
-        observe daemon --stdio
-        observe daemon --tcp 33333
+        mobiscout daemon --stdio
+        mobiscout daemon --tcp 33333
     """
     server = JSONRPCServer()
 

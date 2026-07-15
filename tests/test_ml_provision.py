@@ -23,8 +23,8 @@ def _button():
 
 def test_ensure_model_trains_then_classify_uses_ml(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
-        monkeypatch.setenv("OBSERVE_ML_MODEL", str(Path(d) / "m.pkl"))
-        monkeypatch.delenv("OBSERVE_ML_AUTOTRAIN", raising=False)
+        monkeypatch.setenv("MOBISCOUT_ML_MODEL", str(Path(d) / "m.pkl"))
+        monkeypatch.delenv("MOBISCOUT_ML_AUTOTRAIN", raising=False)
         C.reset_cache()
         path = C.ensure_model()
         # ensure_model is best-effort by contract: on the happy path it trains a
@@ -45,8 +45,8 @@ def test_ensure_model_trains_then_classify_uses_ml(monkeypatch):
 
 
 def test_autotrain_disabled_falls_back_to_heuristic(monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/definitely/nonexistent.pkl")
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/definitely/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
     C.reset_cache()
     assert C.ensure_model() is None
     etype, _, source = C.classify(_button())

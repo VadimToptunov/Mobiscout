@@ -45,9 +45,9 @@ def sast(
     and cryptography vulnerability detection.
 
     Example:
-        observe security sast ./src --language python
-        observe security sast ./app -l java -o sast_report.sarif --format sarif
-        observe security sast ./project --taint --crypto
+        mobiscout security sast ./src --language python
+        mobiscout security sast ./app -l java -o sast_report.sarif --format sarif
+        mobiscout security sast ./project --taint --crypto
     """
     if not validate_path(source_path):
         raise SystemExit(1)
@@ -144,8 +144,8 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
     Identifies injection vulnerabilities by tracing untrusted input.
 
     Example:
-        observe security taint ./src
-        observe security taint ./app -o taint_report.json
+        mobiscout security taint ./src
+        mobiscout security taint ./app -o taint_report.json
     """
     if not validate_path(source_path):
         raise SystemExit(1)

@@ -1,4 +1,4 @@
-package com.observe.sdk.core
+package com.mobiscout.sdk.core
 
 import android.app.Application
 import android.content.pm.PackageManager
@@ -15,7 +15,7 @@ import java.util.UUID
  * - OS version
  * - Start time
  */
-data class ObserveSession(
+data class MobiscoutSession(
     val sessionId: String,
     val startTime: Long,
     val deviceModel: String,
@@ -28,8 +28,8 @@ data class ObserveSession(
         /**
          * Create new session from application context
          */
-        fun create(app: Application): ObserveSession {
-            return ObserveSession(
+        fun create(app: Application): MobiscoutSession {
+            return MobiscoutSession(
                 sessionId = UUID.randomUUID().toString(),
                 startTime = System.currentTimeMillis(),
                 deviceModel = Build.MODEL,

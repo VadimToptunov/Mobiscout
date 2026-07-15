@@ -1,12 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for the standalone Observe engine (variant C).
+"""PyInstaller spec for the standalone Mobiscout engine (variant C).
 
 Freezes the JSON-RPC daemon + the whole ``framework`` package (including the
 codegen ``.j2`` templates, collected as data) into one self-contained binary the
 JetBrains plugin launches — so the end user needs no Python installed.
 
-Build (from anywhere):  pyinstaller packaging/observe-engine.spec
-Output:                 dist/observe-engine   (per the OS/arch it's built on)
+Build (from anywhere):  pyinstaller packaging/mobiscout-engine.spec
+Output:                 dist/mobiscout-engine   (per the OS/arch it's built on)
 """
 import os
 
@@ -41,7 +41,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="observe-engine",
+    name="mobiscout-engine",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

@@ -80,7 +80,7 @@ monetization last.
 ### 1. Hardening — live end-to-end + clean+cover
 - Run the whole kit on real apps (Android Compose + iOS) and **actually execute**
   the generated tests; fix what device-reality surfaces.
-- Remove vaporware/stubs (`observe record` print-stubs, the unimplemented `mock
+- Remove vaporware/stubs (`mobiscout record` print-stubs, the unimplemented `mock
   record` proxy, the dead self-learning upload endpoint, unused `backends/`),
   making the docs honest and raising **real** test coverage.
 - Ratchet the docstring + coverage gates up.

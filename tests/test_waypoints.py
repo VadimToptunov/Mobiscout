@@ -117,8 +117,8 @@ def test_crawler_passes_gate_and_reaches_screen_behind():
 
 
 def test_pipeline_run_kit_applies_config_waypoints(tmp_path, monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
     from framework.crawler.pipeline import run_kit
 
     login_xml = (

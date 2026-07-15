@@ -17,7 +17,7 @@ import java.io.InputStreamReader
 /**
  * STEP 11: JetBrains Plugin Enhancement
  *
- * Action to run security scan on the project using Observe CLI.
+ * Action to run security scan on the project using Mobiscout CLI.
  */
 class SecurityScanAction : AnAction() {
 
@@ -34,7 +34,7 @@ class SecurityScanAction : AnAction() {
 
                     // Run security scan via CLI
                     val process = ProcessBuilder(
-                        "observe", "security", "secrets", projectPath, "--format", "json"
+                        "mobiscout", "security", "secrets", projectPath, "--format", "json"
                     ).redirectErrorStream(true).start()
 
                     val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
@@ -78,7 +78,7 @@ class SecurityScanAction : AnAction() {
 
     private fun showNotification(project: Project, title: String, content: String, type: NotificationType) {
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Observe Framework")
+            .getNotificationGroup("Mobiscout Framework")
             .createNotification(title, content, type)
             .notify(project)
     }

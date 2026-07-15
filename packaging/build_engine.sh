@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the standalone Observe engine binary for the current OS/arch (variant C).
-# Requires: pip install pyinstaller. Output: dist/observe-engine[.exe].
+# Build the standalone Mobiscout engine binary for the current OS/arch (variant C).
+# Requires: pip install pyinstaller. Output: dist/mobiscout-engine[.exe].
 set -euo pipefail
 cd "$(dirname "$0")/.."
-pyinstaller packaging/observe-engine.spec --noconfirm --clean
-echo "Built: dist/observe-engine (run 'echo <json-rpc> | dist/observe-engine' to smoke-test)"
+pyinstaller packaging/mobiscout-engine.spec --noconfirm --clean
+echo "Built: dist/mobiscout-engine (run 'echo <json-rpc> | dist/mobiscout-engine' to smoke-test)"

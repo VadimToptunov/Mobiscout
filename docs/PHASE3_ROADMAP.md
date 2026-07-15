@@ -76,9 +76,9 @@ class APIMocker:
 **CLI:**
 
 ```bash
-observe mock record --session test-session
-observe mock replay --session test-session
-observe mock generate --api-spec swagger.json
+mobiscout mock record --session test-session
+mobiscout mock replay --session test-session
+mobiscout mock generate --api-spec swagger.json
 ```
 
 **Effort:** 4 days  
@@ -109,9 +109,9 @@ class AccessibilityAnalyzer:
 **CLI:**
 
 ```bash
-observe a11y scan --screenshots ./screens/
-observe a11y report --output accessibility-report.html
-observe a11y fix --auto  # Generate fixes
+mobiscout a11y scan --screenshots ./screens/
+mobiscout a11y report --output accessibility-report.html
+mobiscout a11y fix --auto  # Generate fixes
 ```
 
 **Effort:** 3 days  
@@ -143,9 +143,9 @@ class LoadTester:
 **CLI:**
 
 ```bash
-observe load test --users 100 --duration 300
-observe load analyze --results load-results.json
-observe load report --format html
+mobiscout load test --users 100 --duration 300
+mobiscout load analyze --results load-results.json
+mobiscout load report --format html
 ```
 
 **Effort:** 5 days  
@@ -180,8 +180,8 @@ class PlatformSync:
 **CLI:**
 
 ```bash
-observe sync compare --android model-android.json --ios model-ios.json
-observe sync generate --target ios --from android
+mobiscout sync compare --android model-android.json --ios model-ios.json
+mobiscout sync generate --target ios --from android
 ```
 
 **Effort:** 3 days  
@@ -212,9 +212,9 @@ class InsightsEngine:
 **CLI:**
 
 ```bash
-observe analytics insights --history ./test-runs/
-observe analytics trends --metric flakiness
-observe analytics predict --model app-model.json
+mobiscout analytics insights --history ./test-runs/
+mobiscout analytics trends --metric flakiness
+mobiscout analytics predict --model app-model.json
 ```
 
 **Effort:** 2 days  
@@ -332,31 +332,31 @@ observe analytics predict --model app-model.json
 ### 1. Interactive TUI
 
 ```bash
-observe interactive  # Terminal UI for exploration
+mobiscout interactive  # Terminal UI for exploration
 ```
 
 ### 2. AI Test Generation
 
 ```bash
-observe ai generate --prompt "Test login flow with edge cases"
+mobiscout ai generate --prompt "Test login flow with edge cases"
 ```
 
 ### 3. Test Recording
 
 ```bash
-observe record manual  # Record manual testing session
+mobiscout record manual  # Record manual testing session
 ```
 
 ### 4. Auto-Maintenance
 
 ```bash
-observe maintain --auto-fix --auto-commit
+mobiscout maintain --auto-fix --auto-commit
 ```
 
 ### 5. Coverage Visualization
 
 ```bash
-observe coverage visualize --interactive
+mobiscout coverage visualize --interactive
 ```
 
 ---

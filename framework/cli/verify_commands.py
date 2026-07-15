@@ -48,9 +48,9 @@ def check(path: str, recursive: bool, output: Optional[str], level: str, exclude
     Verify test files in a directory.
 
     Example:
-        observe verify check ./tests
-        observe verify check ./src --recursive --output report.json
-        observe verify check ./tests --level error --exclude node_modules
+        mobiscout verify check ./tests
+        mobiscout verify check ./src --recursive --output report.json
+        mobiscout verify check ./tests --level error --exclude node_modules
     """
     path_obj = Path(path)
 
@@ -176,8 +176,8 @@ def file(file_path: str) -> None:
     Verify a single file.
 
     Example:
-        observe verify file tests/test_login.py
-        observe verify file src/LoginTest.kt
+        mobiscout verify file tests/test_login.py
+        mobiscout verify file src/LoginTest.kt
     """
     path = Path(file_path)
 
@@ -231,7 +231,7 @@ def languages() -> None:
     List supported languages for verification.
 
     Example:
-        observe verify languages
+        mobiscout verify languages
     """
     console.print(Panel.fit("📋 Supported Languages", style="bold cyan"))
 
@@ -270,8 +270,8 @@ def lint(path: str, fix: bool) -> None:
     Lint test files with auto-fix option.
 
     Example:
-        observe verify lint ./tests
-        observe verify lint ./tests --fix
+        mobiscout verify lint ./tests
+        mobiscout verify lint ./tests --fix
     """
     path_obj = Path(path)
 

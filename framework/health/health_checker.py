@@ -25,7 +25,7 @@ class HealthChecker:
         # Check if Rust core is available
         rust_core_available = False
         try:
-            import observe_core
+            import mobiscout_core
 
             rust_core_available = True
         except ImportError:

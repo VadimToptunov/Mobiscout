@@ -2,7 +2,7 @@
 Live session recorder.
 
 Captures a human's manual interactions on a device (via ``adb getevent``) and
-turns them into a runnable test — the real implementation behind ``observe
+turns them into a runnable test — the real implementation behind ``mobiscout
 record``. The pieces:
 
 * :mod:`framework.recorder.getevent` — a pure, streaming parser that turns raw

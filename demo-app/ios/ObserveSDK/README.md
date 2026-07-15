@@ -1,4 +1,4 @@
-# iOS Observe SDK
+# iOS Mobiscout SDK
 
 Swift framework for capturing UI interactions, navigation, and network events in iOS applications.
 
@@ -6,7 +6,7 @@ Swift framework for capturing UI interactions, navigation, and network events in
 
 ## Overview
 
-The iOS Observe SDK is a lightweight, non-intrusive instrumentation framework that captures:
+The iOS Mobiscout SDK is a lightweight, non-intrusive instrumentation framework that captures:
 
 - **UI Events** - Taps, swipes, text input
 - **Navigation** - Screen transitions and routing
@@ -21,18 +21,18 @@ The iOS Observe SDK is a lightweight, non-intrusive instrumentation framework th
 ## Architecture
 
 ```
-ObserveSDK
- ObserveSDK.swift          # Main SDK singleton
+MobiscoutSDK
+ MobiscoutSDK.swift          # Main SDK singleton
  Core/
-    ObserveConfig.swift   # Configuration
-    ObserveSession.swift  # Session metadata
+    MobiscoutConfig.swift   # Configuration
+    MobiscoutSession.swift  # Session metadata
  Events/
     EventBus.swift        # Internal pub/sub
     Event.swift           # Event models
- Observers/
-    UIObserver.swift           # UI interactions
-    NavigationObserver.swift   # Screen changes
-    NetworkObserver.swift      # HTTP traffic
+ Mobiscoutrs/
+    UIMobiscoutr.swift           # UI interactions
+    NavigationMobiscoutr.swift   # Screen changes
+    NetworkMobiscoutr.swift      # HTTP traffic
     HierarchyCollector.swift   # View hierarchy
  Export/
      EventExporter.swift   # JSON file export
@@ -44,20 +44,20 @@ ObserveSDK
 
 ### 1. Add SDK to Project
 
-Copy the `ObserveSDK` folder into your Xcode project.
+Copy the `MobiscoutSDK` folder into your Xcode project.
 
 ### 2. Initialize in AppDelegate or App Struct
 
 ```swift
 import SwiftUI
-import ObserveSDK
+import MobiscoutSDK
 
 @main
 struct MyApp: App {
     init() {
-        // Initialize ObserveSDK
+        // Initialize MobiscoutSDK
         #if OBSERVE
-        ObserveSDK.shared.initialize(
+        MobiscoutSDK.shared.initialize(
             application: UIApplication.shared,
             config: .development(appVersion: "1.0.0")
         )
@@ -76,7 +76,7 @@ struct MyApp: App {
 
 Create three build configurations:
 
-#### Observe Scheme
+#### Mobiscout Scheme
 
 - **Preprocessor Flags:** `OBSERVE=1`
 - **Purpose:** Instrumented builds for observation
@@ -101,14 +101,14 @@ Create three build configurations:
 ### Development (High Detail)
 
 ```swift
-let config = ObserveConfig.development(appVersion: "1.0.0")
-ObserveSDK.shared.initialize(application: UIApplication.shared, config: config)
+let config = MobiscoutConfig.development(appVersion: "1.0.0")
+MobiscoutSDK.shared.initialize(application: UIApplication.shared, config: config)
 ```
 
 ### Custom Configuration
 
 ```swift
-let config = ObserveConfig(
+let config = MobiscoutConfig(
     enabled: true,
     autoStart: true,
     appVersion: "1.0.0",
@@ -125,8 +125,8 @@ let config = ObserveConfig(
 ### Production (Disabled)
 
 ```swift
-let config = ObserveConfig.production()
-ObserveSDK.shared.initialize(application: UIApplication.shared, config: config)
+let config = MobiscoutConfig.production()
+MobiscoutSDK.shared.initialize(application: UIApplication.shared, config: config)
 ```
 
 ---
@@ -198,7 +198,7 @@ HierarchyEvent(
 Events are automatically exported to:
 
 ```
-Documents/observe/observe_events_<timestamp>.json
+Documents/mobiscout/observe_events_<timestamp>.json
 ```
 
 ### Export Format
@@ -229,7 +229,7 @@ Documents/observe/observe_events_<timestamp>.json
 xcrun simctl get_app_container <device-id> <bundle-id> data
 
 # Copy events
-cp <container-path>/Documents/observe/*.json ./
+cp <container-path>/Documents/mobiscout/*.json ./
 ```
 
 Or use Xcode's "Download Container" feature.
@@ -260,23 +260,23 @@ TextField("Username", text: $username)
 
 ```swift
 // Start observation
-ObserveSDK.shared.start()
+MobiscoutSDK.shared.start()
 
 // Stop observation
-ObserveSDK.shared.stop()
+MobiscoutSDK.shared.stop()
 
 // Shutdown completely
-ObserveSDK.shared.shutdown()
+MobiscoutSDK.shared.shutdown()
 ```
 
 ### Check Status
 
 ```swift
-if ObserveSDK.shared.isInitialized() {
+if MobiscoutSDK.shared.isInitialized() {
     print("SDK initialized")
 }
 
-if ObserveSDK.shared.isRunning() {
+if MobiscoutSDK.shared.isRunning() {
     print("SDK observing")
 }
 ```
@@ -284,7 +284,7 @@ if ObserveSDK.shared.isRunning() {
 ### Access Session Info
 
 ```swift
-if let session = ObserveSDK.shared.getSession() {
+if let session = MobiscoutSDK.shared.getSession() {
     print("Session ID: \(session.sessionId)")
     print("Start time: \(session.startTime)")
 }
@@ -299,7 +299,7 @@ The SDK is designed to be **completely transparent** in test builds:
 ```swift
 #if OBSERVE
     // Observation code
-    ObserveSDK.shared.initialize(...)
+    MobiscoutSDK.shared.initialize(...)
 #else
     // Empty - zero impact on tests
 #endif
@@ -347,7 +347,7 @@ The SDK is designed to be **completely transparent** in test builds:
 
 ## Performance Impact
 
-### When Enabled (Observe Build):
+### When Enabled (Mobiscout Build):
 
 - **CPU Overhead:** ~2-5% during active interaction
 - **Memory Overhead:** ~5-10 MB for event buffer
@@ -377,7 +377,7 @@ The SDK is designed to be **completely transparent** in test builds:
 **Check:**
 
 1. Events exported (buffer size reached or interval elapsed)
-2. Correct Documents path: `<container>/Documents/observe/`
+2. Correct Documents path: `<container>/Documents/mobiscout/`
 3. File permissions
 
 ### Network Events Missing
@@ -416,7 +416,7 @@ The SDK is designed to be **completely transparent** in test builds:
 
 ## Status
 
-**Current:**  iOS Observe SDK Complete (Phase 3 - Step 2)
+**Current:**  iOS Mobiscout SDK Complete (Phase 3 - Step 2)
 
 **Next:**
 

@@ -13,7 +13,7 @@ import javax.net.ssl.SSLPeerUnverifiedException
  * 
  * IMPORTANT:
  * - ENABLED in production builds
- * - DISABLED in observe/test builds (via ObserveSDK bypass)
+ * - DISABLED in mobiscout/test builds (via MobiscoutSDK bypass)
  * 
  * How it works:
  * - Pins public key hashes of trusted certificates
@@ -49,14 +49,14 @@ object CertificatePinning {
      * 
      * This should be used in PRODUCTION builds only!
      * 
-     * @param enablePinning If false, pinning is disabled (for observe/test)
+     * @param enablePinning If false, pinning is disabled (for mobiscout/test)
      * @return OkHttpClient.Builder with pinning configured
      */
     fun createSecureClient(enablePinning: Boolean = true): OkHttpClient.Builder {
         val builder = OkHttpClient.Builder()
         
         if (!enablePinning) {
-            Log.w(TAG, " Certificate pinning DISABLED (test/observe build)")
+            Log.w(TAG, " Certificate pinning DISABLED (test/mobiscout build)")
             return builder
         }
         

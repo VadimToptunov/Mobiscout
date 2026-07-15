@@ -223,7 +223,7 @@ def train_all_models(output_dir: Path = None):
         output_dir: Директория для сохранения моделей
     """
     if output_dir is None:
-        output_dir = Path.home() / ".observe" / "models"
+        output_dir = Path.home() / ".mobiscout" / "models"
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

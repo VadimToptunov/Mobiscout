@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Mobile Observe & Test Framework.
+All notable changes to Mobile Mobiscout & Test Framework.
 
 ## [Phase 6] - 2025-01-29
 
@@ -17,11 +17,11 @@ All notable changes to Mobile Observe & Test Framework.
 
 **CLI Commands:**
 
-- `observe heal analyze` - Detect broken selectors from test failures
-- `observe heal auto` - Automatically fix selectors with ML (dry-run, commit, branch)
-- `observe heal history` - Show healing commit history
-- `observe heal revert` - Revert specific healing commit
-- `observe dashboard` - Launch maintenance dashboard
+- `mobiscout heal analyze` - Detect broken selectors from test failures
+- `mobiscout heal auto` - Automatically fix selectors with ML (dry-run, commit, branch)
+- `mobiscout heal history` - Show healing commit history
+- `mobiscout heal revert` - Revert specific healing commit
+- `mobiscout dashboard` - Launch maintenance dashboard
 
 **Test Maintenance Dashboard (~1,000 lines):**
 
@@ -105,7 +105,7 @@ All notable changes to Mobile Observe & Test Framework.
 ### Added - Production Features
 
 - **Demo iOS App**: FinDemo with SwiftUI, similar to Android version
-- **iOS Observe SDK**: Complete implementation with UIObserver, NetworkObserver, NavigationObserver
+- **iOS Mobiscout SDK**: Complete implementation with UIMobiscoutr, NetworkMobiscoutr, NavigationMobiscoutr
 - **iOS Static Analyzer**: Swift/Xcode project analysis
 - **Production Security**:
     - Certificate pinning
@@ -150,7 +150,7 @@ All notable changes to Mobile Observe & Test Framework.
 - **Project Structure**: Complete framework setup with CLI
 - **Demo Android App**: FinDemo with Jetpack Compose (onboarding, login, KYC, transactions)
 - **Mock Backend**: FastAPI server with authentication and transaction APIs
-- **Android Observe SDK**: UIObserver, NavigationObserver, NetworkObserver, EventExporter
+- **Android Mobiscout SDK**: UIMobiscoutr, NavigationMobiscoutr, NetworkMobiscoutr, EventExporter
 - **Event Store**: SQLite-based persistent storage with query API
 - **Code Generators**: Page Object, API client, pytest-bdd with Jinja2 templates
 - **Regula SDK Integration**: KYC functionality in demo apps

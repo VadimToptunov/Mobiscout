@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.observe.sdk.ObserveSDK
+import com.mobiscout.sdk.MobiscoutSDK
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,7 +203,7 @@ private fun PaymentWebViewStep(
     DisposableEffect(Unit) {
         onDispose {
             webView.value?.let { wv ->
-                ObserveSDK.stopObservingWebView(wv)
+                MobiscoutSDK.stopObservingWebView(wv)
             }
         }
     }
@@ -237,7 +237,7 @@ private fun PaymentWebViewStep(
                     // Register for observation immediately after creation
                     // This matches iOS pattern: register during view creation
                     // Called ONCE per WebView instance (not on every recomposition)
-                    ObserveSDK.observeWebView(this, "TopUpPaymentScreen")
+                    MobiscoutSDK.observeWebView(this, "TopUpPaymentScreen")
                     
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true

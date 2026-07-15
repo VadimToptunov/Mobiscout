@@ -18,7 +18,7 @@
 # ==================== Security Classes ====================
 
 # Remove security bypass code from production
--assumenosideeffects class com.observe.sdk.** {
+-assumenosideeffects class com.mobiscout.sdk.** {
     public *;
 }
 

@@ -111,7 +111,7 @@ def list_templates():
 
     console.print(table)
 
-    console.print("\n[dim]Usage: observe ci init <system> --type <template>[/dim]")
+    console.print("\n[dim]Usage: mobiscout ci init <system> --type <template>[/dim]")
 
 
 @ci.command()
@@ -134,7 +134,7 @@ def show(ci_system: str, template_type: str):
         )
         console.print(syntax)
 
-        console.print(f"\n[dim]To save: observe ci init {ci_system} --type {template_type}[/dim]")
+        console.print(f"\n[dim]To save: mobiscout ci init {ci_system} --type {template_type}[/dim]")
 
     except Exception as e:
         console.print(f"[red]❌ Error: {e}[/red]")
@@ -251,16 +251,16 @@ def quickstart():
 
 ```bash
 # GitHub Actions (recommended)
-observe ci init github --type parallel
+mobiscout ci init github --type parallel
 
 # GitLab CI
-observe ci init gitlab --type parallel
+mobiscout ci init gitlab --type parallel
 
 # Jenkins
-observe ci init jenkins --type basic
+mobiscout ci init jenkins --type basic
 
 # CircleCI
-observe ci init circleci --type parallel
+mobiscout ci init circleci --type parallel
 ```
 
 ## 3. Template Types
@@ -314,7 +314,7 @@ strategy:
 ### GitLab CI with custom test dir:
 ```yaml
 script:
-  - observe parallel run tests/integration/ --workers 4
+  - mobiscout parallel run tests/integration/ --workers 4
 ```
 
 ### Jenkins with environment variables:
@@ -326,9 +326,9 @@ environment {
 
 ## Need Help?
 
-- List templates: `observe ci list-templates`
-- Show template: `observe ci show github --type parallel`
-- Validate config: `observe ci validate .github/workflows/tests.yml`
+- List templates: `mobiscout ci list-templates`
+- Show template: `mobiscout ci show github --type parallel`
+- Validate config: `mobiscout ci validate .github/workflows/tests.yml`
 """
 
     console.print(Panel(guide, title="CI/CD Quick Start", border_style="cyan"))

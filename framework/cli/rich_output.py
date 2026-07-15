@@ -192,10 +192,10 @@ def print_banner() -> None:
     banner = """
     ╔═══════════════════════════════════════════════════════════╗
     ║                                                           ║
-    ║   📱 Observe                                             ║
+    ║   📱 Mobiscout                                             ║
     ║                                                           ║
     ║   Intelligent Mobile Testing Platform                    ║
-    ║   Observe • Analyze • Automate                           ║
+    ║   Scout • Analyze • Automate                           ║
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
     """

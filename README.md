@@ -1,4 +1,4 @@
-# Observe 🦀 → JetBrains IDE Plugin
+# Mobiscout 🦀 → JetBrains IDE Plugin
 
 > **Next-Generation Intelligent Mobile Testing Platform** - Now as a powerful JetBrains IDE plugin with interactive UI
 > control, smart selectors, and multi-language support
@@ -21,7 +21,7 @@ per-screen element inventory, the app's interaction graph, and runnable tests in
 several languages.
 
 ```bash
-observe crawl --package com.example.shop --targets python_pytest,java_testng,js_webdriverio
+mobiscout crawl --package com.example.shop --targets python_pytest,java_testng,js_webdriverio
 ```
 
 A full generated example lives in [`examples/shop_demo/`](examples/shop_demo)
@@ -157,7 +157,7 @@ single command.
 
 ```bash
 # From source (for developers; end users just install the plugin — it bundles the engine, no Python needed):
-git clone https://github.com/VadimToptunov/Observe.git
+git clone https://github.com/VadimToptunov/Mobiscout.git
 cd mobile_test_recorder
 pip install -e .
 ```
@@ -167,11 +167,11 @@ pip install -e .
 ```bash
 cd jetbrains-plugin
 ./gradlew buildPlugin
-# Install from: build/distributions/observe-*.zip
+# Install from: build/distributions/mobiscout-*.zip
 ```
 
 3. **Start Testing**:
-    - Open View → Tool Windows → Observe
+    - Open View → Tool Windows → Mobiscout
     - Click "Start Daemon"
     - Go to "Screen" tab
     - Click "Load Devices", select device
@@ -201,7 +201,7 @@ See [Plugin Documentation](jetbrains-plugin/README.md) and [Roadmap](JETBRAINS_P
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/VadimToptunov/Observe.git
+git clone https://github.com/VadimToptunov/Mobiscout.git
 cd mobile_test_recorder
 
 # 2. Setup environment
@@ -222,28 +222,28 @@ cd ..
 
 ```bash
 # Business Logic Analysis
-observe business analyze app/src --output analysis.json
+mobiscout business analyze app/src --output analysis.json
 
 # Self-Healing Tests
-observe heal auto --test-results junit.xml --commit
+mobiscout heal auto --test-results junit.xml --commit
 
 # Load Testing
-observe load run tests/ --profile medium --users 20
+mobiscout load run tests/ --profile medium --users 20
 
 # Security Scanning
-observe security scan app.apk --output security-report.json
+mobiscout security scan app.apk --output security-report.json
 
 # Accessibility Testing
-observe a11y scan tests/ --wcag-level AAA
+mobiscout a11y scan tests/ --wcag-level AAA
 
 # Parallel Execution
-observe parallel run tests/ --workers 4 --devices pool-name
+mobiscout parallel run tests/ --workers 4 --devices pool-name
 
 # Performance Profiling
-observe load profile tests/test_checkout.py --cpu --memory
+mobiscout load profile tests/test_checkout.py --cpu --memory
 
 # Documentation Generation
-observe docs generate framework/ --format html
+mobiscout docs generate framework/ --format html
 ```
 
 ---
@@ -294,7 +294,7 @@ failed run; wiring them into the crawl→codegen loop is on the roadmap.
 
 ```bash
 # Automatic healing with Git integration
-observe heal auto \
+mobiscout heal auto \
   --test-results results/junit.xml \
   --screenshots screenshots/ \
   --confidence 0.7 \
@@ -302,8 +302,8 @@ observe heal auto \
   --dry-run  # Preview changes first
 
 # Manual approval workflow
-observe heal analyze results/junit.xml
-observe dashboard  # Review fixes in UI
+mobiscout heal analyze results/junit.xml
+mobiscout dashboard  # Review fixes in UI
 # Approve fixes manually
 ```
 
@@ -315,13 +315,13 @@ observe dashboard  # Review fixes in UI
 
 ```bash
 # Start metrics server (Prometheus format)
-observe observe metrics --port 9090
+mobiscout observe metrics --port 9090
 
 # View structured logs
-observe observe logs --filter ERROR --since 1h
+mobiscout observe logs --filter ERROR --since 1h
 
 # Distributed tracing
-observe observe trace --session-id abc123
+mobiscout observe trace --session-id abc123
 ```
 
 **Metrics Exported:**
@@ -353,35 +353,35 @@ jobs:
       
       - name: Run Tests
         run: |
-          observe parallel run tests/ --workers 4
+          mobiscout parallel run tests/ --workers 4
       
       - name: Auto-Heal Failures
         if: failure()
         run: |
-          observe heal auto --commit
+          mobiscout heal auto --commit
       
       - name: Security Scan
         run: |
-          observe security scan app.apk
+          mobiscout security scan app.apk
       
       - name: Load Test
         run: |
-          observe load run tests/ --profile smoke
+          mobiscout load run tests/ --profile smoke
 ```
 
 ### Device Pool Management
 
 ```bash
 # List available devices
-observe devices list
+mobiscout devices list
 
 # Create device pool
-observe parallel create-pool \
+mobiscout parallel create-pool \
   --name staging-pool \
   --devices emulator-5554,device-001
 
 # Run tests on pool
-observe parallel run tests/ \
+mobiscout parallel run tests/ \
   --pool staging-pool \
   --strategy round-robin
 ```
@@ -394,15 +394,15 @@ observe parallel run tests/ \
 
 ```bash
 # Full OWASP Mobile Top 10 scan
-observe security scan app.apk \
+mobiscout security scan app.apk \
   --output security-report.json \
   --format html
 
 # Quick audit
-observe security audit app/ --category all
+mobiscout security audit app/ --category all
 
 # Compare security posture
-observe security compare \
+mobiscout security compare \
   --baseline v1.0-security.json \
   --current v1.1-security.json
 ```
@@ -421,15 +421,15 @@ observe security compare \
 
 ```bash
 # WCAG 2.1 compliance check
-observe a11y scan tests/ \
+mobiscout a11y scan tests/ \
   --wcag-level AAA \
   --output a11y-report.html
 
 # Fix suggestions
-observe a11y fix-suggestions --screen LoginScreen
+mobiscout a11y fix-suggestions --screen LoginScreen
 
 # Report
-observe a11y report results.json
+mobiscout a11y report results.json
 ```
 
 **Checks:**
@@ -459,18 +459,18 @@ observe a11y report results.json
 
 ```bash
 # Run load test
-observe load run tests/test_api.py \
+mobiscout load run tests/test_api.py \
   --profile medium \
   --users 20 \
   --duration 600
 
 # Performance profiling
-observe load profile tests/test_checkout.py \
+mobiscout load profile tests/test_checkout.py \
   --cpu --memory --top 30 \
   --report profile.html
 
 # Compare performance
-observe load compare baseline.json current.json
+mobiscout load compare baseline.json current.json
 ```
 
 ---
@@ -630,7 +630,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **Author:** Vadim Toptunov
 - **GitHub:** [@VadimToptunov](https://github.com/VadimToptunov)
-- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
+- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/Mobiscout/issues)
 
 ---
 
@@ -640,7 +640,7 @@ If you find this project useful, please consider giving it a star! ⭐
 
 ---
 
-**Built with ❤️ and 🦀 by the Observe team**
+**Built with ❤️ and 🦀 by the Mobiscout team**
 
 ---
 

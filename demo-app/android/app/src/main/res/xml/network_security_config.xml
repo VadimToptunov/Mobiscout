@@ -43,7 +43,7 @@
         </trust-anchors>
     </domain-config>
 
-    <!-- Debug Configuration (observe/test builds) -->
+    <!-- Debug Configuration (mobiscout/test builds) -->
     <!-- This allows localhost and MITM proxies for testing -->
     <debug-overrides>
         <trust-anchors>

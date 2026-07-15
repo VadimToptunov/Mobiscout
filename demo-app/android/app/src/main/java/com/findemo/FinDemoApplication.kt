@@ -9,13 +9,13 @@ class FinDemoApplication : Application() {
         super.onCreate()
         
         Log.d(TAG, "App starting - Build config:")
-        Log.d(TAG, "  OBSERVE_ENABLED: ${BuildConfig.OBSERVE_ENABLED}")
+        Log.d(TAG, "  MOBISCOUT_ENABLED: ${BuildConfig.MOBISCOUT_ENABLED}")
         Log.d(TAG, "  TEST_MODE: ${BuildConfig.TEST_MODE}")
         
         // Initialize based on build variant
         when {
-            BuildConfig.OBSERVE_ENABLED -> {
-                initializeObserveMode()
+            BuildConfig.MOBISCOUT_ENABLED -> {
+                initializeMobiscoutMode()
             }
             BuildConfig.TEST_MODE -> {
                 initializeTestMode()
@@ -26,11 +26,11 @@ class FinDemoApplication : Application() {
         }
     }
     
-    private fun initializeObserveMode() {
-        Log.i(TAG, " Observe mode enabled - Initializing SDK")
-        // Call observe source set extension function to initialize SDK
-        // This extension function is ONLY available in observe build variant
-        this.initializeObserveSDK()
+    private fun initializeMobiscoutMode() {
+        Log.i(TAG, " Mobiscout mode enabled - Initializing SDK")
+        // Call mobiscout source set extension function to initialize SDK
+        // This extension function is ONLY available in mobiscout build variant
+        this.initializeMobiscoutSDK()
     }
     
     private fun initializeTestMode() {

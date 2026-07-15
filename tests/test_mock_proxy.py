@@ -1,6 +1,6 @@
 """The record/replay HTTP proxy must forward+capture live traffic in record mode
 and serve it back with no upstream call in replay mode — the real behaviour behind
-``observe mock record`` / ``observe mock replay``."""
+``mobiscout mock record`` / ``mobiscout mock replay``."""
 
 import json
 import threading

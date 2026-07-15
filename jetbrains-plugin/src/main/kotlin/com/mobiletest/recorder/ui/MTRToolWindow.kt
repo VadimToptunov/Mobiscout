@@ -57,7 +57,7 @@ class MTRToolWindow(private val project: Project) {
                         JOptionPane.showMessageDialog(
                             mainPanel,
                             "Failed to start the engine. It is downloaded automatically on first use; " +
-                                "check your internet connection, or install the 'observe' CLI on PATH.",
+                                "check your internet connection, or install the 'mobiscout' CLI on PATH.",
                             "Error",
                             JOptionPane.ERROR_MESSAGE
                         )

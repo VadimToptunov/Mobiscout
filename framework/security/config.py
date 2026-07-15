@@ -1,7 +1,7 @@
 """
 Security Configuration and Best Practices
 
-Centralized security configuration for the Observe framework.
+Centralized security configuration for the Mobiscout framework.
 """
 
 import logging

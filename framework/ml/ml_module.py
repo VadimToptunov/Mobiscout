@@ -553,7 +553,7 @@ class MLModule:
 
     def __init__(self, backend: MLBackend = MLBackend.SKLEARN, models_dir: Optional[Path] = None):
         self.backend = backend
-        self.models_dir = models_dir or Path.home() / ".observe" / "models"
+        self.models_dir = models_dir or Path.home() / ".mobiscout" / "models"
         self.models: Dict[ModelType, MLModel] = {}
 
         # Initialize models

@@ -1,1 +1,1 @@
-rootProject.name = "observe-plugin"
+rootProject.name = "mobiscout-plugin"

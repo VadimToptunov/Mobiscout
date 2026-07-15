@@ -1,6 +1,6 @@
 # Technical Design Document
 
-**Project:** Observe  
+**Project:** Mobiscout  
 **Version:** 2.0  
 **Date:** 2026-01-12  
 **Status:** Production
@@ -26,7 +26,7 @@
 
 ### High-Level Design
 
-Observe is a **hybrid Python + Rust system** designed for:
+Mobiscout is a **hybrid Python + Rust system** designed for:
 
 - **High Performance**: CPU-intensive operations in Rust (16x speedup)
 - **Flexibility**: Application logic, ML, integrations in Python
@@ -70,7 +70,7 @@ Observe is a **hybrid Python + Rust system** designed for:
 **Structure:**
 
 ```
-observe
+mobiscout
 ├── business         # Business logic analysis
 ├── heal             # Self-healing commands
 ├── ml               # ML model management
@@ -80,7 +80,7 @@ observe
 ├── security         # Security scanning
 ├── a11y             # Accessibility testing
 ├── load             # Load testing
-├── observe          # Observability
+├── mobiscout          # Observability
 ├── config           # Configuration
 ├── ci               # CI/CD templates
 ├── doctor           # System health
@@ -94,7 +94,7 @@ observe
 # framework/cli/main.py
 @click.group()
 def cli():
-    """Observe CLI"""
+    """Mobiscout CLI"""
     pass
 
 cli.add_command(business)
@@ -105,13 +105,13 @@ cli.add_command(ml)
 
 ---
 
-### 2. Rust Core (`observe_core`)
+### 2. Rust Core (`mobiscout_core`)
 
 **Entry Point:** `rust_core/src/lib.rs`
 
 ```rust
 #[pymodule]
-fn observe_core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add("__author__", "Vadim Toptunov")?;
 
@@ -719,14 +719,14 @@ class HealingResult:
 
 ### CLI Commands
 
-#### `observe heal auto`
+#### `mobiscout heal auto`
 
 **Purpose:** Automatically heal test failures
 
 **Signature:**
 
 ```bash
-observe heal auto [OPTIONS]
+mobiscout heal auto [OPTIONS]
 ```
 
 **Options:**
@@ -740,21 +740,21 @@ observe heal auto [OPTIONS]
 **Example:**
 
 ```bash
-observe heal auto \
+mobiscout heal auto \
   --test-results results/junit.xml \
   --screenshots screenshots/ \
   --confidence 0.7 \
   --commit
 ```
 
-#### `observe ml train`
+#### `mobiscout ml train`
 
 **Purpose:** Train ML model
 
 **Signature:**
 
 ```bash
-observe ml train [OPTIONS]
+mobiscout ml train [OPTIONS]
 ```
 
 **Options:**
@@ -767,7 +767,7 @@ observe ml train [OPTIONS]
 **Example:**
 
 ```bash
-observe ml train \
+mobiscout ml train \
   --data data/training_data.json \
   --output models/element_classifier.pkl \
   --test-size 0.2 \
@@ -813,23 +813,23 @@ results = orchestrator.heal_all(failures, auto_commit=True)
 ### Rust API
 
 ```python
-import observe_core
+import mobiscout_core
 
 # AST Analysis
-analyzer = observe_core.RustAstAnalyzer()
+analyzer = mobiscout_core.RustAstAnalyzer()
 metrics = analyzer.analyze_file("myfile.py")
 print(f"Cyclomatic: {metrics.cyclomatic_complexity}")
 
 # Event Correlation
-correlator = observe_core.RustCorrelator()
+correlator = mobiscout_core.RustCorrelator()
 correlator.add_event(event1)
 correlator.add_event(event2)
 correlations = correlator.find_correlations()
 
 # File I/O
-content = observe_core.read_file_fast("file.txt")
-observe_core.write_file_fast("output.txt", content)
-files_content = observe_core.read_files_parallel(["file1.py", "file2.py"])
+content = mobiscout_core.read_file_fast("file.txt")
+mobiscout_core.write_file_fast("output.txt", content)
+files_content = mobiscout_core.read_files_parallel(["file1.py", "file2.py"])
 ```
 
 ---
@@ -1096,7 +1096,7 @@ cargo test
 
 ## Conclusion
 
-Observe is architected for:
+Mobiscout is architected for:
 
 ✅ **Performance** - Rust core for 16x speedup  
 ✅ **Intelligence** - ML-powered self-healing  

@@ -1,5 +1,5 @@
 """
-Main CLI entry point for Observe
+Main CLI entry point for Mobiscout
 
 Simplified main module that imports command groups from separate modules.
 """
@@ -47,9 +47,9 @@ from framework.cli.visual_commands import visual
 @click.pass_context
 def cli(ctx):
     """
-    📱 Observe
+    📱 Mobiscout
 
-    Intelligent Mobile Testing Platform - Observe, Analyze, Automate
+    Intelligent Mobile Testing Platform - Scout, Analyze, Automate
     """
     ctx.ensure_object(dict)
 
@@ -104,7 +104,7 @@ def info():
     click.echo("   • Dashboard & Analytics")
     click.echo("   • Rich CLI Interface")
     click.echo("\n📚 Documentation: See README.md")
-    click.echo("🐛 Issues: https://github.com/VadimToptunov/Observe/issues")
+    click.echo("🐛 Issues: https://github.com/VadimToptunov/Mobiscout/issues")
 
 
 if __name__ == "__main__":

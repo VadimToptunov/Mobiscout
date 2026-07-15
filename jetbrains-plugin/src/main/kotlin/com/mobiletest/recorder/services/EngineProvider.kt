@@ -5,13 +5,13 @@ import java.net.URI
 import java.security.MessageDigest
 
 /**
- * Resolves the command that starts the Observe engine's JSON-RPC daemon.
+ * Resolves the command that starts the Mobiscout engine's JSON-RPC daemon.
  *
  * Variant C — the user installs only the plugin, no Python. We prefer a
- * self-contained `observe-engine` binary, cached under the user's home and
+ * self-contained `mobiscout-engine` binary, cached under the user's home and
  * downloaded from the matching GitHub release on first use. If that isn't
  * available (offline, no release yet, or an unsupported platform) we fall back to
- * an `observe` CLI on PATH, so a developer with the Python package still works.
+ * an `mobiscout` CLI on PATH, so a developer with the Python package still works.
  *
  * Note the two launch shapes differ: the frozen binary's entry point runs the
  * daemon directly (no arguments), whereas the CLI needs `daemon --stdio`.
@@ -20,7 +20,7 @@ object EngineProvider {
     // The engine build to fetch. Must match a published release tag whose assets
     // are the per-platform binaries produced by .github/workflows/build-engine.yml.
     private const val ENGINE_VERSION = "v0.5.0"
-    private const val RELEASE_BASE = "https://github.com/VadimToptunov/Observe/releases/download"
+    private const val RELEASE_BASE = "https://github.com/VadimToptunov/Mobiscout/releases/download"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000
 
@@ -32,14 +32,14 @@ object EngineProvider {
      */
     fun resolveDaemonCommand(): List<String> {
         ensureEngineBinary()?.let { return listOf(it.absolutePath) } // frozen entry runs the daemon directly
-        findObserveOnPath()?.let { return listOf(it, "daemon", "--stdio") }
+        findMobiscoutOnPath()?.let { return listOf(it, "daemon", "--stdio") }
         throw IllegalStateException(
-            "No engine available: couldn't download the standalone engine and no 'observe' CLI is on PATH.",
+            "No engine available: couldn't download the standalone engine and no 'mobiscout' CLI is on PATH.",
         )
     }
 
     private fun cacheDir(): File =
-        File(System.getProperty("user.home"), ".mobile-observe/engine/$ENGINE_VERSION").apply { mkdirs() }
+        File(System.getProperty("user.home"), ".mobiscout/engine/$ENGINE_VERSION").apply { mkdirs() }
 
     /** The standalone binary, downloading it on first use; null if unavailable. */
     private fun ensureEngineBinary(): File? {
@@ -100,28 +100,28 @@ object EngineProvider {
         return when {
             os.contains("mac") || os.contains("darwin") ->
                 if (arch.contains("aarch64") || arch.contains("arm")) {
-                    "observe-engine-macos-arm64"
+                    "mobiscout-engine-macos-arm64"
                 } else {
-                    "observe-engine-macos-x64"
+                    "mobiscout-engine-macos-x64"
                 }
-            os.contains("win") -> "observe-engine-windows-x64.exe"
-            os.contains("nux") || os.contains("nix") -> "observe-engine-linux-x64"
+            os.contains("win") -> "mobiscout-engine-windows-x64.exe"
+            os.contains("nux") || os.contains("nix") -> "mobiscout-engine-linux-x64"
             else -> null
         }
     }
 
-    /** An `observe` CLI on PATH (developer fallback), or null. */
-    fun findObserveOnPath(): String? {
+    /** An `mobiscout` CLI on PATH (developer fallback), or null. */
+    fun findMobiscoutOnPath(): String? {
         val paths = System.getenv("PATH")?.split(File.pathSeparator).orEmpty()
         for (dir in paths) {
-            for (name in listOf("observe", "observe.exe")) {
+            for (name in listOf("mobiscout", "mobiscout.exe")) {
                 val f = File(dir, name)
                 if (f.exists() && f.canExecute()) return f.absolutePath
             }
         }
         val common = listOf(
-            "/usr/local/bin/observe",
-            System.getProperty("user.home") + "/.local/bin/observe",
+            "/usr/local/bin/mobiscout",
+            System.getProperty("user.home") + "/.local/bin/mobiscout",
         )
         return common.map { File(it) }.firstOrNull { it.exists() && it.canExecute() }?.absolutePath
     }

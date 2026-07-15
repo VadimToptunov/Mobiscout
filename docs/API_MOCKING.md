@@ -20,7 +20,7 @@ API Mocking allows you to:
 Record all API calls during a test session:
 
 ```bash
-observe mock record my-session --appium-server http://localhost:4723
+mobiscout mock record my-session --appium-server http://localhost:4723
 ```
 
 This creates a recording session that captures all HTTP traffic.
@@ -30,7 +30,7 @@ This creates a recording session that captures all HTTP traffic.
 Replay the recorded session:
 
 ```bash
-observe mock replay my-session
+mobiscout mock replay my-session
 ```
 
 Your tests will now use mocked responses instead of hitting real APIs!
@@ -40,8 +40,8 @@ Your tests will now use mocked responses instead of hitting real APIs!
 Check mock session stats:
 
 ```bash
-observe mock list
-observe mock inspect my-session
+mobiscout mock list
+mobiscout mock inspect my-session
 ```
 
 ## Programmatic API
@@ -114,7 +114,7 @@ print(f"Hit rate: {stats['hit_rate']}")
 - Good for most use cases
 
 ```bash
-observe mock replay my-session --fuzzy
+mobiscout mock replay my-session --fuzzy
 ```
 
 **Strict matching**:
@@ -123,7 +123,7 @@ observe mock replay my-session --fuzzy
 - Useful for POST/PUT requests with different payloads
 
 ```bash
-observe mock replay my-session --strict
+mobiscout mock replay my-session --strict
 ```
 
 ### 2. Swagger/OpenAPI Import
@@ -131,7 +131,7 @@ observe mock replay my-session --strict
 Generate mocks from API specifications:
 
 ```bash
-observe mock from-swagger api-spec.yaml my-session
+mobiscout mock from-swagger api-spec.yaml my-session
 ```
 
 ```python
@@ -169,7 +169,7 @@ paths:
 Update base URLs in recorded mocks:
 
 ```bash
-observe mock rewrite-urls my-session \
+mobiscout mock rewrite-urls my-session \
   https://staging.api.com \
   https://prod.api.com
 ```
@@ -182,10 +182,10 @@ Share mocks between team members:
 
 ```bash
 # Export
-observe mock export my-session -o my-session.json
+mobiscout mock export my-session -o my-session.json
 
 # Import
-observe mock import my-session.json
+mobiscout mock import my-session.json
 ```
 
 ### 5. Mock Statistics
@@ -311,13 +311,13 @@ Use descriptive session names:
 
 ```bash
 # Good
-observe mock record user-login-flow
-observe mock record checkout-success
-observe mock record error-scenarios
+mobiscout mock record user-login-flow
+mobiscout mock record checkout-success
+mobiscout mock record error-scenarios
 
 # Bad
-observe mock record test1
-observe mock record temp
+mobiscout mock record test1
+mobiscout mock record temp
 ```
 
 ### 2. Update Regularly
@@ -326,7 +326,7 @@ Re-record mocks when APIs change:
 
 ```bash
 # Re-record monthly or after API updates
-observe mock record my-session  # Overwrites existing
+mobiscout mock record my-session  # Overwrites existing
 ```
 
 ### 3. Version Control
@@ -371,15 +371,15 @@ def scrub_response(response_body):
 
 | Command                                         | Description               |
 |-------------------------------------------------|---------------------------|
-| `observe mock record <session>`                 | Start recording API calls |
-| `observe mock replay <session>`                 | Replay recorded calls     |
-| `observe mock list`                             | List all sessions         |
-| `observe mock inspect <session>`                | View session details      |
-| `observe mock delete <session>`                 | Delete a session          |
-| `observe mock export <session> -o file.json`    | Export session            |
-| `observe mock import file.json`                 | Import session            |
-| `observe mock from-swagger spec.yaml <session>` | Generate from Swagger     |
-| `observe mock rewrite-urls <session> old new`   | Rewrite URLs              |
+| `mobiscout mock record <session>`                 | Start recording API calls |
+| `mobiscout mock replay <session>`                 | Replay recorded calls     |
+| `mobiscout mock list`                             | List all sessions         |
+| `mobiscout mock inspect <session>`                | View session details      |
+| `mobiscout mock delete <session>`                 | Delete a session          |
+| `mobiscout mock export <session> -o file.json`    | Export session            |
+| `mobiscout mock import file.json`                 | Import session            |
+| `mobiscout mock from-swagger spec.yaml <session>` | Generate from Swagger     |
+| `mobiscout mock rewrite-urls <session> old new`   | Rewrite URLs              |
 
 ### Options
 
@@ -486,7 +486,7 @@ mocker.record_response(
 
 1. Check URL matches exactly (including trailing slash)
 2. Use `--fuzzy` mode if request bodies differ
-3. Verify session has recorded mocks: `observe mock inspect my-session`
+3. Verify session has recorded mocks: `mobiscout mock inspect my-session`
 
 ### Slow replay
 
@@ -511,5 +511,5 @@ mocker.record_response(
 ## Support
 
 - **Documentation**: See README.md
-- **Issues**: https://github.com/VadimToptunov/Observe/issues
+- **Issues**: https://github.com/VadimToptunov/Mobiscout/issues
 - **Examples**: See `tests/test_mocking.py`

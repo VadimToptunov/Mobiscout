@@ -29,39 +29,39 @@ Comprehensive load testing and performance profiling capabilities for mobile tes
 
 ```bash
 # Run load test with light profile
-observe load run tests/test_login.py --profile light
+mobiscout load run tests/test_login.py --profile light
 
 # Run stress test with custom parameters
-observe load run tests/ --profile stress --users 100 --duration 1800
+mobiscout load run tests/ --profile stress --users 100 --duration 1800
 
 # Run with fail-fast mode
-observe load run tests/ --profile medium --fail-fast
+mobiscout load run tests/ --profile medium --fail-fast
 
 # Save results to file
-observe load run tests/ --profile heavy --output results/
+mobiscout load run tests/ --profile heavy --output results/
 ```
 
 ### Performance Profiling
 
 ```bash
 # Profile test performance
-observe load profile tests/test_checkout.py
+mobiscout load profile tests/test_checkout.py
 
 # Profile with CPU and memory
-observe load profile tests/ --cpu --memory --top 30
+mobiscout load profile tests/ --cpu --memory --top 30
 
 # Generate HTML report
-observe load profile tests/ --report profile_report.html
+mobiscout load profile tests/ --report profile_report.html
 
 # Save profile data for comparison
-observe load profile tests/ --output baseline_profile.json
+mobiscout load profile tests/ --output baseline_profile.json
 ```
 
 ### Profile Comparison
 
 ```bash
 # Compare baseline vs current
-observe load compare baseline_profile.json current_profile.json
+mobiscout load compare baseline_profile.json current_profile.json
 ```
 
 ## Load Profiles
@@ -78,7 +78,7 @@ observe load compare baseline_profile.json current_profile.json
 List all profiles:
 
 ```bash
-observe load profiles
+mobiscout load profiles
 ```
 
 ## Configuration
@@ -179,7 +179,7 @@ profiler.generate_report(result, Path("profile.html"))
 Test system behavior under extreme load:
 
 ```bash
-observe load run tests/ --profile stress --users 200 --duration 3600
+mobiscout load run tests/ --profile stress --users 200 --duration 3600
 ```
 
 ### 2. Spike Testing
@@ -187,7 +187,7 @@ observe load run tests/ --profile stress --users 200 --duration 3600
 Test sudden traffic increases:
 
 ```bash
-observe load run tests/ --profile spike --users 100 --ramp-up 0
+mobiscout load run tests/ --profile spike --users 100 --ramp-up 0
 ```
 
 ### 3. Performance Regression Testing
@@ -196,13 +196,13 @@ Track performance over time:
 
 ```bash
 # Baseline
-observe load profile tests/ --output baseline.json
+mobiscout load profile tests/ --output baseline.json
 
 # After changes
-observe load profile tests/ --output current.json
+mobiscout load profile tests/ --output current.json
 
 # Compare
-observe load compare baseline.json current.json
+mobiscout load compare baseline.json current.json
 ```
 
 ### 4. Bottleneck Identification
@@ -210,7 +210,7 @@ observe load compare baseline.json current.json
 Find performance bottlenecks:
 
 ```bash
-observe load profile tests/slow_test.py --cpu --memory --top 50
+mobiscout load profile tests/slow_test.py --cpu --memory --top 50
 ```
 
 ### 5. CI/CD Integration
@@ -219,11 +219,11 @@ observe load profile tests/slow_test.py --cpu --memory --top 50
 # .github/workflows/load-test.yml
 - name: Run load test
   run: |
-    observe load run tests/ --profile medium --output results/
+    mobiscout load run tests/ --profile medium --output results/
     
 - name: Profile performance
   run: |
-    observe load profile tests/ --report profile.html
+    mobiscout load profile tests/ --report profile.html
     
 - name: Upload results
   uses: actions/upload-artifact@v3
@@ -267,7 +267,7 @@ Always start with smoke or light profiles before running heavy tests.
 Gradual user spawning prevents overwhelming the system:
 
 ```bash
-observe load run tests/ --profile medium --ramp-up 120
+mobiscout load run tests/ --profile medium --ramp-up 120
 ```
 
 ### 3. Monitor Resources
@@ -288,7 +288,7 @@ Profile performance regularly to catch regressions early:
 
 ```bash
 # Weekly performance check
-observe load profile tests/ --output weekly_profile_$(date +%Y%m%d).json
+mobiscout load profile tests/ --output weekly_profile_$(date +%Y%m%d).json
 ```
 
 ### 6. Fail-Fast for CI
@@ -296,7 +296,7 @@ observe load profile tests/ --output weekly_profile_$(date +%Y%m%d).json
 Use fail-fast mode in CI to save resources:
 
 ```bash
-observe load run tests/ --profile light --fail-fast
+mobiscout load run tests/ --profile light --fail-fast
 ```
 
 ## Advanced Usage

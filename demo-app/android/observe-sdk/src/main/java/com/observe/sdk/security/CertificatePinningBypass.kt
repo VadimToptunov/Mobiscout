@@ -1,4 +1,4 @@
-package com.observe.sdk.security
+package com.mobiscout.sdk.security
 
 import android.util.Log
 import okhttp3.CertificatePinner
@@ -9,14 +9,14 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
 /**
- * CertificatePinningBypass - Disable SSL cert pinning for observe/test builds
+ * CertificatePinningBypass - Disable SSL cert pinning for mobiscout/test builds
  * 
  * CRITICAL SECURITY WARNING:
  * =========================
  * This class DISABLES SSL certificate validation!
  * 
  * ONLY use in:
- * - observe-build (for traffic recording)
+ * - mobiscout-build (for traffic recording)
  * - test-build (for automated testing)
  * 
  * NEVER EVER use in:
@@ -30,7 +30,7 @@ import javax.net.ssl.X509TrustManager
  * 
  * Protection:
  * - Guarded by BuildConfig flags
- * - Only compiled into observe/test variants
+ * - Only compiled into mobiscout/test variants
  * - Runtime warnings in logs
  */
 object CertificatePinningBypass {
@@ -48,7 +48,7 @@ object CertificatePinningBypass {
     fun createUnsafeOkHttpClient(): OkHttpClient.Builder {
         Log.w(TAG, " CREATING UNSAFE SSL CLIENT - CERT PINNING DISABLED ")
         Log.w(TAG, "This client trusts ALL certificates and hostnames!")
-        Log.w(TAG, "ONLY use in observe/test builds!")
+        Log.w(TAG, "ONLY use in mobiscout/test builds!")
         
         return try {
             // Create trust manager that accepts all certificates
@@ -98,7 +98,7 @@ object CertificatePinningBypass {
      */
     fun isSafeToBypass(): Boolean {
         // This should be checked against BuildConfig at runtime
-        // For now, return true in observe/test builds
+        // For now, return true in mobiscout/test builds
         return true // Will be guarded by BuildConfig in real implementation
     }
     

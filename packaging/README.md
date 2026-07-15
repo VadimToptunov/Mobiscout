@@ -1,7 +1,7 @@
 # Standalone engine (variant C) — no Python required by the user
 
 The JetBrains plugin is a thin frontend; the logic lives in the Python engine
-(`framework` + the `observe daemon` JSON-RPC server). Variant C ships that engine
+(`framework` + the `mobiscout daemon` JSON-RPC server). Variant C ships that engine
 as a **self-contained per-platform binary** so an end user installs only the
 plugin — no Python, no `pip`.
 
@@ -9,13 +9,13 @@ plugin — no Python, no `pip`.
 
 ```bash
 pip install pyinstaller
-packaging/build_engine.sh        # -> dist/observe-engine  (this OS/arch)
+packaging/build_engine.sh        # -> dist/mobiscout-engine  (this OS/arch)
 ```
 
-The binary speaks the same JSON-RPC over stdio as `observe daemon`:
+The binary speaks the same JSON-RPC over stdio as `mobiscout daemon`:
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | dist/observe-engine
+echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | dist/mobiscout-engine
 ```
 
 Proven to run with **no interpreter on PATH** (`env -i`), including the ML/lxml
@@ -28,12 +28,12 @@ paths (`selector/generate`) and the codegen templates (bundled as data).
       smoke-test each; upload artifacts; attach to a Release. Proven green on
       Linux / Windows / macOS-arm64.
 - [x] Plugin: `EngineProvider` downloads the matching binary for the user's OS on
-      first run (cached under `~/.mobile-observe/engine/<version>/`), falls back to a
-      PATH `observe` CLI for development, and launches it.
+      first run (cached under `~/.mobiscout/engine/<version>/`), falls back to a
+      PATH `mobiscout` CLI for development, and launches it.
 - [ ] macOS codesign + notarize (else Gatekeeper blocks the downloaded binary) —
       needs an Apple Developer identity.
 - [ ] Publish a release tagged to match `EngineProvider.ENGINE_VERSION` so the
-      download resolves (until then the plugin falls back to a PATH `observe`).
+      download resolves (until then the plugin falls back to a PATH `mobiscout`).
 - [x] Integrity: the workflow publishes a `<asset>.sha256` and the plugin verifies
       the download against it (fail-closed — mismatch/missing hash falls back to PATH).
 - [ ] Version pinning: fetch the engine build matching the plugin version (today

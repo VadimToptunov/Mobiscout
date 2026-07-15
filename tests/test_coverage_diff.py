@@ -71,8 +71,8 @@ def test_missing_path_is_empty_so_everything_is_new():
 
 
 def test_pipeline_only_new_writes_gap_and_filters(tmp_path, monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
     from framework.crawler.pipeline import run_kit
     from tests.test_crawler import APP, FakeDriver
 

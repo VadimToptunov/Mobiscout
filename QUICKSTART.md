@@ -8,7 +8,7 @@
 
 ```bash
 # Clone repository
-git clone https://github.com/VadimToptunov/Observe.git
+git clone https://github.com/VadimToptunov/Mobiscout.git
 cd mobile_test_recorder
 
 # Create virtual environment
@@ -20,7 +20,7 @@ pip install -r requirements.txt
 pip install -e .
 
 # Verify installation
-observe info
+mobiscout info
 ```
 
 ---
@@ -33,89 +33,89 @@ The framework provides seven main command groups:
 
 ```bash
 # Analyze Android/iOS source code for business rules, edge cases, and patterns
-observe business analyze <source_path> --output analysis.json
-observe business report analysis.json     # Human-readable report
-observe business stats analysis.json      # Statistics summary
+mobiscout business analyze <source_path> --output analysis.json
+mobiscout business report analysis.json     # Human-readable report
+mobiscout business stats analysis.json      # Statistics summary
 ```
 
 ### 2. Project Integration
 
 ```bash
 # Full automation: analyze + generate tests in one command
-observe project fullcycle \
+mobiscout project fullcycle \
   --android-source path/to/android/src \
   --ios-source path/to/ios/src \
   --output ./tests/
 
 # Individual steps:
-observe project analyze <source_path> --output analysis.json
-observe project integrate analysis.json --framework-path ./my-tests/
-observe project generate analysis.json --output ./tests/
+mobiscout project analyze <source_path> --output analysis.json
+mobiscout project integrate analysis.json --framework-path ./my-tests/
+mobiscout project generate analysis.json --output ./tests/
 ```
 
 ### 3. Dashboard & Analytics
 
 ```bash
 # Start local web dashboard for test results visualization
-observe dashboard start --port 8080
+mobiscout dashboard start --port 8080
 
 # Import test results
-observe dashboard import-results --junit-xml results/junit.xml
+mobiscout dashboard import-results --junit-xml results/junit.xml
 
 # View statistics
-observe dashboard stats --days 30
+mobiscout dashboard stats --days 30
 
 # Export metrics for monitoring
-observe dashboard export --format prometheus --output metrics.txt
+mobiscout dashboard export --format prometheus --output metrics.txt
 ```
 
 ### 4. Self-Healing Tests
 
 ```bash
 # Analyze test failures and suggest fixes
-observe heal analyze --test-results results/junit.xml
+mobiscout heal analyze --test-results results/junit.xml
 
 # Automatically fix broken selectors
-observe heal auto --test-results results/junit.xml --commit
+mobiscout heal auto --test-results results/junit.xml --commit
 
 # View healing history
-observe heal history --limit 10
+mobiscout heal history --limit 10
 
 # Show healing statistics
-observe heal stats
+mobiscout heal stats
 ```
 
 ### 5. Device Management
 
 ```bash
 # List available devices
-observe devices list --platform android
+mobiscout devices list --platform android
 
 # Check device health
-observe devices health
+mobiscout devices health
 
 # Create device pool
-observe devices pool create --name android-pool --devices emulator-5554,emulator-5556
+mobiscout devices pool create --name android-pool --devices emulator-5554,emulator-5556
 
 # List pools
-observe devices pool list
+mobiscout devices pool list
 ```
 
 ### 6. Session Recording
 
 ```bash
 # (Coming soon - SDK integration required)
-observe record start --session-id my-session
-observe record stop
-observe record correlate <session_id>
+mobiscout record start --session-id my-session
+mobiscout record stop
+mobiscout record correlate <session_id>
 ```
 
 ### 7. Test Generation
 
 ```bash
 # (Coming soon - generates from recorded sessions)
-observe generate pages --model app-model.json --output tests/pages/
-observe generate api --model app-model.json --output tests/api/
+mobiscout generate pages --model app-model.json --output tests/pages/
+mobiscout generate api --model app-model.json --output tests/api/
 ```
 
 ---
@@ -131,13 +131,13 @@ observe generate api --model app-model.json --output tests/api/
 cd /path/to/your/mobile/app
 
 # 2. Analyze source code
-observe business analyze ./src/main --output analysis.json
+mobiscout business analyze ./src/main --output analysis.json
 
 # 3. View results
-observe business report analysis.json
+mobiscout business report analysis.json
 
 # 4. See statistics
-observe business stats analysis.json
+mobiscout business stats analysis.json
 ```
 
 **Output:**
@@ -156,10 +156,10 @@ observe business stats analysis.json
 
 ```bash
 # 1. Analyze Android app
-observe project analyze ./android/src --platform android --output android-analysis.json
+mobiscout project analyze ./android/src --platform android --output android-analysis.json
 
 # 2. Generate complete test suite
-observe project generate android-analysis.json \
+mobiscout project generate android-analysis.json \
   --output ./tests/ \
   --framework pytest-bdd
 
@@ -181,14 +181,14 @@ pytest tests/ -v
 
 ```bash
 # 1. Import test results
-observe dashboard import-results --junit-xml test-results/junit.xml
+mobiscout dashboard import-results --junit-xml test-results/junit.xml
 
 # 2. Start dashboard
-observe dashboard start --port 8080
+mobiscout dashboard start --port 8080
 # Opens browser at http://localhost:8080
 
 # 3. View statistics in terminal
-observe dashboard stats --days 30
+mobiscout dashboard stats --days 30
 ```
 
 **Dashboard Features:**
@@ -209,17 +209,17 @@ observe dashboard stats --days 30
 pytest tests/ --junit-xml=results/junit.xml
 
 # 2. Analyze failures
-observe heal analyze --test-results results/junit.xml
+mobiscout heal analyze --test-results results/junit.xml
 
 # 3. Auto-fix selectors (dry-run first)
-observe heal auto --test-results results/junit.xml --dry-run
+mobiscout heal auto --test-results results/junit.xml --dry-run
 
 # 4. Apply fixes and commit
-observe heal auto --test-results results/junit.xml --commit
+mobiscout heal auto --test-results results/junit.xml --commit
 
 # 5. Check what was healed
-observe heal history
-observe heal stats
+mobiscout heal history
+mobiscout heal stats
 ```
 
 **Healing Process:**
@@ -238,19 +238,19 @@ observe heal stats
 
 ```bash
 # 1. List available devices
-observe devices list --platform android
+mobiscout devices list --platform android
 
 # 2. Check device health
-observe devices health
+mobiscout devices health
 
 # 3. Create device pool for parallel execution
-observe devices pool create \
+mobiscout devices pool create \
   --name android-test-pool \
   --devices emulator-5554,emulator-5556,emulator-5558 \
   --strategy round-robin
 
 # 4. View pool info
-observe devices pool info android-test-pool
+mobiscout devices pool info android-test-pool
 
 # 5. Run tests on device pool (coming soon)
 # pytest tests/ --pool android-test-pool
@@ -269,7 +269,7 @@ observe devices pool info android-test-pool
 **Goal:** One command to analyze and generate everything
 
 ```bash
-observe project fullcycle \
+mobiscout project fullcycle \
   --android-source ./android/app/src/main \
   --ios-source ./ios/MyApp \
   --output ./tests/ \
@@ -329,18 +329,18 @@ observe project fullcycle \
 
 | Command   | Description                    | Example                                               |
 |-----------|--------------------------------|-------------------------------------------------------|
-| `analyze` | Analyze source code            | `observe business analyze ./src --output result.json` |
-| `report`  | Generate human-readable report | `observe business report result.json`                 |
-| `stats`   | Show statistics summary        | `observe business stats result.json`                  |
+| `analyze` | Analyze source code            | `mobiscout business analyze ./src --output result.json` |
+| `report`  | Generate human-readable report | `mobiscout business report result.json`                 |
+| `stats`   | Show statistics summary        | `mobiscout business stats result.json`                  |
 
 ### Project Commands
 
 | Command     | Description                   | Example                                                                     |
 |-------------|-------------------------------|-----------------------------------------------------------------------------|
-| `analyze`   | Analyze project source        | `observe project analyze ./src --platform android`                          |
-| `integrate` | Integrate with existing tests | `observe project integrate analysis.json --framework-path ./tests`          |
-| `generate`  | Generate test artifacts       | `observe project generate analysis.json --output ./tests`                   |
-| `fullcycle` | Do everything at once         | `observe project fullcycle --android-source ./android/src --output ./tests` |
+| `analyze`   | Analyze project source        | `mobiscout project analyze ./src --platform android`                          |
+| `integrate` | Integrate with existing tests | `mobiscout project integrate analysis.json --framework-path ./tests`          |
+| `generate`  | Generate test artifacts       | `mobiscout project generate analysis.json --output ./tests`                   |
+| `fullcycle` | Do everything at once         | `mobiscout project fullcycle --android-source ./android/src --output ./tests` |
 
 ---
 
@@ -350,8 +350,8 @@ observe project fullcycle \
 
 ```bash
 # Quick analysis to understand app structure
-observe business analyze ./src --output audit.json
-observe business report audit.json > audit-report.txt
+mobiscout business analyze ./src --output audit.json
+mobiscout business report audit.json > audit-report.txt
 
 # Share report with team
 cat audit-report.txt
@@ -361,7 +361,7 @@ cat audit-report.txt
 
 ```bash
 # Generate tests from existing codebase
-observe project fullcycle \
+mobiscout project fullcycle \
   --android-source ./app/src/main \
   --output ./tests/generated/
 
@@ -373,10 +373,10 @@ ls -la tests/generated/
 
 ```bash
 # Extract all API endpoints
-observe business analyze ./src --output api-analysis.json
+mobiscout business analyze ./src --output api-analysis.json
 
 # View API contracts
-observe business report api-analysis.json | grep -A 10 "API Contracts"
+mobiscout business report api-analysis.json | grep -A 10 "API Contracts"
 ```
 
 ---
@@ -386,7 +386,7 @@ observe business report api-analysis.json | grep -A 10 "API Contracts"
 1. **Read Full Documentation:** [USER_GUIDE.md](USER_GUIDE.md)
 2. **Try Demo Apps:** `cd demo-app/` (Android & iOS examples included)
 3. **View Examples:** Check `tests/` directory for sample outputs
-4. **Report Issues:** [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
+4. **Report Issues:** [GitHub Issues](https://github.com/VadimToptunov/Mobiscout/issues)
 
 ---
 
@@ -403,11 +403,11 @@ observe business report api-analysis.json | grep -A 10 "API Contracts"
 find ./src -name "*.kt" -o -name "*.swift" -o -name "*.java"
 
 # Use correct source path
-observe business analyze ./app/src/main  # Android
-observe business analyze ./MyApp/MyApp   # iOS
+mobiscout business analyze ./app/src/main  # Android
+mobiscout business analyze ./MyApp/MyApp   # iOS
 ```
 
-### Issue: "Command not found: observe"
+### Issue: "Command not found: mobiscout"
 
 **Cause:** Framework not installed in PATH
 
@@ -421,7 +421,7 @@ source .venv/bin/activate
 pip install -e .
 
 # Verify
-observe info
+mobiscout info
 ```
 
 ### Issue: "Empty analysis result"
@@ -432,11 +432,11 @@ observe info
 
 ```bash
 # Enable debug logging
-export OBSERVE_LOG_LEVEL=DEBUG
-observe business analyze ./src --output result.json
+export MOBISCOUT_LOG_LEVEL=DEBUG
+mobiscout business analyze ./src --output result.json
 
 # Check logs
-cat ~/.observe/logs/observe.log
+cat ~/.mobiscout/logs/mobiscout.log
 ```
 
 ---
@@ -464,16 +464,16 @@ cat ~/.observe/logs/observe.log
 ### Quick Help
 
 ```bash
-observe --help                    # All commands
-observe business --help     # Business logic commands
-observe project --help            # Project commands
+mobiscout --help                    # All commands
+mobiscout business --help     # Business logic commands
+mobiscout project --help            # Project commands
 ```
 
 ### Resources
 
 - **Documentation:** [USER_GUIDE.md](USER_GUIDE.md) (complete reference)
 - **Examples:** `demo-app/` directory
-- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/Observe/issues)
+- **Issues:** [GitHub Issues](https://github.com/VadimToptunov/Mobiscout/issues)
 
 ---
 

@@ -40,8 +40,8 @@ def metrics(format: str, output: Optional[Path]) -> None:
     Export collected metrics.
 
     Example:
-        observe observe metrics --format prometheus --output metrics.txt
-        observe observe metrics --format json
+        mobiscout observe metrics --format prometheus --output metrics.txt
+        mobiscout observe metrics --format json
     """
     manager = ObservabilityManager.get_instance()
 
@@ -69,7 +69,7 @@ def metrics(format: str, output: Optional[Path]) -> None:
 
 
 @observe_.command()
-@click.option("--log-file", "-f", type=Path, default=Path("logs/observe.json"), help="Log file path")
+@click.option("--log-file", "-f", type=Path, default=Path("logs/mobiscout.json"), help="Log file path")
 @click.option("--level", "-l", type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"]), help="Filter by level")
 @click.option("--follow", is_flag=True, help="Follow log output (like tail -f)")
 @click.option("--lines", "-n", type=int, default=50, help="Number of lines to show")
@@ -78,10 +78,10 @@ def logs(log_file: Path, level: Optional[str], follow: bool, lines: int) -> None
     View structured logs.
 
     Example:
-        observe observe logs
-        observe observe logs --level ERROR
-        observe observe logs --follow
-        observe observe logs --lines 100
+        mobiscout observe logs
+        mobiscout observe logs --level ERROR
+        mobiscout observe logs --follow
+        mobiscout observe logs --lines 100
     """
     if not log_file.exists():
         console.print(f"[yellow]⚠[/yellow] Log file not found: {log_file}")
@@ -166,7 +166,7 @@ def trace(trace_file: Path) -> None:
     Analyze trace file.
 
     Example:
-        observe observe trace traces/trace_123.json
+        mobiscout observe trace traces/trace_123.json
     """
     if not trace_file.exists():
         console.print(f"[red]✗[/red] Trace file not found: {trace_file}")
@@ -211,7 +211,7 @@ def status() -> None:
     Show observability status.
 
     Example:
-        observe observe status
+        mobiscout observe status
     """
     manager = ObservabilityManager.get_instance()
 

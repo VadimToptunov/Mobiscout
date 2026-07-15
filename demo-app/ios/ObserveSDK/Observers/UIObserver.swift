@@ -1,16 +1,16 @@
 //
-//  UIObserver.swift
-//  ObserveSDK
+//  UIMobiscoutr.swift
+//  MobiscoutSDK
 //
-//  Observes UI interactions (taps, swipes, inputs)
+//  Mobiscouts UI interactions (taps, swipes, inputs)
 //
 
 import Foundation
 import UIKit
 import SwiftUI
 
-/// Observes user interactions with UI elements
-public class UIObserver {
+/// Mobiscouts user interactions with UI elements
+public class UIMobiscoutr {
     
     // MARK: - Properties
     
@@ -29,11 +29,11 @@ public class UIObserver {
     /// Start observing UI interactions
     public func start() {
         guard !isObserving else {
-            print("[UIObserver] Already observing")
+            print("[UIMobiscoutr] Already observing")
             return
         }
         
-        print("[UIObserver] Starting...")
+        print("[UIMobiscoutr] Starting...")
         isObserving = true
         
         // Swizzle UIControl action methods
@@ -45,19 +45,19 @@ public class UIObserver {
         // Swizzle UITextField methods
         swizzleTextFieldMethods()
         
-        print("[UIObserver] Started")
+        print("[UIMobiscoutr] Started")
     }
     
     /// Stop observing
     public func stop() {
         guard isObserving else {
-            print("[UIObserver] Not observing")
+            print("[UIMobiscoutr] Not observing")
             return
         }
         
-        print("[UIObserver] Stopping...")
+        print("[UIMobiscoutr] Stopping...")
         isObserving = false
-        print("[UIObserver] Stopped")
+        print("[UIMobiscoutr] Stopped")
     }
     
     /// Set current screen name
@@ -81,7 +81,7 @@ public class UIObserver {
         guard isObserving else { return }
         
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
-        let sessionId = ObserveSDK.shared.getSession()?.sessionId ?? "unknown"
+        let sessionId = MobiscoutSDK.shared.getSession()?.sessionId ?? "unknown"
         
         let elementId = view.accessibilityIdentifier
         let elementType = String(describing: type(of: view))
@@ -104,7 +104,7 @@ public class UIObserver {
         )
         
         eventBus.publish(event)
-        print("[UIObserver] Event: \(action) on \(elementType) (id: \(elementId ?? "nil"))")
+        print("[UIMobiscoutr] Event: \(action) on \(elementType) (id: \(elementId ?? "nil"))")
     }
     
     // MARK: - Method Swizzling
@@ -142,11 +142,11 @@ extension UIControl {
         self.observed_sendAction(action, to: target, for: event)
         
         // Capture event if observing
-        if let observer = ObserveSDK.shared.getUIObserver() {
+        if let observer = MobiscoutSDK.shared.getUIMobiscoutr() {
             observer.generateUIEvent(for: self, action: "tap")
         }
     }
 }
 
-// Note: getUIObserver() is now implemented in ObserveSDK.swift
+// Note: getUIMobiscoutr() is now implemented in MobiscoutSDK.swift
 

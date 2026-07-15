@@ -238,7 +238,7 @@ def analyze(
     Analyzes Android/iOS source code and writes results to test project.
 
     Example:
-        observe project analyze \\
+        mobiscout project analyze \\
             --android-source ~/MobileProjects/android-mono/flykk/src/main \\
             --ios-source ~/MobileProjects/new-flykk-ios/flykk \\
             --output-dir ~/flykk-test-automation/analysis
@@ -283,7 +283,7 @@ def analyze(
         print_section("Next Steps")
         print_info("Integrate results into test framework:")
         for file in results.values():
-            print(f"   observe project integrate --analysis {file} --project <test-project-path>")
+            print(f"   mobiscout project integrate --analysis {file} --project <test-project-path>")
         logger.info(f"Analysis completed successfully: {len(results)} platforms")
     else:
         print_error("Analysis failed - no results generated")
@@ -307,7 +307,7 @@ def integrate(analysis: str, project: str, preserve_existing: bool) -> None:
     Enriches test framework with discovered elements and APIs.
 
     Example:
-        observe project integrate \\
+        mobiscout project integrate \\
             --analysis ~/flykk-test-automation/analysis/android_analysis.yaml \\
             --project ~/flykk-test-automation
     """
@@ -379,7 +379,7 @@ def integrate(analysis: str, project: str, preserve_existing: bool) -> None:
     click.echo("🚀 Next step: Generate code")
     click.echo("=" * 70)
     click.echo(f"\n   cd {project_path}")
-    click.echo("   observe project generate --project .")
+    click.echo("   mobiscout project generate --project .")
 
     logger.info(f"Integration completed: {result.screens_enriched} screens, {result.elements_added} elements")
 
@@ -403,7 +403,7 @@ def generate(
     Creates Page Objects, tests, and BDD features.
 
     Example:
-        observe project generate --project ~/flykk-test-automation
+        mobiscout project generate --project ~/flykk-test-automation
     """
     logger.info(f"Starting code generation: project={project}")
 
@@ -417,7 +417,7 @@ def generate(
 
     if not model_path:
         click.echo(f"❌ Error: No app model found in {project_path / 'config'}")
-        click.echo("\n💡 Tip: Run 'observe project integrate' first to create the model")
+        click.echo("\n💡 Tip: Run 'mobiscout project integrate' first to create the model")
         logger.error(f"No app model found in {project_path / 'config'}")
         return
 
@@ -651,7 +651,7 @@ def fullcycle(
     Analyzes source code, integrates results, and generates tests.
 
     Example:
-        observe project fullcycle \\
+        mobiscout project fullcycle \\
             --android-path ~/android-project \\
             --ios-path ~/ios-project \\
             --project ~/test-automation

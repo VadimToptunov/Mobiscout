@@ -66,7 +66,7 @@ cargo bench
 ```python
 # Test if Rust core is available
 try:
-    from observe_core import RustAstAnalyzer
+    from mobiscout_core import RustAstAnalyzer
     print("✅ Rust core available!")
     
     analyzer = RustAstAnalyzer()
@@ -135,14 +135,14 @@ maturin develop
 ### Before (Python only)
 
 ```bash
-time observe business analyze ./large_project/src
+time mobiscout business analyze ./large_project/src
 # Real: 45.2s
 ```
 
 ### After (with Rust core)
 
 ```bash
-time observe business analyze ./large_project/src
+time mobiscout business analyze ./large_project/src
 # Real: 0.5s  (90x faster!)
 ```
 
