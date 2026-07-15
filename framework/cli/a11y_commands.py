@@ -55,8 +55,8 @@ def scan(
     HIERARCHY_FILE: Path to UI hierarchy JSON file
 
     Example:
-        observe a11y scan hierarchy.json --app-name MyApp --screen Login
-        observe a11y scan hierarchy.json -a MyApp -s Home --wcag-level AAA
+        mobiscout a11y scan hierarchy.json --app-name MyApp --screen Login
+        mobiscout a11y scan hierarchy.json -a MyApp -s Home --wcag-level AAA
     """
     if not hierarchy_file.exists():
         console.print(f"[red]✗[/red] File not found: {hierarchy_file}")
@@ -111,8 +111,8 @@ def audit(
     Detailed accessibility audit with violation details.
 
     Example:
-        observe a11y audit hierarchy.json -a MyApp -s Login
-        observe a11y audit hierarchy.json -a MyApp -s Home --severity critical
+        mobiscout a11y audit hierarchy.json -a MyApp -s Login
+        mobiscout a11y audit hierarchy.json -a MyApp -s Home --severity critical
     """
     if not hierarchy_file.exists():
         console.print(f"[red]✗[/red] File not found: {hierarchy_file}")
@@ -169,7 +169,7 @@ def list_checks() -> None:
     List available accessibility checks.
 
     Example:
-        observe a11y list
+        mobiscout a11y list
     """
     table = Table(title="Accessibility Checks")
     table.add_column("Rule ID", style="cyan")
@@ -202,7 +202,7 @@ def compare(report1: Path, report2: Path) -> None:
     Compare two accessibility reports.
 
     Example:
-        observe a11y compare v1_report.json v2_report.json
+        mobiscout a11y compare v1_report.json v2_report.json
     """
     if not report1.exists() or not report2.exists():
         console.print("[red]✗[/red] Report file(s) not found")
@@ -269,7 +269,7 @@ def summary(report_file: Path) -> None:
     Show summary from accessibility report.
 
     Example:
-        observe a11y summary report.json
+        mobiscout a11y summary report.json
     """
     if not report_file.exists():
         console.print(f"[red]✗[/red] File not found: {report_file}")

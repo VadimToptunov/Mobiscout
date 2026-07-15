@@ -38,8 +38,8 @@ def runtime(
     Checks for root/jailbreak detection, anti-debugging, anti-tampering, etc.
 
     Example:
-        observe security runtime app.apk --platform android
-        observe security runtime app.ipa -p ios -o runtime_report.json
+        mobiscout security runtime app.apk --platform android
+        mobiscout security runtime app.ipa -p ios -o runtime_report.json
     """
     if not validate_path(app_path):
         raise SystemExit(1)
@@ -150,8 +150,8 @@ def protections(app_path: Path, platform: str) -> None:
     Rapidly scans for common protection mechanisms.
 
     Example:
-        observe security protections app.apk -p android
-        observe security protections app.ipa -p ios
+        mobiscout security protections app.apk -p android
+        mobiscout security protections app.ipa -p ios
     """
     if not validate_path(app_path):
         raise SystemExit(1)

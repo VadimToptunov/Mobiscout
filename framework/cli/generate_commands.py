@@ -27,7 +27,7 @@ def pages(model: str, output: str, platform: str):
     Generate Page Object classes from app model
 
     Example:
-        observe generate pages --model app_model.yaml --output tests/pages
+        mobiscout generate pages --model app_model.yaml --output tests/pages
     """
     print_header("📄 Generating Page Objects", f"Platform: {platform}")
 
@@ -152,7 +152,7 @@ def tests(model, app_package, target, output, app_activity, suite_name, list_tar
     same model can produce Python/Java/JS/Kotlin, imperative or BDD.
 
     Example:
-        observe generate tests --model app.yaml --app-package com.x.app \\
+        mobiscout generate tests --model app.yaml --app-package com.x.app \\
             --target java_testng --output tests/java
     """
     from framework.codegen import available_targets, get_emitter
@@ -219,7 +219,7 @@ def api_tests(model: str, openapi: str, output: str, base_url: str):
     richer context, straight from the backend's OpenAPI/Swagger spec (--openapi).
 
     Example:
-        observe generate api-tests --openapi openapi.yaml --base-url https://api.example.com
+        mobiscout generate api-tests --openapi openapi.yaml --base-url https://api.example.com
     """
     from framework.codegen.api_test import emit_api_tests
     import yaml
@@ -277,7 +277,7 @@ def api_review(openapi: str, output: str):
     Accepts a local file or a live URL (e.g. https://host/openapi.json).
 
     Example:
-        observe generate api-review --openapi https://petstore3.swagger.io/api/v3/openapi.json
+        mobiscout generate api-review --openapi https://petstore3.swagger.io/api/v3/openapi.json
     """
     from framework.codegen.openapi import load_spec, parse_openapi, review_markdown, review_openapi
 

@@ -62,8 +62,8 @@ def test_unreachable_screen_flagged():
 
 
 def test_pipeline_writes_invariants(tmp_path, monkeypatch):
-    monkeypatch.setenv("OBSERVE_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
     from framework.crawler.pipeline import build_kit
 
     a, b = _screen("A", [_btn("Go", "id/go")]), _screen("B", [_btn("Nothing", "id/x")])

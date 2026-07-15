@@ -32,8 +32,8 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
     Tests running application for SSL/TLS, API security, and session vulnerabilities.
 
     Example:
-        observe security dast api.example.com
-        observe security dast 192.168.1.100 --port 8443 -o dast_report.json
+        mobiscout security dast api.example.com
+        mobiscout security dast 192.168.1.100 --port 8443 -o dast_report.json
     """
     console.print(
         Panel.fit(
@@ -113,8 +113,8 @@ def ssl(host: str, port: int) -> None:
     Checks for weak protocols, cipher suites, and certificate issues.
 
     Example:
-        observe security ssl api.example.com
-        observe security ssl 192.168.1.100 --port 8443
+        mobiscout security ssl api.example.com
+        mobiscout security ssl 192.168.1.100 --port 8443
     """
     console.print(Panel.fit(f"SSL/TLS Analysis: {host}:{port}", style="bold cyan"))
 
@@ -167,9 +167,9 @@ def api(base_url: str, auth_header: Optional[str], endpoints: Optional[Path]) ->
     Checks for injection, authentication bypass, and IDOR vulnerabilities.
 
     Example:
-        observe security api https://api.example.com
-        observe security api https://api.example.com -a "Bearer token123"
-        observe security api https://api.example.com -e endpoints.json
+        mobiscout security api https://api.example.com
+        mobiscout security api https://api.example.com -a "Bearer token123"
+        mobiscout security api https://api.example.com -e endpoints.json
     """
     console.print(Panel.fit(f"API Security Testing: {base_url}", style="bold green"))
 

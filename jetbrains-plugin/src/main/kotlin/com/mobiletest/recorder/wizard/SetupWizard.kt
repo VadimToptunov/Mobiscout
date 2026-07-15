@@ -8,7 +8,7 @@ import com.mobiletest.recorder.settings.MTRSettings
 import javax.swing.JComponent
 
 /**
- * Setup Wizard for Observe initial configuration.
+ * Setup Wizard for Mobiscout initial configuration.
  *
  * Guides users through the essential setup steps:
  * 1. Source Code Configuration - Do you have source code?
@@ -17,7 +17,7 @@ import javax.swing.JComponent
  * 4. Framework Selection - Test framework and language
  * 5. Summary - Review and finish
  */
-class SetupWizard(project: Project?) : AbstractWizard<SetupWizardStep>("Observe Setup", project) {
+class SetupWizard(project: Project?) : AbstractWizard<SetupWizardStep>("Mobiscout Setup", project) {
 
     private val settings = MTRSettings.getInstance()
     private val wizardModel = SetupWizardModel()

@@ -29,20 +29,20 @@ pip install -e .
 pip install -e ".[rust]"
 
 # Verify installation
-observe --version
+mobiscout --version
 ```
 
 ### First Test
 
 ```bash
 # Initialize configuration
-observe config init
+mobiscout config init
 
 # Run your first analysis
-observe business analyze app/src --output analysis.json
+mobiscout business analyze app/src --output analysis.json
 
 # View results
-observe business report analysis.json
+mobiscout business report analysis.json
 ```
 
 ---
@@ -57,10 +57,10 @@ observe business report analysis.json
 
 ```bash
 # Analyze entire codebase
-observe business analyze android/src --output analysis.json
+mobiscout business analyze android/src --output analysis.json
 
 # Generate human-readable report
-observe business report analysis.json --format html
+mobiscout business report analysis.json --format html
 
 # View in browser
 open business_logic_report.html
@@ -77,7 +77,7 @@ open business_logic_report.html
 **Real Example:**
 
 ```bash
-$ observe business analyze myapp/src
+$ mobiscout business analyze myapp/src
 ✓ Analyzed 450 files in 2.5s (Rust core)
 ✓ Found 1,247 patterns:
   - Validation: 312
@@ -100,7 +100,7 @@ $ observe business analyze myapp/src
 pytest tests/
 
 # Auto-heal failures
-observe heal auto \
+mobiscout heal auto \
   --test-results results/junit.xml \
   --screenshots screenshots/ \
   --confidence 0.7 \
@@ -124,7 +124,7 @@ pytest tests/
 **Real Example:**
 
 ```bash
-$ observe heal auto --test-results junit.xml --commit
+$ mobiscout heal auto --test-results junit.xml --commit
 ✓ Analyzed 47 failures
 ✓ Healed 43 automatically (92%)
   - Fuzzy text match: 18
@@ -144,21 +144,21 @@ $ observe heal auto --test-results junit.xml --commit
 
 ```bash
 # Collect training data from your app
-observe ml collect-data \
+mobiscout ml collect-data \
   --app com.myapp \
   --output training_data.json
 
 # Train custom model
-observe ml train \
+mobiscout ml train \
   --data training_data.json \
   --output models/myapp_model.pkl \
   --test-size 0.2
 
 # Evaluate model
-observe ml evaluate models/myapp_model.pkl
+mobiscout ml evaluate models/myapp_model.pkl
 
 # Use custom model
-observe config set ml.model_path models/myapp_model.pkl
+mobiscout config set ml.model_path models/myapp_model.pkl
 ```
 
 **Model Metrics:**
@@ -178,7 +178,7 @@ observe config set ml.model_path models/myapp_model.pkl
 
 ```bash
 # Generate GitHub Actions workflow
-observe ci init --platform github-actions
+mobiscout ci init --platform github-actions
 
 # Customize generated file
 # .github/workflows/mobile-tests.yml
@@ -202,17 +202,17 @@ jobs:
         run: pip install -e ".[rust]"
       
       - name: Run Tests
-        run: observe parallel run tests/ --workers 4
+        run: mobiscout parallel run tests/ --workers 4
       
       - name: Auto-Heal Failures
         if: failure()
-        run: observe heal auto --commit
+        run: mobiscout heal auto --commit
       
       - name: Security Scan
-        run: observe security scan app.apk
+        run: mobiscout security scan app.apk
       
       - name: Accessibility Check
-        run: observe a11y scan tests/
+        run: mobiscout a11y scan tests/
       
       - name: Upload Reports
         uses: actions/upload-artifact@v3
@@ -225,13 +225,13 @@ jobs:
 
 ```bash
 # GitLab CI
-observe ci init --platform gitlab
+mobiscout ci init --platform gitlab
 
 # Jenkins
-observe ci init --platform jenkins
+mobiscout ci init --platform jenkins
 
 # CircleCI
-observe ci init --platform circleci
+mobiscout ci init --platform circleci
 ```
 
 ---
@@ -244,18 +244,18 @@ observe ci init --platform circleci
 
 ```bash
 # Create device pool
-observe parallel create-pool \
+mobiscout parallel create-pool \
   --name qa-pool \
   --devices emulator-5554,emulator-5555,device-001
 
 # Run tests in parallel
-observe parallel run tests/ \
+mobiscout parallel run tests/ \
   --pool qa-pool \
   --strategy duration-based \
   --workers 6
 
 # Monitor execution
-observe parallel status
+mobiscout parallel status
 ```
 
 **Sharding Strategies:**
@@ -268,7 +268,7 @@ observe parallel status
 **Real Example:**
 
 ```bash
-$ observe parallel run tests/ --workers 6 --strategy duration-based
+$ mobiscout parallel run tests/ --workers 6 --strategy duration-based
 ✓ Created 6 shards (duration-based)
   - Shard 1: 47 tests (~18 min)
   - Shard 2: 52 tests (~19 min)
@@ -292,7 +292,7 @@ Speedup: 7x
 
 ```bash
 # Scan APK/IPA
-observe security scan app.apk \
+mobiscout security scan app.apk \
   --output security-report.json \
   --format html
 
@@ -300,7 +300,7 @@ observe security scan app.apk \
 open security-report.html
 
 # Compare with baseline
-observe security compare \
+mobiscout security compare \
   --baseline v1.0-security.json \
   --current security-report.json
 ```
@@ -321,7 +321,7 @@ observe security compare \
 **Real Example:**
 
 ```bash
-$ observe security scan myapp.apk
+$ mobiscout security scan myapp.apk
 ⚠ Found 12 security issues:
 
 🔴 CRITICAL (2):
@@ -352,15 +352,15 @@ $ observe security scan myapp.apk
 
 ```bash
 # Scan for accessibility issues
-observe a11y scan tests/ \
+mobiscout a11y scan tests/ \
   --wcag-level AAA \
   --output a11y-report.html
 
 # Get fix suggestions
-observe a11y fix-suggestions --screen LoginScreen
+mobiscout a11y fix-suggestions --screen LoginScreen
 
 # Generate compliance report
-observe a11y report a11y-results.json
+mobiscout a11y report a11y-results.json
 ```
 
 **Checks:**
@@ -374,7 +374,7 @@ observe a11y report a11y-results.json
 **Real Example:**
 
 ```bash
-$ observe a11y scan tests/ --wcag-level AAA
+$ mobiscout a11y scan tests/ --wcag-level AAA
 ⚠ Found 23 accessibility issues:
 
 🔴 CRITICAL (8):
@@ -402,16 +402,16 @@ Compliance: 67% (needs 100% for AAA)
 
 ```bash
 # Quick smoke test
-observe load run tests/test_api.py --profile smoke
+mobiscout load run tests/test_api.py --profile smoke
 
 # Medium load test
-observe load run tests/test_api.py \
+mobiscout load run tests/test_api.py \
   --profile medium \
   --users 20 \
   --duration 600
 
 # Custom load profile
-observe load run tests/test_api.py \
+mobiscout load run tests/test_api.py \
   --users 50 \
   --ramp-up 60 \
   --duration 1800 \
@@ -432,7 +432,7 @@ observe load run tests/test_api.py \
 **Real Example:**
 
 ```bash
-$ observe load run tests/test_checkout.py --profile medium
+$ mobiscout load run tests/test_checkout.py --profile medium
 ✓ Starting load test: 20 users, 10 minutes
 
 Results:
@@ -465,14 +465,14 @@ Results:
 
 ```bash
 # Record real API responses
-observe mock record \
+mobiscout mock record \
   --session checkout-flow \
   --app com.myapp
 
 # (Interact with app, complete checkout)
 
 # Replay mocked responses
-observe mock replay \
+mobiscout mock replay \
   --session checkout-flow \
   --app com.myapp
 
@@ -490,11 +490,11 @@ pytest tests/test_checkout.py  # Uses mocked API
 **Real Example:**
 
 ```bash
-$ observe mock record --session user-flow
+$ mobiscout mock record --session user-flow
 ✓ Recording started
 ✓ Captured 47 API calls
 
-$ observe mock replay --session user-flow
+$ mobiscout mock replay --session user-flow
 ✓ Replaying mock session "user-flow"
 ✓ Cache hit rate: 98.7%
 ✓ Average response time: 5ms (was 245ms)
@@ -510,19 +510,19 @@ $ observe mock replay --session user-flow
 
 ```bash
 # Find element with advanced selector
-observe selector find \
+mobiscout selector find \
   --type Button \
   --text "Login" \
   --parent "form" \
   --sibling "email input"
 
 # Validate selector robustness
-observe selector validate \
+mobiscout selector validate \
   --selector "Button.text('Login')" \
   --app com.myapp
 
 # Optimize existing selector
-observe selector optimize \
+mobiscout selector optimize \
   --selector "//android.widget.Button[@id='login']" \
   --app com.myapp
 ```
@@ -573,7 +573,7 @@ selector = (
 
 ```bash
 # Profile test execution
-observe load profile tests/test_checkout.py \
+mobiscout load profile tests/test_checkout.py \
   --cpu \
   --memory \
   --top 30 \
@@ -594,7 +594,7 @@ open profile.html
 **Real Example:**
 
 ```bash
-$ observe load profile tests/test_checkout.py --cpu --memory
+$ mobiscout load profile tests/test_checkout.py --cpu --memory
 
 Top CPU consumers:
   1. find_element()        - 42.3% (1,234 calls)
@@ -621,12 +621,12 @@ Top Memory consumers:
 
 ```bash
 # Generate documentation
-observe docs generate tests/ \
+mobiscout docs generate tests/ \
   --format html \
   --output docs/
 
 # Include test coverage
-observe docs generate tests/ \
+mobiscout docs generate tests/ \
   --format markdown \
   --include-coverage \
   --output TEST_DOCS.md
@@ -644,7 +644,7 @@ observe docs generate tests/ \
 **Real Example:**
 
 ```bash
-$ observe docs generate tests/ --format html
+$ mobiscout docs generate tests/ --format html
 ✓ Parsed 450 test files
 ✓ Extracted 1,234 docstrings
 ✓ Generated documentation:
@@ -667,17 +667,17 @@ $ observe docs generate tests/ --format html
 ```bash
 # Morning: Pull latest, run affected tests
 git pull origin main
-observe business select-tests --changed-files
-pytest $(observe business select-tests --changed-files)
+mobiscout business select-tests --changed-files
+pytest $(mobiscout business select-tests --changed-files)
 
 # During development: Fast feedback
 pytest tests/test_feature.py --fast
 
 # Before commit: Full validation
-observe doctor check
+mobiscout doctor check
 pytest tests/
-observe security scan app-debug.apk
-observe a11y scan tests/
+mobiscout security scan app-debug.apk
+mobiscout a11y scan tests/
 
 # Commit if all pass
 git commit -m "feat: new feature"
@@ -687,19 +687,19 @@ git commit -m "feat: new feature"
 
 ```bash
 # 1. Full test suite
-observe parallel run tests/ --workers 8
+mobiscout parallel run tests/ --workers 8
 
 # 2. Security audit
-observe security scan app-release.apk --output security.json
+mobiscout security scan app-release.apk --output security.json
 
 # 3. Accessibility check
-observe a11y scan tests/ --wcag-level AAA
+mobiscout a11y scan tests/ --wcag-level AAA
 
 # 4. Load testing
-observe load run tests/ --profile heavy
+mobiscout load run tests/ --profile heavy
 
 # 5. Generate reports
-observe report generate results/ --format html
+mobiscout report generate results/ --format html
 
 # 6. Review and approve
 open reports/index.html
@@ -712,18 +712,18 @@ open reports/index.html
 pip install -e ".[rust]"
 
 # 2. Initialize config
-observe config init
+mobiscout config init
 
 # 3. Understand codebase
-observe business analyze app/src --output analysis.json
-observe business report analysis.json --format html
+mobiscout business analyze app/src --output analysis.json
+mobiscout business report analysis.json --format html
 
 # 4. Run tests locally
-observe doctor check
+mobiscout doctor check
 pytest tests/ -v
 
 # 5. Learn selectors
-observe selector find --interactive
+mobiscout selector find --interactive
 ```
 
 ---
@@ -779,7 +779,7 @@ pytest tests/test_login.py -k ios
 
 ```bash
 # Generate test data
-observe data generate \
+mobiscout data generate \
   --schema user_schema.json \
   --count 1000 \
   --output users.json
@@ -812,7 +812,7 @@ pytest tests/test_registration.py \
 
 ```bash
 # Setup monitoring
-observe observe metrics --port 9090 &
+mobiscout observe metrics --port 9090 &
 
 # Export to Prometheus
 # prometheus.yml
@@ -861,13 +861,13 @@ save_json(labeled_data, "training_data.json")
 
 ```bash
 # Train custom model
-observe ml train \
+mobiscout ml train \
   --data training_data.json \
   --output custom_model.pkl \
   --cv-folds 10
 
 # Use custom model
-observe config set ml.model_path custom_model.pkl
+mobiscout config set ml.model_path custom_model.pkl
 ```
 
 ---
@@ -882,18 +882,18 @@ observe config set ml.model_path custom_model.pkl
 
 ```bash
 # Option A: Auto-heal all
-observe heal auto --test-results junit.xml --commit
+mobiscout heal auto --test-results junit.xml --commit
 
 # Option B: Dry-run first
-observe heal auto --test-results junit.xml --dry-run
+mobiscout heal auto --test-results junit.xml --dry-run
 # Review changes
-observe dashboard
+mobiscout dashboard
 # Apply if OK
-observe heal auto --test-results junit.xml --commit
+mobiscout heal auto --test-results junit.xml --commit
 
 # Option C: Manual review
-observe heal analyze junit.xml
-observe dashboard  # Review in UI
+mobiscout heal analyze junit.xml
+mobiscout dashboard  # Review in UI
 # Approve/reject each change
 ```
 
@@ -907,18 +907,18 @@ observe dashboard  # Review in UI
 
 ```bash
 # 1. Run in parallel
-observe parallel run tests/ --workers 8
+mobiscout parallel run tests/ --workers 8
 
 # 2. Use API mocking
-observe mock record --session fast-flow
-observe mock replay --session fast-flow
+mobiscout mock record --session fast-flow
+mobiscout mock replay --session fast-flow
 
 # 3. Smart test selection
-observe business select-tests --changed-files
-pytest $(observe business select-tests --changed-files)
+mobiscout business select-tests --changed-files
+pytest $(mobiscout business select-tests --changed-files)
 
 # 4. Profile and optimize
-observe load profile tests/ --cpu --memory
+mobiscout load profile tests/ --cpu --memory
 # Optimize hot spots
 ```
 
@@ -932,7 +932,7 @@ observe load profile tests/ --cpu --memory
 
 ```bash
 # Identify flaky tests
-observe doctor check --detect-flaky
+mobiscout doctor check --detect-flaky
 
 # Add retries
 pytest tests/ --reruns 3 --reruns-delay 1
@@ -944,7 +944,7 @@ wait = WebDriverWait(driver, 10)
 element = wait.until(EC.element_to_be_clickable((By.ID, "button")))
 
 # Add stability checks
-observe selector validate --selector "..." --stability-check
+mobiscout selector validate --selector "..." --stability-check
 ```
 
 ---
@@ -957,18 +957,18 @@ observe selector validate --selector "..." --stability-check
 
 ```bash
 # 1. Collect more training data
-observe ml collect-data --app com.myapp --samples 10000
+mobiscout ml collect-data --app com.myapp --samples 10000
 
 # 2. Balance dataset
-observe ml inspect-data training_data.json
+mobiscout ml inspect-data training_data.json
 # If imbalanced, sample more from minority classes
 
 # 3. Try different algorithms
-observe ml train --algorithm random-forest --n-estimators 200
-observe ml train --algorithm gradient-boosting
+mobiscout ml train --algorithm random-forest --n-estimators 200
+mobiscout ml train --algorithm gradient-boosting
 
 # 4. Feature engineering
-observe ml train --additional-features text_length,siblings_count
+mobiscout ml train --additional-features text_length,siblings_count
 ```
 
 ---
@@ -1051,7 +1051,7 @@ environments:
     device: "real-device-001"
 
 # Use:
-observe config get environments.dev.api_url
+mobiscout config get environments.dev.api_url
 ```
 
 ---
@@ -1072,15 +1072,15 @@ observe config get environments.dev.api_url
 - run: |
     # Only affected tests
     CHANGED=$(git diff --name-only HEAD~1)
-    TESTS=$(observe business select-tests --changed-files $CHANGED)
+    TESTS=$(mobiscout business select-tests --changed-files $CHANGED)
     pytest $TESTS
     
 # Parallel execution
-- run: observe parallel run tests/ --workers 10
+- run: mobiscout parallel run tests/ --workers 10
 
 # Auto-healing
 - if: failure()
-  run: observe heal auto --commit
+  run: mobiscout heal auto --commit
 ```
 
 ---
@@ -1129,7 +1129,7 @@ def test_checkout():
 **Get Help:**
 
 - GitHub
-  Issues: [github.com/VadimToptunov/Observe/issues](https://github.com/VadimToptunov/Observe/issues)
+  Issues: [github.com/VadimToptunov/Mobiscout/issues](https://github.com/VadimToptunov/Mobiscout/issues)
 - Documentation: [Full docs](https://mobile-test-recorder.readthedocs.io)
 
 **Contribute:**

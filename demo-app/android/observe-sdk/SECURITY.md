@@ -27,7 +27,7 @@ These features are designed for **TEST AUTOMATION ONLY**:
 
 ### ONLY enable in:
 
-**`observe` build variant** - For recording user flows  
+**`mobiscout` build variant** - For recording user flows  
 **`test` build variant** - For automated testing  
 **Local development** - For debugging
 
@@ -45,26 +45,26 @@ These features are designed for **TEST AUTOMATION ONLY**:
 
 ```kotlin
 // Production build - All security features enabled
-ObserveSDK.initialize(
+MobiscoutSDK.initialize(
     app = this,
-    config = ObserveConfig.disabled()
+    config = MobiscoutConfig.disabled()
 )
 ```
 
-### Full Observation Mode (Test/Observe Only)
+### Full Observation Mode (Test/Mobiscout Only)
 
 ```kotlin
-// ONLY in observe/test builds!
-ObserveSDK.initialize(
+// ONLY in mobiscout/test builds!
+MobiscoutSDK.initialize(
     app = this,
-    config = ObserveConfig.fullObservation()  //  DISABLES SSL SECURITY!
+    config = MobiscoutConfig.fullObservation()  //  DISABLES SSL SECURITY!
 )
 ```
 
 ### Custom Configuration
 
 ```kotlin
-ObserveConfig(
+MobiscoutConfig(
     enabled = true,
     exportCryptoKeys = true,     //  Export TLS keys
     bypassCertPinning = true,    //  Disable cert validation
@@ -124,11 +124,11 @@ CLIENT_RANDOM 1234567890abcdef... fedcba0987654321...
 
 ```kotlin
 // Export all crypto keys (JSON format)
-val keysFile = ObserveSDK.exportCryptoKeys()
+val keysFile = MobiscoutSDK.exportCryptoKeys()
 println("Keys exported to: ${keysFile?.absolutePath}")
 
 // Export TLS keys for Wireshark
-val tlsFile = ObserveSDK.exportTLSKeys()
+val tlsFile = MobiscoutSDK.exportTLSKeys()
 println("TLS keys: ${tlsFile?.absolutePath}")
 ```
 
@@ -136,10 +136,10 @@ println("TLS keys: ${tlsFile?.absolutePath}")
 
 ```bash
 # Pull crypto keys from device
-adb pull /sdcard/Android/data/com.yourapp/files/observe/crypto/crypto_keys_session123.json
+adb pull /sdcard/Android/data/com.yourapp/files/mobiscout/crypto/crypto_keys_session123.json
 
 # Pull TLS keys for Wireshark
-adb pull /sdcard/Android/data/com.yourapp/files/observe/crypto/tls_keys_session123.txt
+adb pull /sdcard/Android/data/com.yourapp/files/mobiscout/crypto/tls_keys_session123.txt
 ```
 
 ### Decrypt Traffic with Wireshark
@@ -158,7 +158,7 @@ adb pull /sdcard/Android/data/com.yourapp/files/observe/crypto/tls_keys_session1
 ```kotlin
 // In app/build.gradle.kts
 productFlavors {
-    create("observe") {
+    create("mobiscout") {
         buildConfigField("boolean", "CRYPTO_EXPORT_ENABLED", "true")
     }
     create("production") {
@@ -179,7 +179,7 @@ if (!BuildConfig.CRYPTO_EXPORT_ENABLED) {
 
 ```proguard
 # Strip crypto export classes from production builds
--assumenosideeffects class com.observe.sdk.security.CryptoKeyExporter {
+-assumenosideeffects class com.mobiscout.sdk.security.CryptoKeyExporter {
     public *;
 }
 ```
@@ -190,9 +190,9 @@ if (!BuildConfig.CRYPTO_EXPORT_ENABLED) {
 
 Before releasing to production:
 
-- [ ] `ObserveConfig.exportCryptoKeys` is **false**
-- [ ] `ObserveConfig.bypassCertPinning` is **false**
-- [ ] `observe-sdk` is **not included** in production build
+- [ ] `MobiscoutConfig.exportCryptoKeys` is **false**
+- [ ] `MobiscoutConfig.bypassCertPinning` is **false**
+- [ ] `mobiscout-sdk` is **not included** in production build
 - [ ] No crypto key files on device
 - [ ] Certificate pinning is **enabled**
 - [ ] ProGuard strips security bypass code

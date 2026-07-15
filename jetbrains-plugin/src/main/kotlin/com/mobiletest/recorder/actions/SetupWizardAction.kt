@@ -19,8 +19,8 @@ class SetupWizardAction : AnAction() {
         if (completed) {
             Messages.showInfoMessage(
                 project,
-                "Observe has been configured successfully!\n\n" +
-                "Open View → Tool Windows → Observe to get started.",
+                "Mobiscout has been configured successfully!\n\n" +
+                "Open View → Tool Windows → Mobiscout to get started.",
                 "Setup Complete"
             )
         }

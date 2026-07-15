@@ -1,4 +1,4 @@
-package com.observe.sdk.security
+package com.mobiscout.sdk.security
 
 import android.util.Log
 import okhttp3.Interceptor
@@ -13,7 +13,7 @@ import javax.net.ssl.SSLSocket
  * 
  * SECURITY WARNING:
  * This interceptor extracts TLS session keys for traffic decryption!
- * ONLY use in observe/test builds!
+ * ONLY use in mobiscout/test builds!
  * 
  * How it works:
  * 1. Intercepts HTTPS requests after SSL handshake

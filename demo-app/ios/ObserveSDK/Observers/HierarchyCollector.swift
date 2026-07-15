@@ -1,6 +1,6 @@
 //
 //  HierarchyCollector.swift
-//  ObserveSDK
+//  MobiscoutSDK
 //
 //  Captures UI hierarchy snapshots
 //
@@ -57,7 +57,7 @@ public class HierarchyCollector {
         guard isCollecting else { return }
         
         let timestamp = Int64(Date().timeIntervalSince1970 * 1000)
-        let sessionId = ObserveSDK.shared.getSession()?.sessionId ?? "unknown"
+        let sessionId = MobiscoutSDK.shared.getSession()?.sessionId ?? "unknown"
         
         // Get root view
         let root = rootView ?? UIApplication.shared.keyWindow?.rootViewController?.view

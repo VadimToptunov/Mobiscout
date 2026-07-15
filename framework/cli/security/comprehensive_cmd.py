@@ -46,8 +46,8 @@ def comprehensive(
     Combines SAST, DAST, decompilation, supply chain, and runtime analysis.
 
     Example:
-        observe security comprehensive app.apk -p android -n MyApp -o ./reports
-        observe security comprehensive app.apk -p android -n MyApp -s ./src -t api.example.com
+        mobiscout security comprehensive app.apk -p android -n MyApp -o ./reports
+        mobiscout security comprehensive app.apk -p android -n MyApp -s ./src -t api.example.com
     """
     if not validate_path(app_path):
         raise SystemExit(1)

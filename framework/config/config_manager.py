@@ -78,9 +78,9 @@ class IntegrationConfig(BaseModel):
     jira: JiraConfig = Field(default_factory=JiraConfig)
 
 
-class ObserveConfig(BaseModel):
+class MobiscoutConfig(BaseModel):
     """
-    Main configuration model for Observe Framework
+    Main configuration model for Mobiscout Framework
 
     Supports:
     - YAML/JSON files
@@ -95,7 +95,7 @@ class ObserveConfig(BaseModel):
     integrations: IntegrationConfig = Field(default_factory=IntegrationConfig)
 
     @classmethod
-    def from_file(cls, path: Path) -> "ObserveConfig":
+    def from_file(cls, path: Path) -> "MobiscoutConfig":
         """Load configuration from YAML/JSON file"""
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {path}")
@@ -139,9 +139,9 @@ class ObserveConfig(BaseModel):
     def _expand_env_vars(data: Any) -> Any:
         """Recursively expand environment variables like ${VAR}"""
         if isinstance(data, dict):
-            return {k: ObserveConfig._expand_env_vars(v) for k, v in data.items()}
+            return {k: MobiscoutConfig._expand_env_vars(v) for k, v in data.items()}
         elif isinstance(data, list):
-            return [ObserveConfig._expand_env_vars(item) for item in data]
+            return [MobiscoutConfig._expand_env_vars(item) for item in data]
         elif isinstance(data, str) and data.startswith("${") and data.endswith("}"):
             var_name = data[2:-1]
             return os.getenv(var_name, data)
@@ -203,11 +203,11 @@ class ConfigManager:
     """
 
     DEFAULT_CONFIG_PATHS = [
-        Path(".observe.yaml"),
-        Path(".observe.yml"),
-        Path("observe.yaml"),
-        Path("observe.yml"),
-        Path("config/observe.yaml"),
+        Path(".mobiscout.yaml"),
+        Path(".mobiscout.yml"),
+        Path("mobiscout.yaml"),
+        Path("mobiscout.yml"),
+        Path("config/mobiscout.yaml"),
     ]
 
     def __init__(self, config_path: Optional[Path] = None, profile: str = "default"):
@@ -222,15 +222,15 @@ class ConfigManager:
                 return path
 
         # Return default path (will create if needed)
-        return Path(".observe.yaml")
+        return Path(".mobiscout.yaml")
 
-    def _load_config(self) -> ObserveConfig:
+    def _load_config(self) -> MobiscoutConfig:
         """Load configuration from file or create default"""
         if self.config_path.exists():
-            return ObserveConfig.from_file(self.config_path)
+            return MobiscoutConfig.from_file(self.config_path)
         else:
             # Return default config
-            return ObserveConfig()
+            return MobiscoutConfig()
 
     def save(self) -> None:
         """Save current configuration to file"""
@@ -283,7 +283,7 @@ class ConfigManager:
         if self.config_path.exists():
             raise FileExistsError(f"Config already exists: {self.config_path}")
 
-        self.config = ObserveConfig()
+        self.config = MobiscoutConfig()
         self.save()
 
     def list_all(self) -> dict[str, Any]:

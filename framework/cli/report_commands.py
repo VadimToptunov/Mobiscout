@@ -61,9 +61,9 @@ def generate(
     Generate test report from JUnit XML.
 
     Example:
-        observe report generate --junit-xml results.xml --output report.html
-        observe report generate -j results.xml -f markdown -o REPORT.md
-        observe report generate -j results.xml -f json -o report.json
+        mobiscout report generate --junit-xml results.xml --output report.html
+        mobiscout report generate -j results.xml -f markdown -o REPORT.md
+        mobiscout report generate -j results.xml -f json -o report.json
     """
     if not junit_xml or not junit_xml.exists():
         console.print("[red]✗[/red] JUnit XML file not found")
@@ -102,7 +102,7 @@ def summary(junit_xml: Path) -> None:
     Show test summary from JUnit XML.
 
     Example:
-        observe report summary results.xml
+        mobiscout report summary results.xml
     """
     if not junit_xml.exists():
         console.print("[red]✗[/red] JUnit XML file not found")
@@ -125,7 +125,7 @@ def list_formats() -> None:
     List available report formats.
 
     Example:
-        observe report list
+        mobiscout report list
     """
     table = Table(title="Available Report Formats")
     table.add_column("Format", style="cyan")

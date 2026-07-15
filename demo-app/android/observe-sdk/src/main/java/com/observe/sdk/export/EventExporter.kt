@@ -1,10 +1,10 @@
-package com.observe.sdk.export
+package com.mobiscout.sdk.export
 
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
-import com.observe.sdk.events.Event
+import com.mobiscout.sdk.events.Event
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

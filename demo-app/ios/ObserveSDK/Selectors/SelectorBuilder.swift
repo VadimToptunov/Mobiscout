@@ -1,6 +1,6 @@
 //
 //  SelectorBuilder.swift
-//  ObserveSDK
+//  MobiscoutSDK
 //
 //  Enhanced selector builder for iOS native elements
 //

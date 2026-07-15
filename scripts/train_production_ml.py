@@ -514,7 +514,7 @@ def train_production_models():
     with patch("framework.ml.ml_module.check_feature", return_value=True):
         from framework.ml import MLModule, MLBackend, ModelType, TrainingData
 
-        output_dir = Path.home() / ".observe" / "models"
+        output_dir = Path.home() / ".mobiscout" / "models"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         # Генератор реальных данных

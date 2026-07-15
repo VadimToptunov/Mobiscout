@@ -26,13 +26,13 @@ android {
     flavorDimensions += "environment"
     
     productFlavors {
-        create("observe") {
+        create("mobiscout") {
             dimension = "environment"
-            applicationIdSuffix = ".observe"
-            versionNameSuffix = "-observe"
+            applicationIdSuffix = ".mobiscout"
+            versionNameSuffix = "-mobiscout"
             
-            // Enable Observe SDK
-            buildConfigField("Boolean", "OBSERVE_ENABLED", "true")
+            // Enable Mobiscout SDK
+            buildConfigField("Boolean", "MOBISCOUT_ENABLED", "true")
             buildConfigField("Boolean", "TEST_MODE", "false")
             
             // Security settings - RELAXED for testing
@@ -40,7 +40,7 @@ android {
             buildConfigField("Boolean", "CERT_PINNING_ENABLED", "false")
             buildConfigField("Boolean", "ROOT_DETECTION_ENABLED", "false")
             
-            // Custom app name for observe variant
+            // Custom app name for mobiscout variant
             resValue("string", "app_name", "FinDemo ")
             
             manifestPlaceholders["appIcon"] = "@mipmap/ic_launcher_observe"
@@ -52,7 +52,7 @@ android {
             versionNameSuffix = "-test"
             
             // Clean build without SDK, test-friendly settings
-            buildConfigField("Boolean", "OBSERVE_ENABLED", "false")
+            buildConfigField("Boolean", "MOBISCOUT_ENABLED", "false")
             buildConfigField("Boolean", "TEST_MODE", "true")
             
             // Security settings - RELAXED for automated testing
@@ -72,7 +72,7 @@ android {
             dimension = "environment"
             
             // Production build - MAXIMUM SECURITY
-            buildConfigField("Boolean", "OBSERVE_ENABLED", "false")
+            buildConfigField("Boolean", "MOBISCOUT_ENABLED", "false")
             buildConfigField("Boolean", "TEST_MODE", "false")
             
             // Security settings - STRICT for production
@@ -126,8 +126,8 @@ android {
 }
 
 dependencies {
-    // Observe SDK - ONLY for observe build
-    "observeImplementation"(project(":observe-sdk"))
+    // Mobiscout SDK - ONLY for mobiscout build
+    "observeImplementation"(project(":mobiscout-sdk"))
     
     // AndroidX Core
     implementation("androidx.core:core-ktx:1.12.0")

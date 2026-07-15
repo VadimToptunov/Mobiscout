@@ -13,7 +13,7 @@ import java.io.File
  * 
  * IMPORTANT:
  * - ENABLED in production builds
- * - Can be disabled in observe/test builds for testing
+ * - Can be disabled in mobiscout/test builds for testing
  * 
  * Detection methods:
  * - Check for su binary
@@ -305,7 +305,7 @@ object TamperDetection {
             "com.google.android.feedback"  // Google Play Store alternative
         )
         
-        // In debug/observe builds, allow any installer
+        // In debug/mobiscout builds, allow any installer
         if (BuildConfig.DEBUG) {
             return false
         }

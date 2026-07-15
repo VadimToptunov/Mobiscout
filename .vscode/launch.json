@@ -13,7 +13,7 @@
       }
     },
     {
-      "name": "Python: Observe CLI",
+      "name": "Python: Mobiscout CLI",
       "type": "debugpy",
       "request": "launch",
       "module": "framework.cli.main",

@@ -1,6 +1,6 @@
 //
 //  EventExporter.swift
-//  ObserveSDK
+//  MobiscoutSDK
 //
 //  Exports captured events to JSON files
 //
@@ -34,7 +34,7 @@ public class EventExporter {
     private var isRunning = false
     
     private var eventBuffer: [Event] = []
-    private let bufferQueue = DispatchQueue(label: "com.observe.eventexporter.buffer")
+    private let bufferQueue = DispatchQueue(label: "com.mobiscout.eventexporter.buffer")
     
     private var exportTimer: Timer?
     private var eventCount = 0
@@ -158,7 +158,7 @@ public class EventExporter {
             
             // Wrap events in a container
             let container: [String: Any] = [
-                "session_id": ObserveSDK.shared.getSession()?.sessionId ?? "unknown",
+                "session_id": MobiscoutSDK.shared.getSession()?.sessionId ?? "unknown",
                 "export_time": Int64(Date().timeIntervalSince1970 * 1000),
                 "event_count": eventsToExport.count,
                 "events": try eventsToExport.map { event -> [String: Any] in
@@ -185,7 +185,7 @@ public class EventExporter {
             return nil
         }
         
-        let exportDir = documentsDir.appendingPathComponent("observe")
+        let exportDir = documentsDir.appendingPathComponent("mobiscout")
         
         // Create directory if it doesn't exist
         if !FileManager.default.fileExists(atPath: exportDir.path) {

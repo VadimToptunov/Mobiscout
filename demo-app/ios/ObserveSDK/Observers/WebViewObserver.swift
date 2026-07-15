@@ -1,14 +1,14 @@
 //
-//  WebViewObserver.swift
-//  ObserveSDK
+//  WebViewMobiscoutr.swift
+//  MobiscoutSDK
 //
-//  Observes WKWebView interactions and DOM elements
+//  Mobiscouts WKWebView interactions and DOM elements
 //
 
 import Foundation
 import WebKit
 
-/// Observes WKWebView interactions and DOM elements
+/// Mobiscouts WKWebView interactions and DOM elements
 ///
 /// Captures:
 /// - Page loads
@@ -17,7 +17,7 @@ import WebKit
 /// - Form submissions
 /// - Navigation events
 /// - Element hierarchy (similar to native)
-public class WebViewObserver: NSObject {
+public class WebViewMobiscoutr: NSObject {
     
     private let eventBus: EventBus
     private var isStarted = false
@@ -26,7 +26,7 @@ public class WebViewObserver: NSObject {
     // JavaScript injection script
     private static let injectionScript = """
         (function() {
-            console.log('[ObserveSDK] Injecting WebView observer...');
+            console.log('[MobiscoutSDK] Injecting WebView observer...');
             
             // Capture click events
             document.addEventListener('click', function(e) {
@@ -54,7 +54,7 @@ public class WebViewObserver: NSObject {
                         data: data
                     });
                 } catch(e) {
-                    console.error('[ObserveSDK] Error sending click event:', e);
+                    console.error('[MobiscoutSDK] Error sending click event:', e);
                 }
             }, true);
             
@@ -81,7 +81,7 @@ public class WebViewObserver: NSObject {
                             data: data
                         });
                     } catch(e) {
-                        console.error('[ObserveSDK] Error sending input event:', e);
+                        console.error('[MobiscoutSDK] Error sending input event:', e);
                     }
                 }
             }, true);
@@ -106,7 +106,7 @@ public class WebViewObserver: NSObject {
                         data: data
                     });
                 } catch(e) {
-                    console.error('[ObserveSDK] Error sending submit event:', e);
+                    console.error('[MobiscoutSDK] Error sending submit event:', e);
                 }
             }, true);
             
@@ -207,7 +207,7 @@ public class WebViewObserver: NSObject {
                         hierarchy: hierarchy
                     });
                 } catch(e) {
-                    console.error('[ObserveSDK] Error capturing hierarchy:', e);
+                    console.error('[MobiscoutSDK] Error capturing hierarchy:', e);
                 }
             });
             
@@ -221,11 +221,11 @@ public class WebViewObserver: NSObject {
                         hierarchy: hierarchy
                     });
                 } catch(e) {
-                    console.error('[ObserveSDK] Error capturing hierarchy:', e);
+                    console.error('[MobiscoutSDK] Error capturing hierarchy:', e);
                 }
             }
             
-            console.log('[ObserveSDK] WebView observer injected successfully');
+            console.log('[MobiscoutSDK] WebView observer injected successfully');
         })();
     """
     
@@ -236,12 +236,12 @@ public class WebViewObserver: NSObject {
     
     public func start() {
         guard !isStarted else {
-            print("[WebViewObserver] Already started")
+            print("[WebViewMobiscoutr] Already started")
             return
         }
         
         isStarted = true
-        print("[WebViewObserver] Started")
+        print("[WebViewMobiscoutr] Started")
     }
     
     public func stop() {
@@ -250,19 +250,19 @@ public class WebViewObserver: NSObject {
         isStarted = false
         observedWebViews.removeAll()
         
-        print("[WebViewObserver] Stopped")
+        print("[WebViewMobiscoutr] Stopped")
     }
     
     /// Register a WKWebView for observation
     /// Call this when WKWebView is created
-    public func observe(webView: WKWebView, screenName: String) {
+    public func mobiscout(webView: WKWebView, screenName: String) {
         guard isStarted else {
-            print("[WebViewObserver] Not started, cannot observe WebView")
+            print("[WebViewMobiscoutr] Not started, cannot mobiscout WebView")
             return
         }
         
         guard !observedWebViews.contains(webView) else {
-            print("[WebViewObserver] WebView already observed")
+            print("[WebViewMobiscoutr] WebView already observed")
             return
         }
         
@@ -334,7 +334,7 @@ public class WebViewObserver: NSObject {
             .OBJC_ASSOCIATION_RETAIN_NONATOMIC
         )
         
-        print("[WebViewObserver] WebView observation enabled for screen: \(screenName)")
+        print("[WebViewMobiscoutr] WebView observation enabled for screen: \(screenName)")
     }
     
     /// Unregister a WKWebView from observation
@@ -368,7 +368,7 @@ public class WebViewObserver: NSObject {
         objc_setAssociatedObject(webView, &AssociatedKeys.originalNavigationDelegate, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         objc_setAssociatedObject(webView, &AssociatedKeys.existingScripts, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         
-        print("[WebViewObserver] WebView observation disabled - all resources cleaned up")
+        print("[WebViewMobiscoutr] WebView observation disabled - all resources cleaned up")
     }
 }
 
@@ -398,7 +398,7 @@ private class WebViewMessageHandler: NSObject, WKScriptMessageHandler {
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: Any],
               let type = body["type"] as? String else {
-            print("[WebViewObserver] Invalid message format")
+            print("[WebViewMobiscoutr] Invalid message format")
             return
         }
         
@@ -408,7 +408,7 @@ private class WebViewMessageHandler: NSObject, WKScriptMessageHandler {
         case "pageLoad":
             handlePageLoad(body: body)
         default:
-            print("[WebViewObserver] Unknown message type: \(type)")
+            print("[WebViewMobiscoutr] Unknown message type: \(type)")
         }
     }
     
@@ -445,7 +445,7 @@ private class WebViewMessageHandler: NSObject, WKScriptMessageHandler {
         
         let event = WebViewEvent(
             timestamp: Int64(Date().timeIntervalSince1970 * 1000),
-            sessionId: ObserveSDK.shared.session?.id ?? "",
+            sessionId: MobiscoutSDK.shared.session?.id ?? "",
             screen: screenName,
             url: currentURL(),
             action: eventType,
@@ -478,7 +478,7 @@ private class WebViewMessageHandler: NSObject, WKScriptMessageHandler {
             
             let event = HierarchyEvent(
                 timestamp: Int64(Date().timeIntervalSince1970 * 1000),
-                sessionId: ObserveSDK.shared.session?.id ?? "",
+                sessionId: MobiscoutSDK.shared.session?.id ?? "",
                 screen: "\(screenName) (WebView)",
                 hierarchy: hierarchyJSON
             )
@@ -489,7 +489,7 @@ private class WebViewMessageHandler: NSObject, WKScriptMessageHandler {
         // Emit page load event
         let pageLoadEvent = WebViewEvent(
             timestamp: Int64(Date().timeIntervalSince1970 * 1000),
-            sessionId: ObserveSDK.shared.session?.id ?? "",
+            sessionId: MobiscoutSDK.shared.session?.id ?? "",
             screen: screenName,
             url: url,
             action: "page_load"
@@ -527,11 +527,11 @@ private class WebViewNavigationDelegate: NSObject, WKNavigationDelegate {
         // Then add SDK logic
         guard let url = webView.url?.absoluteString else { return }
         
-        print("[WebViewObserver] Page finished loading: \(url)")
+        print("[WebViewMobiscoutr] Page finished loading: \(url)")
         
         let event = WebViewEvent(
             timestamp: Int64(Date().timeIntervalSince1970 * 1000),
-            sessionId: ObserveSDK.shared.session?.id ?? "",
+            sessionId: MobiscoutSDK.shared.session?.id ?? "",
             screen: screenName,
             url: url,
             action: "page_finished"

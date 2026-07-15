@@ -20,5 +20,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "FinDemo"
 include(":app")
-include(":observe-sdk")
+include(":mobiscout-sdk")
 

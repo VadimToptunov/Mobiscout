@@ -1,6 +1,6 @@
 //
-//  ObserveSession.swift
-//  ObserveSDK
+//  MobiscoutSession.swift
+//  MobiscoutSDK
 //
 //  Represents an observation session
 //
@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 
 /// Represents a single observation session
-public struct ObserveSession: Codable {
+public struct MobiscoutSession: Codable {
     
     /// Unique session identifier
     public let sessionId: String
@@ -74,7 +74,7 @@ public struct ObserveSession: Codable {
     // MARK: - Factory
     
     /// Create a new session with current device info
-    public static func create(appVersion: String = "1.0.0") -> ObserveSession {
+    public static func create(appVersion: String = "1.0.0") -> MobiscoutSession {
         let device = UIDevice.current
         let screen = UIScreen.main.bounds
         
@@ -86,7 +86,7 @@ public struct ObserveSession: Codable {
             locale: Locale.current.identifier
         )
         
-        return ObserveSession(
+        return MobiscoutSession(
             sessionId: UUID().uuidString,
             startTime: Int64(Date().timeIntervalSince1970 * 1000),
             appVersion: appVersion,

@@ -15,7 +15,7 @@ robust rule heuristic otherwise:
 
 The ML model is optional: if no model file is present the classifier is pure
 heuristic, so a crawl never depends on shipping a binary. Generate one with
-``observe ml create-universal-model -o ml_models/universal_element_classifier.pkl``.
+``mobiscout ml create-universal-model -o ml_models/universal_element_classifier.pkl``.
 """
 
 from __future__ import annotations
@@ -43,23 +43,23 @@ def _cache_path() -> Path:
     *recipe* (see ensure_model) and never commit a 5 MB binary. Training locally
     also sidesteps sklearn pickle-version fragility."""
     base = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
-    return Path(base) / "observe" / "universal_element_classifier.pkl"
+    return Path(base) / "mobiscout" / "universal_element_classifier.pkl"
 
 
 def _model_path() -> Path:
     """Explicit override wins; otherwise the user cache location."""
-    override = os.environ.get("OBSERVE_ML_MODEL")
+    override = os.environ.get("MOBISCOUT_ML_MODEL")
     return Path(override) if override else _cache_path()
 
 
 def ensure_model(force: bool = False) -> Optional[Path]:
     """Make a trained model available, training one (~1 s, from synthetic data)
     into the cache on first use. Returns the model path, or None if unavailable
-    (e.g. sklearn missing, or disabled via OBSERVE_ML_AUTOTRAIN=0).
+    (e.g. sklearn missing, or disabled via MOBISCOUT_ML_AUTOTRAIN=0).
 
     Called by the CLI so users get real ML transparently; the library layer
     (classify) never trains implicitly, so tests/imports stay fast."""
-    if os.environ.get("OBSERVE_ML_AUTOTRAIN") == "0":
+    if os.environ.get("MOBISCOUT_ML_AUTOTRAIN") == "0":
         return _model_path() if _model_path().exists() else None
     path = _model_path()
     if path.exists() and not force:

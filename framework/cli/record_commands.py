@@ -1,9 +1,9 @@
 """
-`observe record` — capture a live manual session into a runnable test.
+`mobiscout record` — capture a live manual session into a runnable test.
 
 Streams the device's touch events, resolves each tap to the element under it, and
 on Ctrl+C emits a test in the chosen target. HTTP mocking of the session's API
-traffic is a separate concern — see `observe mock record`.
+traffic is a separate concern — see `mobiscout mock record`.
 """
 
 from typing import Optional
@@ -40,7 +40,7 @@ def record(
     a step with a ranked, self-healing locator. Text input is not captured (add it
     by editing the test). Example:
 
-        observe record --package com.myapp --target python_pytest
+        mobiscout record --package com.myapp --target python_pytest
     """
     from framework.recorder import SessionRecorder
 

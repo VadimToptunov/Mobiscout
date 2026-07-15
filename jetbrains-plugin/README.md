@@ -1,10 +1,10 @@
-# Observe — JetBrains IDE Plugin
+# Mobiscout — JetBrains IDE Plugin
 
 > **Point your IDE at a running app → get an element inventory, an interaction
 > graph, and runnable tests — without leaving IntelliJ / Android Studio /
 > PyCharm.**
 
-The plugin is the IDE front-end for the [Observe](../README.md)
+The plugin is the IDE front-end for the [Mobiscout](../README.md)
 engine: you tell it *what you have* (an app, maybe its source, known logins,
 where to put results), and it hands back the artifacts a tester actually needs.
 
@@ -21,7 +21,7 @@ GoLand, …) via the platform SDK — one plugin, all IDEs.
 │                                                                        │
 │   app (apk / bundle id) ─┐                                             │
 │   source code (optional) ─┤                                            │
-│   platform: Android / iOS ─┤   ▶  Observe  ▶   ┌────────┐ │
+│   platform: Android / iOS ─┤   ▶  Mobiscout  ▶   ┌────────┐ │
 │   language + framework    ─┤        (in your IDE)            │  tests │ │
 │   known logins/passwords  ─┤                                 │  graph │ │
 │   where to put results    ─┘                                 │ report │ │
@@ -34,7 +34,7 @@ GoLand, …) via the platform SDK — one plugin, all IDEs.
 ## Inside the IDE — the tool window
 
 ```
- Observe ▾                                              ⟳  ⚙
+ Mobiscout ▾                                              ⟳  ⚙
 ┌──────────┬──────────┬───────────┬────────┐
 │ Devices  │  Screen  │ Inspector │  Logs  │
 ├──────────┴──────────┴───────────┴────────┴───────────────────────────┐
@@ -114,7 +114,7 @@ Plus API contract tests, an accessibility audit, and an APK/IPA security scan.
 - ✅ UI inspector & streamed logs
 - ✅ Setup Wizard + persistent settings (source, platform, language, framework, credentials, output)
 - ✅ In-IDE actions: Setup Wizard · Generate Test · Heal Selector · Fuzz · Security Scan · Start/Stop Daemon
-- ✅ JSON-RPC bridge to the CLI engine (`observe daemon`)
+- ✅ JSON-RPC bridge to the CLI engine (`mobiscout daemon`)
 
 **Powered by the engine** (via the CLI, wiring into the daemon in progress)
 - 🔗 Autonomous crawl → element inventory + interaction graph
@@ -128,7 +128,7 @@ Plus API contract tests, an accessibility audit, and an APK/IPA security scan.
 
 - A JetBrains IDE **2023.2+** (IntelliJ, Android Studio, PyCharm, …)
 - **Java 17+**, **Python 3.13+**
-- The engine CLI: `pip install mobile-observe-test`
+- The engine CLI: `pip install mobile-mobiscout-test`
 - Android: Android SDK (`adb`); iOS: Xcode (`simctl`) + Appium for device automation
 
 ## Install
@@ -138,7 +138,7 @@ Plus API contract tests, an accessibility audit, and an APK/IPA security scan.
 cd jetbrains-plugin
 ./gradlew buildPlugin
 # then IDE ▸ Settings ▸ Plugins ▸ ⚙ ▸ Install Plugin from Disk…
-#   build/distributions/observe-*.zip
+#   build/distributions/mobiscout-*.zip
 ./gradlew runIde   # or launch a sandbox IDE with the plugin
 ```
 *Marketplace listing: coming soon.*
@@ -147,7 +147,7 @@ cd jetbrains-plugin
 
 ```
 JetBrains IDE plugin (Kotlin)                 CLI engine (Python + rust_core)
-  ToolWindow: Devices · Screen                  observe daemon  (JSON-RPC 2.0)
+  ToolWindow: Devices · Screen                  mobiscout daemon  (JSON-RPC 2.0)
              · Inspector · Logs      ⇄  stdio  ├─ device mgmt · screenshots
   Setup Wizard · Settings · Actions             ├─ autonomous crawl → kit
   JsonRpcClient                                 ├─ codegen (8 targets)

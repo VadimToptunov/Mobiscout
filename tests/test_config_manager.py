@@ -1,16 +1,16 @@
 """The configuration core: file round-trips, env-var expansion, dot-notation
-get/set, discovery, and validation. This module underpins every `observe config`
+get/set, discovery, and validation. This module underpins every `mobiscout config`
 command and had no tests."""
 
 import json
 
 import pytest
 
-from framework.config.config_manager import ConfigManager, ObserveConfig
+from framework.config.config_manager import ConfigManager, MobiscoutConfig
 
 
 def test_defaults_are_sane():
-    cfg = ObserveConfig()
+    cfg = MobiscoutConfig()
     assert cfg.framework.timeout == 30
     assert cfg.devices.android.adb_timeout == 30
     assert cfg.ml.confidence_threshold == 0.8
@@ -18,46 +18,46 @@ def test_defaults_are_sane():
 
 
 def test_yaml_round_trip(tmp_path):
-    path = tmp_path / "observe.yaml"
-    cfg = ObserveConfig()
+    path = tmp_path / "mobiscout.yaml"
+    cfg = MobiscoutConfig()
     cfg.set("framework.timeout", 99)
     cfg.set("devices.android.system_port", 8299)
     cfg.to_file(path)
 
-    loaded = ObserveConfig.from_file(path)
+    loaded = MobiscoutConfig.from_file(path)
     assert loaded.get("framework.timeout") == 99
     assert loaded.get("devices.android.system_port") == 8299
 
 
 def test_json_round_trip(tmp_path):
-    path = tmp_path / "observe.json"
-    cfg = ObserveConfig()
+    path = tmp_path / "mobiscout.json"
+    cfg = MobiscoutConfig()
     cfg.set("ml.model_version", "3.1")
     cfg.to_file(path)
     assert json.loads(path.read_text())["ml"]["model_version"] == "3.1"
-    assert ObserveConfig.from_file(path).get("ml.model_version") == "3.1"
+    assert MobiscoutConfig.from_file(path).get("ml.model_version") == "3.1"
 
 
 def test_from_file_missing_and_bad_format(tmp_path):
     with pytest.raises(FileNotFoundError):
-        ObserveConfig.from_file(tmp_path / "nope.yaml")
+        MobiscoutConfig.from_file(tmp_path / "nope.yaml")
     bad = tmp_path / "config.txt"
     bad.write_text("x")
     with pytest.raises(ValueError):
-        ObserveConfig.from_file(bad)
+        MobiscoutConfig.from_file(bad)
 
 
 def test_empty_yaml_yields_defaults(tmp_path):
     path = tmp_path / "empty.yaml"
     path.write_text("")  # yaml.safe_load -> None
-    assert ObserveConfig.from_file(path).get("framework.timeout") == 30
+    assert MobiscoutConfig.from_file(path).get("framework.timeout") == 30
 
 
 def test_env_var_expansion(tmp_path, monkeypatch):
     monkeypatch.setenv("MY_SLACK", "https://hooks.example/abc")
     path = tmp_path / "c.yaml"
     path.write_text("integrations:\n  slack:\n    webhook_url: ${MY_SLACK}\n    enabled: true\n")
-    cfg = ObserveConfig.from_file(path)
+    cfg = MobiscoutConfig.from_file(path)
     assert cfg.get("integrations.slack.webhook_url") == "https://hooks.example/abc"
 
 
@@ -66,17 +66,17 @@ def test_env_var_unset_left_literal(tmp_path, monkeypatch):
     path = tmp_path / "c.yaml"
     path.write_text("integrations:\n  github:\n    token: ${ABSENT_VAR}\n")
     # An unset ${VAR} is left as-is rather than blanked.
-    assert ObserveConfig.from_file(path).get("integrations.github.token") == "${ABSENT_VAR}"
+    assert MobiscoutConfig.from_file(path).get("integrations.github.token") == "${ABSENT_VAR}"
 
 
 def test_get_missing_key_returns_default():
-    cfg = ObserveConfig()
+    cfg = MobiscoutConfig()
     assert cfg.get("framework.does_not_exist", "fallback") == "fallback"
     assert cfg.get("nope.deep.path") is None
 
 
 def test_set_invalid_key_raises():
-    cfg = ObserveConfig()
+    cfg = MobiscoutConfig()
     with pytest.raises(ValueError):
         cfg.set("framework.bogus", 1)
     with pytest.raises(ValueError):
@@ -84,7 +84,7 @@ def test_set_invalid_key_raises():
 
 
 def test_manager_missing_path_uses_defaults_then_saves(tmp_path):
-    path = tmp_path / ".observe.yaml"
+    path = tmp_path / ".mobiscout.yaml"
     mgr = ConfigManager(config_path=path)  # file doesn't exist -> defaults
     assert mgr.get("framework.timeout") == 30
     mgr.set("framework.timeout", 45)  # save=True by default
@@ -94,9 +94,9 @@ def test_manager_missing_path_uses_defaults_then_saves(tmp_path):
 
 def test_manager_discovers_file_in_cwd(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / ".observe.yaml").write_text("framework:\n  timeout: 7\n")
+    (tmp_path / ".mobiscout.yaml").write_text("framework:\n  timeout: 7\n")
     mgr = ConfigManager()  # no explicit path -> discovery
-    assert mgr.config_path.name == ".observe.yaml"
+    assert mgr.config_path.name == ".mobiscout.yaml"
     assert mgr.get("framework.timeout") == 7
 
 
@@ -115,7 +115,7 @@ def test_validate_flags_each_bad_field(tmp_path):
 
 
 def test_init_default_creates_then_refuses_overwrite(tmp_path):
-    path = tmp_path / ".observe.yaml"
+    path = tmp_path / ".mobiscout.yaml"
     mgr = ConfigManager(config_path=path)
     mgr.init_default()
     assert path.exists()

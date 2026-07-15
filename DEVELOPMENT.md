@@ -32,8 +32,8 @@ pip install -r requirements.txt
 pip install -e .
 
 # Verify installation
-observe info
-observe health
+mobiscout info
+mobiscout health
 ```
 
 ### 2. Configure Environment Variables
@@ -110,9 +110,9 @@ start htmlcov/index.html  # Windows
 
 ```bash
 # All commands work after pip install -e .
-observe --help
-observe record --help
-observe generate --help
+mobiscout --help
+mobiscout record --help
+mobiscout generate --help
 
 # Or run directly
 python -m framework.cli.main --help
@@ -149,7 +149,7 @@ export DEBUG_MODE=true
 export LOG_LEVEL=DEBUG
 
 # Run with verbose output
-observe record --device emulator-5554 --verbose
+mobiscout record --device emulator-5554 --verbose
 
 # Use Python debugger
 python -m pdb -m framework.cli.main record --device emulator-5554

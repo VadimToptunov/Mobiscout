@@ -1,1 +1,1 @@
-"""CLI package for Mobile Observe & Test Framework"""
+"""CLI package for Mobile Mobiscout & Test Framework"""

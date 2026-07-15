@@ -8,13 +8,13 @@ Execute tests in parallel across multiple workers for faster feedback and better
 
 ```bash
 # Run tests in parallel with 4 workers
-observe parallel run tests/ --workers 4
+mobiscout parallel run tests/ --workers 4
 
 # Use balanced sharding for optimal load distribution
-observe parallel run tests/ --workers 4 --shard-strategy balanced
+mobiscout parallel run tests/ --workers 4 --shard-strategy balanced
 
 # Pass additional pytest arguments
-observe parallel run tests/ --workers 4 --pytest-args "-v --tb=short"
+mobiscout parallel run tests/ --workers 4 --pytest-args "-v --tb=short"
 ```
 
 ## Features
@@ -64,23 +64,23 @@ Distribute tests across multiple physical devices:
 
 ```bash
 # Run on all available Android devices
-observe parallel on-devices tests/ --platform android
+mobiscout parallel on-devices tests/ --platform android
 
 # Run on all iOS devices
-observe parallel on-devices tests/ --platform ios
+mobiscout parallel on-devices tests/ --platform ios
 
 # Run on all devices (Android + iOS)
-observe parallel on-devices tests/ --platform both
+mobiscout parallel on-devices tests/ --platform both
 ```
 
 ## CLI Commands
 
-### `observe parallel run`
+### `mobiscout parallel run`
 
 Run tests in parallel on a single device with multiple workers.
 
 ```bash
-observe parallel run <test_dir> [OPTIONS]
+mobiscout parallel run <test_dir> [OPTIONS]
 
 Options:
   --workers, -w <N>            Number of parallel workers (default: 4)
@@ -92,21 +92,21 @@ Options:
 
 ```bash
 # 8 workers with balanced sharding
-observe parallel run tests/ -w 8 --shard-strategy balanced
+mobiscout parallel run tests/ -w 8 --shard-strategy balanced
 
 # With verbose pytest output
-observe parallel run tests/ --pytest-args "-v -s"
+mobiscout parallel run tests/ --pytest-args "-v -s"
 
 # Specific test markers
-observe parallel run tests/ --pytest-args "-m smoke"
+mobiscout parallel run tests/ --pytest-args "-m smoke"
 ```
 
-### `observe parallel create-shards`
+### `mobiscout parallel create-shards`
 
 Create test shards for manual distribution (useful for CI/CD).
 
 ```bash
-observe parallel create-shards <test_dir> <num_shards> [OPTIONS]
+mobiscout parallel create-shards <test_dir> <num_shards> [OPTIONS]
 
 Options:
   --strategy <STRATEGY>  Sharding strategy
@@ -117,7 +117,7 @@ Options:
 
 ```bash
 # Create 10 shards and save to files
-observe parallel create-shards tests/ 10 --strategy balanced --output ./shards
+mobiscout parallel create-shards tests/ 10 --strategy balanced --output ./shards
 
 # This creates:
 # shards/shard_0.txt
@@ -126,12 +126,12 @@ observe parallel create-shards tests/ 10 --strategy balanced --output ./shards
 # shards/shard_9.txt
 ```
 
-### `observe parallel benchmark`
+### `mobiscout parallel benchmark`
 
 Benchmark different sharding strategies.
 
 ```bash
-observe parallel benchmark [OPTIONS]
+mobiscout parallel benchmark [OPTIONS]
 
 Options:
   --workers, -w <N>      Number of workers (default: 4)
@@ -141,7 +141,7 @@ Options:
 **Example:**
 
 ```bash
-observe parallel benchmark --workers 8 --test-count 500
+mobiscout parallel benchmark --workers 8 --test-count 500
 ```
 
 Output:
@@ -293,7 +293,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Run shard ${{ matrix.shard }}
         run: |
-          observe parallel create-shards tests/ 4 --output shards
+          mobiscout parallel create-shards tests/ 4 --output shards
           pytest $(cat shards/shard_${{ matrix.shard }}.txt)
 ```
 
@@ -303,7 +303,7 @@ jobs:
 test:
   parallel: 4
   script:
-    - observe parallel create-shards tests/ 4 --output shards
+    - mobiscout parallel create-shards tests/ 4 --output shards
     - pytest $(cat shards/shard_${CI_NODE_INDEX}.txt)
 ```
 
@@ -336,7 +336,7 @@ Profile and optimize slow tests first:
 pytest --durations=10
 
 # Run slow tests on more workers
-observe parallel run tests/ --workers 8 --pytest-args "-m slow"
+mobiscout parallel run tests/ --workers 8 --pytest-args "-m slow"
 ```
 
 ### 3. Use Test Markers
@@ -355,7 +355,7 @@ def test_external_api():
 
 ```bash
 # Run only smoke tests in parallel
-observe parallel run tests/ --pytest-args "-m smoke"
+mobiscout parallel run tests/ --pytest-args "-m smoke"
 ```
 
 ### 4. Monitor Resource Usage
@@ -367,7 +367,7 @@ Don't exceed available resources:
 python -c "import os; print(os.cpu_count())"
 
 # Use workers ≤ CPU count
-observe parallel run tests/ --workers 8  # for 8-core CPU
+mobiscout parallel run tests/ --workers 8  # for 8-core CPU
 ```
 
 ### 5. Balance Load
@@ -375,7 +375,7 @@ observe parallel run tests/ --workers 8  # for 8-core CPU
 Use balanced strategy for mixed test suites:
 
 ```bash
-observe parallel run tests/ --shard-strategy balanced
+mobiscout parallel run tests/ --shard-strategy balanced
 ```
 
 ## Troubleshooting
@@ -398,10 +398,10 @@ observe parallel run tests/ --shard-strategy balanced
 
 ```bash
 # Try balanced strategy
-observe parallel run tests/ --shard-strategy balanced
+mobiscout parallel run tests/ --shard-strategy balanced
 
 # Reduce workers to avoid I/O contention
-observe parallel run tests/ --workers 2
+mobiscout parallel run tests/ --workers 2
 ```
 
 ### Database Conflicts
@@ -444,6 +444,6 @@ See `tests/test_parallel_execution.py` for comprehensive examples.
 
 ## Support
 
-- **CLI Help**: `observe parallel --help`
-- **Benchmark**: `observe parallel benchmark`
+- **CLI Help**: `mobiscout parallel --help`
+- **Benchmark**: `mobiscout parallel benchmark`
 - **Tests**: `pytest tests/test_parallel_execution.py -v`

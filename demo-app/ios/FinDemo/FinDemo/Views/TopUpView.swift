@@ -214,7 +214,7 @@ struct WebView: UIViewRepresentable {
     
     class Coordinator: NSObject, WKNavigationDelegate {
         let onSuccess: () -> Void
-        private var webViewObserved = false
+        private var webViewMobiscoutd = false
         // Strong reference to ensure WebView exists during deinit cleanup
         // Weak reference would become nil before deinit, preventing cleanup
         private var observedWebView: WKWebView?
@@ -224,18 +224,18 @@ struct WebView: UIViewRepresentable {
         }
         
         func registerObservation(webView: WKWebView) {
-            guard !webViewObserved else { return }
+            guard !webViewMobiscoutd else { return }
             
-            // Register WebView with ObserveSDK
-            ObserveSDK.shared.observeWebView(webView, screenName: "TopUpPaymentScreen")
+            // Register WebView with MobiscoutSDK
+            MobiscoutSDK.shared.observeWebView(webView, screenName: "TopUpPaymentScreen")
             observedWebView = webView
-            webViewObserved = true
+            webViewMobiscoutd = true
         }
         
         deinit {
-            // Unregister WebView from ObserveSDK to prevent resource leak
+            // Unregister WebView from MobiscoutSDK to prevent resource leak
             if let webView = observedWebView {
-                ObserveSDK.shared.stopObservingWebView(webView)
+                MobiscoutSDK.shared.stopObservingWebView(webView)
             }
         }
         

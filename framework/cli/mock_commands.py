@@ -71,7 +71,7 @@ def record(session_id: str, appium_server: str, port: int):
                 f"[green]✅ Recording complete![/green]\n\n"
                 f"Total requests: {stats['total_requests']}\n"
                 f"Session saved: [cyan]{session_id}[/cyan]{https_note}\n\n"
-                f"[dim]Use 'observe mock replay {session_id}' to replay[/dim]",
+                f"[dim]Use 'mobiscout mock replay {session_id}' to replay[/dim]",
                 title="Recording Stats",
                 border_style="green",
             )
@@ -156,7 +156,7 @@ def _list_sessions():
     if not sessions:
         console.print("[yellow]No mock sessions found[/yellow]")
         console.print("\nRecord your first session:")
-        console.print("[cyan]observe mock record my-session[/cyan]")
+        console.print("[cyan]mobiscout mock record my-session[/cyan]")
         return
 
     table = Table(title="Mock Sessions")
@@ -278,7 +278,7 @@ def from_swagger(swagger_file: Path, session_id: str):
         Panel(
             f"[green]✅ Generated {count} mocks![/green]\n\n"
             f"Session ID: [cyan]{session_id}[/cyan]\n\n"
-            f"[dim]Use 'observe mock replay {session_id}' to test[/dim]",
+            f"[dim]Use 'mobiscout mock replay {session_id}' to test[/dim]",
             title="Swagger Import",
             border_style="green",
         )

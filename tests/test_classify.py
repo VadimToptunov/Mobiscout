@@ -17,7 +17,7 @@ def _el(cls, text="", desc="", clickable=True):
 @pytest.fixture(autouse=True)
 def _no_model(monkeypatch):
     # Force heuristic-only regardless of any locally generated model.
-    monkeypatch.setenv("OBSERVE_ML_MODEL", "/definitely/nonexistent.pkl")
+    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/definitely/nonexistent.pkl")
     C.reset_cache()
     yield
     C.reset_cache()

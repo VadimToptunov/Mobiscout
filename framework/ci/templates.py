@@ -31,7 +31,7 @@ jobs:
           
       - name: Run tests
         run: |
-          observe parallel run tests/ --workers 4
+          mobiscout parallel run tests/ --workers 4
           
       - name: Upload test results
         if: always()
@@ -68,7 +68,7 @@ jobs:
           
       - name: Create test shards
         run: |
-          observe parallel create-shards tests/ 4 --output shards
+          mobiscout parallel create-shards tests/ 4 --output shards
           
       - name: Run shard ${{ matrix.shard }}
         run: |
@@ -125,13 +125,13 @@ jobs:
           api-level: 30
           target: google_apis
           arch: x86_64
-          script: observe parallel run tests/android/ --workers 2
+          script: mobiscout parallel run tests/android/ --workers 2
           
       - name: Set up iOS Simulator
         if: matrix.platform == 'ios' && matrix.simulator
         run: |
           xcrun simctl boot "iPhone 14"
-          observe parallel run tests/ios/ --workers 2
+          mobiscout parallel run tests/ios/ --workers 2
           
       - name: Upload test results
         if: always()
@@ -155,7 +155,7 @@ test:
     - pip install -e .
     
   script:
-    - observe parallel run tests/ --workers 4
+    - mobiscout parallel run tests/ --workers 4
     
   artifacts:
     when: always
@@ -178,7 +178,7 @@ test:
     - pip install -e .
     
   script:
-    - observe parallel create-shards tests/ 4 --output shards
+    - mobiscout parallel create-shards tests/ 4 --output shards
     - pytest $(cat shards/shard_${CI_NODE_INDEX}.txt) --junit-xml=reports/junit-${CI_NODE_INDEX}.xml
     
   artifacts:
@@ -210,7 +210,7 @@ test:android:
   tags:
     - android
   script:
-    - observe parallel run tests/android/ --workers 4
+    - mobiscout parallel run tests/android/ --workers 4
 
 test:ios:
   <<: *test_template
@@ -219,7 +219,7 @@ test:ios:
     - macos
     - ios
   script:
-    - observe parallel run tests/ios/ --workers 4
+    - mobiscout parallel run tests/ios/ --workers 4
 """
 
 # Jenkins Templates
@@ -237,7 +237,7 @@ JENKINS_BASIC_TEMPLATE = """pipeline {
         
         stage('Test') {
             steps {
-                sh 'observe parallel run tests/ --workers 4'
+                sh 'mobiscout parallel run tests/ --workers 4'
             }
         }
     }
@@ -259,7 +259,7 @@ JENKINS_PARALLEL_TEMPLATE = """pipeline {
             parallel {
                 stage('Shard 0') {
                     steps {
-                        sh 'observe parallel create-shards tests/ 4 --output shards'
+                        sh 'mobiscout parallel create-shards tests/ 4 --output shards'
                         sh 'pytest $(cat shards/shard_0.txt) --junit-xml=reports/junit-0.xml'
                     }
                 }
@@ -308,7 +308,7 @@ jobs:
             pip install -e .
       - run:
           name: Run tests
-          command: observe parallel run tests/ --workers 4
+          command: mobiscout parallel run tests/ --workers 4
       - store_test_results:
           path: reports/
       - store_artifacts:
@@ -337,7 +337,7 @@ jobs:
       - run:
           name: Create and run shard
           command: |
-            observe parallel create-shards tests/ 4 --output shards
+            mobiscout parallel create-shards tests/ 4 --output shards
             pytest $(cat shards/shard_${CIRCLE_NODE_INDEX}.txt) --junit-xml=reports/junit-${CIRCLE_NODE_INDEX}.xml
       - store_test_results:
           path: reports/

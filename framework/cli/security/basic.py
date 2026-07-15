@@ -43,8 +43,8 @@ def scan(
     APP_PATH: Path to APK or IPA file
 
     Example:
-        observe security scan app.apk --platform android --app-name MyApp
-        observe security scan app.ipa --platform ios --app-name MyApp -o report.json
+        mobiscout security scan app.apk --platform android --app-name MyApp
+        mobiscout security scan app.ipa --platform ios --app-name MyApp -o report.json
     """
     if not validate_path(app_path):
         raise SystemExit(1)
@@ -89,8 +89,8 @@ def audit(
     Quick security audit with detailed findings.
 
     Example:
-        observe security audit app.apk -p android -n MyApp
-        observe security audit app.apk -p android -n MyApp --severity high
+        mobiscout security audit app.apk -p android -n MyApp
+        mobiscout security audit app.apk -p android -n MyApp --severity high
     """
     if not validate_path(app_path):
         raise SystemExit(1)
@@ -133,7 +133,7 @@ def list_checks() -> None:
     List available security checks.
 
     Example:
-        observe security list
+        mobiscout security list
     """
     table = Table(title="OWASP Mobile Security Checks")
     table.add_column("Category", style="cyan")
@@ -167,7 +167,7 @@ def compare(app_name: str, v1_report: Path, v2_report: Path) -> None:
     Compare security reports between versions.
 
     Example:
-        observe security compare MyApp v1_report.json v2_report.json
+        mobiscout security compare MyApp v1_report.json v2_report.json
     """
     if not v1_report.exists() or not v2_report.exists():
         console.print("[red]✗[/red] Report file(s) not found")

@@ -1,5 +1,5 @@
 [package]
-name = "observe-core"
+name = "mobiscout-core"
 version = "0.1.0"
 edition = "2021"
 authors = ["Vadim Toptunov <your-email@example.com>"]
@@ -7,7 +7,7 @@ description = "High-performance Rust core for Mobile Test Recorder"
 license = "MIT"
 
 [lib]
-name = "observe_core"
+name = "mobiscout_core"
 crate-type = ["cdylib"]  # Dynamic library for Python
 
 [dependencies]

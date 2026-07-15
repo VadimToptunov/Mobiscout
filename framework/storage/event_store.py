@@ -1,7 +1,7 @@
 """
 Event Store - SQLite-based storage for observation events
 
-Stores events collected by Observe SDK for later analysis and code generation.
+Stores events collected by Mobiscout SDK for later analysis and code generation.
 """
 
 import json

@@ -58,7 +58,7 @@ The model automatically identifies UI element types:
 
 ```bash
 # Run this ONCE to create the universal model
-observe ml create-universal-model
+mobiscout ml create-universal-model
 ```
 
 **Output:**
@@ -88,7 +88,7 @@ No app-specific training required!
 
 ```bash
 # Build App Model with ML classification enabled
-observe model build \
+mobiscout model build \
   --session-id session_20250119_142345 \
   --app-version 1.0.0 \
   --use-ml
@@ -173,18 +173,18 @@ The classifier analyzes multiple element attributes:
 
 ```bash
 # 1. Record session
-observe record start --package com.myapp
+mobiscout record start --package com.myapp
 # ... use app ...
-observe record stop
+mobiscout record stop
 
 # 2. Generate training data
-observe ml generate-training-data --type from-session --session-id session_123
+mobiscout ml generate-training-data --type from-session --session-id session_123
 
 # 3. Train model
-observe ml train --session-id session_123 --auto-label
+mobiscout ml train --session-id session_123 --auto-label
 
 # 4. Finally use it
-observe model build --session-id session_123 --use-ml
+mobiscout model build --session-id session_123 --use-ml
 ```
 
 **Problems:**
@@ -197,10 +197,10 @@ observe model build --session-id session_123 --use-ml
 
 ```bash
 # One-time setup (framework maintainer does this)
-observe ml create-universal-model
+mobiscout ml create-universal-model
 
 # Users just enable ML (works for ANY app!)
-observe model build --session-id session_123 --use-ml
+mobiscout model build --session-id session_123 --use-ml
 ```
 
 **Benefits:**
@@ -217,21 +217,21 @@ If the universal model doesn't achieve desired accuracy for your specific app, y
 
 ```bash
 # 1. Use universal model as baseline
-observe model build --session-id session_123 --use-ml
+mobiscout model build --session-id session_123 --use-ml
 
 # 2. Generate app-specific training data
-observe ml generate-training-data \
+mobiscout ml generate-training-data \
   --type from-session \
   --session-id session_123
 
 # 3. Fine-tune the model
-observe ml train \
+mobiscout ml train \
   --session-id session_123 \
   --auto-label \
   --output ml_models/my_app_classifier.pkl
 
 # 4. Use fine-tuned model
-observe model build \
+mobiscout model build \
   --session-id session_456 \
   --use-ml \
   --ml-model ml_models/my_app_classifier.pkl
@@ -369,7 +369,7 @@ ml_models/
 ## Summary
 
 **Universal Model** = Zero-setup ML for ANY mobile app  
-**One Command** = `observe ml create-universal-model`  
+**One Command** = `mobiscout ml create-universal-model`  
 **Just Works** = No training, no data, no ML expertise needed  
 **For Teams** = QA engineers can use ML without understanding it
 

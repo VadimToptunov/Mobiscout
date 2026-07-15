@@ -1,5 +1,5 @@
 """
-Custom Exception Hierarchy for Observe
+Custom Exception Hierarchy for Mobiscout
 
 STEP 7: Paid Modules Enhancement - Exception System Refactoring
 

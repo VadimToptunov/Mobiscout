@@ -1,7 +1,7 @@
-package com.observe.sdk.core
+package com.mobiscout.sdk.core
 
 /**
- * Configuration for Observe SDK
+ * Configuration for Mobiscout SDK
  * 
  * @param enabled Enable/disable SDK
  * @param autoStart Automatically start observation on init
@@ -12,7 +12,7 @@ package com.observe.sdk.core
  * @param exportCryptoKeys Export TLS/SSL keys for traffic decryption (SECURITY WARNING: test builds only!)
  * @param bypassCertPinning Disable SSL certificate pinning (SECURITY WARNING: test builds only!)
  */
-data class ObserveConfig(
+data class MobiscoutConfig(
     val enabled: Boolean = true,
     val autoStart: Boolean = true,
     val eventBufferSize: Int = 50,
@@ -26,21 +26,21 @@ data class ObserveConfig(
         /**
          * Default configuration
          */
-        fun default() = ObserveConfig()
+        fun default() = MobiscoutConfig()
         
         /**
          * Disabled configuration (for production)
          */
-        fun disabled() = ObserveConfig(enabled = false)
+        fun disabled() = MobiscoutConfig(enabled = false)
         
         /**
          * Full observation mode with crypto key export
          * 
          * SECURITY WARNING:
          * This mode disables SSL security and exports encryption keys!
-         * ONLY use in observe/test builds!
+         * ONLY use in mobiscout/test builds!
          */
-        fun fullObservation() = ObserveConfig(
+        fun fullObservation() = MobiscoutConfig(
             enabled = true,
             autoStart = true,
             exportCryptoKeys = true,

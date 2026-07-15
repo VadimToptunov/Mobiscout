@@ -1,9 +1,9 @@
-package com.observe.sdk.security
+package com.mobiscout.sdk.security
 
 import android.content.Context
 import android.util.Base64
 import android.util.Log
-import com.observe.sdk.core.ObserveConfig
+import com.mobiscout.sdk.core.MobiscoutConfig
 import java.io.File
 import java.security.KeyPair
 import java.security.KeyPairGenerator
@@ -17,7 +17,7 @@ import org.json.JSONObject
  * CryptoKeyExporter - Exports device crypto keys for test traffic decryption
  * 
  * SECURITY WARNING:
- * This should ONLY be used in observe/test builds!
+ * This should ONLY be used in mobiscout/test builds!
  * NEVER enable in production builds!
  * 
  * Purpose:
@@ -85,7 +85,7 @@ object CryptoKeyExporter {
     /**
      * Initialize crypto key exporter
      */
-    fun initialize(config: ObserveConfig) {
+    fun initialize(config: MobiscoutConfig) {
         if (!config.exportCryptoKeys) {
             Log.w(TAG, "Crypto key export disabled by config")
             return
@@ -125,7 +125,7 @@ object CryptoKeyExporter {
     /**
      * Capture TLS session key
      * 
-     * This is called by NetworkObserver when SSL handshake completes
+     * This is called by NetworkMobiscoutr when SSL handshake completes
      */
     fun captureTLSSessionKey(
         sessionId: String,
@@ -155,7 +155,7 @@ object CryptoKeyExporter {
      */
     fun exportKeys(context: Context, sessionId: String): File? {
         try {
-            val exportDir = File(context.getExternalFilesDir(null), "observe/crypto")
+            val exportDir = File(context.getExternalFilesDir(null), "mobiscout/crypto")
             if (!exportDir.exists()) {
                 exportDir.mkdirs()
             }
@@ -207,7 +207,7 @@ object CryptoKeyExporter {
      */
     fun exportNSSKeyLog(context: Context, sessionId: String): File? {
         try {
-            val exportDir = File(context.getExternalFilesDir(null), "observe/crypto")
+            val exportDir = File(context.getExternalFilesDir(null), "mobiscout/crypto")
             if (!exportDir.exists()) {
                 exportDir.mkdirs()
             }

@@ -1,7 +1,7 @@
 """
 Parameterized crawl → kit — one config in, artifacts out.
 
-This is the single entry point behind both the CLI (`observe crawl`) and the IDE
+This is the single entry point behind both the CLI (`mobiscout crawl`) and the IDE
 plugin: you pass a config describing *what you want* and it produces the result —
 an element inventory, an interaction graph, tests in the chosen language(s), and
 optionally a runnable project shell. No magic button; every knob is a parameter.

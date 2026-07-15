@@ -113,7 +113,7 @@ def analyze(test_results_path: str, screenshots: Optional[str], repo: str, min_c
             if len(healing_candidates) > 10:
                 print_info(f"\n... and {len(healing_candidates) - 10} more")
 
-            print_info("\nRun 'observe heal auto' to apply healing")
+            print_info("\nRun 'mobiscout heal auto' to apply healing")
         else:
             print_info("No healing candidates found")
 
@@ -286,7 +286,7 @@ def history(repo: str, limit: int) -> None:
 
     if not db_path.exists():
         print_error("No healing history found")
-        print_info("Run 'observe heal auto' first")
+        print_info("Run 'mobiscout heal auto' first")
         raise click.Abort()
 
     try:

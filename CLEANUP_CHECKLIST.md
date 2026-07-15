@@ -16,8 +16,8 @@ features, do **not** touch module logic unless explicitly stated below.
 
 ## Block 1 — package name (one everywhere)
 
-- [ ] Canonical name: `mobile-observe-test-framework` (as in `pyproject.toml`).
-- [ ] `grep -rn "mobile-observe-test\|mobile-test-recorder\|mobile_observe" README.md docs/ QUICKSTART.md USER_GUIDE.md` — show all.
+- [ ] Canonical name: `mobile-mobiscout-test-framework` (as in `pyproject.toml`).
+- [ ] `grep -rn "mobile-mobiscout-test\|mobile-test-recorder\|mobile_observe" README.md docs/ QUICKSTART.md USER_GUIDE.md` — show all.
 - [ ] Replace every `pip install ...` with the canonical name (in README at least lines ~159 and ~353).
 - [ ] If the package is **not** published on PyPI — remove `pip install <name>` from the primary install path and keep only `pip install -e .`, with a "PyPI release TBD" note. Don't promise what doesn't exist.
 - **Done when:** one name across the whole repo, and no install instruction points to a nonexistent package.

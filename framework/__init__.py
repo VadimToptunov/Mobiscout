@@ -1,7 +1,7 @@
 """
-Mobile Observe & Test Framework
+Mobile Mobiscout & Test Framework
 
-Intelligent Mobile Testing Platform - Observe, Analyze, Automate
+Intelligent Mobile Testing Platform - Scout, Analyze, Automate
 """
 
 __version__ = "0.5.0"

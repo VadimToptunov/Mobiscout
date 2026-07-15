@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.observe.sdk"
+    namespace = "com.mobiscout.sdk"
     compileSdk = 34
 
     defaultConfig {

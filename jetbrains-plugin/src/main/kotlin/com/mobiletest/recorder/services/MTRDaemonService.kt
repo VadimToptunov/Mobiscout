@@ -8,7 +8,7 @@ import com.mobiletest.recorder.rpc.JsonRpcNotification
 import java.io.File
 
 /**
- * Application-level service for managing the observe daemon.
+ * Application-level service for managing the mobiscout daemon.
  */
 @Service
 class MTRDaemonService {
@@ -29,7 +29,7 @@ class MTRDaemonService {
         
         try {
             // Resolve the engine: a self-contained standalone binary (downloaded on
-            // first use, no user Python) or a PATH `observe` CLI for development.
+            // first use, no user Python) or a PATH `mobiscout` CLI for development.
             val command = EngineProvider.resolveDaemonCommand()
 
             // Start daemon

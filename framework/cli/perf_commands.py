@@ -55,7 +55,7 @@ def profile(device: str, app: str, duration: int, output: str) -> None:
             print_info(f"Output: {output}")
         else:
             print_success(f"\n✅ Profile complete: {profile_id}")
-            print_info("Use 'observe perf report' to view results")
+            print_info("Use 'mobiscout perf report' to view results")
 
     except Exception as e:
         print_error(f"Profiling failed: {e}")

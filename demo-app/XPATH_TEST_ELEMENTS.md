@@ -212,8 +212,8 @@ Selector(
 ### 1. Run Static Analysis
 
 ```bash
-observe analyze android --source demo-app/android/app
-observe analyze ios --source demo-app/ios/FinDemo
+mobiscout analyze android --source demo-app/android/app
+mobiscout analyze ios --source demo-app/ios/FinDemo
 ```
 
 **Expected:** Some elements should have no `test_tag` or `accessibility_id`
@@ -221,9 +221,9 @@ observe analyze ios --source demo-app/ios/FinDemo
 ### 2. Record Session
 
 ```bash
-observe record start
+mobiscout record start
 # Perform actions on elements WITHOUT IDs
-observe record stop
+mobiscout record stop
 ```
 
 **Expected:** HierarchyCapture should record full element trees
@@ -231,7 +231,7 @@ observe record stop
 ### 3. Build Model
 
 ```bash
-observe model build --session-id session_xyz
+mobiscout model build --session-id session_xyz
 ```
 
 **Expected:**
@@ -243,7 +243,7 @@ observe model build --session-id session_xyz
 ### 4. Verify Selector Quality
 
 ```bash
-observe model analyze-selectors
+mobiscout model analyze-selectors
 ```
 
 **Expected Output:**
@@ -259,7 +259,7 @@ Selector Stability Report:
 ### 5. Generate Tests
 
 ```bash
-observe generate pages --model app_model.yaml
+mobiscout generate pages --model app_model.yaml
 ```
 
 **Expected:** Page Objects should use XPath for elements without IDs
@@ -283,8 +283,8 @@ These missing IDs are **NOT bugs** - they are **intentional test cases** for:
 - `framework/selectors/selector_builder.py` - Selector generation logic
 - `framework/selectors/selector_scorer.py` - Stability scoring
 - `framework/selectors/selector_optimizer.py` - XPath optimization
-- `demo-app/android/observe-sdk/.../HierarchyCollector.kt` - UI tree capture
-- `demo-app/ios/ObserveSDK/Observers/HierarchyCollector.swift` - iOS hierarchy
+- `demo-app/android/mobiscout-sdk/.../HierarchyCollector.kt` - UI tree capture
+- `demo-app/ios/MobiscoutSDK/Mobiscoutrs/HierarchyCollector.swift` - iOS hierarchy
 
 ---
 

@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class RecorderError(Exception):
-    """Base exception for Observe errors."""
+    """Base exception for Mobiscout errors."""
 
     pass
 

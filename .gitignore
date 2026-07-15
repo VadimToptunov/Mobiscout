@@ -159,7 +159,7 @@ PRICING*.md
 inspection_reports/
 
 
-# ML models (generated, not committed — regenerate with `observe ml create-universal-model`)
+# ML models (generated, not committed — regenerate with `mobiscout ml create-universal-model`)
 ml_models/
 *.pkl
 

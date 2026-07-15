@@ -1,4 +1,4 @@
-package com.observe.sdk.observers
+package com.mobiscout.sdk.observers
 
 import android.app.Activity
 import android.app.Application
@@ -11,8 +11,8 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
-import com.observe.sdk.events.Event
-import com.observe.sdk.events.EventBus
+import com.mobiscout.sdk.events.Event
+import com.mobiscout.sdk.events.EventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
- * Observes UI interactions in Compose applications
+ * Mobiscouts UI interactions in Compose applications
  * 
  * Features:
  * - Tracks touch events (tap, long press)
@@ -29,7 +29,7 @@ import kotlin.math.abs
  * - Captures element information (test tags, bounds, text)
  * - Monitors Activity lifecycle
  */
-class UIObserver(
+class UIMobiscoutr(
     private val app: Application,
     private val eventBus: EventBus,
     private val enableHierarchyCapture: Boolean = true
@@ -80,14 +80,14 @@ class UIObserver(
     }
     
     fun start() {
-        Log.d(TAG, "UIObserver started")
+        Log.d(TAG, "UIMobiscoutr started")
         // Create new coroutine scope for this start/stop cycle
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         app.registerActivityLifecycleCallbacks(activityLifecycleCallbacks)
     }
     
     fun stop() {
-        Log.d(TAG, "UIObserver stopped")
+        Log.d(TAG, "UIMobiscoutr stopped")
         app.unregisterActivityLifecycleCallbacks(activityLifecycleCallbacks)
         currentActivity = null
         
@@ -282,7 +282,7 @@ class UIObserver(
     )
     
     companion object {
-        private const val TAG = "UIObserver"
+        private const val TAG = "UIMobiscoutr"
     }
 }
 

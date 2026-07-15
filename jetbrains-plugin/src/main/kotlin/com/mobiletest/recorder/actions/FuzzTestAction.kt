@@ -45,7 +45,7 @@ class FuzzTestAction : AnAction() {
                 try {
                     // Run fuzzing via CLI
                     val process = ProcessBuilder(
-                        "observe", "fuzz", "ui", targetId,
+                        "mobiscout", "fuzz", "ui", targetId,
                         "--input-type", inputType,
                         "--count", count.toString(),
                         "--output", "${project.basePath}/fuzz_results.json"
@@ -98,7 +98,7 @@ class FuzzTestAction : AnAction() {
 
     private fun showNotification(project: Project, title: String, content: String, type: NotificationType) {
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Observe Framework")
+            .getNotificationGroup("Mobiscout Framework")
             .createNotification(title, content, type)
             .notify(project)
     }

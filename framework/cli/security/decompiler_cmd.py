@@ -37,9 +37,9 @@ def decompile(
     Supports APK (Android) and IPA (iOS) files.
 
     Example:
-        observe security decompile app.apk
-        observe security decompile app.ipa -o ./decompiled
-        observe security decompile app.apk --extract-strings --analyze-native
+        mobiscout security decompile app.apk
+        mobiscout security decompile app.ipa -o ./decompiled
+        mobiscout security decompile app.apk --extract-strings --analyze-native
     """
     if not validate_path(binary_path):
         raise SystemExit(1)
@@ -164,9 +164,9 @@ def strings(
     Extracts and categorizes interesting strings from APK/IPA files.
 
     Example:
-        observe security strings app.apk
-        observe security strings app.ipa -o strings.txt --filter secrets
-        observe security strings app.apk --min-length 12
+        mobiscout security strings app.apk
+        mobiscout security strings app.ipa -o strings.txt --filter secrets
+        mobiscout security strings app.apk --min-length 12
     """
     if not validate_path(binary_path):
         raise SystemExit(1)

@@ -1,4 +1,4 @@
-# Contributing to Mobile Observe & Test Framework
+# Contributing to Mobile Mobiscout & Test Framework
 
 Thank you for your interest in contributing! 🎉
 

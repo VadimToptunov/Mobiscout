@@ -184,7 +184,7 @@ All interactive elements have `accessibilityIdentifier` for test automation:
 
 (To be implemented in Phase 3)
 
-- **Observe** - With Observe SDK instrumentation
+- **Mobiscout** - With Mobiscout SDK instrumentation
 - **Test** - Clean build for test automation
 - **Production** - Release configuration
 
@@ -223,7 +223,7 @@ Home Screen
 **Status:** 🟢 Core Demo Complete (Phase 3 - Step 1)  
 **Next Steps:**
 
-1. iOS Observe SDK implementation
+1. iOS Mobiscout SDK implementation
 2. iOS Static Analyzer for SwiftUI
 3. Cross-platform generator updates
 4. Regula SDK integration
@@ -258,7 +258,7 @@ The app is ready for:
 
 - Manual testing on simulators/devices
 - Appium/XCUITest automation (all elements have accessibility IDs)
-- Observe SDK integration (next phase)
+- Mobiscout SDK integration (next phase)
 
 ---
 

@@ -290,7 +290,7 @@ Regula SDK supports:
 
 ---
 
-## Notes for Observe SDK
+## Notes for Mobiscout SDK
 
 ### Events to Capture:
 

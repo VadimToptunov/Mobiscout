@@ -209,7 +209,7 @@ class APIAnalyzer:
                             assertion_type="status_code",
                             expected_value=most_common[0],
                             confidence=confidence,
-                            reason=f"Observed in {most_common[1]}/{len(status_codes)} calls",
+                            reason=f"Mobiscoutd in {most_common[1]}/{len(status_codes)} calls",
                         )
                     )
 
@@ -248,7 +248,7 @@ class APIAnalyzer:
 
     def export_har(self, output_path: Path):
         """Export API calls in HAR format"""
-        har = {"log": {"version": "1.2", "creator": {"name": "Observe", "version": "1.0"}, "entries": []}}
+        har = {"log": {"version": "1.2", "creator": {"name": "Mobiscout", "version": "1.0"}, "entries": []}}
 
         for call in self.api_calls:
             entry = {

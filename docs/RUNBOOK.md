@@ -8,7 +8,7 @@ another language (Python/Java/Kotlin) any time.
 ## 0. Prerequisites (once)
 
 ```bash
-pip install -e .                       # the observe CLI (from source; not published to PyPI)
+pip install -e .                       # the mobiscout CLI (from source; not published to PyPI)
 npm i -g appium                        # Appium 2 server
 appium driver install uiautomator2     # Android
 appium driver install xcuitest         # iOS
@@ -28,7 +28,7 @@ wdio.conf.js, README). Run the crawl **once per platform, into its own dir**.
 ### Android
 ```bash
 adb shell monkey -p com.yourcompany.app -c android.intent.category.LAUNCHER 1
-observe crawl --platform android --package com.yourcompany.app \
+mobiscout crawl --platform android --package com.yourcompany.app \
   --targets js_webdriverio --scaffold --output mobile-tests-android
 
 cd mobile-tests-android && npm install && npm test
@@ -37,7 +37,7 @@ cd mobile-tests-android && npm install && npm test
 ### iOS
 ```bash
 xcrun simctl launch booted com.yourcompany.app
-observe crawl --platform ios --package com.yourcompany.app --udid <UDID> \
+mobiscout crawl --platform ios --package com.yourcompany.app --udid <UDID> \
   --targets js_webdriverio --scaffold --output mobile-tests-ios
 
 cd mobile-tests-ios && npm install && npm test
@@ -54,7 +54,7 @@ Point `--output` at your repo's spec folder and **omit** `--scaffold` — only t
 test files are written, your `wdio.conf.js`/`conftest`/pages are untouched.
 
 ```bash
-observe crawl --platform android --package com.yourcompany.app \
+mobiscout crawl --platform android --package com.yourcompany.app \
   --targets js_webdriverio --output ./e2e/specs
 # -> specs land in ./e2e/specs/js_webdriverio/ ; wire them into your existing config
 ```

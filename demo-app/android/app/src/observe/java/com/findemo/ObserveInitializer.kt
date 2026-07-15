@@ -2,26 +2,26 @@ package com.findemo
 
 import android.app.Application
 import android.util.Log
-import com.observe.sdk.ObserveSDK
-import com.observe.sdk.core.ObserveConfig
+import com.mobiscout.sdk.MobiscoutSDK
+import com.mobiscout.sdk.core.MobiscoutConfig
 
 /**
- * Initializer for Observe build variant
+ * Initializer for Mobiscout build variant
  * 
- * This file ONLY exists in observe source set
+ * This file ONLY exists in mobiscout source set
  * It will NOT be compiled into test or prod builds
  */
-object ObserveInitializer {
+object MobiscoutInitializer {
     
-    private const val TAG = "ObserveInit"
+    private const val TAG = "MobiscoutInit"
     
     fun initialize(app: Application) {
-        Log.i(TAG, " Initializing Observe SDK for observe build")
+        Log.i(TAG, " Initializing Mobiscout SDK for mobiscout build")
         
         try {
-            ObserveSDK.initialize(
+            MobiscoutSDK.initialize(
                 app = app,
-                config = ObserveConfig(
+                config = MobiscoutConfig(
                     appVersion = BuildConfig.VERSION_NAME,
                     serverUrl = "http://10.0.2.2:8080",  // Android emulator localhost
                     batchSize = 50,
@@ -29,18 +29,18 @@ object ObserveInitializer {
                 )
             )
             
-            Log.i(TAG, " Observe SDK initialized successfully")
+            Log.i(TAG, " Mobiscout SDK initialized successfully")
         } catch (e: Exception) {
-            Log.e(TAG, " Failed to initialize Observe SDK", e)
+            Log.e(TAG, " Failed to initialize Mobiscout SDK", e)
         }
     }
 }
 
 /**
  * Extension function for Application class
- * Available ONLY in observe build
+ * Available ONLY in mobiscout build
  */
-fun Application.initializeObserveSDK() {
-    ObserveInitializer.initialize(this)
+fun Application.initializeMobiscoutSDK() {
+    MobiscoutInitializer.initialize(this)
 }
 

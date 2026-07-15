@@ -48,7 +48,7 @@ class GenerateTestAction : AnAction() {
 
                     // Run test generation via CLI
                     val process = ProcessBuilder(
-                        "observe", "generate", "test",
+                        "mobiscout", "generate", "test",
                         "--input", filePath,
                         "--format", "pytest"
                     ).redirectErrorStream(true).start()
@@ -127,7 +127,7 @@ class GenerateTestAction : AnAction() {
 
     private fun showNotification(project: Project, title: String, content: String, type: NotificationType) {
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Observe Framework")
+            .getNotificationGroup("Mobiscout Framework")
             .createNotification(title, content, type)
             .notify(project)
     }

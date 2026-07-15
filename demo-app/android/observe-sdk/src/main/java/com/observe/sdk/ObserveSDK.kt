@@ -1,23 +1,23 @@
-package com.observe.sdk
+package com.mobiscout.sdk
 
 import android.app.Application
 import android.util.Log
 import android.webkit.WebView
-import com.observe.sdk.core.ObserveConfig
-import com.observe.sdk.core.ObserveSession
-import com.observe.sdk.events.Event
-import com.observe.sdk.events.EventBus
-import com.observe.sdk.export.EventExporter
-import com.observe.sdk.observers.NavigationObserver
-import com.observe.sdk.observers.NetworkObserver
-import com.observe.sdk.observers.UIObserver
-import com.observe.sdk.observers.WebViewObserver
-import com.observe.sdk.security.CryptoKeyExporter
+import com.mobiscout.sdk.core.MobiscoutConfig
+import com.mobiscout.sdk.core.MobiscoutSession
+import com.mobiscout.sdk.events.Event
+import com.mobiscout.sdk.events.EventBus
+import com.mobiscout.sdk.export.EventExporter
+import com.mobiscout.sdk.observers.NavigationMobiscoutr
+import com.mobiscout.sdk.observers.NetworkMobiscoutr
+import com.mobiscout.sdk.observers.UIMobiscoutr
+import com.mobiscout.sdk.observers.WebViewMobiscoutr
+import com.mobiscout.sdk.security.CryptoKeyExporter
 import java.io.File
 import java.util.UUID
 
 /**
- * Main entry point for Observe SDK
+ * Main entry point for Mobiscout SDK
  * 
  * Usage:
  * ```kotlin
@@ -25,37 +25,37 @@ import java.util.UUID
  * class MyApp : Application() {
  *     override fun onCreate() {
  *         super.onCreate()
- *         ObserveSDK.initialize(
+ *         MobiscoutSDK.initialize(
  *             this,
- *             ObserveConfig(enabled = true)
+ *             MobiscoutConfig(enabled = true)
  *         )
  *     }
  * }
  * ```
  */
-object ObserveSDK {
+object MobiscoutSDK {
     
     private var isInitialized = false
     private var isStarted = false
     
     private lateinit var application: Application
-    private lateinit var config: ObserveConfig
-    private lateinit var session: ObserveSession
+    private lateinit var config: MobiscoutConfig
+    private lateinit var session: MobiscoutSession
     
     // Core components
     private lateinit var eventBus: EventBus
     private lateinit var eventExporter: EventExporter
     
-    // Observers
-    private lateinit var uiObserver: UIObserver
-    private lateinit var navigationObserver: NavigationObserver
-    private lateinit var networkObserver: NetworkObserver
-    private lateinit var webViewObserver: WebViewObserver
+    // Mobiscoutrs
+    private lateinit var uiMobiscoutr: UIMobiscoutr
+    private lateinit var navigationMobiscoutr: NavigationMobiscoutr
+    private lateinit var networkMobiscoutr: NetworkMobiscoutr
+    private lateinit var webViewMobiscoutr: WebViewMobiscoutr
     
     /**
      * Initialize SDK with configuration
      */
-    fun initialize(app: Application, cfg: ObserveConfig) {
+    fun initialize(app: Application, cfg: MobiscoutConfig) {
         if (isInitialized) {
             Log.w(TAG, "SDK already initialized")
             return
@@ -69,10 +69,10 @@ object ObserveSDK {
             return
         }
         
-        Log.i(TAG, "Initializing ObserveSDK...")
+        Log.i(TAG, "Initializing MobiscoutSDK...")
         
         // Create session
-        session = ObserveSession.create(app)
+        session = MobiscoutSession.create(app)
         
         // Initialize components
         eventBus = EventBus()
@@ -91,10 +91,10 @@ object ObserveSDK {
         }
         
         // Initialize observers
-        uiObserver = UIObserver(app, eventBus)
-        navigationObserver = NavigationObserver(app, eventBus)
-        networkObserver = NetworkObserver(eventBus)
-        webViewObserver = WebViewObserver(app, eventBus)
+        uiMobiscoutr = UIMobiscoutr(app, eventBus)
+        navigationMobiscoutr = NavigationMobiscoutr(app, eventBus)
+        networkMobiscoutr = NetworkMobiscoutr(eventBus)
+        webViewMobiscoutr = WebViewMobiscoutr(app, eventBus)
         
         // Subscribe to events
         subscribeToEvents()
@@ -134,10 +134,10 @@ object ObserveSDK {
         eventExporter.start()
         
         // Start observers
-        uiObserver.start()
-        navigationObserver.start()
-        networkObserver.start()
-        webViewObserver.start()
+        uiMobiscoutr.start()
+        navigationMobiscoutr.start()
+        networkMobiscoutr.start()
+        webViewMobiscoutr.start()
         
         // Emit session start event
         eventBus.publish(Event.SessionEvent(
@@ -181,10 +181,10 @@ object ObserveSDK {
         ))
         
         // Stop observers
-        uiObserver.stop()
-        navigationObserver.stop()
-        networkObserver.stop()
-        webViewObserver.stop()
+        uiMobiscoutr.stop()
+        navigationMobiscoutr.stop()
+        networkMobiscoutr.stop()
+        webViewMobiscoutr.stop()
         
         // Stop exporter (will flush events)
         eventExporter.stop()
@@ -224,15 +224,15 @@ object ObserveSDK {
     /**
      * Get current session info
      */
-    fun getSession(): ObserveSession? {
+    fun getSession(): MobiscoutSession? {
         return if (isInitialized) session else null
     }
     
     /**
      * Get network observer for OkHttp integration
      */
-    fun getNetworkObserver(): NetworkObserver? {
-        return if (isInitialized) networkObserver else null
+    fun getNetworkMobiscoutr(): NetworkMobiscoutr? {
+        return if (isInitialized) networkMobiscoutr else null
     }
     
     /**
@@ -281,7 +281,7 @@ object ObserveSDK {
      * 
      * SECURITY WARNING:
      * This exports TLS/SSL session keys and device encryption keys!
-     * Only call this in test/observe builds!
+     * Only call this in test/mobiscout builds!
      * 
      * Returns: File with exported keys (JSON format)
      */
@@ -323,7 +323,7 @@ object ObserveSDK {
     /**
      * Register a WebView for observation
      * 
-     * Call this when creating a WebView to observe:
+     * Call this when creating a WebView to mobiscout:
      * - Page loads
      * - DOM element clicks
      * - Form inputs
@@ -333,21 +333,21 @@ object ObserveSDK {
      * Example:
      * ```kotlin
      * val webView = WebView(context)
-     * ObserveSDK.observeWebView(webView, "PaymentScreen")
+     * MobiscoutSDK.observeWebView(webView, "PaymentScreen")
      * ```
      */
     fun observeWebView(webView: WebView, screenName: String) {
         if (!isInitialized) {
-            Log.w(TAG, "Cannot observe WebView - SDK not initialized")
+            Log.w(TAG, "Cannot mobiscout WebView - SDK not initialized")
             return
         }
         
         if (!isStarted) {
-            Log.w(TAG, "Cannot observe WebView - SDK not started")
+            Log.w(TAG, "Cannot mobiscout WebView - SDK not started")
             return
         }
         
-        webViewObserver.observeWebView(webView, screenName)
+        webViewMobiscoutr.observeWebView(webView, screenName)
     }
     
     /**
@@ -363,13 +363,13 @@ object ObserveSDK {
         // Guard against uninitialized SDK
         // While cleanup should always proceed, we can't access lateinit property if not initialized
         if (!isInitialized) {
-            Log.w(TAG, "Cannot stop observing WebView - SDK not initialized (webViewObserver not created)")
+            Log.w(TAG, "Cannot stop observing WebView - SDK not initialized (webViewMobiscoutr not created)")
             return
         }
         
         // NO further guards - cleanup must always proceed to prevent resource leaks
         // Even if SDK is stopped, WebViews may still be deallocated and need cleanup
-        webViewObserver.stopObservingWebView(webView)
+        webViewMobiscoutr.stopObservingWebView(webView)
     }
     
     /**
@@ -383,5 +383,5 @@ object ObserveSDK {
         return CryptoKeyExporter.getStats()
     }
     
-    private const val TAG = "ObserveSDK"
+    private const val TAG = "MobiscoutSDK"
 }

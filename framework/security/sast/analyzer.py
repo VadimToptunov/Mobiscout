@@ -145,9 +145,9 @@ class SASTAnalyzer:
                 {
                     "tool": {
                         "driver": {
-                            "name": "Observe SAST",
+                            "name": "Mobiscout SAST",
                             "version": "1.0.0",
-                            "informationUri": "https://observe-framework.dev",
+                            "informationUri": "https://mobiscout-framework.dev",
                             "rules": [],
                         }
                     },

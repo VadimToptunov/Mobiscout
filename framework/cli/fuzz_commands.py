@@ -51,8 +51,8 @@ def generate(type: str, count: int, output: Optional[str]) -> None:
     Generate fuzzing inputs.
 
     Example:
-        observe fuzz generate --type email --count 50
-        observe fuzz generate --type text -o fuzz_inputs.json
+        mobiscout fuzz generate --type email --count 50
+        mobiscout fuzz generate --type text -o fuzz_inputs.json
     """
     console.print(Panel.fit(f"🎲 Generating {count} {type.upper()} Inputs", style="bold cyan"))
 
@@ -114,8 +114,8 @@ def mutate(input_value: str, mutations: int) -> None:
     Mutate an input value.
 
     Example:
-        observe fuzz mutate "test@example.com" --mutations 20
-        observe fuzz mutate "password123"
+        mobiscout fuzz mutate "test@example.com" --mutations 20
+        mobiscout fuzz mutate "password123"
     """
     console.print(Panel.fit(f"🧬 Mutating Input: '{input_value[:30]}...'", style="bold magenta"))
 
@@ -156,8 +156,8 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
     Fuzz a UI text field.
 
     Example:
-        observe fuzz ui username_field --input-type text --count 100
-        observe fuzz ui email_input --input-type email -o results.json
+        mobiscout fuzz ui username_field --input-type text --count 100
+        mobiscout fuzz ui email_input --input-type email -o results.json
     """
     console.print(Panel.fit(f"🎯 Fuzzing UI Element: {target_id}", style="bold cyan"))
 
@@ -253,8 +253,8 @@ def api(endpoint: str, method: str, param_type: str, count: int, output: Optiona
     Fuzz an API endpoint.
 
     Example:
-        observe fuzz api /api/users --method POST --param-type json
-        observe fuzz api /api/login --param-type text --count 200
+        mobiscout fuzz api /api/users --method POST --param-type json
+        mobiscout fuzz api /api/login --param-type text --count 200
     """
     console.print(Panel.fit(f"🌐 Fuzzing API: {method} {endpoint}", style="bold cyan"))
 
@@ -349,8 +349,8 @@ def campaign(config: Optional[str], output: str) -> None:
     Run a comprehensive fuzzing campaign.
 
     Example:
-        observe fuzz campaign --config fuzz_config.json --output report.json
-        observe fuzz campaign -o campaign_results.json
+        mobiscout fuzz campaign --config fuzz_config.json --output report.json
+        mobiscout fuzz campaign -o campaign_results.json
     """
     console.print(Panel.fit("🚀 Starting Fuzzing Campaign", style="bold magenta"))
 
@@ -426,7 +426,7 @@ def list_strategies() -> None:
     List available fuzzing strategies.
 
     Example:
-        observe fuzz list
+        mobiscout fuzz list
     """
     console.print(Panel.fit("📋 Fuzzing Strategies", style="bold cyan"))
 
@@ -472,7 +472,7 @@ def analyze(report_path: str) -> None:
     Analyze fuzzing results.
 
     Example:
-        observe fuzz analyze campaign_results.json
+        mobiscout fuzz analyze campaign_results.json
     """
     import json
 

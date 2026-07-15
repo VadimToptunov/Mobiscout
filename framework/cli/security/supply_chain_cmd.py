@@ -38,9 +38,9 @@ def supply_chain(
     Scans dependencies for vulnerabilities, generates SBOM, and checks licenses.
 
     Example:
-        observe security supply-chain ./project
-        observe security supply-chain ./app -o sbom.json --format sbom
-        observe security supply-chain ./src --check-vulns
+        mobiscout security supply-chain ./project
+        mobiscout security supply-chain ./app -o sbom.json --format sbom
+        mobiscout security supply-chain ./src --check-vulns
     """
     if not validate_path(project_path):
         raise SystemExit(1)
@@ -155,8 +155,8 @@ def sbom(project_path: Path, output: Path, format: str) -> None:
     Creates a comprehensive inventory of all dependencies.
 
     Example:
-        observe security sbom ./project -o sbom.json
-        observe security sbom ./app -o sbom.xml --format spdx
+        mobiscout security sbom ./project -o sbom.json
+        mobiscout security sbom ./app -o sbom.xml --format spdx
     """
     if not validate_path(project_path):
         raise SystemExit(1)

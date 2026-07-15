@@ -1,6 +1,6 @@
 name: Build standalone engine (variant C)
 
-# Freezes the Observe engine into a self-contained per-platform binary (no user
+# Freezes the Mobiscout engine into a self-contained per-platform binary (no user
 # Python) with PyInstaller. Kept off the per-PR path (building 4 platforms is
 # heavy) — run it on demand, on version tags, or when a release is published; the
 # binaries are uploaded as artifacts and, for a release, attached to it.
@@ -23,17 +23,17 @@ jobs:
       matrix:
         include:
           - os: macos-14        # Apple Silicon
-            artifact: observe-engine-macos-arm64
-            binary: dist/observe-engine
+            artifact: mobiscout-engine-macos-arm64
+            binary: dist/mobiscout-engine
           - os: macos-13        # Intel
-            artifact: observe-engine-macos-x64
-            binary: dist/observe-engine
+            artifact: mobiscout-engine-macos-x64
+            binary: dist/mobiscout-engine
           - os: ubuntu-latest
-            artifact: observe-engine-linux-x64
-            binary: dist/observe-engine
+            artifact: mobiscout-engine-linux-x64
+            binary: dist/mobiscout-engine
           - os: windows-latest
-            artifact: observe-engine-windows-x64.exe
-            binary: dist/observe-engine.exe
+            artifact: mobiscout-engine-windows-x64.exe
+            binary: dist/mobiscout-engine.exe
     steps:
       - uses: actions/checkout@v7
 
@@ -54,7 +54,7 @@ jobs:
           pip install pyinstaller
 
       - name: Freeze
-        run: pyinstaller packaging/observe-engine.spec --noconfirm --clean
+        run: pyinstaller packaging/mobiscout-engine.spec --noconfirm --clean
 
       - name: Smoke test (runs with no interpreter dependency)
         shell: bash

@@ -1,7 +1,7 @@
 """
 Recording / replay HTTP proxy for API mocking.
 
-This is the server that was missing behind ``observe mock record`` / ``observe
+This is the server that was missing behind ``mobiscout mock record`` / ``mobiscout
 mock replay``: a forward HTTP proxy the app under test points at
 (``http://<host>:<port>``), wired into an :class:`~framework.mocking.APIMocker`
 session.

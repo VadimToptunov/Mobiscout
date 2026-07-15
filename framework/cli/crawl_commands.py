@@ -1,5 +1,5 @@
 """
-`observe crawl` — point at a running app, get a full test kit.
+`mobiscout crawl` — point at a running app, get a full test kit.
 
 Autonomously crawls the app on a connected device (via adb), then writes the
 artifacts a tester needs: a per-screen element inventory (Markdown + JSON), an
@@ -79,9 +79,9 @@ def crawl(
     iOS over an Appium/XCUITest session.
 
     Examples:
-        observe crawl --package com.example.app --targets python_pytest,java_testng
-        observe crawl --package com.example.app --driver appium --udid <UDID>
-        observe crawl --platform ios --package com.apple.Preferences --udid <UDID>
+        mobiscout crawl --package com.example.app --targets python_pytest,java_testng
+        mobiscout crawl --package com.example.app --driver appium --udid <UDID>
+        mobiscout crawl --platform ios --package com.apple.Preferences --udid <UDID>
     """
     from framework.codegen import available_targets, get_emitter
     from framework.crawler import AdbCrawlerDriver, AndroidAppiumDriver, AppCrawler, IOSCrawlerDriver, build_test_model

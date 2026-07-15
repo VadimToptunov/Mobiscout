@@ -8,7 +8,7 @@ import com.intellij.ui.content.ContentFactory
 import com.mobiletest.recorder.wizard.SetupWizard
 
 /**
- * Factory for creating the Observe tool window.
+ * Factory for creating the Mobiscout tool window.
  *
  * Automatically shows setup wizard on first launch if configuration
  * is incomplete.

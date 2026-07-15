@@ -1,4 +1,4 @@
-//! Observe Core - High-Performance Rust Engine
+//! Mobiscout Core - High-Performance Rust Engine
 //!
 //! This library provides high-performance implementations of CPU-intensive
 //! operations for the Mobile Test Recorder framework.
@@ -26,7 +26,7 @@ pub use business_logic::{RustBusinessLogicAnalyzer, BusinessLogicPattern};
 
 /// Python module definition
 #[pymodule]
-fn observe_core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // Initialize logging
     env_logger::init();
 

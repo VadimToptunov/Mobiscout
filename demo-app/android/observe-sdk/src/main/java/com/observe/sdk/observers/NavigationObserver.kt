@@ -1,11 +1,11 @@
-package com.observe.sdk.observers
+package com.mobiscout.sdk.observers
 
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
-import com.observe.sdk.events.Event
-import com.observe.sdk.events.EventBus
+import com.mobiscout.sdk.events.Event
+import com.mobiscout.sdk.events.EventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,7 +13,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Observes navigation events and screen transitions
+ * Mobiscouts navigation events and screen transitions
  * 
  * Features:
  * - Tracks Activity lifecycle (onCreate, onResume, onPause, onStop)
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  * - Captures screen stack information
  * - Emits navigation events to EventBus
  */
-class NavigationObserver(
+class NavigationMobiscoutr(
     private val app: Application,
     private val eventBus: EventBus
 ) {
@@ -142,14 +142,14 @@ class NavigationObserver(
     }
     
     fun start() {
-        Log.d(TAG, "NavigationObserver started")
+        Log.d(TAG, "NavigationMobiscoutr started")
         // Create new coroutine scope for this start/stop cycle
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         app.registerActivityLifecycleCallbacks(activityLifecycleCallbacks)
     }
     
     fun stop() {
-        Log.d(TAG, "NavigationObserver stopped")
+        Log.d(TAG, "NavigationMobiscoutr stopped")
         app.unregisterActivityLifecycleCallbacks(activityLifecycleCallbacks)
         screenStack.clear()
         currentScreen = null
@@ -208,6 +208,6 @@ class NavigationObserver(
     )
     
     companion object {
-        private const val TAG = "NavigationObserver"
+        private const val TAG = "NavigationMobiscoutr"
     }
 }

@@ -38,7 +38,7 @@ def compare(baseline_dir: str, current_dir: str, threshold: float, output: Optio
 
     if not baseline_path.exists():
         print_error(f"Baseline directory not found: {baseline_path}")
-        print_info("\nCreate baselines first: observe visual capture --output ./visual_baselines")
+        print_info("\nCreate baselines first: mobiscout visual capture --output ./visual_baselines")
         raise click.Abort()
 
     print_info(f"Baseline: {baseline_path}")
@@ -150,7 +150,7 @@ def capture(screenshots_dir: str, output: str) -> None:
 
     print_success(f"\n✅ Captured {copied} baseline screenshots")
     print_info(f"Baselines stored in: {output_path}")
-    print_info("\nNext: observe visual compare --baseline-dir ./visual_baselines --current-dir ./screenshots")
+    print_info("\nNext: mobiscout visual compare --baseline-dir ./visual_baselines --current-dir ./screenshots")
 
 
 @visual.command()
@@ -191,7 +191,7 @@ def list_baselines(baseline_dir: str) -> None:
 
     if not baseline_path.exists():
         print_info("No baselines directory found")
-        print_info("\nCreate with: observe visual capture --screenshots-dir ./screenshots")
+        print_info("\nCreate with: mobiscout visual capture --screenshots-dir ./screenshots")
         return
 
     baselines = list(baseline_path.glob("*.png"))
@@ -284,9 +284,9 @@ def config_info(baseline_dir: str, threshold: float) -> None:
         print_info("⚠️  Directory does not exist")
 
     print_info("\nWorkflow:")
-    print_info("  1. observe visual capture --screenshots-dir ./screenshots")
-    print_info("  2. observe visual compare --current-dir ./new_screenshots")
-    print_info("  3. observe visual approve <screen> --current-image ./new_screenshots/screen.png")
+    print_info("  1. mobiscout visual capture --screenshots-dir ./screenshots")
+    print_info("  2. mobiscout visual compare --current-dir ./new_screenshots")
+    print_info("  3. mobiscout visual approve <screen> --current-image ./new_screenshots/screen.png")
 
 
 if __name__ == "__main__":

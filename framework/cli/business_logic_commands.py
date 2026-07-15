@@ -34,7 +34,7 @@ def analyze(source: str, output: str, format: str) -> None:
     Analyze business logic from source code
 
     Example:
-        observe business analyze --source ./app/src --output business_logic.yaml
+        mobiscout business analyze --source ./app/src --output business_logic.yaml
     """
     from framework.analyzers.business_logic_analyzer import BusinessLogicAnalyzer
 
@@ -128,11 +128,11 @@ def analyze(source: str, output: str, format: str) -> None:
     click.echo(f"\n💾 Analysis saved to: {output_path}")
     click.echo("\nNext steps:")
     click.echo(f"  1. Review business logic: cat {output_path}")
-    click.echo(f"  2. Generate scenarios: observe business scenarios --input {output_path}")
-    click.echo(f"  3. Generate BDD features: observe business features --input {output_path}")
-    click.echo(f"  4. View API contracts: observe business contracts --input {output_path}")
-    click.echo(f"  5. View edge cases: observe business edge-cases --input {output_path}")
-    click.echo(f"  6. View negative tests: observe business negative --input {output_path}")
+    click.echo(f"  2. Generate scenarios: mobiscout business scenarios --input {output_path}")
+    click.echo(f"  3. Generate BDD features: mobiscout business features --input {output_path}")
+    click.echo(f"  4. View API contracts: mobiscout business contracts --input {output_path}")
+    click.echo(f"  5. View edge cases: mobiscout business edge-cases --input {output_path}")
+    click.echo(f"  6. View negative tests: mobiscout business negative --input {output_path}")
 
 
 @business.command()
@@ -154,7 +154,7 @@ def scenarios(input_file: str, output: str) -> None:
     Generate test scenarios from business logic
 
     Example:
-        observe business scenarios --input business_logic.yaml
+        mobiscout business scenarios --input business_logic.yaml
     """
     from framework.analyzers.business_logic_analyzer import BusinessLogicAnalyzer
 
@@ -227,7 +227,7 @@ def features(input_file: str, output: str) -> None:
     Generate BDD feature files from business logic
 
     Example:
-        observe business features --input business_logic.yaml
+        mobiscout business features --input business_logic.yaml
     """
     from framework.analyzers.business_logic_analyzer import (
         BusinessLogicAnalyzer,
@@ -293,7 +293,7 @@ def testdata(input_file: str) -> None:
     Show available mock test data
 
     Example:
-        observe business testdata --input business_logic.yaml
+        mobiscout business testdata --input business_logic.yaml
     """
     click.echo("\n🎭 Available Mock Test Data:")
 
@@ -348,7 +348,7 @@ def edgecases(input_file: str) -> None:
     Show detected edge cases
 
     Example:
-        observe business edgecases --input business_logic.yaml
+        mobiscout business edgecases --input business_logic.yaml
     """
     click.echo("\n⚠️ Detected Edge Cases:")
 
@@ -397,7 +397,7 @@ def statemachines(input_file: str) -> None:
     Show extracted state machines
 
     Example:
-        observe business statemachines --input business_logic.yaml
+        mobiscout business statemachines --input business_logic.yaml
     """
     click.echo("\n🔄 Extracted State Machines:")
 
@@ -445,7 +445,7 @@ def negative(input_file: str, output: str) -> None:
     Show generated negative test cases
 
     Example:
-        observe business negative --input business_logic.yaml
+        mobiscout business negative --input business_logic.yaml
     """
     click.echo("\n❌ Generated Negative Test Cases:")
 
@@ -503,7 +503,7 @@ def contracts(input_file: str) -> None:
     Show extracted API contracts
 
     Example:
-        observe business contracts --input business_logic.yaml
+        mobiscout business contracts --input business_logic.yaml
     """
     click.echo("\n📡 Extracted API Contracts:")
 
@@ -579,7 +579,7 @@ def complexity(source: str, output: str, format: str) -> None:
     Analyze code complexity using AST
 
     Example:
-        observe business complexity --source ./framework --output complexity.yaml
+        mobiscout business complexity --source ./framework --output complexity.yaml
     """
     from framework.analyzers.ast_analyzer import ASTAnalyzer
 

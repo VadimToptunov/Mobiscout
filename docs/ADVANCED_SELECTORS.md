@@ -262,37 +262,37 @@ submit_button = AdvancedSelector(
 
 ```bash
 # Parse ID selector
-observe selector parse "#login_button"
+mobiscout selector parse "#login_button"
 
 # Parse class selector
-observe selector parse ".Button"
+mobiscout selector parse ".Button"
 
 # Parse text selector
-observe selector parse "Login"
+mobiscout selector parse "Login"
 ```
 
 ### Show Examples
 
 ```bash
-observe selector examples
+mobiscout selector examples
 ```
 
 ### List Operators
 
 ```bash
-observe selector operators
+mobiscout selector operators
 ```
 
 ### List Relationships
 
 ```bash
-observe selector relationships
+mobiscout selector relationships
 ```
 
 ### Benchmark Performance
 
 ```bash
-observe selector benchmark
+mobiscout selector benchmark
 ```
 
 ## Best Practices
@@ -379,7 +379,7 @@ Advanced selectors are optimized for speed:
 - **Fuzzy text**: ~2ms per call
 - **Relationships**: ~1-3ms per call
 
-Benchmarks on 1,000 elements (see `observe selector benchmark`).
+Benchmarks on 1,000 elements (see `mobiscout selector benchmark`).
 
 ## Comparison with XPath
 
@@ -450,6 +450,6 @@ Benefits:
 
 ## Support
 
-- **Examples**: `observe selector examples`
+- **Examples**: `mobiscout selector examples`
 - **Documentation**: See above
 - **Tests**: `tests/test_advanced_selectors.py`

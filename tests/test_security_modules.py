@@ -63,10 +63,12 @@ class TestSASTAnalyzer:
     def test_analyze_simple_python_file(self):
         """Test analyzing a simple Python file"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("""
+            f.write(
+                """
 def hello():
     print("Hello World")
-""")
+"""
+            )
             f.flush()
             f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
@@ -79,10 +81,12 @@ def hello():
     def test_detect_hardcoded_credentials(self):
         """Test detection of hardcoded credentials"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("""
+            f.write(
+                """
 password = "my_secret_password_123"
 api_key = "AKIAIOSFODNN7EXAMPLE"
-""")
+"""
+            )
             f.flush()
             f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
@@ -101,10 +105,12 @@ api_key = "AKIAIOSFODNN7EXAMPLE"
     def test_detect_weak_crypto(self):
         """Test detection of weak cryptographic algorithms"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("""
+            f.write(
+                """
 import hashlib
 hash = hashlib.md5(data.encode())
-""")
+"""
+            )
             f.flush()
             f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
@@ -119,10 +125,12 @@ hash = hashlib.md5(data.encode())
     def test_detect_insecure_api(self):
         """Test detection of insecure API usage"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("""
+            f.write(
+                """
 user_input = input()
 result = eval(user_input)
-""")
+"""
+            )
             f.flush()
             f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
@@ -494,10 +502,12 @@ class TestTaintAnalyzer:
     def test_detect_taint_flow(self):
         """Test detection of taint flow from source to sink"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write("""
+            f.write(
+                """
 user_input = input("Enter query: ")
 cursor.execute(user_input)
-""")
+"""
+            )
             f.flush()
             f.close()  # release the handle: Windows can't reopen/unlink an open temp file
 
@@ -517,7 +527,8 @@ class TestIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a vulnerable Python file
             vuln_file = Path(tmpdir) / "vulnerable.py"
-            vuln_file.write_text("""
+            vuln_file.write_text(
+                """
 import os
 import hashlib
 
@@ -530,7 +541,8 @@ def process_user_input():
     hash = hashlib.md5(password.encode())  # Weak hash
 
     return hash.hexdigest()
-""")
+"""
+            )
 
             analyzer = SASTAnalyzer()
             result = analyzer.analyze(Path(tmpdir))
