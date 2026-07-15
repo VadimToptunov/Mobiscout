@@ -23,10 +23,10 @@
 
 ```bash
 # Install framework
-pip install mobile-test-recorder
+pip install -e .
 
 # Install Rust core (optional, 16x speedup)
-pip install mobile-test-recorder[rust]
+pip install -e ".[rust]"
 
 # Verify installation
 observe --version
@@ -199,7 +199,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Setup
-        run: pip install mobile-test-recorder[rust]
+        run: pip install -e ".[rust]"
       
       - name: Run Tests
         run: observe parallel run tests/ --workers 4
@@ -709,7 +709,7 @@ open reports/index.html
 
 ```bash
 # 1. Install framework
-pip install mobile-test-recorder[rust]
+pip install -e ".[rust]"
 
 # 2. Initialize config
 observe config init

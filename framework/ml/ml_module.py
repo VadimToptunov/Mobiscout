@@ -6,7 +6,7 @@ Features:
 - Next-step recommendations
 - Element importance scoring
 - Offline inference support
-- Online training (ENTERPRISE feature)
+- Online training
 - Model versioning and updates
 - Configurable ML backends (scikit-learn, TensorFlow, PyTorch)
 
@@ -20,8 +20,6 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
-
-from framework.licensing.validator import check_feature
 
 
 class MLBackend(Enum):
@@ -92,7 +90,7 @@ class MLModel(ABC):
     @abstractmethod
     def train(self, training_data: TrainingData) -> Dict[str, Any]:
         """
-        Train model (ENTERPRISE feature)
+        Train model
 
         Args:
             training_data: Training dataset
@@ -190,10 +188,7 @@ class SelectorPredictor(MLModel):
         )
 
     def train(self, training_data: TrainingData) -> Dict[str, Any]:
-        """Train selector prediction model (ENTERPRISE feature)"""
-        if not check_feature("ml_healing"):
-            raise PermissionError("ML training requires ENTERPRISE license")
-
+        """Train selector prediction model"""
         if self.backend == MLBackend.SKLEARN:
             return self._train_sklearn(training_data)
         elif self.backend == MLBackend.TENSORFLOW:
@@ -436,10 +431,7 @@ class NextStepRecommender(MLModel):
         )
 
     def train(self, training_data: TrainingData) -> Dict[str, Any]:
-        """Train step recommender (ENTERPRISE feature)"""
-        if not check_feature("ml_healing"):
-            raise PermissionError("ML training requires ENTERPRISE license")
-
+        """Train step recommender"""
         # Build transition history
         for features in training_data.features:
             from_screen = features.get("from_screen")
@@ -534,10 +526,7 @@ class ElementScorer(MLModel):
         )
 
     def train(self, training_data: TrainingData) -> Dict[str, Any]:
-        """Train element scorer (ENTERPRISE feature)"""
-        if not check_feature("ml_healing"):
-            raise PermissionError("ML training requires ENTERPRISE license")
-
+        """Train element scorer"""
         self.is_trained = True
         return {"samples": len(training_data.features)}
 
@@ -633,7 +622,7 @@ class MLModule:
 
     def train_model(self, model_type: ModelType, training_data: TrainingData) -> Dict[str, Any]:
         """
-        Train ML model (ENTERPRISE feature)
+        Train ML model
 
         Args:
             model_type: Type of model to train

@@ -104,7 +104,7 @@
                     icon="AllIcons.Actions.IntentionBulbGrey"/>
 
             <action id="MTR.HealSelector" class="com.mobiletest.recorder.actions.HealSelectorAction"
-                    text="Heal Selector" description="Get AI-powered selector healing suggestions"
+                    text="Heal Selector" description="Get selector-healing suggestions"
                     icon="AllIcons.Actions.QuickfixBulb">
                 <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt H"/>
             </action>
