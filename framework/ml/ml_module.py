@@ -1,5 +1,5 @@
 """
-STEP 5: ML Module - AI-powered selector prediction and test recommendations
+STEP 5: ML Module - ML-based selector prediction and test recommendations
 
 Features:
 - Selector prediction using ML models
