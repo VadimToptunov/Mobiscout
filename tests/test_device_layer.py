@@ -219,49 +219,29 @@ class TestLocalDeviceProvider:
 class TestCloudDeviceProvider:
     """Test CloudDeviceProvider"""
 
-    @patch("framework.devices.device_layer.check_feature")
-    def test_provider_creation_with_license(self, mock_check):
-        """Test cloud provider creation with valid license"""
-        mock_check.return_value = True
-
+    def test_provider_creation(self):
+        """Test cloud provider creation"""
         provider = CloudDeviceProvider(provider="browserstack", username="test_user", access_key="test_key")
 
         assert provider.provider == "browserstack"
         assert provider.username == "test_user"
         assert provider.access_key == "test_key"
 
-    @patch("framework.devices.device_layer.check_feature")
-    def test_provider_creation_without_license(self, mock_check):
-        """Test cloud provider creation without license"""
-        mock_check.return_value = False
-
-        with pytest.raises(PermissionError):
-            CloudDeviceProvider(provider="browserstack", username="test_user", access_key="test_key")
-
-    @patch("framework.devices.device_layer.check_feature")
-    def test_get_hub_url_browserstack(self, mock_check):
+    def test_get_hub_url_browserstack(self):
         """Test BrowserStack hub URL"""
-        mock_check.return_value = True
-
         provider = CloudDeviceProvider(provider="browserstack", username="user", access_key="key")
 
         assert "browserstack.com" in provider._hub_url
         assert "user:key" in provider._hub_url
 
-    @patch("framework.devices.device_layer.check_feature")
-    def test_get_hub_url_saucelabs(self, mock_check):
+    def test_get_hub_url_saucelabs(self):
         """Test Sauce Labs hub URL"""
-        mock_check.return_value = True
-
         provider = CloudDeviceProvider(provider="saucelabs", username="user", access_key="key")
 
         assert "saucelabs.com" in provider._hub_url
 
-    @patch("framework.devices.device_layer.check_feature")
-    def test_list_devices(self, mock_check):
+    def test_list_devices(self):
         """Test listing cloud devices"""
-        mock_check.return_value = True
-
         provider = CloudDeviceProvider(provider="browserstack", username="user", access_key="key")
 
         devices = provider.list_devices()
@@ -281,11 +261,8 @@ class TestDeviceLayer:
         assert layer.cloud_provider is None
         assert len(layer.connected_devices) == 0
 
-    @patch("framework.devices.device_layer.check_feature")
-    def test_configure_cloud(self, mock_check):
+    def test_configure_cloud(self):
         """Test cloud configuration"""
-        mock_check.return_value = True
-
         layer = DeviceLayer()
         layer.configure_cloud("browserstack", "user", "key")
 
@@ -302,11 +279,9 @@ class TestDeviceLayer:
 
         assert isinstance(devices, list)
 
-    @patch("framework.devices.device_layer.check_feature")
     @patch("subprocess.run")
-    def test_list_available_devices_with_cloud(self, mock_run, mock_check):
+    def test_list_available_devices_with_cloud(self, mock_run):
         """Test listing devices including cloud"""
-        mock_check.return_value = True
         mock_run.return_value = Mock(stdout="", returncode=0)
 
         layer = DeviceLayer()

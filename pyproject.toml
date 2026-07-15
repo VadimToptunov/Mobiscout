@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mobile-observe-test-framework"
-version = "0.1.0"
+version = "0.5.0"
 description = "Intelligent Mobile Testing Platform - Observe, Analyze, Automate"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -118,5 +118,15 @@ testpaths = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+# Non-Python assets under the package must never be measured or rendered: coverage
+# 7.15's HTML report tries to tokenize them as Python and crashes with a
+# SyntaxError on Jinja syntax (`{% ... %}`) — the codegen .j2 templates — which
+# surfaces as a pytest INTERNALERROR and fails the whole suite.
+omit = [
+    "*/codegen/templates/*",
+    "*.j2",
 ]
 

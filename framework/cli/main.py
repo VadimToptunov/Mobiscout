@@ -12,7 +12,6 @@ from framework.cli.a11y_commands import a11y
 # Import command groups
 from framework.cli.business_logic_commands import business
 from framework.cli.fuzz_commands import fuzz
-from framework.cli.license_commands import license
 from framework.cli.verify_commands import verify
 from framework.cli.ci_commands import ci
 from framework.cli.config_commands import config
@@ -85,7 +84,6 @@ cli.add_command(load)
 cli.add_command(docs)
 cli.add_command(daemon_command, name="daemon")
 cli.add_command(fuzz)
-cli.add_command(license)
 cli.add_command(verify)
 
 
