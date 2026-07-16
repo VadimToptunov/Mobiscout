@@ -281,8 +281,42 @@ class AppCrawler:
             self.driver.back()
         return self._on_app()
 
-    def _own_interactive(self, screen: CrawlScreen) -> Deque[CrawlElement]:
-        return deque(e for e in screen.interactive() if self._own(e))
+    @staticmethod
+    def _screen_bottom(screen: CrawlScreen) -> int:
+        """Lowest pixel any element reaches — a proxy for screen height (the tree
+        carries no viewport size), used to spot the bottom navigation strip."""
+        return max((e.bounds[3] for e in screen.elements if e.bounds), default=0)
+
+    def _is_primary_nav(self, element: CrawlElement, screen: CrawlScreen) -> bool:
+        """Is this a primary-navigation control — an iOS UITabBar entry or an
+        Android BottomNavigationView item?
+
+        These are the highest-leverage things to tap: each opens a whole section
+        of the app, and (unlike a pushed screen) the bar is *persistent*, so it is
+        reachable from anywhere without relying on Back. We detect them either by
+        explicit type or by sitting in the bottom strip of the screen.
+        """
+        if element.class_name in ("Tab", "TabBar", "SegmentedControl"):
+            return True
+        bottom = self._screen_bottom(screen)
+        if bottom <= 0 or not element.bounds:
+            return False
+        center_y = (element.bounds[1] + element.bounds[3]) / 2
+        return center_y >= bottom * 0.85 and element.class_name in ("Button", "Cell", "Tab")
+
+    def _own_interactive(self, screen: CrawlScreen, exclude_nav: bool = False) -> Deque[CrawlElement]:
+        """App-owned tappable elements, primary navigation first.
+
+        ``exclude_nav`` drops the primary-nav bar entirely — used while exploring
+        inside one section so the crawl doesn't hop into a *sibling* tab (those are
+        driven from the top level, where the persistent bar is a reliable anchor).
+        """
+        own = [e for e in screen.interactive() if self._own(e)]
+        if exclude_nav:
+            own = [e for e in own if not self._is_primary_nav(e, screen)]
+        # Stable sort: nav bar first, everything else in tree order.
+        own.sort(key=lambda e: 0 if self._is_primary_nav(e, screen) else 1)
+        return deque(own)
 
     def crawl(self) -> CrawlResult:
         """Explore the app and return the screen/flow map.
@@ -316,8 +350,45 @@ class AppCrawler:
                 screen = passed
                 result.screens.setdefault(screen.fingerprint, screen)
 
+        # Tab-based apps (a persistent bottom bar with several entries) are the
+        # common case a plain depth-first crawl gets wrong: it burns its step
+        # budget deep in the first tab and never reaches the others, and Back
+        # (an edge-swipe on iOS) does not switch tabs. So when we see a nav bar,
+        # drive each section from its tab — a single tap on the persistent bar is
+        # a reliable way to re-anchor between sections.
+        nav = [e for e in screen.interactive() if self._own(e) and self._is_primary_nav(e, screen)]
+        if len(nav) >= 2:
+            self._explore_tabs(result, screen, nav)
+        else:
+            self._dfs(result, screen.fingerprint, self._own_interactive(screen))
+
+    def _explore_tabs(self, result: CrawlResult, home: CrawlScreen, nav: List[CrawlElement]) -> None:
+        """Visit each primary-nav section from its tab, then depth-first explore
+        inside it (excluding the nav bar, so we don't wander into sibling tabs)."""
+        for tab in nav:
+            if result.steps >= self.max_steps:
+                break
+            self.driver.tap(*tab.center)
+            result.steps += 1
+            if not self._on_app():
+                self._recover()
+                continue
+            section = parse_screen(self.driver.page_source())
+            if not section.fingerprint:
+                continue
+            result.transitions.append((home.fingerprint, tab, section.fingerprint))
+            if section.fingerprint in result.screens:
+                continue  # tab leads somewhere already mapped
+            result.screens[section.fingerprint] = section
+            self._dfs(result, section.fingerprint, self._own_interactive(section, exclude_nav=True), exclude_nav=True)
+
+    def _dfs(
+        self, result: CrawlResult, root_fp: str, root_todo: Deque[CrawlElement], exclude_nav: bool = False
+    ) -> None:
+        """Depth-first walk from one root screen, tapping untried elements and
+        backing out of dead ends. Shared by the single-root and per-tab crawls."""
         # Each stack frame: (screen fingerprint, queue of untried app elements).
-        stack: List[Tuple[str, Deque[CrawlElement]]] = [(screen.fingerprint, self._own_interactive(screen))]
+        stack: List[Tuple[str, Deque[CrawlElement]]] = [(root_fp, root_todo)]
 
         while stack and result.steps < self.max_steps:
             current_fp, todo = stack[-1]
@@ -361,7 +432,7 @@ class AppCrawler:
                         result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
                         result.screens[behind.fingerprint] = behind
                         new_screen = behind
-                stack.append((new_screen.fingerprint, self._own_interactive(new_screen)))
+                stack.append((new_screen.fingerprint, self._own_interactive(new_screen, exclude_nav=exclude_nav)))
             else:
                 # Already seen (or depth cap): don't re-explore, return to parent.
                 self.driver.back()
