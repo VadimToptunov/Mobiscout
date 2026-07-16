@@ -362,9 +362,35 @@ class AppCrawler:
         else:
             self._dfs(result, screen.fingerprint, self._own_interactive(screen))
 
+    def _reanchor(self, tab: CrawlElement, target_fp: str, result: CrawlResult, tries: int = 3) -> bool:
+        """Return to a tab's root screen by tapping its (persistent) bar entry.
+
+        A previous section's exploration may have left us deep inside a pushed
+        screen or modal where the bar is hidden, so we Back out and retry until the
+        tap lands us back on the section root (or we give up)."""
+        for _ in range(tries):
+            self.driver.tap(*tab.center)
+            result.steps += 1
+            if not self._on_app():
+                self._recover()
+            if parse_screen(self.driver.page_source()).fingerprint == target_fp:
+                return True
+            self.driver.back()  # dismiss whatever is covering the bar, then retry
+            result.steps += 1
+            self._recover()
+        return False
+
     def _explore_tabs(self, result: CrawlResult, home: CrawlScreen, nav: List[CrawlElement]) -> None:
-        """Visit each primary-nav section from its tab, then depth-first explore
-        inside it (excluding the nav bar, so we don't wander into sibling tabs)."""
+        """Crawl a tab-based app breadth-first, then depth-first.
+
+        Pass 1 taps every tab once to register all section roots — so even on a
+        tight step budget the whole top level is mapped, instead of the crawl
+        sinking all its steps into the first tab. Pass 2 re-anchors on each tab
+        (the bar is persistent) and depth-first explores inside it, excluding the
+        nav bar so it never wanders into a sibling tab.
+        """
+        roots: List[Tuple[CrawlElement, CrawlScreen]] = []
+        seen_fps = set()
         for tab in nav:
             if result.steps >= self.max_steps:
                 break
@@ -377,9 +403,17 @@ class AppCrawler:
             if not section.fingerprint:
                 continue
             result.transitions.append((home.fingerprint, tab, section.fingerprint))
-            if section.fingerprint in result.screens:
-                continue  # tab leads somewhere already mapped
-            result.screens[section.fingerprint] = section
+            if section.fingerprint in seen_fps:
+                continue  # two tabs landing on the same screen (e.g. the current one)
+            seen_fps.add(section.fingerprint)
+            result.screens.setdefault(section.fingerprint, section)
+            roots.append((tab, section))
+
+        for tab, section in roots:
+            if result.steps >= self.max_steps:
+                break
+            if not self._reanchor(tab, section.fingerprint, result):
+                continue  # can't get back to this section; its root is still mapped
             self._dfs(result, section.fingerprint, self._own_interactive(section, exclude_nav=True), exclude_nav=True)
 
     def _dfs(

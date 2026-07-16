@@ -106,6 +106,16 @@ def test_crawler_visits_every_tab_not_just_the_first():
     assert len(result.screens) >= 5
 
 
+def test_all_tab_roots_mapped_even_on_a_tight_step_budget():
+    """Breadth first: every section root is registered before any deep dive, so a
+    crawl that runs out of steps still maps the whole top level rather than one
+    tab's guts. A single-pass DFS would spend the budget inside Markets."""
+    driver = FakeTabDriver()
+    result = AppCrawler(driver, _BUNDLE, max_steps=5, max_depth=8).crawl()
+    assert {"home", "markets", "portfolio", "card"} <= driver.visited
+    assert len(result.screens) >= 4
+
+
 def test_single_root_app_still_crawls_without_a_nav_bar():
     """No bottom bar (<2 nav items) -> the plain depth-first path, unchanged."""
 
