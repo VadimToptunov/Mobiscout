@@ -127,6 +127,7 @@ def _make_driver(config: Dict[str, Any]):
             udid=config.get("udid"),
             device_name=config.get("device_name") or "iPhone 17",
             server=server,
+            process_args=config.get("process_args"),
         )
         return drv, True
     if config.get("driver") == "appium":
