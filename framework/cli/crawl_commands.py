@@ -54,6 +54,13 @@ logger = get_logger(__name__)
 )
 @click.option("--max-steps", default=40, show_default=True, help="Crawl step budget")
 @click.option("--max-depth", default=8, show_default=True, help="Crawl depth budget")
+@click.option(
+    "--launch-arg",
+    "launch_args",
+    multiple=True,
+    help="iOS launch argument passed to the app on start (repeatable) — e.g. "
+    "--launch-arg -MyAppStartUnlocked --launch-arg 1 to skip a login gate",
+)
 def crawl(
     package,
     platform,
@@ -70,6 +77,7 @@ def crawl(
     scaffold,
     max_steps,
     max_depth,
+    launch_args,
 ):
     """
     Crawl a running app and export an element inventory + tests.
@@ -101,7 +109,11 @@ def crawl(
     if platform == "ios":
         try:
             crawl_driver = IOSCrawlerDriver(
-                bundle_id=package, udid=udid, device_name=device_name or "iPhone 17", server=server
+                bundle_id=package,
+                udid=udid,
+                device_name=device_name or "iPhone 17",
+                server=server,
+                process_args=list(launch_args) or None,
             )
         except Exception as e:
             print_error(f"Could not open an Appium iOS session ({e}). Is the Appium server running at {server}?")

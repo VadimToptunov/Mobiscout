@@ -18,7 +18,7 @@ the pipeline (inventory, IR, codegen) is unchanged.
 from __future__ import annotations
 
 import time
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from framework.crawler.settle import settle_until_stable
 
@@ -35,6 +35,7 @@ class IOSCrawlerDriver:
         device_name: str = "iPhone 17",
         server: str = "http://localhost:4723",
         settle: float = 1.2,
+        process_args: Optional[List[str]] = None,
     ):
         # Imported lazily so the package works without Appium installed (adb-only
         # users never pay for it, and unit tests can stub the driver).
@@ -54,6 +55,11 @@ class IOSCrawlerDriver:
             options.udid = udid
         if platform_version:
             options.platform_version = platform_version
+        # Launch arguments passed to the app on start — how many apps reach a
+        # testable state (skip onboarding/auth, deep-link a screen, enable a test
+        # mode). Without them the crawl is stuck on a gate.
+        if process_args:
+            options.set_capability("processArguments", {"args": list(process_args)})
         # A booted simulator is reused instead of shutting it down each run.
         options.set_capability("noReset", True)
         options.set_capability("shouldTerminateApp", False)
