@@ -169,6 +169,12 @@ def _parse_ios(root: ET.Element) -> List[CrawlElement]:
             continue
         if w <= 0 or h <= 0:
             continue
+        # XCUITest reports off-screen / covered elements (e.g. everything behind a
+        # modal auth gate) with visible="false". Including them floods the
+        # inventory with phantom elements and makes the crawler waste steps tapping
+        # controls that aren't hittable — keep only what's actually on screen.
+        if node.get("visible") == "false":
+            continue
         itype = (node.get("type") or node.tag).replace("XCUIElementType", "")
         # iOS `name` is the accessibility identifier -> map to content_desc so it
         # becomes an ACCESSIBILITY_ID selector (correct cross-platform in Appium).
