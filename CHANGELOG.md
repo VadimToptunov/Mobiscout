@@ -105,7 +105,7 @@ All notable changes to Mobile Mobiscout & Test Framework.
 ### Added - Production Features
 
 - **Demo iOS App**: FinDemo with SwiftUI, similar to Android version
-- **iOS Mobiscout SDK**: Complete implementation with UIMobiscoutr, NetworkMobiscoutr, NavigationMobiscoutr
+- **iOS Mobiscout SDK**: Complete implementation with UIObserver, NetworkObserver, NavigationObserver
 - **iOS Static Analyzer**: Swift/Xcode project analysis
 - **Production Security**:
     - Certificate pinning
@@ -150,7 +150,7 @@ All notable changes to Mobile Mobiscout & Test Framework.
 - **Project Structure**: Complete framework setup with CLI
 - **Demo Android App**: FinDemo with Jetpack Compose (onboarding, login, KYC, transactions)
 - **Mock Backend**: FastAPI server with authentication and transaction APIs
-- **Android Mobiscout SDK**: UIMobiscoutr, NavigationMobiscoutr, NetworkMobiscoutr, EventExporter
+- **Android Mobiscout SDK**: UIObserver, NavigationObserver, NetworkObserver, EventExporter
 - **Event Store**: SQLite-based persistent storage with query API
 - **Code Generators**: Page Object, API client, pytest-bdd with Jinja2 templates
 - **Regula SDK Integration**: KYC functionality in demo apps
