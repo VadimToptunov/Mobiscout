@@ -209,7 +209,7 @@ class APIAnalyzer:
                             assertion_type="status_code",
                             expected_value=most_common[0],
                             confidence=confidence,
-                            reason=f"Mobiscoutd in {most_common[1]}/{len(status_codes)} calls",
+                            reason=f"Observed in {most_common[1]}/{len(status_codes)} calls",
                         )
                     )
 
