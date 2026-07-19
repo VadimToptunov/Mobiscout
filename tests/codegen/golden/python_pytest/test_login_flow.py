@@ -9,20 +9,40 @@ import pytest
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from appium.webdriver.common.appiumby import AppiumBy
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+
+# Condition-based wait budget (seconds). We poll for the element instead of a
+# fixed sleep or a global implicit wait (which silently fights explicit waits),
+# so tests stay in sync with async UI without paying a worst-case sleep every step.
+_TIMEOUT = 10
 
 
-def _find(driver, primary, fallbacks):
-    """Locate an element, falling back through ranked alternatives (self-healing)."""
-    for by, value in [primary, *fallbacks]:
-        try:
-            return driver.find_element(by, value)
-        except NoSuchElementException:
-            continue
-    by, value = primary
-    raise NoSuchElementException(
-        f"None of the locators matched (primary + {len(fallbacks)} fallbacks): {by}={value}"
-    )
+def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
+    """Locate an element, waiting for it to appear and self-healing through ranked
+    fallback locators.
+
+    Each poll tries every locator (primary first) until one resolves or the wait
+    times out — a real condition-based wait, so a slow/async screen no longer flakes
+    the way an instant ``find_element`` does at machine speed.
+    """
+    locators = [primary, *fallbacks]
+
+    def _locate(drv):
+        for by, value in locators:
+            try:
+                return drv.find_element(by, value)
+            except NoSuchElementException:
+                continue
+        return False
+
+    try:
+        return WebDriverWait(driver, timeout, poll_frequency=0.3).until(_locate)
+    except TimeoutException:
+        by, value = primary
+        raise NoSuchElementException(
+            f"None of the locators matched within {timeout}s (primary + {len(fallbacks)} fallbacks): {by}={value}"
+        )
 
 
 @pytest.fixture()
@@ -46,7 +66,8 @@ def test_login(driver):
     # Tap login
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "login_btn"), []).click()
     # Wait for home
-    driver.implicitly_wait(3)
+    # Condition-based: wait for the screen to render rather than sleeping a fixed time.
+    WebDriverWait(driver, 3).until(lambda d: d.find_elements(AppiumBy.XPATH, "//*"))
     # Dismiss a dialog
     driver.back()
     # Welcome message shown

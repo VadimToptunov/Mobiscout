@@ -143,6 +143,17 @@ def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_p
     assert checked, f"{target_id} produced no source to validate"
 
 
+def test_python_pytest_uses_condition_based_waits(login_model: TestModel):
+    """P3: the flagship Python target must synchronise with condition-based waits
+    (WebDriverWait), never a global implicit wait or a fixed sleep — the classic
+    flakiness anti-patterns a recorder is prone to emitting."""
+    out = get_emitter("python_pytest").emit(login_model)
+    src = "\n".join(out.values())
+    assert "WebDriverWait" in src
+    assert "implicitly_wait" not in src
+    assert "time.sleep" not in src
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())
