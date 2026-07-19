@@ -120,6 +120,15 @@ class AdbCrawlerDriver:
             return source
         return self._dump()
 
+    def refresh(self, wait: float = 1.0) -> str:
+        """A second, longer look for screens whose content loads asynchronously
+        (RecyclerView population, network fetch). Those settle "stable but empty"
+        on the first read; waiting a beat and re-dumping catches the real content.
+        """
+        time.sleep(wait)
+        self._cache = None
+        return self._dump()
+
     def _settle_wait(self) -> None:
         """Block until the UI stops animating (or the settle cap elapses),
         caching the final dump so the next ``page_source`` is free."""
@@ -146,6 +155,19 @@ class AdbCrawlerDriver:
     def back(self) -> None:
         """Press the hardware/system Back key and wait for the UI to settle."""
         self._run("shell", "input", "keyevent", "4")
+        self._settle_wait()
+
+    def scroll(self, direction: str = "down") -> None:
+        """Swipe to reveal off-screen content, then wait for the UI to settle.
+
+        ``down`` scrolls the content up (swipe from lower to upper) so below-the-
+        fold rows and links come into view; any other value scrolls back up. Uses
+        a fixed 1080x1920-relative gesture — coarse but device-agnostic enough for
+        exploration.
+        """
+        x, lo, hi = 540, 1500, 500
+        from_y, to_y = (lo, hi) if direction == "down" else (hi, lo)
+        self._run("shell", "input", "swipe", str(x), str(from_y), str(x), str(to_y), "300")
         self._settle_wait()
 
     def current_package(self) -> str:

@@ -107,6 +107,35 @@ class IOSCrawlerDriver:
             pass
         self._settle_wait()
 
+    def scroll(self, direction: str = "down") -> None:
+        # Reveal off-screen content. Prefer XCUITest's native `mobile: scroll`
+        # (reliably scrolls the first scrollable view); fall back to a manual drag
+        # for cases it can't resolve a scrollable. A screen that already fits on
+        # one page simply doesn't move — harmless.
+        try:
+            self._driver.execute_script("mobile: scroll", {"direction": direction})
+        except Exception:
+            try:
+                size = self._driver.get_window_size()
+                x = size["width"] // 2
+                lo, hi = int(size["height"] * 0.75), int(size["height"] * 0.25)
+                from_y, to_y = (lo, hi) if direction == "down" else (hi, lo)
+                self._driver.execute_script(
+                    "mobile: dragFromToForDuration",
+                    {"fromX": x, "fromY": from_y, "toX": x, "toY": to_y, "duration": 0.4},
+                )
+            except Exception:
+                pass
+        self._settle_wait()
+
+    def refresh(self, wait: float = 0.6) -> str:
+        # A second, longer look for screens whose content loads asynchronously
+        # (SwiftUI `.task` / `onAppear` fetches). Those settle "stable but empty"
+        # on the first read; waiting a beat and re-reading catches the real content.
+        time.sleep(wait)
+        self._cache = None
+        return self._driver.page_source
+
     def current_package(self) -> str:
         try:
             info = self._driver.execute_script("mobile: activeAppInfo")
