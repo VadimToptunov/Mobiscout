@@ -163,6 +163,15 @@ def test_js_targets_use_condition_based_waits(target_id: str, login_model: TestM
     assert "driver.pause" not in src
 
 
+@pytest.mark.parametrize("target_id", TARGET_IDS)
+def test_no_fixed_wait_anti_patterns(target_id: str, login_model: TestModel):
+    """P3: no target may emit a fixed sleep or a global implicit wait — the two
+    canonical flakiness anti-patterns. Synchronisation must be condition-based."""
+    src = "\n".join(get_emitter(target_id).emit(login_model).values())
+    for anti in ("implicitlyWait", "implicitly_wait", "Thread.sleep", "time.sleep", "driver.pause"):
+        assert anti not in src, f"{target_id} emits the {anti!r} anti-pattern"
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())

@@ -11,13 +11,18 @@ import pytest
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from appium.webdriver.common.appiumby import AppiumBy
-from selenium.common.exceptions import NoSuchElementException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
 from pytest_bdd import given, when, then, parsers, scenarios
 
 scenarios("features/login_flow.feature")
 
 APP_PACKAGE = "com.example.app"
 APP_ACTIVITY = ".MainActivity"
+
+# Condition-based wait budget (seconds) — poll for the element instead of a fixed
+# sleep or a global implicit wait, so steps stay in sync with async UI.
+TIMEOUT = 10
 
 # Friendly target name -> ranked locators (primary first, then fallbacks).
 LOCATORS = {
@@ -28,13 +33,23 @@ LOCATORS = {
 
 
 def _find(driver, target):
-    """Resolve a friendly target to an element via its ranked locators."""
-    for by, value in LOCATORS[target]:
-        try:
-            return driver.find_element(by, value)
-        except NoSuchElementException:
-            continue
-    raise NoSuchElementException(f"No locator matched for target: {target!r}")
+    """Resolve a friendly target to an element, waiting for it to appear and
+    self-healing through its ranked locators — a condition-based wait, not an
+    instant lookup that flakes on async screens."""
+    locators = LOCATORS[target]
+
+    def _locate(drv):
+        for by, value in locators:
+            try:
+                return drv.find_element(by, value)
+            except NoSuchElementException:
+                continue
+        return False
+
+    try:
+        return WebDriverWait(driver, TIMEOUT, poll_frequency=0.3).until(_locate)
+    except TimeoutException:
+        raise NoSuchElementException(f"No locator matched for target: {target!r} within {TIMEOUT}s")
 
 
 @pytest.fixture()
@@ -66,7 +81,8 @@ def _tap(driver, target):
 
 @when(parsers.parse("I wait {seconds:d} seconds"))
 def _wait(driver, seconds):
-    driver.implicitly_wait(seconds)
+    # Condition-based: wait for the screen to render rather than a global implicit wait.
+    WebDriverWait(driver, seconds).until(lambda d: d.find_elements(AppiumBy.XPATH, "//*"))
 
 
 @when("I press back")

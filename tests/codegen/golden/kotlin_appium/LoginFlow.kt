@@ -15,13 +15,19 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.openqa.selenium.By
 import org.openqa.selenium.NoSuchElementException
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebElement
+import org.openqa.selenium.support.ui.WebDriverWait
 import java.net.URL
 import java.time.Duration
 
 class LoginFlow {
 
     private lateinit var driver: AndroidDriver
+
+    // Condition-based wait budget — poll for elements instead of a fixed sleep or
+    // a global implicit wait, so tests stay in sync with async UI.
+    private val TIMEOUT: Duration = Duration.ofSeconds(10)
 
     @BeforeEach
     fun setUp() {
@@ -38,18 +44,27 @@ class LoginFlow {
     }
 
     /** Locate an element, falling back through ranked alternatives (self-healing). */
+    /**
+     * Locate an element, waiting for it to appear and self-healing through ranked
+     * alternatives — a condition-based wait, not an instant lookup that flakes.
+     */
     private fun find(primary: By, fallbacks: Array<By>): WebElement {
+        val locators = listOf(primary, *fallbacks)
         try {
-            return driver.findElement(primary)
-        } catch (ignored: NoSuchElementException) {
+            return WebDriverWait(driver, TIMEOUT).until { d ->
+                var found: WebElement? = null
+                for (by in locators) {
+                    try {
+                        found = d.findElement(by)
+                        break
+                    } catch (ignored: NoSuchElementException) {
+                    }
+                }
+                found
+            }!!
+        } catch (e: TimeoutException) {
+            throw NoSuchElementException("No locator matched within ${TIMEOUT.seconds}s (primary + ${fallbacks.size} fallbacks)")
         }
-        for (by in fallbacks) {
-            try {
-                return driver.findElement(by)
-            } catch (ignored: NoSuchElementException) {
-            }
-        }
-        throw NoSuchElementException("No locator matched (primary + ${fallbacks.size} fallbacks)")
     }
 
     @Test
@@ -61,7 +76,8 @@ class LoginFlow {
         // Tap login
         find(AppiumBy.accessibilityId("login_btn"), arrayOf()).click()
         // Wait for home
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(3))
+        // Condition-based: wait for the screen to render rather than a global implicit wait.
+        WebDriverWait(driver, Duration.ofSeconds(3)).until { d -> d.findElements(By.xpath("//*")).isNotEmpty() }
         // Dismiss a dialog
         driver.navigate().back()
         // Welcome message shown

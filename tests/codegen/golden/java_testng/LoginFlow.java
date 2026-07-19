@@ -12,7 +12,9 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -20,6 +22,9 @@ import org.testng.annotations.Test;
 
 import java.net.URL;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class LoginFlow {
 
@@ -42,19 +47,32 @@ public class LoginFlow {
         }
     }
 
-    /** Locate an element, falling back through ranked alternatives (self-healing). */
+    /** Condition-based wait budget for locating elements. */
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+
+    /**
+     * Locate an element, waiting for it to appear and self-healing through ranked
+     * alternatives — each poll tries every locator until one resolves or we time
+     * out. A real condition-based wait, not an instant lookup that flakes on async UI.
+     */
     private WebElement find(By primary, By[] fallbacks) {
+        List<By> locators = new ArrayList<>();
+        locators.add(primary);
+        locators.addAll(Arrays.asList(fallbacks));
         try {
-            return driver.findElement(primary);
-        } catch (NoSuchElementException ignored) {
+            return new WebDriverWait(driver, TIMEOUT).until(d -> {
+                for (By by : locators) {
+                    try {
+                        return d.findElement(by);
+                    } catch (NoSuchElementException ignored) {
+                    }
+                }
+                return null;
+            });
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException(
+                "No locator matched within " + TIMEOUT.getSeconds() + "s (primary + " + fallbacks.length + " fallbacks)");
         }
-        for (By by : fallbacks) {
-            try {
-                return driver.findElement(by);
-            } catch (NoSuchElementException ignored) {
-            }
-        }
-        throw new NoSuchElementException("No locator matched (primary + " + fallbacks.length + " fallbacks)");
     }
 
     @Test
@@ -66,7 +84,8 @@ public class LoginFlow {
         // Tap login
         find(AppiumBy.accessibilityId("login_btn"), new By[]{}).click();
         // Wait for home
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(3));
+        // Condition-based: wait for the screen to render rather than a global implicit wait.
+        new WebDriverWait(driver, Duration.ofSeconds(3)).until(d -> !d.findElements(By.xpath("//*")).isEmpty());
         // Dismiss a dialog
         driver.navigate().back();
         // Welcome message shown
