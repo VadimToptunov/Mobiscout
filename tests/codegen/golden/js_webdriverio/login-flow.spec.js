@@ -10,16 +10,28 @@
  */
 
 const APP_PACKAGE = 'com.example.app';
+// Condition-based wait budget (ms) — poll for the element instead of a fixed
+// pause, so specs stay in sync with async UI without flaking at machine speed.
+const TIMEOUT = 10000;
 
-// Locate an element, falling back through ranked selectors (self-healing).
+// Locate an element, waiting for it to appear and self-healing through ranked
+// selectors — each poll tries every selector until one exists or we time out.
 async function find(selectors) {
-    for (const selector of selectors) {
-        const el = await driver.$(selector);
-        if (await el.isExisting()) {
-            return el;
-        }
-    }
-    throw new Error(`No selector matched: ${selectors.join(', ')}`);
+    let found = null;
+    await driver.waitUntil(
+        async () => {
+            for (const selector of selectors) {
+                const el = await driver.$(selector);
+                if (await el.isExisting()) {
+                    found = el;
+                    return true;
+                }
+            }
+            return false;
+        },
+        { timeout: TIMEOUT, interval: 300, timeoutMsg: `No selector matched: ${selectors.join(', ')}` }
+    );
+    return found;
 }
 
 describe('LoginFlow', () => {
@@ -31,7 +43,8 @@ describe('LoginFlow', () => {
         // Tap login
         await (await find(['~login_btn'])).click();
         // Wait for home
-        await driver.pause(3000);
+        // Condition-based: wait for the screen to render rather than a fixed pause.
+        await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: 3000, interval: 300 });
         // Dismiss a dialog
         await driver.back();
         // Welcome message shown

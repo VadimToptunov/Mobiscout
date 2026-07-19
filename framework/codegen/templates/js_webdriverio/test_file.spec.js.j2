@@ -17,16 +17,28 @@
  */
 
 const APP_PACKAGE = {{ model.app_package | js_str }};
+// Condition-based wait budget (ms) — poll for the element instead of a fixed
+// pause, so specs stay in sync with async UI without flaking at machine speed.
+const TIMEOUT = 10000;
 
-// Locate an element, falling back through ranked selectors (self-healing).
+// Locate an element, waiting for it to appear and self-healing through ranked
+// selectors — each poll tries every selector until one exists or we time out.
 async function find(selectors) {
-    for (const selector of selectors) {
-        const el = await driver.$(selector);
-        if (await el.isExisting()) {
-            return el;
-        }
-    }
-    throw new Error(`No selector matched: ${selectors.join(', ')}`);
+    let found = null;
+    await driver.waitUntil(
+        async () => {
+            for (const selector of selectors) {
+                const el = await driver.$(selector);
+                if (await el.isExisting()) {
+                    found = el;
+                    return true;
+                }
+            }
+            return false;
+        },
+        { timeout: TIMEOUT, interval: 300, timeoutMsg: `No selector matched: ${selectors.join(', ')}` }
+    );
+    return found;
 }
 
 {% for case in model.cases %}
@@ -57,7 +69,8 @@ describe({{ model.name | js_str }}, () => {
 {% elif step.action.value == "press_key" %}
         await driver.pressKeyCode({{ step.text | keycode }});
 {% elif step.action.value == "wait" %}
-        await driver.pause({{ (step.timeout | int or 5) * 1000 }});
+        // Condition-based: wait for the screen to render rather than a fixed pause.
+        await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: {{ (step.timeout | int or 5) * 1000 }}, interval: 300 });
 {% elif step.action.value == "assert" %}
 {% if step.assertion.value == "visible" %}
         await expect(await find({{ step.selector | selector_array }})).toBeDisplayed();

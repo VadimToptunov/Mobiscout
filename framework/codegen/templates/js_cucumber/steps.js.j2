@@ -19,15 +19,28 @@ const LOCATORS = {
 {% endfor %}
 };
 
-// Resolve a friendly target to an element via its ranked selectors (self-healing).
+// Condition-based wait budget (ms) — poll for the element instead of a fixed
+// pause, so steps stay in sync with async UI without flaking at machine speed.
+const TIMEOUT = 10000;
+
+// Resolve a friendly target to an element, waiting for it to appear and
+// self-healing through its ranked selectors (each poll tries every selector).
 async function find(target) {
-    for (const selector of LOCATORS[target]) {
-        const el = await driver.$(selector);
-        if (await el.isExisting()) {
-            return el;
-        }
-    }
-    throw new Error(`No locator matched for target: ${target}`);
+    let found = null;
+    await driver.waitUntil(
+        async () => {
+            for (const selector of LOCATORS[target]) {
+                const el = await driver.$(selector);
+                if (await el.isExisting()) {
+                    found = el;
+                    return true;
+                }
+            }
+            return false;
+        },
+        { timeout: TIMEOUT, interval: 300, timeoutMsg: `No locator matched for target: ${target}` }
+    );
+    return found;
 }
 
 Given('the app is launched', async () => {
@@ -43,7 +56,8 @@ When('I tap {string}', async (target) => {
 });
 
 When('I wait {int} seconds', async (seconds) => {
-    await driver.pause(seconds * 1000);
+    // Condition-based: wait for the screen to render rather than a fixed pause.
+    await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: seconds * 1000, interval: 300 });
 });
 
 When('I press back', async () => {
