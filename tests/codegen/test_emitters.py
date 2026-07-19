@@ -154,6 +154,15 @@ def test_python_pytest_uses_condition_based_waits(login_model: TestModel):
     assert "time.sleep" not in src
 
 
+@pytest.mark.parametrize("target_id", ["js_webdriverio", "js_cucumber"])
+def test_js_targets_use_condition_based_waits(target_id: str, login_model: TestModel):
+    """P3: the JavaScript/WebdriverIO targets must synchronise with a condition
+    (waitUntil), never a fixed driver.pause() — the flakiness anti-pattern."""
+    src = "\n".join(get_emitter(target_id).emit(login_model).values())
+    assert "waitUntil" in src
+    assert "driver.pause" not in src
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())
