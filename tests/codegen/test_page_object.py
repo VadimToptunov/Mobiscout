@@ -52,6 +52,10 @@ def test_emit_page_objects_compiles(tmp_path):
     assert "def _find(self, name):" in content
     assert "LOCATORS = {" in content
     assert "def username_field(self):" in content and "def login_btn(self):" in content
+    # P3: element lookups are condition-based (WebDriverWait), never a global
+    # implicit wait or a fixed sleep — those are the flakiness anti-patterns.
+    assert "WebDriverWait" in content
+    assert "implicitly_wait" not in content and "time.sleep" not in content
     # and it must be valid Python
     f = tmp_path / "login_screen_page.py"
     f.write_text(content, encoding="utf-8", newline="\n")
