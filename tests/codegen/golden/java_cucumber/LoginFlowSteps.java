@@ -17,7 +17,9 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.net.URL;
 import java.time.Duration;
@@ -56,14 +58,26 @@ public class LoginFlowSteps {
     }
 
     /** Resolve a friendly target to an element via its ranked locators. */
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+
+    /**
+     * Locate an element, waiting for it to appear and self-healing through its
+     * ranked locators — a condition-based wait, not an instant lookup that flakes.
+     */
     private WebElement find(String target) {
-        for (By by : LOCATORS.get(target)) {
-            try {
-                return driver.findElement(by);
-            } catch (NoSuchElementException ignored) {
-            }
+        try {
+            return new WebDriverWait(driver, TIMEOUT).until(d -> {
+                for (By by : LOCATORS.get(target)) {
+                    try {
+                        return d.findElement(by);
+                    } catch (NoSuchElementException ignored) {
+                    }
+                }
+                return null;
+            });
+        } catch (TimeoutException e) {
+            throw new NoSuchElementException("No locator matched for target: " + target + " within " + TIMEOUT.getSeconds() + "s");
         }
-        throw new NoSuchElementException("No locator matched for target: " + target);
     }
 
     @Given("the app is launched")
@@ -83,7 +97,8 @@ public class LoginFlowSteps {
 
     @When("I wait {int} seconds")
     public void iWaitSeconds(Integer seconds) {
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(seconds));
+        // Condition-based: wait for the screen to render rather than a global implicit wait.
+        new WebDriverWait(driver, Duration.ofSeconds(seconds)).until(d -> !d.findElements(By.xpath("//*")).isEmpty());
     }
 
     @When("I press back")

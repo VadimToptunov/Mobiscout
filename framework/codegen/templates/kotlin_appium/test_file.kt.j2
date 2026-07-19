@@ -17,13 +17,19 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.openqa.selenium.By
 import org.openqa.selenium.NoSuchElementException
+import org.openqa.selenium.TimeoutException
 import org.openqa.selenium.WebElement
+import org.openqa.selenium.support.ui.WebDriverWait
 import java.net.URL
 import java.time.Duration
 
 class {{ class_name }} {
 
     private lateinit var driver: AndroidDriver
+
+    // Condition-based wait budget — poll for elements instead of a fixed sleep or
+    // a global implicit wait, so tests stay in sync with async UI.
+    private val TIMEOUT: Duration = Duration.ofSeconds(10)
 
     @BeforeEach
     fun setUp() {
@@ -42,18 +48,27 @@ class {{ class_name }} {
     }
 
     /** Locate an element, falling back through ranked alternatives (self-healing). */
+    /**
+     * Locate an element, waiting for it to appear and self-healing through ranked
+     * alternatives — a condition-based wait, not an instant lookup that flakes.
+     */
     private fun find(primary: By, fallbacks: Array<By>): WebElement {
+        val locators = listOf(primary, *fallbacks)
         try {
-            return driver.findElement(primary)
-        } catch (ignored: NoSuchElementException) {
+            return WebDriverWait(driver, TIMEOUT).until { d ->
+                var found: WebElement? = null
+                for (by in locators) {
+                    try {
+                        found = d.findElement(by)
+                        break
+                    } catch (ignored: NoSuchElementException) {
+                    }
+                }
+                found
+            }!!
+        } catch (e: TimeoutException) {
+            throw NoSuchElementException("No locator matched within ${TIMEOUT.seconds}s (primary + ${fallbacks.size} fallbacks)")
         }
-        for (by in fallbacks) {
-            try {
-                return driver.findElement(by)
-            } catch (ignored: NoSuchElementException) {
-            }
-        }
-        throw NoSuchElementException("No locator matched (primary + ${fallbacks.size} fallbacks)")
     }
 
 {% for case in model.cases %}
@@ -84,7 +99,8 @@ class {{ class_name }} {
 {% elif step.action.value == "press_key" %}
         (driver as io.appium.java_client.android.AndroidDriver).pressKey(io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | kotlin_str }})))
 {% elif step.action.value == "wait" %}
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds({{ step.timeout | int or 5 }}))
+        // Condition-based: wait for the screen to render rather than a global implicit wait.
+        WebDriverWait(driver, Duration.ofSeconds({{ step.timeout | int or 5 }})).until { d -> d.findElements(By.xpath("//*")).isNotEmpty() }
 {% elif step.action.value == "assert" %}
 {% if step.assertion.value == "visible" %}
         Assertions.assertTrue(find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).isDisplayed)
