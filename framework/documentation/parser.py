@@ -203,16 +203,17 @@ class CodeParser:
         return None
 
     def _get_value(self, node: ast.expr) -> Any:
-        """Get value from AST node"""
+        """Get a literal value from an AST node.
+
+        Since Python 3.8 every literal (number, string, bytes, True/False/None)
+        parses to a single ``ast.Constant``; the old per-type nodes ``ast.Num`` /
+        ``ast.Str`` / ``ast.NameConstant`` were deprecated then and **removed in
+        Python 3.14**, so referencing them raised ``AttributeError`` there. We now
+        read ``ast.Constant`` and recurse into list/tuple/set/dict containers.
+        """
         if isinstance(node, ast.Constant):
             return node.value
-        elif isinstance(node, ast.Num):
-            return node.n
-        elif isinstance(node, ast.Str):
-            return node.s
-        elif isinstance(node, ast.NameConstant):
-            return node.value
-        elif isinstance(node, ast.List):
+        elif isinstance(node, (ast.List, ast.Tuple, ast.Set)):
             return [self._get_value(elt) for elt in node.elts]
         elif isinstance(node, ast.Dict):
             return {self._get_value(k): self._get_value(v) for k, v in zip(node.keys, node.values)}
