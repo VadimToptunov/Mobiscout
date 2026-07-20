@@ -21,6 +21,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Protocol, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
+from framework.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 if TYPE_CHECKING:
     from framework.crawler.waypoints import Waypoint
@@ -462,7 +465,14 @@ class AppCrawler:
         try:
             self._explore(result)
         except CrawlerDriverError:
-            pass  # keep the partial map gathered so far
+            pass  # expected transient (wedged round-trip) — keep the partial map
+        except Exception as exc:  # noqa: BLE001 — device flakiness must never lose work
+            # An unexpected driver hiccup (a dropped WDA/Appium session, a socket
+            # reset, a malformed dump) must not crash the run and throw away every
+            # screen gathered so far — capricious devices are the norm, not a bug.
+            logger.warning(
+                "crawl ended early on an unexpected driver error (%s); returning partial map", type(exc).__name__
+            )
         return result
 
     def _explore(self, result: CrawlResult) -> None:
