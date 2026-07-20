@@ -39,7 +39,7 @@ def test_state_case_keeps_actionable_drops_decoration():
         platform="android",
     )
     model = build_test_model(CrawlResult(screens={"product": screen}), app_package="com.x")
-    state = next(c for c in model.cases if c.name.endswith("_state"))
+    state = next(c for c in model.cases if c.name.endswith("_shows_expected_controls"))
     asserted = {s.description for s in state.steps if s.action is ActionType.ASSERT}
     joined = " ".join(asserted)
 
@@ -62,7 +62,7 @@ def test_navigation_asserts_a_landmark_distinctive_to_the_destination():
         transitions=[("start", trigger, "dest")],
     )
     model = build_test_model(result, app_package="com.x")
-    nav = next(c for c in model.cases if c.name.startswith("navigate_"))
+    nav = next(c for c in model.cases if c.name.startswith("tapping_"))
     landmark = next(s for s in nav.steps if s.action is ActionType.ASSERT)
     assert landmark.selector.value == "markets_title"  # distinctive, not the shared "tab_home"
 
@@ -71,6 +71,6 @@ def test_many_actionable_elements_are_capped():
     els = [_el("android.widget.Button", f"Item {i}", rid=f"i{i}") for i in range(20)]
     screen = CrawlScreen("list", els, platform="android")
     model = build_test_model(CrawlResult(screens={"list": screen}), app_package="com.x")
-    state = next(c for c in model.cases if c.name.endswith("_state"))
+    state = next(c for c in model.cases if c.name.endswith("_shows_expected_controls"))
     visible = [s for s in state.steps if s.action is ActionType.ASSERT and "is visible" in s.description]
     assert len(visible) <= 8  # capped, not one line per button

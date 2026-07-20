@@ -104,8 +104,8 @@ def _linear_result():
 
 def test_multi_step_case_walks_the_full_path():
     cases = G.multi_step_cases(_linear_result(), "com.x")
-    # only the maximal path survives (prefixes dropped)
-    assert [c.name for c in cases] == ["path_1_2_3_4"]
+    # only the maximal path survives (prefixes dropped); named after its taps
+    assert len(cases) == 1 and cases[0].name.startswith("journey_")
     steps = cases[0].steps
     taps = [s for s in steps if s.action.value == "tap"]
     asserts = [s for s in steps if s.action.value == "assert"]
@@ -117,7 +117,7 @@ def test_multi_step_included_in_model():
     from framework.crawler.to_codegen import build_test_model
 
     model = build_test_model(_linear_result(), app_package="com.x")
-    assert any(c.name.startswith("path_") for c in model.cases)
+    assert any(c.name.startswith("journey_") for c in model.cases)
 
 
 def _el(cls, text="", rid="", desc="", clk=True):
@@ -181,4 +181,4 @@ def test_paths_prioritised_deepest_first():
     ]
     cases = G.multi_step_cases(res, "com.x", max_cases=1)
     assert len(cases) == 1
-    assert cases[0].name == "path_1_2_3_4"  # the deepest path won
+    assert cases[0].name.startswith("journey_")  # the deepest path won, named after its taps
