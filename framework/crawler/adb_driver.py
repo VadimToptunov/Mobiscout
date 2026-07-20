@@ -189,3 +189,31 @@ class AdbCrawlerDriver:
                 if fm:
                     return fm.group(1)
         return ""
+
+    def launch(self, package: str, tries: int = 8) -> bool:
+        """Bring ``package`` to the foreground and wait until it's actually there.
+
+        Resolves the app's launchable activity and starts it explicitly — ``monkey
+        -c LAUNCHER`` silently fails to foreground some apps (a splash activity,
+        an odd intent filter), which then reads as "not in the foreground" and
+        aborts the crawl. Falls back to monkey. Polls until the app is resumed or
+        we give up, so a slow cold start doesn't look like a failure.
+
+        Returns whether the app reached the foreground.
+        """
+        activity = ""
+        resolved = self._run(
+            "shell", "cmd", "package", "resolve-activity", "--brief", "-c", "android.intent.category.LAUNCHER", package
+        )
+        for line in resolved.strip().splitlines():
+            if "/" in line and package in line:
+                activity = line.strip()
+        if activity:
+            self._run("shell", "am", "start", "-n", activity)
+        else:
+            self._run("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
+        for _ in range(tries):
+            if self.current_package() == package:
+                return True
+            time.sleep(1.0)  # let a splash reach the real activity
+        return self.current_package() == package
