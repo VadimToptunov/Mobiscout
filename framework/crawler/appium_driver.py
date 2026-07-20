@@ -143,6 +143,28 @@ class IOSCrawlerDriver:
         except Exception:
             return ""
 
+    def launch(self, package: Optional[str] = None, tries: int = 8) -> bool:
+        """Bring the app to the foreground and wait until it's actually there.
+
+        Mirrors the adb driver so the crawler's recovery can re-launch a drifted or
+        backgrounded iOS app (Back can't). Activates the app (launching it if not
+        running), falling back to ``mobile: launchApp``, then polls activeAppInfo.
+        """
+        bundle = package or self.bundle_id
+        try:
+            self._driver.activate_app(bundle)
+        except Exception:
+            try:
+                self._driver.execute_script("mobile: launchApp", {"bundleId": bundle})
+            except Exception:
+                pass
+        for _ in range(tries):
+            if self.current_package() == bundle:
+                self._settle_wait()
+                return True
+            time.sleep(0.5)  # let a launch animation / splash settle
+        return self.current_package() == bundle
+
     def quit(self) -> None:
         try:
             self._driver.quit()
