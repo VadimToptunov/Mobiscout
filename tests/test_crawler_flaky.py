@@ -178,3 +178,35 @@ def test_relaunches_when_the_app_drifts_to_the_background():
     result = AppCrawler(driver, _PKG, max_steps=20, max_depth=4).crawl()
     assert driver.launches >= 1  # re-launched instead of getting stuck on the foreign app
     assert result.screens  # and still produced a map of the app
+
+
+class FakeExplodingDriver:
+    """The session dies mid-crawl (a dropped WDA/Appium connection, a socket
+    reset): a UI read raises an unexpected error partway through."""
+
+    def __init__(self, explode_after=1):
+        self.calls = 0
+        self.explode_after = explode_after
+
+    def page_source(self):
+        self.calls += 1
+        if self.calls > self.explode_after:
+            raise RuntimeError("WDA session dropped")
+        return _HOME
+
+    def tap(self, x, y):
+        pass
+
+    def back(self):
+        pass
+
+    def current_package(self):
+        return _PKG
+
+
+def test_crawl_returns_partial_map_on_unexpected_driver_error():
+    driver = FakeExplodingDriver(explode_after=1)
+    result = AppCrawler(driver, _PKG, max_steps=20, max_depth=4).crawl()
+    # The entry screen gathered before the hiccup is kept — the crawl degrades to a
+    # partial map instead of crashing and losing everything.
+    assert result.screens
