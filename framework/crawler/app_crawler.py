@@ -352,13 +352,22 @@ class AppCrawler:
 
     def _recover(self, tries: int = 3) -> bool:
         """Get back onto the app under test after drift — clear any blocking system
-        dialog (ANR/permission) that Back can't, else press Back. Capricious
-        devices make this the difference between a real crawl and an empty one."""
+        dialog (ANR/permission) that Back can't, else press Back. If the app has
+        drifted away entirely (backgrounded, a foreign app took over), re-launch it
+        to the foreground as a last resort. Capricious devices make this the
+        difference between a real crawl and an empty one."""
         for _ in range(tries):
             if self._on_app():
                 return True
             if not self._clear_blocking_dialog():
                 self.driver.back()
+        if not self._on_app():
+            launch = getattr(self.driver, "launch", None)
+            if callable(launch):
+                try:
+                    launch(self.app_package)
+                except Exception:
+                    pass
         return self._on_app()
 
     # Labels on controls that close a modal sheet when Back (an edge-swipe) won't.
@@ -644,7 +653,10 @@ class AppCrawler:
                 self._recover()
                 continue
 
-            new_screen = parse_screen(self.driver.page_source())
+            # Read through a racing/partial UI dump (uiautomator can return an empty
+            # or half-built tree right after a transition) rather than dropping the
+            # screen on the first empty read.
+            new_screen = self._read_content_screen()
             if not new_screen.fingerprint:
                 continue
 
