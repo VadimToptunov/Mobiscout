@@ -80,7 +80,10 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         _write(out / "coverage_gap.txt", gap + "\n" + "\n".join(f"- {n}" for n in report.new_case_names) + "\n")
 
     target_ids = {t.id for t in available_targets()}
-    targets: List[str] = [t for t in (config.get("targets") or _DEFAULT_TARGETS) if t]
+    from framework.licensing import allow_targets
+
+    # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
+    targets: List[str] = allow_targets([t for t in (config.get("targets") or _DEFAULT_TARGETS) if t])
     written: List[str] = []
     for target in targets:
         if target not in target_ids:

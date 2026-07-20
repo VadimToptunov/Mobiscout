@@ -179,7 +179,10 @@ def crawl(
     )
     if not model.cases:
         print_info("No locatable elements — no tests generated (see inventory.md).")
-    requested = [t.strip() for t in targets.split(",") if t.strip()]
+    from framework.licensing import allow_targets
+
+    # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
+    requested = allow_targets([t.strip() for t in targets.split(",") if t.strip()])
 
     if style == "pom" and model.cases:
         from framework.crawler.page_kit import build_framework_kit
