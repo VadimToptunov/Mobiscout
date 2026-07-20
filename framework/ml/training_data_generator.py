@@ -137,18 +137,66 @@ class TrainingDataGenerator:
         return ElementType.GENERIC
 
     def generate_synthetic_dataset(
-        self, num_samples: int = 1000, output_path: Path = Path("training_data/synthetic_elements.json")
+        self,
+        num_samples: int = 1000,
+        output_path: Path = Path("training_data/synthetic_elements.json"),
+        hard_fraction: float = 0.45,
     ):
         """
-        Generate synthetic training dataset with labeled examples.
+        Generate a synthetic training dataset with labeled examples.
 
         Args:
-            num_samples: Number of samples to generate
-            output_path: Output file path
+            num_samples: Number of samples to generate.
+            output_path: Output file path.
+            hard_fraction: Share drawn from the *hard* templates — ambiguous cases
+                whose framework class does NOT name the type, so the label can only
+                be recovered from other features (clickable, scrollable, checkable,
+                size, text shape). Easy, class-named cases teach the model nothing
+                the heuristic doesn't already know; the hard cases are where ML has
+                to earn its keep, on both Android and iOS.
+
+        Returns:
+            The output path.
         """
         import random
 
         synthetic_data = []
+
+        # HARD templates: the class is a generic container (Android View/ViewGroup/
+        # FrameLayout & Compose's single AndroidComposeView; iOS "Other"/plain
+        # StaticText), so the type is decidable only from behaviour + geometry.
+        hard_templates = {
+            ElementType.BUTTON: [
+                {"class": "android.view.View", "clickable": True, "text": "Continue"},
+                {"class": "android.view.ViewGroup", "clickable": True, "content_desc": "Add to cart"},
+                {"class": "android.widget.FrameLayout", "clickable": True, "content_desc": "Menu"},
+                {"class": "androidx.compose.ui.platform.ComposeView", "clickable": True, "text": "Log in"},
+                {"class": "XCUIElementTypeOther", "clickable": True, "text": "Confirm"},
+                {"class": "XCUIElementTypeStaticText", "clickable": True, "text": "See all"},  # tappable label
+            ],
+            ElementType.LIST: [
+                {"class": "android.view.ViewGroup", "scrollable": True, "children_count": 8},
+                {"class": "androidx.compose.foundation.lazy.LazyColumn", "scrollable": True, "children_count": 12},
+                {"class": "XCUIElementTypeOther", "scrollable": True, "children_count": 10},
+            ],
+            ElementType.SWITCH: [  # custom toggle: small, square-ish, checkable, no "switch" in class
+                {"class": "android.view.View", "checkable": True, "clickable": True, "_wh": (52, 32)},
+                {"class": "XCUIElementTypeOther", "checkable": True, "clickable": True, "_wh": (50, 30)},
+            ],
+            ElementType.INPUT: [  # focusable, empty, editable, generic class
+                {"class": "android.view.View", "focusable": True, "clickable": True, "text": ""},
+                {"class": "androidx.compose.foundation.text.BasicTextField", "focusable": True, "text": ""},
+                {"class": "XCUIElementTypeOther", "focusable": True, "clickable": True, "text": ""},
+            ],
+            ElementType.TEXT: [  # generic, has text, NOT interactive
+                {"class": "android.view.View", "text": "Total balance 1,204.55", "clickable": False},
+                {"class": "XCUIElementTypeOther", "text": "Recent activity", "clickable": False},
+            ],
+            ElementType.IMAGE: [  # decorative: non-clickable, no text, square-ish, generic
+                {"class": "android.view.View", "clickable": False, "_wh": (96, 96)},
+                {"class": "XCUIElementTypeOther", "clickable": False, "content_desc": "avatar", "_wh": (80, 80)},
+            ],
+        }
 
         # Define templates for each element type
         templates = {
@@ -184,17 +232,24 @@ class TrainingDataGenerator:
             ],
         }
 
-        # Generate samples
+        # Generate samples, mixing in the hard (class-ambiguous) cases.
         for _ in range(num_samples):
-            element_type = random.choice(list(templates.keys()))
-            template = random.choice(templates[element_type])
+            pool = hard_templates if random.random() < hard_fraction else templates
+            element_type = random.choice(list(pool.keys()))
+            template = random.choice(pool[element_type])
 
             # Add random variations
             element = template.copy()
             element["element_type"] = element_type.value
-            element["bounds"] = {"width": random.randint(50, 800), "height": random.randint(30, 200)}
+            # A template may pin a size (a small square toggle, a decorative image);
+            # otherwise vary it so the model doesn't overfit fixed geometry.
+            wh = element.pop("_wh", None)
+            if wh is not None:
+                element["bounds"] = {"width": wh[0], "height": wh[1]}
+            else:
+                element["bounds"] = {"width": random.randint(50, 800), "height": random.randint(30, 200)}
             element["depth"] = random.randint(0, 10)
-            element["children_count"] = random.randint(0, 5)
+            element.setdefault("children_count", random.randint(0, 5))
 
             synthetic_data.append(element)
 

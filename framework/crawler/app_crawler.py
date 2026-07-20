@@ -74,6 +74,14 @@ class CrawlElement:
     clickable: bool
     bounds: Tuple[int, int, int, int]  # x1, y1, x2, y2
     package: str = ""  # owning app package (Android); "" for iOS
+    # Behavioural attributes — the signals that tell a *generic* container's real
+    # role apart (a clickable View is a button, a scrollable one a list, a
+    # checkable one a toggle). Captured so the classifier isn't blind to them.
+    scrollable: bool = False
+    focusable: bool = False
+    checkable: bool = False
+    password: bool = False
+    enabled: bool = True
 
     @property
     def center(self) -> Tuple[int, int]:
@@ -170,6 +178,11 @@ def _parse_android(root: ET.Element) -> List[CrawlElement]:
                 clickable=node.get("clickable") == "true",
                 bounds=bounds,
                 package=node.get("package", ""),
+                scrollable=node.get("scrollable") == "true",
+                focusable=node.get("focusable") == "true",
+                checkable=node.get("checkable") == "true",
+                password=node.get("password") == "true",
+                enabled=node.get("enabled") != "false",
             )
         )
     return elements
@@ -192,6 +205,9 @@ def _parse_ios(root: ET.Element) -> List[CrawlElement]:
         if node.get("visible") == "false":
             continue
         itype = (node.get("type") or node.tag).replace("XCUIElementType", "")
+        # XCUITest has no scrollable/checkable/focusable attributes, so infer them
+        # from the element type — the same signal a human reads off the class.
+        enabled = node.get("enabled") != "false"
         # iOS `name` is the accessibility identifier -> map to content_desc so it
         # becomes an ACCESSIBILITY_ID selector (correct cross-platform in Appium).
         elements.append(
@@ -200,8 +216,13 @@ def _parse_ios(root: ET.Element) -> List[CrawlElement]:
                 text=(node.get("label") or node.get("value") or ""),
                 content_desc=node.get("name", ""),
                 class_name=itype,
-                clickable=itype in _IOS_INTERACTIVE and node.get("enabled") != "false",
+                clickable=itype in _IOS_INTERACTIVE and enabled,
                 bounds=(x, y, x + w, y + h),
+                scrollable=itype in ("ScrollView", "Table", "CollectionView"),
+                focusable=itype in ("TextField", "SecureTextField", "SearchField"),
+                checkable=itype in ("Switch",),
+                password=itype == "SecureTextField",
+                enabled=enabled,
             )
         )
     return elements

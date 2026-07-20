@@ -140,10 +140,22 @@ def _heuristic(element: CrawlElement) -> str:
         return "webview"
     if "image" in cls or "icon" in cls:
         return "image"
-    if "text" in cls or "label" in cls or "statictext" in cls:
+    # A *non-clickable* text/label element is text; a clickable one is a tappable
+    # label (a button/link), so let it fall through to the behavioural button rule.
+    if ("text" in cls or "label" in cls or "statictext" in cls) and not element.clickable:
         return "text"
-    if element.clickable and ("button" in desc or "btn" in desc):
+    # Generic container (View/ViewGroup/Other/Compose): the class says nothing, so
+    # fall back to *behaviour*. A scrollable one is a list; a clickable, labelled
+    # one is a button; a focusable password field is an input; a non-interactive
+    # one that carries text is a label.
+    if getattr(element, "scrollable", False):
+        return "list"
+    if element.clickable and (element.text or "button" in desc or "btn" in desc or element.content_desc):
         return "button"
+    if getattr(element, "focusable", False) and getattr(element, "password", False):
+        return "input"
+    if element.text and not element.clickable:
+        return "text"
     return "generic"
 
 
@@ -154,6 +166,12 @@ def _feature_dict(element: CrawlElement) -> dict:
         "content_desc": element.content_desc,
         "resource-id": element.resource_id,
         "clickable": element.clickable,
+        # Behavioural signals — what tells a generic container's real role apart.
+        "scrollable": getattr(element, "scrollable", False),
+        "focusable": getattr(element, "focusable", False),
+        "checkable": getattr(element, "checkable", False),
+        "password": getattr(element, "password", False),
+        "enabled": getattr(element, "enabled", True),
     }
 
 

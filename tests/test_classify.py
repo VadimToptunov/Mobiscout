@@ -44,7 +44,10 @@ def _no_model(monkeypatch):
     ],
 )
 def test_heuristic_types(cls, expected):
-    etype, conf, source = C.classify(_el(cls, text="x"))
+    # Interactive types are clickable; text/image/list are not (a *clickable*
+    # text element is a tappable label -> button, which is a separate case).
+    clickable = expected in ("button", "input", "checkbox", "switch", "radio")
+    etype, conf, source = C.classify(_el(cls, text="x", clickable=clickable))
     assert etype == expected
     assert source == "heuristic"
 
@@ -52,6 +55,36 @@ def test_heuristic_types(cls, expected):
 def test_button_by_content_desc_when_class_is_generic():
     etype, _, _ = C.classify(_el("android.view.View", desc="Login button"))
     assert etype == "button"
+
+
+@pytest.mark.parametrize(
+    "cls,kwargs,expected",
+    [
+        # Generic containers whose *behaviour* reveals the role (the hard cases).
+        ("android.view.View", {"clickable": True, "text": "Buy"}, "button"),
+        ("android.widget.FrameLayout", {"clickable": True, "desc": "Add"}, "button"),
+        ("XCUIElementTypeOther", {"clickable": True, "text": "Confirm"}, "button"),
+        ("XCUIElementTypeStaticText", {"clickable": True, "text": "See all"}, "button"),  # tappable label
+        ("android.view.ViewGroup", {"clickable": False, "scrollable": True}, "list"),
+        ("XCUIElementTypeOther", {"clickable": False, "scrollable": True}, "list"),
+        ("android.view.View", {"clickable": False, "text": "Total balance"}, "text"),
+        ("android.view.View", {"clickable": True, "focusable": True, "password": True}, "input"),
+        ("android.view.View", {"clickable": False}, "generic"),  # nothing to go on -> generic
+    ],
+)
+def test_generic_containers_classified_by_behaviour(cls, kwargs, expected):
+    el = CrawlElement(
+        resource_id="",
+        text=kwargs.get("text", ""),
+        content_desc=kwargs.get("desc", ""),
+        class_name=cls,
+        clickable=kwargs.get("clickable", False),
+        bounds=(0, 0, 200, 60),
+        scrollable=kwargs.get("scrollable", False),
+        focusable=kwargs.get("focusable", False),
+        password=kwargs.get("password", False),
+    )
+    assert C.classify(el)[0] == expected
 
 
 def test_unknown_is_generic():
