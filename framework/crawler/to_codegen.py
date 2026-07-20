@@ -183,8 +183,19 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
         target = result.screens.get(to_fp)
         target_elements = _owned(target, app_package) if target else []
         target_platform = target.platform if target else "android"
+        # Prefer a landmark that is *distinctive* to the destination — one whose
+        # identity isn't also on the start screen — so the assertion proves we
+        # actually navigated, not that shared chrome (a tab bar, a header) is still
+        # on screen. Fall back to any locatable element if nothing is unique.
+        start_keys = {(e.content_desc or e.text or e.resource_id) for e in from_elements}
+
+        def _distinctive(e: "CrawlElement") -> bool:
+            key = e.content_desc or e.text or e.resource_id
+            return bool(key) and key not in start_keys
+
+        ranked_targets = sorted(target_elements, key=lambda e: 0 if _distinctive(e) else 1)
         landmark = next(
-            (s for s in (selector_for(e, target_elements, target_platform) for e in target_elements) if s), None
+            (s for s in (selector_for(e, target_elements, target_platform) for e in ranked_targets) if s), None
         )
         if landmark is None:
             continue
