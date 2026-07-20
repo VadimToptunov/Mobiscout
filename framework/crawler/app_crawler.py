@@ -314,12 +314,51 @@ class AppCrawler:
     def _on_app(self) -> bool:
         return self.driver.current_package() == self.app_package
 
+    # Labels safe to tap to clear a blocking system dialog (an ANR "isn't
+    # responding", a runtime permission, a system prompt) WITHOUT leaving the app.
+    # "Close app" / "Don't allow" / "Deny" would kill or block it, so they're out.
+    _SAFE_DIALOG_LABELS = ("wait", "allow", "while using", "only this time", "ok", "continue", "got it")
+
+    def _clear_blocking_dialog(self) -> bool:
+        """A capricious device throws blocking dialogs over the app — an ANR, a
+        permission request, a system prompt — with no content of the app's own.
+        Tap a benign button that keeps the app alive so the crawl can carry on.
+        Returns whether it dismissed something."""
+        try:
+            screen = parse_screen(self.driver.page_source())
+        except Exception:
+            return False
+        for element in screen.elements:
+            label = (element.text or element.content_desc or "").strip().lower()
+            if label and element.bounds and any(k in label for k in self._SAFE_DIALOG_LABELS):
+                self.driver.tap(*element.center)
+                return True
+        return False
+
+    def _read_content_screen(self, tries: int = 4) -> CrawlScreen:
+        """Read the current screen, retrying through a blank / still-loading launch
+        — a slow cold start on a busy device yields an empty first dump. Uses the
+        driver's refresh() (wait + re-read) when available."""
+        screen = parse_screen(self.driver.page_source())
+        refresh = getattr(self.driver, "refresh", None)
+        attempts = 0
+        while (not screen.fingerprint or not screen.elements) and attempts < tries and callable(refresh):
+            attempts += 1
+            try:
+                screen = parse_screen(refresh())
+            except Exception:
+                break
+        return screen
+
     def _recover(self, tries: int = 3) -> bool:
-        """Press back until we are on the app again (or give up)."""
+        """Get back onto the app under test after drift — clear any blocking system
+        dialog (ANR/permission) that Back can't, else press Back. Capricious
+        devices make this the difference between a real crawl and an empty one."""
         for _ in range(tries):
             if self._on_app():
                 return True
-            self.driver.back()
+            if not self._clear_blocking_dialog():
+                self.driver.back()
         return self._on_app()
 
     # Labels on controls that close a modal sheet when Back (an edge-swipe) won't.
@@ -418,10 +457,19 @@ class AppCrawler:
         return result
 
     def _explore(self, result: CrawlResult) -> None:
-        # Only crawl if we actually start on the app under test.
+        # Only crawl if we actually start on the app under test — recover first from
+        # any launch-time drift or blocking dialog (capricious devices are common).
         if not self._on_app():
-            return
-        screen = parse_screen(self.driver.page_source())
+            self._recover()
+            if not self._on_app():
+                return
+        # Read through a blank/loading launch, then clear a blocking dialog (ANR /
+        # permission) sitting over the app with none of its own content on screen.
+        screen = self._read_content_screen()
+        for _ in range(3):
+            if self._content_count(screen) > 0 or not self._clear_blocking_dialog():
+                break
+            screen = self._read_content_screen()
         if not screen.fingerprint:
             return
         result.screens[screen.fingerprint] = screen
