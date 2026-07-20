@@ -138,6 +138,15 @@ def crawl(
 
     current = crawl_driver.current_package()
     if current != package:
+        # Not foreground — a slow launch, a splash, a stuck prior app. Try to launch
+        # it ourselves (adb resolves the launchable activity + polls) before giving
+        # up, so a capricious device doesn't need a manual pre-launch every time.
+        launch = getattr(crawl_driver, "launch", None)
+        if callable(launch):
+            print_info(f"App '{package}' not in the foreground (found '{current}') — launching it…")
+            launch(package)
+            current = crawl_driver.current_package()
+    if current != package:
         hint = (
             f"adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1"
             if platform == "android"
