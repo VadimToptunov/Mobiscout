@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from framework.codegen import available_targets, get_emitter
-from framework.codegen.ir import TestModel
+from framework.codegen.ir import Platform, TestModel
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
@@ -195,6 +195,15 @@ def test_python_pytest_surfaces_toolkit_locator_guidance(toolkit, needle, login_
         assert "UI toolkit:" not in src
     else:
         assert needle in src and "UI toolkit:" in src
+
+
+def test_ios_launch_args_carried_into_generated_setup(login_model: TestModel):
+    """P9: the launch arguments the crawl used (e.g. to skip a login gate) are
+    emitted into the driver setup, so generated tests start in the same state."""
+    login_model.platform = Platform.IOS
+    login_model.launch_args = ["-StartUnlocked", "1"]
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert "processArguments" in src and '"-StartUnlocked", "1"' in src
 
 
 def test_ir_roundtrip(login_model: TestModel):

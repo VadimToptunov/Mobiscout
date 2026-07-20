@@ -79,6 +79,11 @@ def driver():
     options.platform_name = "iOS"
     options.automation_name = "XCUITest"
     options.bundle_id = {{ model.app_package | py_str }}
+{% if model.launch_args %}
+    # Launch arguments used during the crawl (e.g. skip a login gate) — pass them
+    # so the test starts in the same state the flow was recorded in.
+    options.set_capability("processArguments", {"args": [{% for a in model.launch_args %}{{ a | py_str }}{% if not loop.last %}, {% endif %}{% endfor %}]})
+{% endif %}
 {% else %}
     options = UiAutomator2Options()
     options.platform_name = "Android"

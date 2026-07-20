@@ -182,6 +182,9 @@ class TestModel:
     # UI toolkit of the app under test: native | compose | flutter | hybrid. It
     # changes how elements must be located, so emitters surface the right guidance.
     toolkit: str = "native"
+    # App launch arguments used during the crawl (e.g. skip a login gate). Emitted
+    # into the driver setup so generated tests start in the same state the crawl did.
+    launch_args: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -191,6 +194,7 @@ class TestModel:
             "app_activity": self.app_activity,
             "description": self.description,
             "toolkit": self.toolkit,
+            "launch_args": list(self.launch_args),
             "cases": [c.to_dict() for c in self.cases],
         }
 
@@ -203,5 +207,6 @@ class TestModel:
             app_activity=data.get("app_activity"),
             description=data.get("description", ""),
             toolkit=data.get("toolkit", "native"),
+            launch_args=list(data.get("launch_args", [])),
             cases=[TestCase.from_dict(c) for c in data.get("cases", [])],
         )

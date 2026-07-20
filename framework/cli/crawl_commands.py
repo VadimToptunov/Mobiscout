@@ -174,7 +174,9 @@ def crawl(
     # 3) Tests. flat = one standalone file per target; pom = a framework layout
     # (Page Objects + conftest + POM-style tests) for the Python targets.
     target_ids = {t.id for t in available_targets()}
-    model = build_test_model(result, app_package=package, app_activity=app_activity)
+    model = build_test_model(
+        result, app_package=package, app_activity=app_activity, launch_args=list(launch_args) or None
+    )
     if not model.cases:
         print_info("No locatable elements — no tests generated (see inventory.md).")
     requested = [t.strip() for t in targets.split(",") if t.strip()]
