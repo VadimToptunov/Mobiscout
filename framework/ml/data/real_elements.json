@@ -1,0 +1,1658 @@
+[
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Guadalajara JAL",
+  "content_desc": "Guadalajara JAL",
+  "resource_id": "",
+  "bounds": {
+   "width": 234,
+   "height": 39
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Partly Cloudy",
+  "content_desc": "cloud.sun.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 180,
+   "height": 129
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "76°",
+  "content_desc": "76°",
+  "resource_id": "",
+  "bounds": {
+   "width": 114,
+   "height": 84
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "TUE",
+  "content_desc": "TUE",
+  "resource_id": "",
+  "bounds": {
+   "width": 32,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Partly Cloudy",
+  "content_desc": "cloud.sun.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 41,
+   "height": 29
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "74°",
+  "content_desc": "74°",
+  "resource_id": "",
+  "bounds": {
+   "width": 45,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "WED",
+  "content_desc": "WED",
+  "resource_id": "",
+  "bounds": {
+   "width": 37,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Mix Rainfall",
+  "content_desc": "cloud.bolt.rain.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 39,
+   "height": 41
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "60°",
+  "content_desc": "60°",
+  "resource_id": "",
+  "bounds": {
+   "width": 49,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "THU",
+  "content_desc": "THU",
+  "resource_id": "",
+  "bounds": {
+   "width": 35,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Scattered Thunderstorm",
+  "content_desc": "cloud.sun.bolt.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 41,
+   "height": 38
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "50°",
+  "content_desc": "50°",
+  "resource_id": "",
+  "bounds": {
+   "width": 48,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "FRI",
+  "content_desc": "FRI",
+  "resource_id": "",
+  "bounds": {
+   "width": 24,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Mix Rainfall",
+  "content_desc": "cloud.bolt.rain.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 38,
+   "height": 41
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "80°",
+  "content_desc": "80°",
+  "resource_id": "",
+  "bounds": {
+   "width": 48,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "SAT",
+  "content_desc": "SAT",
+  "resource_id": "",
+  "bounds": {
+   "width": 31,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Brightness Higher",
+  "content_desc": "sun.max.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 39,
+   "height": 41
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "88°",
+  "content_desc": "88°",
+  "resource_id": "",
+  "bounds": {
+   "width": 49,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Change Day Time",
+  "content_desc": "Change Day Time",
+  "resource_id": "",
+  "bounds": {
+   "width": 280,
+   "height": 51
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Clear Night",
+  "content_desc": "moon.stars.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 174,
+   "height": 181
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Featured",
+  "content_desc": "Featured",
+  "resource_id": "",
+  "bounds": {
+   "width": 143,
+   "height": 42
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "",
+  "content_desc": "AdditionalDimmingOverlay",
+  "resource_id": "",
+  "bounds": {
+   "width": 642,
+   "height": 286
+  },
+  "label": "image"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 200
+  },
+  "label": "list"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "turtlerock",
+  "content_desc": "turtlerock",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 200
+  },
+  "label": "image"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 216
+  },
+  "label": "list"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Lakes",
+  "content_desc": "Lakes",
+  "resource_id": "",
+  "bounds": {
+   "width": 47,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Silver Salmon Creek",
+  "content_desc": "Silver Salmon Creek",
+  "resource_id": "",
+  "bounds": {
+   "width": 170,
+   "height": 174
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "silversalmoncreek",
+  "content_desc": "silversalmoncreek",
+  "resource_id": "",
+  "bounds": {
+   "width": 155,
+   "height": 155
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Silver Salmon Creek",
+  "content_desc": "Silver Salmon Creek",
+  "resource_id": "",
+  "bounds": {
+   "width": 114,
+   "height": 15
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "St. Mary Lake",
+  "content_desc": "St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 170,
+   "height": 174
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "stmarylake",
+  "content_desc": "stmarylake",
+  "resource_id": "",
+  "bounds": {
+   "width": 155,
+   "height": 155
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "St. Mary Lake",
+  "content_desc": "St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 78,
+   "height": 15
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Twin Lake",
+  "content_desc": "Twin Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 170,
+   "height": 174
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "twinlake",
+  "content_desc": "twinlake",
+  "resource_id": "",
+  "bounds": {
+   "width": 155,
+   "height": 155
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Twin Lake",
+  "content_desc": "Twin Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 56,
+   "height": 15
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Mountains",
+  "content_desc": "Mountains",
+  "resource_id": "",
+  "bounds": {
+   "width": 84,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Chilkoot Trail",
+  "content_desc": "Chilkoot Trail",
+  "resource_id": "",
+  "bounds": {
+   "width": 170,
+   "height": 174
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "chilkoottrail",
+  "content_desc": "chilkoottrail",
+  "resource_id": "",
+  "bounds": {
+   "width": 155,
+   "height": 155
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Chilkoot Trail",
+  "content_desc": "Chilkoot Trail",
+  "resource_id": "",
+  "bounds": {
+   "width": 74,
+   "height": 15
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Lake McDonald",
+  "content_desc": "Lake McDonald",
+  "resource_id": "",
+  "bounds": {
+   "width": 170,
+   "height": 174
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "lakemcdonald",
+  "content_desc": "lakemcdonald",
+  "resource_id": "",
+  "bounds": {
+   "width": 155,
+   "height": 155
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Lake McDonald",
+  "content_desc": "Lake McDonald",
+  "resource_id": "",
+  "bounds": {
+   "width": 87,
+   "height": 15
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Icy Bay",
+  "content_desc": "Icy Bay",
+  "resource_id": "",
+  "bounds": {
+   "width": 170,
+   "height": 174
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "icybay",
+  "content_desc": "icybay",
+  "resource_id": "",
+  "bounds": {
+   "width": 155,
+   "height": 155
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Icy Bay",
+  "content_desc": "Icy Bay",
+  "resource_id": "",
+  "bounds": {
+   "width": 41,
+   "height": 15
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Featured",
+  "content_desc": "Featured",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "favorite",
+  "content_desc": "star.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 31,
+   "height": 29
+  },
+  "label": "image"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "List",
+  "content_desc": "List",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "List",
+  "content_desc": "list.bullet",
+  "resource_id": "",
+  "bounds": {
+   "width": 30,
+   "height": 22
+  },
+  "label": "image"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Featured",
+  "content_desc": "star",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "List",
+  "content_desc": "list.bullet",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Featured",
+  "content_desc": "BackButton",
+  "resource_id": "",
+  "bounds": {
+   "width": 44,
+   "height": 44
+  },
+  "label": "button"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "St. Mary Lake",
+  "content_desc": "St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 109,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "stmarylake",
+  "content_desc": "stmarylake",
+  "resource_id": "",
+  "bounds": {
+   "width": 250,
+   "height": 250
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "St. Mary Lake",
+  "content_desc": "St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 162,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Glacier National Park",
+  "content_desc": "Glacier National Park",
+  "resource_id": "",
+  "bounds": {
+   "width": 143,
+   "height": 18
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Montana",
+  "content_desc": "Montana",
+  "resource_id": "",
+  "bounds": {
+   "width": 60,
+   "height": 18
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "About St. Mary Lake",
+  "content_desc": "About St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 154,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Suscipit inceptos est felis purus aenean aliquet adipiscing diam venenatis, augue nibh duis neque aliquam tellus condimentum sagittis vivamus, cras ante etiam sit conubia elit tempus accumsan libero, mattis per erat habitasse cubilia ligula penatibus curae. Sagittis lorem augue arcu blandit libero molestie non ullamcorper, finibus imperdiet iaculis ad quam per luctus neque, ligula curae mauris parturient diam auctor eleifend laoreet ridiculus, hendrerit adipiscing sociosqu pretium nec velit aliquam. Inceptos egestas maecenas imperdiet eget id donec nisl curae congue, massa tortor vivamus ridiculus integer porta ultrices venenatis aliquet, curabitur et posuere blandit magnis dictum auctor lacinia, eleifend dolor in ornare vulputate ipsum morbi felis. Faucibus cursus malesuada orci ultrices diam nisl taciti torquent, tempor eros suspendisse euismod condimentum dis velit mi tristique, a quis etiam dignissim dictum porttitor lobortis ad fermentum, sapien consectetur dui dolor purus elit pharetra. Interdum mattis sapien ac orci vestibulum vulputate laoreet proin hac, maecenas mollis ridiculus morbi praesent cubilia vitae ligula vel, sem semper volutpat curae mauris justo nisl luctus, non eros primis ultrices nascetur erat varius integer.",
+  "content_desc": "Suscipit inceptos est felis purus aenean aliquet adipiscing diam venenatis, augue nibh duis neque aliquam tellus condimentum sagittis vivamus, cras ante etiam sit conubia elit tempus accumsan libero, mattis per erat habitasse cubilia ligula penatibus curae. Sagittis lorem augue arcu blandit libero molestie non ullamcorper, finibus imperdiet iaculis ad quam per luctus neque, ligula curae mauris parturient diam auctor eleifend laoreet ridiculus, hendrerit adipiscing sociosqu pretium nec velit aliquam. Inceptos egestas maecenas imperdiet eget id donec nisl curae congue, massa tortor vivamus ridiculus integer porta ultrices venenatis aliquet, curabitur et posuere blandit magnis dictum auctor lacinia, eleifend dolor in ornare vulputate ipsum morbi felis. Faucibus cursus malesuada orci ultrices diam nisl taciti torquent, tempor eros suspendisse euismod condimentum dis velit mi tristique, a quis etiam dignissim dictum porttitor lobortis ad fermentum, sapien consectetur dui dolor purus elit pharetra. Interdum mattis sapien ac orci vestibulum vulputate laoreet proin hac, maecenas mollis ridiculus morbi praesent cubilia vitae ligula vel, sem semper volutpat curae mauris justo nisl luctus, non eros primis ultrices nascetur erat varius integer.",
+  "resource_id": "",
+  "bounds": {
+   "width": 369,
+   "height": 615
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Landmarks",
+  "content_desc": "Landmarks",
+  "resource_id": "",
+  "bounds": {
+   "width": 178,
+   "height": 42
+  },
+  "label": "text"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 52
+  },
+  "label": "list"
+ },
+ {
+  "class": "Switch",
+  "clickable": true,
+  "text": "FavoritesOnly",
+  "content_desc": "FavoritesOnly",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 52
+  },
+  "label": "switch"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "FavoritesOnly",
+  "content_desc": "FavoritesOnly",
+  "resource_id": "",
+  "bounds": {
+   "width": 104,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Switch",
+  "clickable": true,
+  "text": "0",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 63,
+   "height": 28
+  },
+  "label": "switch"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "list"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Turtle Rock",
+  "content_desc": "Turtle Rock",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "turtlerock",
+  "content_desc": "turtlerock",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Turtle Rock",
+  "content_desc": "Turtle Rock",
+  "resource_id": "",
+  "bounds": {
+   "width": 86,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "Favourite",
+  "content_desc": "star.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 20,
+   "height": 18
+  },
+  "label": "image"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "",
+  "content_desc": "chevron.forward",
+  "resource_id": "",
+  "bounds": {
+   "width": 8,
+   "height": 12
+  },
+  "label": "image"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Silver Salmon Creek",
+  "content_desc": "Silver Salmon Creek",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "silversalmoncreek",
+  "content_desc": "silversalmoncreek",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Silver Salmon Creek",
+  "content_desc": "Silver Salmon Creek",
+  "resource_id": "",
+  "bounds": {
+   "width": 153,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Chilkoot Trail",
+  "content_desc": "Chilkoot Trail",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "chilkoottrail",
+  "content_desc": "chilkoottrail",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Chilkoot Trail",
+  "content_desc": "Chilkoot Trail",
+  "resource_id": "",
+  "bounds": {
+   "width": 99,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "St. Mary Lake",
+  "content_desc": "St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "stmarylake",
+  "content_desc": "stmarylake",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "St. Mary Lake",
+  "content_desc": "St. Mary Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 104,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Twin Lake",
+  "content_desc": "Twin Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "twinlake",
+  "content_desc": "twinlake",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Twin Lake",
+  "content_desc": "Twin Lake",
+  "resource_id": "",
+  "bounds": {
+   "width": 76,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Lake McDonald",
+  "content_desc": "Lake McDonald",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "lakemcdonald",
+  "content_desc": "lakemcdonald",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Lake McDonald",
+  "content_desc": "Lake McDonald",
+  "resource_id": "",
+  "bounds": {
+   "width": 118,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Charley Rivers",
+  "content_desc": "Charley Rivers",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "charleyrivers",
+  "content_desc": "charleyrivers",
+  "resource_id": "",
+  "bounds": {
+   "width": 50,
+   "height": 50
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Charley Rivers",
+  "content_desc": "Charley Rivers",
+  "resource_id": "",
+  "bounds": {
+   "width": 109,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Icy Bay",
+  "content_desc": "Icy Bay",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 80
+  },
+  "label": "button"
+ },
+ {
+  "class": "Switch",
+  "clickable": true,
+  "text": "1",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 63,
+   "height": 28
+  },
+  "label": "switch"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Landmarks",
+  "content_desc": "BackButton",
+  "resource_id": "",
+  "bounds": {
+   "width": 44,
+   "height": 45
+  },
+  "label": "button"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Turtle Rock",
+  "content_desc": "Turtle Rock",
+  "resource_id": "",
+  "bounds": {
+   "width": 91,
+   "height": 22
+  },
+  "label": "text"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "turtlerock",
+  "content_desc": "turtlerock",
+  "resource_id": "",
+  "bounds": {
+   "width": 250,
+   "height": 250
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Turtle Rock",
+  "content_desc": "Turtle Rock",
+  "resource_id": "",
+  "bounds": {
+   "width": 135,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Joshua Tree National Park",
+  "content_desc": "Joshua Tree National Park",
+  "resource_id": "",
+  "bounds": {
+   "width": 179,
+   "height": 18
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "California",
+  "content_desc": "California",
+  "resource_id": "",
+  "bounds": {
+   "width": 65,
+   "height": 18
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "About Turtle Rock",
+  "content_desc": "About Turtle Rock",
+  "resource_id": "",
+  "bounds": {
+   "width": 137,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Landmarks",
+  "content_desc": "BackButton",
+  "resource_id": "",
+  "bounds": {
+   "width": 44,
+   "height": 44
+  },
+  "label": "button"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Invalid Device Input",
+  "content_desc": "Invalid Device Input",
+  "resource_id": "",
+  "bounds": {
+   "width": 260,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "OK",
+  "content_desc": "OK",
+  "resource_id": "",
+  "bounds": {
+   "width": 288,
+   "height": 48
+  },
+  "label": "button"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Barcode Scanner",
+  "content_desc": "Barcode Scanner",
+  "resource_id": "",
+  "bounds": {
+   "width": 272,
+   "height": 42
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Scanned Barcode:",
+  "content_desc": "Scanned Barcode:",
+  "resource_id": "",
+  "bounds": {
+   "width": 259,
+   "height": 34
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Not yet scanned",
+  "content_desc": "Not yet scanned",
+  "resource_id": "",
+  "bounds": {
+   "width": 258,
+   "height": 41
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Server Error",
+  "content_desc": "Server Error",
+  "resource_id": "",
+  "bounds": {
+   "width": 260,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Invalid response from the server. Please try again later or contact support.",
+  "content_desc": "Invalid response from the server. Please try again later or contact support.",
+  "resource_id": "",
+  "bounds": {
+   "width": 260,
+   "height": 59
+  },
+  "label": "text"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "🍟 Appetizers",
+  "content_desc": "🍟 Appetizers",
+  "resource_id": "",
+  "bounds": {
+   "width": 277,
+   "height": 47
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Home",
+  "content_desc": "house",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "home",
+  "content_desc": "house.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 34,
+   "height": 28
+  },
+  "label": "image"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Account",
+  "content_desc": "person",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "person.fill",
+  "content_desc": "person.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 26,
+   "height": 26
+  },
+  "label": "image"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Order",
+  "content_desc": "bag",
+  "resource_id": "",
+  "bounds": {
+   "width": 94,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Image",
+  "clickable": false,
+  "text": "shopping bag",
+  "content_desc": "bag.fill",
+  "resource_id": "",
+  "bounds": {
+   "width": 27,
+   "height": 28
+  },
+  "label": "image"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "🧐 Account",
+  "content_desc": "🧐 Account",
+  "resource_id": "",
+  "bounds": {
+   "width": 237,
+   "height": 47
+  },
+  "label": "text"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 41
+  },
+  "label": "list"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Personal Info",
+  "content_desc": "Personal Info",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 41
+  },
+  "label": "text"
+ },
+ {
+  "class": "TextField",
+  "clickable": true,
+  "text": "First Name",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 338,
+   "height": 22
+  },
+  "label": "input"
+ },
+ {
+  "class": "TextField",
+  "clickable": true,
+  "text": "Last Name",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 338,
+   "height": 22
+  },
+  "label": "input"
+ },
+ {
+  "class": "TextField",
+  "clickable": true,
+  "text": "Email",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 338,
+   "height": 22
+  },
+  "label": "input"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 65
+  },
+  "label": "list"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Birthday",
+  "content_desc": "Birthday",
+  "resource_id": "",
+  "bounds": {
+   "width": 64,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Date Picker",
+  "content_desc": "Date Picker",
+  "resource_id": "",
+  "bounds": {
+   "width": 116,
+   "height": 35
+  },
+  "label": "button"
+ },
+ {
+  "class": "Cell",
+  "clickable": true,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 53
+  },
+  "label": "list"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Save Changes",
+  "content_desc": "Save Changes",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 53
+  },
+  "label": "button"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Requests",
+  "content_desc": "Requests",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 41
+  },
+  "label": "text"
+ },
+ {
+  "class": "Switch",
+  "clickable": true,
+  "text": "Extra Napkin",
+  "content_desc": "Extra Napkin",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 53
+  },
+  "label": "switch"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Extra Napkin",
+  "content_desc": "Extra Napkin",
+  "resource_id": "",
+  "bounds": {
+   "width": 97,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Switch",
+  "clickable": true,
+  "text": "0",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 63,
+   "height": 29
+  },
+  "label": "switch"
+ },
+ {
+  "class": "Switch",
+  "clickable": true,
+  "text": "Frequent Refill",
+  "content_desc": "Frequent Refill",
+  "resource_id": "",
+  "bounds": {
+   "width": 370,
+   "height": 53
+  },
+  "label": "switch"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "Frequent Refill",
+  "content_desc": "Frequent Refill",
+  "resource_id": "",
+  "bounds": {
+   "width": 110,
+   "height": 21
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "shift",
+  "content_desc": "shift",
+  "resource_id": "",
+  "bounds": {
+   "width": 52,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Emoji",
+  "content_desc": "emoji",
+  "resource_id": "",
+  "bounds": {
+   "width": 51,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "next",
+  "content_desc": "Next:",
+  "resource_id": "",
+  "bounds": {
+   "width": 100,
+   "height": 54
+  },
+  "label": "button"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Next keyboard",
+  "content_desc": "Next keyboard",
+  "resource_id": "",
+  "bounds": {
+   "width": 69,
+   "height": 70
+  },
+  "label": "button"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "Dictate",
+  "content_desc": "dictation",
+  "resource_id": "",
+  "bounds": {
+   "width": 69,
+   "height": 70
+  },
+  "label": "button"
+ },
+ {
+  "class": "CollectionView",
+  "clickable": false,
+  "text": "",
+  "content_desc": "",
+  "resource_id": "",
+  "bounds": {
+   "width": 91,
+   "height": 44
+  },
+  "label": "list"
+ },
+ {
+  "class": "MenuItem",
+  "clickable": true,
+  "text": "AutoFill",
+  "content_desc": "AutoFill",
+  "resource_id": "",
+  "bounds": {
+   "width": 83,
+   "height": 44
+  },
+  "label": "button"
+ },
+ {
+  "class": "StaticText",
+  "clickable": false,
+  "text": "AutoFill",
+  "content_desc": "AutoFill",
+  "resource_id": "",
+  "bounds": {
+   "width": 51,
+   "height": 18
+  },
+  "label": "text"
+ },
+ {
+  "class": "Button",
+  "clickable": true,
+  "text": "continue",
+  "content_desc": "continue",
+  "resource_id": "",
+  "bounds": {
+   "width": 100,
+   "height": 54
+  },
+  "label": "button"
+ }
+]

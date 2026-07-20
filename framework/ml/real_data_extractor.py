@@ -129,6 +129,34 @@ def extract_from_inventory(path: Path) -> List[Dict[str, Any]]:
     return rows
 
 
+# A small, curated set of real-app elements shipped with the package and blended
+# into training so the model learns from real feature distributions, not just
+# synthetic ones. Built by build_real_dataset() from crawled kits; absent -> the
+# model is synthetic-only (still fine). NB: only clean-labelled sources belong
+# here — never a deliberately-buggy app like ChaosBank, whose labels embed
+# injected defects; that one is for validation / bug-finding, not training.
+SHIPPED_DATASET = Path(__file__).resolve().parent / "data" / "real_elements.json"
+
+
+def load_shipped_real_dataset() -> List[Dict[str, Any]]:
+    """The curated real-app rows shipped for training, or [] if none is bundled."""
+    if not SHIPPED_DATASET.exists():
+        return []
+    try:
+        return json.loads(SHIPPED_DATASET.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return []
+
+
+def build_real_dataset(kit_dirs: Iterable[Path], out: Path = SHIPPED_DATASET) -> int:
+    """Extract labelled rows from crawled kits and write the shipped dataset.
+    Returns the number of rows written. Feed it only clean-labelled apps."""
+    rows = extract_from_kits(kit_dirs, dedupe=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(rows)
+
+
 def extract_from_kits(kit_dirs: Iterable[Path], dedupe: bool = True) -> List[Dict[str, Any]]:
     """Labelled rows from many kit directories (each with an ``inventory.json``),
     de-duplicated by default so repeated chrome doesn't dominate."""
