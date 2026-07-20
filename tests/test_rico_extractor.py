@@ -38,7 +38,11 @@ def test_build_rico_rows_balances_and_dedupes(tmp_path):
         "bounds": [0, 0, 400, 800],
         "children": [
             {"componentLabel": "Text", "class": "android.widget.TextView", "bounds": [0, 0, 100, 40]},
-            {"componentLabel": "Text", "class": "android.widget.TextView", "bounds": [0, 0, 100, 40]},  # identical -> dup
+            {
+                "componentLabel": "Text",
+                "class": "android.widget.TextView",
+                "bounds": [0, 0, 100, 40],
+            },  # identical -> dup
             {"componentLabel": "Text", "class": "android.widget.TextView", "bounds": [0, 50, 130, 110]},  # 130x60
             {
                 "componentLabel": "Text Button",
