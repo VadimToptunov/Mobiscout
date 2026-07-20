@@ -19,6 +19,12 @@ from framework.codegen.targets import Target, register
 from framework.core.engine import Language
 
 
+def _data_key(selector) -> str:
+    """A stable TEST_DATA key for an input field — its human field name, snake_cased
+    ('Email address' -> email_address), falling back to the locator value."""
+    return snake(getattr(selector, "description", "") or getattr(selector, "value", "") or "input")
+
+
 class PythonPytestEmitter(Emitter):
     target_id = "python_pytest"
 
@@ -26,6 +32,7 @@ class PythonPytestEmitter(Emitter):
         self.env.filters["by_value"] = by_value
         self.env.filters["py_str"] = py_str
         self.env.filters["keycode"] = keycode
+        self.env.filters["data_key"] = _data_key
 
     def emit(self, model: TestModel) -> Dict[str, str]:
         template = self.env.get_template("test_file.py.j2")

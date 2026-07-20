@@ -4,6 +4,16 @@
 {{ model.description }}
 {% endif %}
 App under test: {{ model.app_package }}
+{% if model.toolkit == "compose" %}
+UI toolkit: Jetpack Compose. Locate by text / content-desc; set
+`testTagsAsResourceId = true` in the app for stable resource-id locators.
+{% elif model.toolkit == "flutter" %}
+UI toolkit: Flutter (a single rendered canvas). Reliable locators need the
+appium-flutter-driver, or accessibility Semantics labels exposed as content-desc.
+{% elif model.toolkit == "hybrid" %}
+UI toolkit: hybrid (WebView). Switch to the web context to drive web content:
+`driver.switch_to.context(next(c for c in driver.contexts if "WEBVIEW" in c))`.
+{% endif %}
 DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
 """
 
@@ -51,6 +61,17 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
         )
 
 
+{% set ns = namespace(inputs=[]) %}
+{% for case in model.cases %}{% for step in case.steps %}{% if step.action.value == "type" %}{% set ns.inputs = ns.inputs + [step] %}{% endif %}{% endfor %}{% endfor %}
+{% if ns.inputs %}
+# Test input data, kept out of the test body so it changes in one place (and can be
+# parameterised or pulled from a fixture later) instead of being coupled inline.
+TEST_DATA = {
+{% for step in ns.inputs %}    {{ step.selector | data_key | py_str }}: {{ step.text | py_str }},
+{% endfor %}}
+
+
+{% endif %}
 @pytest.fixture()
 def driver():
 {% if model.platform.value == "ios" %}
@@ -58,6 +79,11 @@ def driver():
     options.platform_name = "iOS"
     options.automation_name = "XCUITest"
     options.bundle_id = {{ model.app_package | py_str }}
+{% if model.launch_args %}
+    # Launch arguments used during the crawl (e.g. skip a login gate) — pass them
+    # so the test starts in the same state the flow was recorded in.
+    options.set_capability("processArguments", {"args": [{% for a in model.launch_args %}{{ a | py_str }}{% if not loop.last %}, {% endif %}{% endfor %}]})
+{% endif %}
 {% else %}
     options = UiAutomator2Options()
     options.platform_name = "Android"
@@ -67,6 +93,8 @@ def driver():
     options.app_activity = {{ model.app_activity | py_str }}
 {% endif %}
 {% endif %}
+    # A fresh session per test with a reset app = isolated, parallel-safe state.
+    options.set_capability("noReset", False)
     drv = webdriver.Remote("http://localhost:4723", options=options)
     yield drv
     drv.quit()
@@ -86,7 +114,7 @@ def test_{{ case.name }}(driver):
 {% elif step.action.value == "tap" %}
     _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).click()
 {% elif step.action.value == "type" %}
-    _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys({{ step.text | py_str }})
+    _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys(TEST_DATA[{{ step.selector | data_key | py_str }}])
 {% elif step.action.value == "back" %}
     driver.back()
 {% elif step.action.value == "long_press" %}

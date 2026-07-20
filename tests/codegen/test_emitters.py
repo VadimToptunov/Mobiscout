@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from framework.codegen import available_targets, get_emitter
-from framework.codegen.ir import TestModel
+from framework.codegen.ir import Platform, TestModel
 
 GOLDEN_DIR = Path(__file__).parent / "golden"
 
@@ -170,6 +170,40 @@ def test_no_fixed_wait_anti_patterns(target_id: str, login_model: TestModel):
     src = "\n".join(get_emitter(target_id).emit(login_model).values())
     for anti in ("implicitlyWait", "implicitly_wait", "Thread.sleep", "time.sleep", "driver.pause"):
         assert anti not in src, f"{target_id} emits the {anti!r} anti-pattern"
+
+
+def test_python_pytest_isolates_test_data_and_state(login_model: TestModel):
+    """P8: input data lives in a TEST_DATA table (not inline send_keys literals) so
+    it changes in one place, and each test runs on a reset app (isolated,
+    parallel-safe)."""
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert "TEST_DATA = {" in src
+    assert "send_keys(TEST_DATA[" in src  # references the table
+    assert 'noReset", False' in src  # fresh app state per test
+
+
+@pytest.mark.parametrize(
+    "toolkit,needle",
+    [("native", None), ("compose", "Jetpack Compose"), ("flutter", "Flutter"), ("hybrid", "WebView")],
+)
+def test_python_pytest_surfaces_toolkit_locator_guidance(toolkit, needle, login_model: TestModel):
+    """P11: Compose/Flutter/WebView apps locate differently — the generated file
+    tells the tester how; a native app carries no such note."""
+    login_model.toolkit = toolkit
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    if needle is None:
+        assert "UI toolkit:" not in src
+    else:
+        assert needle in src and "UI toolkit:" in src
+
+
+def test_ios_launch_args_carried_into_generated_setup(login_model: TestModel):
+    """P9: the launch arguments the crawl used (e.g. to skip a login gate) are
+    emitted into the driver setup, so generated tests start in the same state."""
+    login_model.platform = Platform.IOS
+    login_model.launch_args = ["-StartUnlocked", "1"]
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert "processArguments" in src and '"-StartUnlocked", "1"' in src
 
 
 def test_ir_roundtrip(login_model: TestModel):

@@ -61,7 +61,12 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     _write(out / "invariants.md", invariants_markdown(graph))
     invariant_count = len(check_invariants(graph))
 
-    model = build_test_model(result, app_package=package, app_activity=config.get("app_activity"))
+    model = build_test_model(
+        result,
+        app_package=package,
+        app_activity=config.get("app_activity"),
+        launch_args=config.get("process_args"),
+    )
 
     # Only-new mode: drop cases already covered by the team's existing tests, so a
     # crawl of a new feature yields tests for just that feature.

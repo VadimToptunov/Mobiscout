@@ -260,9 +260,14 @@ def build_test_model(
     app_package: str,
     suite_name: str = "CrawlFlow",
     app_activity: Optional[str] = None,
+    launch_args: Optional[List[str]] = None,
 ) -> TestModel:
     """Comprehensive TestModel from a crawl: per-screen state checks (visible +
-    enabled) plus navigation flows from the recorded transitions."""
+    enabled) plus navigation flows from the recorded transitions.
+
+    ``launch_args`` are the app launch arguments the crawl used (e.g. to skip a
+    login gate); they're carried into the generated driver setup so the tests
+    start in the same state."""
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
         case = _screen_cases(index, screen, app_package)
@@ -286,6 +291,11 @@ def build_test_model(
     # so the emitters pick the right Appium client and text locators.
     is_ios = any(s.platform == "ios" for s in result.screens.values())
 
+    # UI toolkit drives locator caveats (Compose/Flutter/WebView locate differently).
+    # A non-native toolkit anywhere wins, since it changes how the tester must locate.
+    toolkits = {s.toolkit for s in result.screens.values()}
+    toolkit = next((t for t in ("flutter", "hybrid", "compose") if t in toolkits), "native")
+
     return TestModel(
         name=suite_name,
         app_package=app_package,
@@ -293,6 +303,8 @@ def build_test_model(
         app_activity=app_activity,
         cases=cases,
         description="Auto-generated from an autonomous crawl (state + navigation).",
+        toolkit=toolkit,
+        launch_args=list(launch_args or []),
     )
 
 
