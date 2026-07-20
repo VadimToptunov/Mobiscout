@@ -87,6 +87,16 @@ class UniversalModelBuilder:
                 {"class": "android.view.ViewGroup", "clickable": True, "text": "Custom Button"},  # Custom RN button
                 # Generic clickable with text
                 {"class": "android.view.View", "clickable": True, "text": "Tap here"},
+                # HARD: generic container that is actually a button — the class
+                # doesn't say "button", only the clickable + label/text does.
+                {"class": "android.widget.FrameLayout", "clickable": True, "content_desc": "Add"},
+                {"class": "android.widget.LinearLayout", "clickable": True, "text": "Row action"},
+                {"class": "androidx.constraintlayout.widget.ConstraintLayout", "clickable": True, "text": "Card"},
+                {"class": "XCUIElementTypeOther", "clickable": True, "text": "Confirm"},
+                {"class": "XCUIElementTypeStaticText", "clickable": True, "text": "See all"},  # tappable label
+                {"class": "UIView", "clickable": True, "label": "Done"},
+                {"class": "GestureDetector", "clickable": True, "text": "Tap"},  # Flutter
+                {"class": "InkWell", "clickable": True, "text": "Ripple"},  # Flutter
             ],
             ElementType.INPUT: [
                 # Android native
@@ -117,6 +127,21 @@ class UniversalModelBuilder:
                 {"class": "RCTBaseTextInputView", "focusable": True, "text": ""},
                 {"class": "RCTMultilineTextInputView", "focusable": True, "text": ""},  # TextInput multiline
                 {"class": "android.widget.EditText", "focusable": True, "text": ""},  # RN TextInput on Android
+                # HARD: a generic, focusable, editable field with no class hint.
+                {
+                    "class": "android.view.View",
+                    "focusable": True,
+                    "clickable": True,
+                    "text": "",
+                    "content_desc": "Search",
+                },
+                {
+                    "class": "XCUIElementTypeOther",
+                    "focusable": True,
+                    "clickable": True,
+                    "text": "",
+                    "content_desc": "Email",
+                },
             ],
             ElementType.TEXT: [
                 # Android native
@@ -140,6 +165,11 @@ class UniversalModelBuilder:
                 {"class": "RCTTextView", "clickable": False, "text": "Text View"},
                 {"class": "RCTVirtualText", "clickable": False, "text": "Virtual text"},
                 {"class": "android.widget.TextView", "clickable": False, "text": "RN Text"},  # RN Text on Android
+                # HARD: a generic container that just carries a label -> text, not
+                # a generic container (the discriminator is: has text, not interactive).
+                {"class": "android.view.View", "clickable": False, "text": "Total balance 1,204.55"},
+                {"class": "XCUIElementTypeOther", "clickable": False, "text": "Recent activity"},
+                {"class": "RCTView", "clickable": False, "text": "Caption label"},
             ],
             ElementType.CHECKBOX: [
                 # Android native
@@ -229,6 +259,13 @@ class UniversalModelBuilder:
                 {"class": "AndroidHorizontalScrollView", "scrollable": True},
                 {"class": "RCTFlatList", "scrollable": True},  # FlatList
                 {"class": "RCTSectionList", "scrollable": True},  # SectionList
+                # HARD: generic container that scrolls -> it's a list, though the
+                # class ("View"/"Other"/ViewGroup) never says so.
+                {"class": "android.view.ViewGroup", "scrollable": True, "children_count": 8},
+                {"class": "android.widget.FrameLayout", "scrollable": True, "children_count": 6},
+                {"class": "XCUIElementTypeOther", "scrollable": True, "children_count": 10},
+                {"class": "UIView", "scrollable": True, "children_count": 7},
+                {"class": "RCTView", "scrollable": True, "children_count": 9},
             ],
             ElementType.RADIO: [
                 # Android native
