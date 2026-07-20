@@ -4,6 +4,16 @@
 {{ model.description }}
 {% endif %}
 App under test: {{ model.app_package }}
+{% if model.toolkit == "compose" %}
+UI toolkit: Jetpack Compose. Locate by text / content-desc; set
+`testTagsAsResourceId = true` in the app for stable resource-id locators.
+{% elif model.toolkit == "flutter" %}
+UI toolkit: Flutter (a single rendered canvas). Reliable locators need the
+appium-flutter-driver, or accessibility Semantics labels exposed as content-desc.
+{% elif model.toolkit == "hybrid" %}
+UI toolkit: hybrid (WebView). Switch to the web context to drive web content:
+`driver.switch_to.context(next(c for c in driver.contexts if "WEBVIEW" in c))`.
+{% endif %}
 DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
 """
 

@@ -182,6 +182,21 @@ def test_python_pytest_isolates_test_data_and_state(login_model: TestModel):
     assert 'noReset", False' in src  # fresh app state per test
 
 
+@pytest.mark.parametrize(
+    "toolkit,needle",
+    [("native", None), ("compose", "Jetpack Compose"), ("flutter", "Flutter"), ("hybrid", "WebView")],
+)
+def test_python_pytest_surfaces_toolkit_locator_guidance(toolkit, needle, login_model: TestModel):
+    """P11: Compose/Flutter/WebView apps locate differently — the generated file
+    tells the tester how; a native app carries no such note."""
+    login_model.toolkit = toolkit
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    if needle is None:
+        assert "UI toolkit:" not in src
+    else:
+        assert needle in src and "UI toolkit:" in src
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())

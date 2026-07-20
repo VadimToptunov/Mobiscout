@@ -179,6 +179,9 @@ class TestModel:
     cases: List[TestCase] = field(default_factory=list)
     app_activity: Optional[str] = None  # Android entry activity
     description: str = ""
+    # UI toolkit of the app under test: native | compose | flutter | hybrid. It
+    # changes how elements must be located, so emitters surface the right guidance.
+    toolkit: str = "native"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -187,6 +190,7 @@ class TestModel:
             "platform": self.platform.value,
             "app_activity": self.app_activity,
             "description": self.description,
+            "toolkit": self.toolkit,
             "cases": [c.to_dict() for c in self.cases],
         }
 
@@ -198,5 +202,6 @@ class TestModel:
             platform=Platform(data.get("platform", "android")),
             app_activity=data.get("app_activity"),
             description=data.get("description", ""),
+            toolkit=data.get("toolkit", "native"),
             cases=[TestCase.from_dict(c) for c in data.get("cases", [])],
         )

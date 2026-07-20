@@ -286,6 +286,11 @@ def build_test_model(
     # so the emitters pick the right Appium client and text locators.
     is_ios = any(s.platform == "ios" for s in result.screens.values())
 
+    # UI toolkit drives locator caveats (Compose/Flutter/WebView locate differently).
+    # A non-native toolkit anywhere wins, since it changes how the tester must locate.
+    toolkits = {s.toolkit for s in result.screens.values()}
+    toolkit = next((t for t in ("flutter", "hybrid", "compose") if t in toolkits), "native")
+
     return TestModel(
         name=suite_name,
         app_package=app_package,
@@ -293,6 +298,7 @@ def build_test_model(
         app_activity=app_activity,
         cases=cases,
         description="Auto-generated from an autonomous crawl (state + navigation).",
+        toolkit=toolkit,
     )
 
 
