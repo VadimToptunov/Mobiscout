@@ -130,7 +130,9 @@ def _heuristic(element: CrawlElement) -> str:
         return "radio"
     if "switch" in cls or "toggle" in cls:
         return "switch"
-    if "button" in cls or "btn" in cls:
+    # SegmentedControl and MenuItem are tappable, button-like controls — found
+    # misclassified as generic when validating against real ChaosBank elements.
+    if "button" in cls or "btn" in cls or "segmented" in cls or "menuitem" in cls:
         return "button"
     if any(k in cls for k in ("recycler", "listview", "collectionview", "tableview", "scrollview")):
         return "list"

@@ -37,6 +37,10 @@ def _no_model(monkeypatch):
         ("android.webkit.WebView", "webview"),
         ("android.widget.ImageView", "image"),
         ("XCUIElementTypeStaticText", "text"),
+        # SegmentedControl / MenuItem are tappable button-like controls — caught
+        # by validating the classifier against real ChaosBank elements.
+        ("XCUIElementTypeSegmentedControl", "button"),
+        ("XCUIElementTypeMenuItem", "button"),
     ],
 )
 def test_heuristic_types(cls, expected):
