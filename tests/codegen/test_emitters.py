@@ -172,6 +172,16 @@ def test_no_fixed_wait_anti_patterns(target_id: str, login_model: TestModel):
         assert anti not in src, f"{target_id} emits the {anti!r} anti-pattern"
 
 
+def test_python_pytest_isolates_test_data_and_state(login_model: TestModel):
+    """P8: input data lives in a TEST_DATA table (not inline send_keys literals) so
+    it changes in one place, and each test runs on a reset app (isolated,
+    parallel-safe)."""
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert "TEST_DATA = {" in src
+    assert "send_keys(TEST_DATA[" in src  # references the table
+    assert 'noReset", False' in src  # fresh app state per test
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())

@@ -45,6 +45,13 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
         )
 
 
+# Test input data, kept out of the test body so it changes in one place (and can be
+# parameterised or pulled from a fixture later) instead of being coupled inline.
+TEST_DATA = {
+    "user_field": "alice@example.com",
+}
+
+
 @pytest.fixture()
 def driver():
     options = UiAutomator2Options()
@@ -52,6 +59,8 @@ def driver():
     options.automation_name = "UiAutomator2"
     options.app_package = "com.example.app"
     options.app_activity = ".MainActivity"
+    # A fresh session per test with a reset app = isolated, parallel-safe state.
+    options.set_capability("noReset", False)
     drv = webdriver.Remote("http://localhost:4723", options=options)
     yield drv
     drv.quit()
@@ -62,7 +71,7 @@ def test_login(driver):
     # Open app
     driver.activate_app("com.example.app")
     # Enter email
-    _find(driver, (AppiumBy.ID, "user_field"), [(AppiumBy.XPATH, "//input[1]")]).send_keys("alice@example.com")
+    _find(driver, (AppiumBy.ID, "user_field"), [(AppiumBy.XPATH, "//input[1]")]).send_keys(TEST_DATA["user_field"])
     # Tap login
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "login_btn"), []).click()
     # Wait for home

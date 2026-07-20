@@ -51,6 +51,17 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
         )
 
 
+{% set ns = namespace(inputs=[]) %}
+{% for case in model.cases %}{% for step in case.steps %}{% if step.action.value == "type" %}{% set ns.inputs = ns.inputs + [step] %}{% endif %}{% endfor %}{% endfor %}
+{% if ns.inputs %}
+# Test input data, kept out of the test body so it changes in one place (and can be
+# parameterised or pulled from a fixture later) instead of being coupled inline.
+TEST_DATA = {
+{% for step in ns.inputs %}    {{ step.selector | data_key | py_str }}: {{ step.text | py_str }},
+{% endfor %}}
+
+
+{% endif %}
 @pytest.fixture()
 def driver():
 {% if model.platform.value == "ios" %}
@@ -67,6 +78,8 @@ def driver():
     options.app_activity = {{ model.app_activity | py_str }}
 {% endif %}
 {% endif %}
+    # A fresh session per test with a reset app = isolated, parallel-safe state.
+    options.set_capability("noReset", False)
     drv = webdriver.Remote("http://localhost:4723", options=options)
     yield drv
     drv.quit()
@@ -86,7 +99,7 @@ def test_{{ case.name }}(driver):
 {% elif step.action.value == "tap" %}
     _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).click()
 {% elif step.action.value == "type" %}
-    _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys({{ step.text | py_str }})
+    _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys(TEST_DATA[{{ step.selector | data_key | py_str }}])
 {% elif step.action.value == "back" %}
     driver.back()
 {% elif step.action.value == "long_press" %}
