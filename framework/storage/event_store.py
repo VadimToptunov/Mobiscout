@@ -410,20 +410,16 @@ class EventStore:
         """Get statistics about stored events"""
         with self._get_connection() as conn:
             if session_id:
-                # query_suffix =  # Unused "WHERE session_id = ?"
+                query_suffix = "WHERE session_id = ?"
                 params = (session_id,)
             else:
-                # query_suffix =  # Unused ""
+                query_suffix = ""
                 params = ()
 
             # Event counts by type
             event_counts = {}
             rows = conn.execute(
-                """
-                                SELECT event_type, COUNT(*) as count
-                                FROM events {query_suffix}
-                                GROUP BY event_type
-                                """,
+                f"SELECT event_type, COUNT(*) as count FROM events {query_suffix} GROUP BY event_type",
                 params,
             ).fetchall()
 
