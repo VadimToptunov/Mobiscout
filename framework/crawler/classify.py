@@ -79,6 +79,11 @@ def ensure_model(force: bool = False) -> Optional[Path]:
             )
             with open(dataset) as f:
                 data = json.load(f)
+            # Blend in real-app elements (clean-labelled crawls) so the model sees
+            # real feature distributions, not only synthetic ones.
+            from framework.ml.real_data_extractor import load_shipped_real_dataset
+
+            data.extend(load_shipped_real_dataset())
             clf = ElementClassifier()
             clf.train_from_data(data, test_size=0.2)
             clf.save_model(path)

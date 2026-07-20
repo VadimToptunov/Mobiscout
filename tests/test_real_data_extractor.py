@@ -4,9 +4,11 @@ labels from the widget class, structural chrome skipped, repeats de-duplicated."
 import json
 
 from framework.ml.real_data_extractor import (
+    build_real_dataset,
     element_to_row,
     extract_from_inventory,
     extract_from_kits,
+    load_shipped_real_dataset,
 )
 
 
@@ -52,6 +54,41 @@ def test_extract_from_inventory_reads_screens(tmp_path):
     p.write_text(json.dumps(inv), encoding="utf-8")
     rows = extract_from_inventory(p)
     assert [r["label"] for r in rows] == ["button", "switch"]
+
+
+def test_build_and_load_shipped_dataset_roundtrip(tmp_path):
+    d = tmp_path / "kitA"
+    d.mkdir()
+    (d / "inventory.json").write_text(
+        json.dumps(
+            {
+                "screens": [
+                    {
+                        "platform": "ios",
+                        "elements": [
+                            {"class": "Button", "content_desc": "a.b", "bounds": [0, 0, 80, 40]},
+                            {"class": "Switch", "content_desc": "a.c", "bounds": [0, 0, 50, 30]},
+                        ],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    out = tmp_path / "real_elements.json"
+    n = build_real_dataset([d], out=out)
+    assert n == 2
+    rows = json.loads(out.read_text(encoding="utf-8"))
+    assert {r["label"] for r in rows} == {"button", "switch"}
+    # rows carry the feature keys the classifier's train_from_data expects
+    assert "class" in rows[0] and "bounds" in rows[0] and "label" in rows[0]
+
+
+def test_load_shipped_dataset_missing_is_empty(monkeypatch, tmp_path):
+    import framework.ml.real_data_extractor as rde
+
+    monkeypatch.setattr(rde, "SHIPPED_DATASET", tmp_path / "nope.json")
+    assert load_shipped_real_dataset() == []
 
 
 def test_extract_from_kits_dedupes_repeated_chrome(tmp_path):

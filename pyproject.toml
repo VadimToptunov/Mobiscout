@@ -66,6 +66,11 @@ Issues = "https://github.com/vadimtoptunov/mobile-test-recorder/issues"
 [tool.setuptools]
 packages = ["framework"]
 
+[tool.setuptools.package-data]
+# Ship the curated real-app training data so the classifier blends it in on first
+# train, not just synthetic samples.
+framework = ["ml/data/*.json"]
+
 [tool.black]
 line-length = 120
 target-version = ['py39', 'py310', 'py311']
