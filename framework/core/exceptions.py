@@ -212,30 +212,6 @@ class MissingConfigError(ConfigurationError):
     pass
 
 
-class LicenseError(MobileTestError):
-    """Base class for licensing errors."""
-
-    pass
-
-
-class InvalidLicenseError(LicenseError):
-    """License key is invalid or expired."""
-
-    pass
-
-
-class LicenseExpiredError(LicenseError):
-    """License has expired."""
-
-    pass
-
-
-class FeatureNotLicensedError(LicenseError):
-    """Feature requires paid license."""
-
-    pass
-
-
 # ============================================================================
 # Test Generation & Execution Exceptions
 # ============================================================================

@@ -42,11 +42,6 @@ from framework.core.exceptions import (
     ConfigurationError,
     InvalidConfigError,
     MissingConfigError,
-    # License
-    LicenseError,
-    InvalidLicenseError,
-    LicenseExpiredError,
-    FeatureNotLicensedError,
     # Test & Execution
     TimeoutError,
     # Network & API
@@ -217,27 +212,6 @@ class TestConfigurationExceptions:
         assert isinstance(error, ConfigurationError)
 
 
-class TestLicenseExceptions:
-    """Test license-related exceptions."""
-
-    def test_invalid_license(self):
-        """Test InvalidLicenseError."""
-        error = InvalidLicenseError("License key format invalid", details={"key": "INVALID-KEY"})
-        assert isinstance(error, LicenseError)
-
-    def test_license_expired(self):
-        """Test LicenseExpiredError."""
-        error = LicenseExpiredError("License expired", details={"expiry_date": "2024-01-01"})
-        assert isinstance(error, LicenseError)
-
-    def test_feature_not_licensed(self):
-        """Test FeatureNotLicensedError."""
-        error = FeatureNotLicensedError(
-            "Feature requires Pro license", details={"feature": "ml_advanced", "license_type": "free"}
-        )
-        assert isinstance(error, LicenseError)
-
-
 class TestUtilityFunctions:
     """Test utility functions."""
 
@@ -279,7 +253,6 @@ class TestUtilityFunctions:
         """Test non-retriable errors."""
         # These should NOT be retriable
         assert is_retriable_error(InvalidConfigError("")) is False
-        assert is_retriable_error(LicenseExpiredError("")) is False
         assert is_retriable_error(ASTParsingError("")) is False
         assert is_retriable_error(ValueError("")) is False
 
