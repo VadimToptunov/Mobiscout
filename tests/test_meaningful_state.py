@@ -48,6 +48,25 @@ def test_state_case_keeps_actionable_drops_decoration():
     assert "$89.00" not in joined and "In stock" not in joined  # decoration left to the inventory
 
 
+def test_navigation_asserts_a_landmark_distinctive_to_the_destination():
+    """A navigate_ case must assert an element unique to the destination — not
+    shared chrome (a tab bar) that's on the start screen too, which would pass even
+    if navigation silently failed."""
+    shared = _el("android.widget.Button", desc="tab_home")  # chrome on both screens
+    trigger = _el("android.widget.Button", "Go", rid="go")  # the nav trigger on start
+    unique = _el("android.widget.TextView", "Markets", desc="markets_title", clk=False)  # only on dest
+    start = CrawlScreen("start", [shared, trigger], platform="android")
+    dest = CrawlScreen("dest", [shared, unique], platform="android")
+    result = CrawlResult(
+        screens={"start": start, "dest": dest},
+        transitions=[("start", trigger, "dest")],
+    )
+    model = build_test_model(result, app_package="com.x")
+    nav = next(c for c in model.cases if c.name.startswith("navigate_"))
+    landmark = next(s for s in nav.steps if s.action is ActionType.ASSERT)
+    assert landmark.selector.value == "markets_title"  # distinctive, not the shared "tab_home"
+
+
 def test_many_actionable_elements_are_capped():
     els = [_el("android.widget.Button", f"Item {i}", rid=f"i{i}") for i in range(20)]
     screen = CrawlScreen("list", els, platform="android")
