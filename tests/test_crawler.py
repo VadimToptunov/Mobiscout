@@ -279,12 +279,12 @@ def test_comprehensive_model_has_navigation_and_enabled_checks():
     model = build_test_model(result, app_package=APP)
 
     # navigation cases: LAUNCH -> TAP -> ASSERT(visible)
-    nav = [c for c in model.cases if c.name.startswith("navigate_")]
+    nav = [c for c in model.cases if c.name.startswith("tapping_")]
     assert nav, "expected navigation/interaction cases from transitions"
     assert any(s.action is ActionType.TAP for c in nav for s in c.steps)
 
     # state cases assert enabled (interactability), not just visible
-    state = [c for c in model.cases if c.name.endswith("_state")]
+    state = [c for c in model.cases if c.name.endswith("_shows_expected_controls")]
     assert any(s.assertion is AssertionType.ENABLED for c in state for s in c.steps)
 
 

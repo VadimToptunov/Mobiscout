@@ -11,6 +11,7 @@ transitions, plus a standalone accessibility audit. This is the
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -114,6 +115,35 @@ _MEANINGFUL_TYPES = {"button", "input", "checkbox", "switch", "radio"}
 _MAX_SCREEN_ELEMENTS = 8
 
 
+def _slug(text: str, max_len: int = 32) -> str:
+    """A short, human, identifier-safe token from a label — so generated test names
+    read like sentences: 'See all' -> 'see_all', 'Markets' -> 'markets'. Pure-number
+    / symbol-only labels ('€1,204.55') yield '' (they don't name anything)."""
+    words = [w for w in re.sub(r"[^a-z0-9]+", "_", (text or "").lower()).split("_") if w and not w.isdigit()]
+    return "_".join(words)[:max_len].strip("_")
+
+
+def _screen_title(owned: List[CrawlElement]) -> str:
+    """The screen's title landmark text (the first meaningful static text), used to
+    name a screen readably ('Markets' -> markets_screen)."""
+    from framework.crawler.classify import classify
+
+    for e in owned:
+        if classify(e)[0] == "text" and (e.text or "").strip():
+            return e.text.strip()
+    return ""
+
+
+def _unique(name: str, used: set) -> str:
+    """Ensure a case name is unique, appending _2, _3… on collision."""
+    candidate, n = name, 2
+    while candidate in used:
+        candidate = f"{name}_{n}"
+        n += 1
+    used.add(candidate)
+    return candidate
+
+
 def _significant(owned: List[CrawlElement]) -> List[CrawlElement]:
     """The elements worth a state assertion: one title landmark (so the screen is
     identifiable) plus the actionable elements — not every label."""
@@ -158,9 +188,10 @@ def _screen_cases(index: int, screen: CrawlScreen, app_package: str) -> Optional
             )
     if len(steps) == 1:
         return None
-    return TestCase(
-        name=f"screen_{index + 1}_state", steps=steps, description=f"State checks for discovered screen {index + 1}"
-    )
+    title = _slug(_screen_title(owned))
+    name = f"{title}_screen_shows_expected_controls" if title else f"screen_{index + 1}_shows_expected_controls"
+    human = title.replace("_", " ") if title else f"screen {index + 1}"
+    return TestCase(name=name, steps=steps, description=f"The {human} screen shows its expected controls")
 
 
 def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
@@ -200,9 +231,13 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
         if landmark is None:
             continue
         seen_taps.add(tap.value)
+        tapped = element.label or element.class_name
+        # Name the test after what it does: tap <control> -> reach <destination>.
+        tap_slug = _slug(tapped) or "control"
+        dest_slug = _slug(_screen_title(target_elements)) or _slug(landmark.description or "") or "the_next_screen"
         steps = [
             Step(ActionType.LAUNCH, description="Open app"),
-            Step(ActionType.TAP, selector=tap, description=f"Tap {element.label or element.class_name}"),
+            Step(ActionType.TAP, selector=tap, description=f"Tap {tapped}"),
             Step(
                 ActionType.ASSERT,
                 selector=landmark,
@@ -212,9 +247,9 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
         ]
         cases.append(
             TestCase(
-                name=f"navigate_{len(cases) + 1}",
+                name=f"tapping_{tap_slug}_opens_{dest_slug}",
                 steps=steps,
-                description=f"Tapping {element.label or element.class_name} navigates onward",
+                description=f"Tapping {tapped} opens the {dest_slug.replace('_', ' ')} screen",
             )
         )
     return cases
@@ -240,6 +275,12 @@ def build_test_model(
     from framework.crawler.graph import multi_step_cases
 
     cases.extend(multi_step_cases(result, app_package))
+
+    # Human-readable names can collide (two screens titled the same, two taps on
+    # the same control) — keep every test method name unique.
+    used: set = set()
+    for case in cases:
+        case.name = _unique(case.name, used)
 
     # The suite's platform follows the crawled screens (any iOS screen -> iOS),
     # so the emitters pick the right Appium client and text locators.

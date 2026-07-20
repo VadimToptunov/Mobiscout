@@ -333,6 +333,7 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
 
         steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
         form_steps = 0
+        taps: List[str] = []
         ok = True
         for edge in walk:
             from_fp, to_fp = fp_of[edge.src], fp_of[edge.dst]
@@ -355,6 +356,7 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
             form_steps += len(fs)
             steps.extend(fs)
             steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {edge.label}"))
+            taps.append(edge.label)
             steps.append(
                 Step(
                     ActionType.ASSERT,
@@ -372,8 +374,19 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
 
         seen_paths.add(node_path)
         label = " → ".join(f"screen {n}" for n in node_path)
+        # Name the journey after the controls it taps, so it reads like a story:
+        # journey_from_transfer_to_confirm. Falls back to the path if labels are bare.
+        from framework.crawler.to_codegen import _slug
+
+        tap_slugs = [s for s in (_slug(t) for t in taps) if s]
+        if len(tap_slugs) >= 2:
+            journey = f"journey_from_{tap_slugs[0]}_to_{tap_slugs[-1]}"
+        elif tap_slugs:
+            journey = f"journey_via_{tap_slugs[0]}"
+        else:
+            journey = f"journey_{'_'.join(str(n) for n in node_path)}"
         case = TestCase(
-            name=f"path_{'_'.join(str(n) for n in node_path)}",
+            name=journey,
             steps=steps,
             description=f"Multi-step path ({len(node_path)} screens): {label}",
         )
