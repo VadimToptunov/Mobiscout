@@ -32,6 +32,9 @@ def _no_model(monkeypatch):
         ("XCUIElementTypeButton", "button"),
         ("android.widget.CheckBox", "checkbox"),
         ("android.widget.Switch", "switch"),
+        # ToggleButton contains both "toggle" and "button" — the switch rule must
+        # win over the generic button rule (ordering in the rule table).
+        ("android.widget.ToggleButton", "switch"),
         ("android.widget.RadioButton", "radio"),
         ("androidx.recyclerview.widget.RecyclerView", "list"),
         ("android.webkit.WebView", "webview"),
