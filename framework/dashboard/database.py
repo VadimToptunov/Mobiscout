@@ -4,12 +4,15 @@ Database layer for dashboard
 Uses SQLite for simplicity.
 """
 
+import logging
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
 from .models import TestResult, TestHealth, HealedSelector, TestStatus, HealingStatus
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardDB:
@@ -43,7 +46,9 @@ class DashboardDB:
         try:
             self.close()
         except Exception:
-            pass  # Ignore errors during cleanup
+            # Best-effort cleanup from a destructor; log at debug so a genuine
+            # close failure is diagnosable without ever raising during GC.
+            logger.debug("DashboardDB.__del__: error during connection cleanup", exc_info=True)
 
     def _init_db(self):
         """Initialize database schema"""

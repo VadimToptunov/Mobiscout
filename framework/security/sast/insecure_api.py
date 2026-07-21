@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -20,6 +21,8 @@ from framework.security.sast.base import (
     SASTFinding,
     SASTResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class InsecureAPIAnalyzer:
@@ -110,7 +113,7 @@ class InsecureAPIAnalyzer:
                             )
                         )
 
-        except (OSError, UnicodeDecodeError):
-            pass
+        except (OSError, UnicodeDecodeError) as e:
+            logger.debug("SAST insecure-api: skipped %s: %s", file_path, e)
 
         return findings

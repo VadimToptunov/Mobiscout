@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -20,6 +21,8 @@ from framework.security.sast.base import (
     SASTFinding,
     SASTResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CryptoAnalyzer:
@@ -130,7 +133,8 @@ class CryptoAnalyzer:
                             )
                         )
 
-        except (OSError, UnicodeDecodeError):
-            pass
+        except (OSError, UnicodeDecodeError) as e:
+            # A file we can't read/decode is silently absent from the scan results.
+            logger.debug("SAST crypto: skipped %s: %s", file_path, e)
 
         return findings

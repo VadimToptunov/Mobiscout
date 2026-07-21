@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -22,6 +23,8 @@ from framework.security.supplychain.base import (
     LicenseIssue,
     SupplyChainResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class PythonDependencyParser:
@@ -95,8 +98,9 @@ class PythonDependencyParser:
                         )
                     )
 
-        except OSError:
-            pass
+        except OSError as e:
+            # An unreadable requirements file silently drops its deps from the scan.
+            logger.debug("supply-chain: could not read %s: %s", requirements_path, e)
 
         return dependencies
 
@@ -155,8 +159,10 @@ class PythonDependencyParser:
                             )
                         )
 
-        except (OSError, Exception):
-            pass
+        except Exception as e:
+            # Broad by design (a malformed pyproject must not abort the scan), but
+            # a skipped file is a real gap, so make it diagnosable.
+            logger.debug("supply-chain: could not parse %s: %s", pyproject_path, e)
 
         return dependencies
 
@@ -216,8 +222,8 @@ class JavaScriptDependencyParser:
                     )
                 )
 
-        except (OSError, json.JSONDecodeError):
-            pass
+        except (OSError, json.JSONDecodeError) as e:
+            logger.debug("supply-chain: could not parse %s: %s", package_path, e)
 
         return dependencies
 
@@ -272,8 +278,8 @@ class GradleDependencyParser:
                         )
                     )
 
-        except OSError:
-            pass
+        except OSError as e:
+            logger.debug("supply-chain: could not read %s: %s", gradle_path, e)
 
         return dependencies
 
@@ -314,7 +320,7 @@ class CocoaPodsDependencyParser:
                             )
                         )
 
-        except OSError:
-            pass
+        except OSError as e:
+            logger.debug("supply-chain: could not read %s: %s", podfile_lock_path, e)
 
         return dependencies
