@@ -91,11 +91,9 @@ def crawl(
         mobiscout crawl --package com.example.app --driver appium --udid <UDID>
         mobiscout crawl --platform ios --package com.apple.Preferences --udid <UDID>
     """
-    from framework.codegen import available_targets, get_emitter
-    from framework.crawler import AdbCrawlerDriver, AndroidAppiumDriver, AppCrawler, IOSCrawlerDriver, build_test_model
+    from framework.cli.crawl_service import CrawlServiceError, build_crawl_driver, ensure_foreground, write_kit
+    from framework.crawler import AppCrawler
     from framework.crawler.classify import ensure_model
-    from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
-    from framework.crawler.report import inventory_json_str, inventory_markdown
 
     print_header("🕷️  Crawling app", f"{package} ({platform})")
 
@@ -105,54 +103,32 @@ def crawl(
         print_info("Element typing: using the rule heuristic (ML model unavailable).")
 
     extra_caps = dict(c.split("=", 1) for c in caps if "=" in c)
-    appium_session = None  # any Appium-owned driver we must quit() at the end
-    if platform == "ios":
-        try:
-            crawl_driver = IOSCrawlerDriver(
-                bundle_id=package,
-                udid=udid,
-                device_name=device_name or "iPhone 17",
-                server=server,
-                process_args=list(launch_args) or None,
-            )
-        except Exception as e:
-            print_error(f"Could not open an Appium iOS session ({e}). Is the Appium server running at {server}?")
-            raise click.Abort()
-        appium_session = crawl_driver
-    elif driver == "appium":
-        try:
-            crawl_driver = AndroidAppiumDriver(
-                app_package=package,
-                app_activity=app_activity,
-                udid=udid,
-                device_name=device_name or "Android Device",
-                server=server,
-                extra_caps=extra_caps,
-            )
-        except Exception as e:
-            print_error(f"Could not open an Appium Android session ({e}). Is the Appium server running at {server}?")
-            raise click.Abort()
-        appium_session = crawl_driver
-    else:
-        crawl_driver = AdbCrawlerDriver(serial=serial)
-
-    current = crawl_driver.current_package()
-    if current != package:
-        # Not foreground — a slow launch, a splash, a stuck prior app. Try to launch
-        # it ourselves (adb resolves the launchable activity + polls) before giving
-        # up, so a capricious device doesn't need a manual pre-launch every time.
-        launch = getattr(crawl_driver, "launch", None)
-        if callable(launch):
-            print_info(f"App '{package}' not in the foreground (found '{current}') — launching it…")
-            launch(package)
-            current = crawl_driver.current_package()
-    if current != package:
-        hint = (
-            f"adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1"
-            if platform == "android"
-            else f"xcrun simctl launch booted {package}"
+    try:
+        crawl_driver, appium_session = build_crawl_driver(
+            package=package,
+            platform=platform,
+            driver=driver,
+            serial=serial,
+            udid=udid,
+            device_name=device_name,
+            server=server,
+            extra_caps=extra_caps,
+            launch_args=launch_args,
+            app_activity=app_activity,
         )
-        print_error(f"App '{package}' is not in the foreground (found '{current}'). Launch it first: {hint}")
+    except CrawlServiceError as e:
+        print_error(str(e))
+        raise click.Abort()
+
+    # Get the app to the foreground (launching it ourselves if the device left it
+    # behind), so a capricious device doesn't need a manual pre-launch every time.
+    check = ensure_foreground(crawl_driver, package, platform)
+    if check.launched:
+        print_info(f"App '{package}' was not in the foreground (found '{check.found}') — launched it.")
+    if not check.ok:
+        print_error(
+            f"App '{package}' is not in the foreground (found '{check.current}'). Launch it first: {check.hint}"
+        )
         if appium_session:
             appium_session.quit()
         raise click.Abort()
@@ -164,76 +140,21 @@ def crawl(
             appium_session.quit()
     print_success(f"Discovered {len(result.screens)} screen(s), {len(result.transitions)} transition(s)")
 
-    out = Path(output)
-    out.mkdir(parents=True, exist_ok=True)
-
-    # 1) Element inventory (Markdown + JSON) — the tester-facing map.
-    (out / "inventory.md").write_text(inventory_markdown(result, package), encoding="utf-8", newline="\n")
-    (out / "inventory.json").write_text(inventory_json_str(result, package), encoding="utf-8", newline="\n")
-    print_info(f"Inventory: {out / 'inventory.md'}")
-
-    # 2) Interaction graph — Mermaid (renders on GitHub), Graphviz DOT, JSON.
-    graph = build_graph(result, package)
-    (out / "graph.mmd").write_text(to_mermaid(graph), encoding="utf-8", newline="\n")
-    (out / "graph.dot").write_text(to_dot(graph), encoding="utf-8", newline="\n")
-    (out / "graph.json").write_text(to_json(graph), encoding="utf-8", newline="\n")
-    gm = graph.metrics()
-    print_info(f"Graph: {gm['screens']} screens, {gm['transitions']} transitions, {gm['dead_ends']} dead-end(s)")
-
-    # 3) Tests. flat = one standalone file per target; pom = a framework layout
-    # (Page Objects + conftest + POM-style tests) for the Python targets.
-    target_ids = {t.id for t in available_targets()}
-    model = build_test_model(
-        result, app_package=package, app_activity=app_activity, launch_args=list(launch_args) or None
+    report = write_kit(
+        result=result,
+        output=output,
+        package=package,
+        targets=targets,
+        style=style,
+        scaffold=scaffold,
+        server=server,
+        app_activity=app_activity,
+        launch_args=launch_args,
     )
-    if not model.cases:
-        print_info("No locatable elements — no tests generated (see inventory.md).")
-    from framework.licensing import allow_targets
+    for line in report.info:
+        print_info(line)
+    for warning in report.warnings:
+        print_error(warning)
 
-    # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
-    requested = allow_targets([t.strip() for t in targets.split(",") if t.strip()])
-
-    if style == "pom" and model.cases:
-        from framework.crawler.page_kit import build_framework_kit
-
-        framework_files = build_framework_kit(result, model, package)
-        for rel, content in framework_files.items():
-            dest = out / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content, encoding="utf-8", newline="\n")
-        if framework_files:
-            print_info(f"Framework (Page Objects + conftest + tests): {out}")
-
-    for target in requested:
-        if target not in target_ids:
-            print_error(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
-            continue
-        # In pom mode the Python framework layout above already covers pytest.
-        if style == "pom" and target == "python_pytest":
-            continue
-        for name, content in get_emitter(target).emit(model).items():
-            dest = out / target / name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content, encoding="utf-8", newline="\n")
-        print_info(f"Tests ({target}): {out / target}")
-
-    # 4) Optional: a runnable project shell (deps + runner config + README) so the
-    # output is `install && test` away from running — a new framework in place.
-    if scaffold and model.cases:
-        from framework.codegen.scaffold import scaffold_files
-
-        wrote = False
-        for target in requested:
-            files = scaffold_files(model, target, server=server)
-            if not files:
-                continue
-            for rel, content in files.items():
-                (out / rel).write_text(content, encoding="utf-8", newline="\n")
-            print_success(f"Scaffolded a runnable {target} project in {out} (see README.md)")
-            wrote = True
-            break  # one project shell per output dir
-        if not wrote:
-            print_info(f"No project scaffold for {', '.join(requested)} yet (specs written; add to your framework).")
-
-    print_success(f"Kit written to {out.absolute()}")
-    logger.info(f"Crawl kit for {package}: {len(result.screens)} screens -> {out}")
+    print_success(f"Kit written to {Path(output).absolute()}")
+    logger.info(f"Crawl kit for {package}: {len(result.screens)} screens -> {output}")
