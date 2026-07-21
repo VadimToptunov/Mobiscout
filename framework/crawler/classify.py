@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from framework.crawler.app_crawler import CrawlElement
 
@@ -119,48 +120,88 @@ def _load_model():
     return _model
 
 
-def _heuristic(element: CrawlElement) -> str:
-    """Rule-based type from class name + attributes. Covers Android and iOS
-    (XCUIElementType* names) and is the reliable fallback for inputs/toggles."""
-    cls = (element.class_name or "").lower()
-    desc = (element.content_desc or "").lower()
+@dataclass(frozen=True)
+class _Signals:
+    """The normalised inputs the type rules read, gathered once per element.
 
-    # Specific interactive types first — "RadioButton"/"ToggleButton" also
-    # contain "button", so they must be matched before the generic button rule.
-    if any(k in cls for k in ("edittext", "textfield", "securetextfield", "searchfield", "input")):
-        return "input"
-    if "checkbox" in cls:
-        return "checkbox"
-    if "radio" in cls:
-        return "radio"
-    if "switch" in cls or "toggle" in cls:
-        return "switch"
+    Attributes:
+        cls: Lower-cased class name (Android class or iOS XCUIElementType*).
+        desc: Lower-cased content-description (for button-ish keyword hints).
+        clickable: Whether the element is clickable.
+        text: The element's visible text (raw; truthiness matters).
+        content_desc: The raw content-description (truthiness matters).
+        scrollable: Whether the element scrolls (a generic scroller is a list).
+        focusable: Whether the element takes focus (with password -> input).
+        password: Whether the element is a masked/secure field.
+    """
+
+    cls: str
+    desc: str
+    clickable: bool
+    text: str
+    content_desc: str
+    scrollable: bool
+    focusable: bool
+    password: bool
+
+
+def _any(cls: str, *keys: str) -> bool:
+    """True if any of ``keys`` is a substring of the (lower-cased) class name."""
+    return any(k in cls for k in keys)
+
+
+# Ordered type rules: the first whose predicate matches wins, so order encodes
+# precedence. Specific interactive class names come first ("RadioButton" and
+# "ToggleButton" also contain "button", so they must beat the generic button
+# rule); then list/webview/image; then a *behavioural* fallback for generic
+# containers (View/ViewGroup/Other/Compose) whose class name says nothing.
+_RULES: List[Tuple[Callable[[_Signals], bool], str]] = [
+    # --- specific interactive types, by class name ---
+    (lambda s: _any(s.cls, "edittext", "textfield", "securetextfield", "searchfield", "input"), "input"),
+    (lambda s: "checkbox" in s.cls, "checkbox"),
+    (lambda s: "radio" in s.cls, "radio"),
+    (lambda s: "switch" in s.cls or "toggle" in s.cls, "switch"),
     # SegmentedControl and MenuItem are tappable, button-like controls — found
     # misclassified as generic when validating against real ChaosBank elements.
-    if "button" in cls or "btn" in cls or "segmented" in cls or "menuitem" in cls:
-        return "button"
-    if any(k in cls for k in ("recycler", "listview", "collectionview", "tableview", "scrollview")):
-        return "list"
-    if "webview" in cls:
-        return "webview"
-    if "image" in cls or "icon" in cls:
-        return "image"
+    (lambda s: _any(s.cls, "button", "btn", "segmented", "menuitem"), "button"),
+    (lambda s: _any(s.cls, "recycler", "listview", "collectionview", "tableview", "scrollview"), "list"),
+    (lambda s: "webview" in s.cls, "webview"),
+    (lambda s: "image" in s.cls or "icon" in s.cls, "image"),
     # A *non-clickable* text/label element is text; a clickable one is a tappable
-    # label (a button/link), so let it fall through to the behavioural button rule.
-    if ("text" in cls or "label" in cls or "statictext" in cls) and not element.clickable:
-        return "text"
-    # Generic container (View/ViewGroup/Other/Compose): the class says nothing, so
-    # fall back to *behaviour*. A scrollable one is a list; a clickable, labelled
-    # one is a button; a focusable password field is an input; a non-interactive
-    # one that carries text is a label.
-    if getattr(element, "scrollable", False):
-        return "list"
-    if element.clickable and (element.text or "button" in desc or "btn" in desc or element.content_desc):
-        return "button"
-    if getattr(element, "focusable", False) and getattr(element, "password", False):
-        return "input"
-    if element.text and not element.clickable:
-        return "text"
+    # label (a button/link), so it fails here and falls through to the button rule.
+    (lambda s: _any(s.cls, "text", "label", "statictext") and not s.clickable, "text"),
+    # --- behavioural fallback for generic containers ---
+    (lambda s: s.scrollable, "list"),
+    (lambda s: s.clickable and bool(s.text or "button" in s.desc or "btn" in s.desc or s.content_desc), "button"),
+    (lambda s: s.focusable and s.password, "input"),
+    (lambda s: bool(s.text) and not s.clickable, "text"),
+]
+
+
+def _heuristic(element: CrawlElement) -> str:
+    """Rule-based type from class name + attributes. Covers Android and iOS
+    (XCUIElementType* names) and is the reliable fallback for inputs/toggles.
+
+    Args:
+        element: The crawled element to classify.
+
+    Returns:
+        The element type label ("button", "input", …), or "generic" if no rule
+        in :data:`_RULES` matches.
+    """
+    signals = _Signals(
+        cls=(element.class_name or "").lower(),
+        desc=(element.content_desc or "").lower(),
+        clickable=element.clickable,
+        text=element.text,
+        content_desc=element.content_desc,
+        scrollable=getattr(element, "scrollable", False),
+        focusable=getattr(element, "focusable", False),
+        password=getattr(element, "password", False),
+    )
+    for predicate, label in _RULES:
+        if predicate(signals):
+            return label
     return "generic"
 
 
