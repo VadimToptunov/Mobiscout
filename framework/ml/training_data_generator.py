@@ -72,69 +72,38 @@ class TrainingDataGenerator:
         return labeled_node
 
     def _infer_element_type(self, element: Dict[str, Any]) -> ElementType:
+        """Infer an element's type with the crawler's canonical rule heuristic.
+
+        This used to carry its own copy of the class -> type rules (a second
+        implementation that even mislabelled RadioButton as a button, since it
+        checked "button" before "radio"). It now delegates to the single source of
+        truth, ``framework.crawler.classify._heuristic`` — which is behaviour-aware
+        (scrollable/focusable) and correct on the overlapping class names — adapting
+        the event dict to a CrawlElement. The generator-specific ``checkable ->
+        checkbox`` mapping (the heuristic keys checkboxes off the class name) is kept
+        for otherwise-unclassified elements.
         """
-        Infer element type using rule-based heuristics.
+        from framework.crawler.app_crawler import CrawlElement
+        from framework.crawler.classify import _heuristic
 
-        This is a simplified version - the ML model will learn to do this better.
-        """
-        class_name = element.get("class", "").lower()
-        text = element.get("text", "")
-        content_desc = element.get("content_desc", "") or element.get("label", "")
-        clickable = element.get("clickable", False)
-        checkable = element.get("checkable", False)
-        password = element.get("password", False)
-
-        # Button detection - improved with content_desc
-        if "button" in class_name or "btn" in class_name.lower():
-            return ElementType.BUTTON
-        if clickable and ("button" in content_desc.lower() or "btn" in content_desc.lower()):
-            return ElementType.BUTTON
-
-        # Input field detection
-        if "edit" in class_name or "textfield" in class_name or "input" in class_name:
-            if password:
-                return ElementType.INPUT  # Password input
-            return ElementType.INPUT
-
-        # Checkbox detection - improved with checkable attribute
-        if "checkbox" in class_name or "check" in class_name or checkable:
-            return ElementType.CHECKBOX
-
-        # Radio button detection
-        if "radio" in class_name or "radio" in content_desc.lower():
-            return ElementType.RADIO
-
-        # Switch detection
-        if "switch" in class_name or "toggle" in class_name:
-            return ElementType.SWITCH
-
-        # List detection
-        if "recycler" in class_name or "listview" in class_name or "collection" in class_name:
-            return ElementType.LIST
-
-        # Image detection
-        if "image" in class_name or "icon" in class_name:
-            return ElementType.IMAGE
-
-        # Text detection
-        if text and len(text) > 3 and not clickable:
-            if "text" in class_name:
-                return ElementType.TEXT
-
-        # WebView detection
-        if "webview" in class_name:
-            return ElementType.WEBVIEW
-
-        # Clickable without specific type = button
-        if clickable and not text:
-            return ElementType.BUTTON
-
-        # Text with clickable = button
-        if clickable and text:
-            return ElementType.BUTTON
-
-        # Default
-        return ElementType.GENERIC
+        ce = CrawlElement(
+            resource_id=element.get("resource-id", "") or element.get("resource_id", "") or "",
+            text=element.get("text", "") or "",
+            content_desc=element.get("content_desc", "") or element.get("label", "") or "",
+            class_name=element.get("class", "") or "",
+            clickable=bool(element.get("clickable")),
+            bounds=(0, 0, 0, 0),
+            checkable=bool(element.get("checkable")),
+            focusable=bool(element.get("focusable")),
+            password=bool(element.get("password")),
+        )
+        try:
+            element_type = ElementType(_heuristic(ce))
+        except ValueError:  # a heuristic label with no ElementType member
+            element_type = ElementType.GENERIC
+        if element_type is ElementType.GENERIC and ce.checkable:
+            element_type = ElementType.CHECKBOX  # a bare checkable control -> checkbox
+        return element_type
 
     def generate_synthetic_dataset(
         self,
