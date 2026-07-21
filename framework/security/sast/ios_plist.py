@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -20,6 +21,8 @@ from framework.security.sast.base import (
     SASTFinding,
     SASTResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class IOSPlistAnalyzer:
@@ -92,7 +95,9 @@ class IOSPlistAnalyzer:
                     )
                 )
 
-        except (OSError, Exception):
-            pass
+        except Exception as e:
+            # Broad by design (a malformed plist must not abort the scan), but a
+            # skipped Info.plist leaves its ATS/URL-scheme issues unaudited.
+            logger.debug("SAST ios-plist: skipped %s: %s", plist_path, e)
 
         return findings

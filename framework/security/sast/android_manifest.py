@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -20,6 +21,8 @@ from framework.security.sast.base import (
     SASTFinding,
     SASTResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AndroidManifestAnalyzer:
@@ -149,7 +152,8 @@ class AndroidManifestAnalyzer:
                         )
                     )
 
-        except (ET.ParseError, OSError):
-            pass
+        except (ET.ParseError, OSError) as e:
+            # A manifest we can't parse/read means its permissions go unaudited.
+            logger.debug("SAST android-manifest: skipped %s: %s", manifest_path, e)
 
         return findings

@@ -3,6 +3,7 @@
 import ast
 import hashlib
 import json
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -20,6 +21,8 @@ from framework.security.sast.base import (
     SASTFinding,
     SASTResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ControlFlowAnalyzer:
@@ -46,8 +49,9 @@ class ControlFlowAnalyzer:
                 if isinstance(node, ast.Try):
                     findings.extend(self._check_exception_handling(node, file_path))
 
-        except (SyntaxError, OSError, UnicodeDecodeError):
-            pass
+        except (SyntaxError, OSError, UnicodeDecodeError) as e:
+            # Unparseable/unreadable source is silently absent from the scan results.
+            logger.debug("SAST control-flow: skipped %s: %s", file_path, e)
 
         return findings
 
