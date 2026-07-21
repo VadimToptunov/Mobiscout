@@ -6,13 +6,11 @@ test projects.
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
 
 import click
 import yaml  # type: ignore
-from pydantic import ValidationError
 
 from framework.analyzers.business_logic_analyzer import BusinessLogicAnalyzer
 from framework.cli.rich_output import (
@@ -26,10 +24,8 @@ from framework.cli.rich_output import (
     create_progress,
 )
 from framework.integration.model_enricher import ProjectIntegrator
-from framework.model.app_model import AppModel
 from framework.utils.error_handling import handle_cli_errors, validate_and_raise
 from framework.utils.logger import get_logger, setup_logging
-from framework.utils.sanitizer import sanitize_identifier, sanitize_class_name
 
 # Setup logging
 setup_logging(level="INFO")
@@ -405,6 +401,8 @@ def generate(
     Example:
         mobiscout project generate --project ~/flykk-test-automation
     """
+    from framework.cli.generate_service import GenerateServiceError, generate_suite, load_app_model
+
     logger.info(f"Starting code generation: project={project}")
 
     project_path = Path(project)
@@ -423,173 +421,30 @@ def generate(
 
     click.echo(f"\n📖 Loading model: {model_path.name}")
 
-    # Load and validate model
     try:
-        with open(model_path, "r", encoding="utf-8") as f:
-            model_data = yaml.safe_load(f)
-
-        # Ensure meta field exists
-        if "meta" not in model_data:
-            logger.warning("Model missing 'meta' field, adding default")
-            model_data["meta"] = {
-                "schema_version": "1.0.0",
-                "app_version": "unknown",
-                "platform": "cross-platform",
-                "recorded_at": datetime.now().isoformat(),
-            }
-
-        # Ensure other required fields exist
-        model_data.setdefault("screens", {})
-        model_data.setdefault("api_calls", {})
-        model_data.setdefault("flows", [])
-
-        model = AppModel(**model_data)
-
-    except FileNotFoundError:
-        click.echo(f"❌ Error: Model file not found: {model_path}")
-        logger.error(f"Model file not found: {model_path}")
-        return
-    except yaml.YAMLError as e:
-        click.echo(f"❌ Error: Invalid YAML format: {e}")
-        logger.error(f"YAML parse error: {e}")
-        return
-    except ValidationError as e:
-        click.echo("❌ Error: Invalid model format:")
-        for error in e.errors():
-            field = " -> ".join(str(x) for x in error["loc"])
-            click.echo(f"   - {field}: {error['msg']}")
-        logger.error(f"Model validation error: {e}")
-        return
-    except Exception as e:
-        click.echo(f"❌ Error: Failed to load model: {e}")
-        logger.error(f"Unexpected error loading model: {e}", exc_info=True)
+        model = load_app_model(model_path)
+    except GenerateServiceError as e:
+        click.echo(f"❌ Error: {e}")
         return
 
-    stats = {"page_objects": 0, "tests": 0, "api_tests": 0, "features": 0}
+    report = generate_suite(
+        model,
+        project_path,
+        generate_page_objects=generate_page_objects,
+        generate_tests=generate_tests,
+        generate_api_tests=generate_api_tests,
+        generate_features=generate_features,
+    )
 
-    # Generate Page Objects
-    if generate_page_objects and model.screens:
-        click.echo("\n1️⃣  Generating Page Objects...")
-        po_dir = project_path / "page_objects"
-        po_dir.mkdir(exist_ok=True)
-
-        try:
-            from framework.codegen.page_object import emit_page_objects
-
-            for filename, content in emit_page_objects(model).items():
-                dest = po_dir / filename
-                dest.write_text(content, encoding="utf-8", newline="\n")
-                stats["page_objects"] += 1
-                click.echo(f"   ✅ {dest.name}")
-                logger.debug(f"Generated Page Object: {dest}")
-        except Exception as e:
-            click.echo(f"   ❌ Page Object generation failed: {e}")
-            logger.error(f"Page Object generation failed: {e}", exc_info=True)
-
-    # Generate API Client
-    if generate_api_tests and len(model.api_calls) > 0:
-        click.echo("\n2️⃣  Generating API Client...")
-        api_dir = project_path / "tests" / "api"
-        api_dir.mkdir(parents=True, exist_ok=True)
-
-        try:
-            from framework.codegen.api_client import emit_api_client
-
-            for filename, content in emit_api_client(model).items():
-                (api_dir / filename).write_text(content, encoding="utf-8", newline="\n")
-            stats["api_tests"] = len(model.api_calls)
-            click.echo(f"   ✅ API Client with {len(model.api_calls)} endpoints")
-            logger.info(f"Generated API client in {api_dir}")
-        except Exception as e:
-            click.echo(f"   ⚠️  API client generation failed: {e}")
-            logger.warning(f"API client generation failed: {e}")
-
-    # Generate BDD Features
-    if generate_features and len(model.flows) > 0:
-        click.echo("\n3️⃣  Generating BDD Features...")
-        features_dir = project_path / "features"
-        features_dir.mkdir(exist_ok=True)
-
-        try:
-            from framework.codegen.bdd_feature import emit_feature_files
-
-            for filename, content in emit_feature_files(model).items():
-                try:
-                    (features_dir / filename).write_text(content, encoding="utf-8", newline="\n")
-                    stats["features"] += 1
-                    click.echo(f"   ✅ {filename}")
-                    logger.debug(f"Generated BDD feature: {features_dir / filename}")
-                except Exception as e:
-                    click.echo(f"   ⚠️  Failed to generate {filename}: {e}")
-                    logger.warning(f"Failed to write BDD feature {filename}: {e}")
-        except Exception as e:
-            click.echo(f"   ❌ BDD feature generation failed: {e}")
-            logger.error(f"BDD feature generation failed: {e}", exc_info=True)
-
-    # Generate Integration Tests
-    if generate_tests and model.screens:
-        click.echo("\n4️⃣  Generating Integration Tests...")
-        tests_dir = project_path / "tests" / "integration"
-        tests_dir.mkdir(parents=True, exist_ok=True)
-
-        try:
-            for screen_id, screen in model.screens.items():
-                try:
-                    test_file = tests_dir / f"test_{sanitize_identifier(screen_id)}.py"
-
-                    # Sanitize names for valid Python code
-                    class_name = sanitize_class_name(screen.name)
-                    page_module = sanitize_identifier(screen_id)
-
-                    print_info(f"Generating test for {screen.name} → {class_name}Page")
-
-                    # Simple test template
-                    test_content = f'''"""
-Integration tests for {screen.name}
-Auto-generated from app model
-"""
-import pytest
-from page_objects.{page_module}_page import {class_name}Page
-
-
-class Test{class_name}:
-    """Test suite for {screen.name}"""
-
-    @pytest.fixture
-    def page(self, driver):
-        """Initialize page object"""
-        return {class_name}Page(driver)
-
-    def test_{sanitize_identifier(screen_id)}_loads(self, page):
-        """Test that {screen.name} loads successfully"""
-        assert page.is_displayed(), "{screen.name} should be displayed"
-'''
-
-                    # Add element tests (limit to first 3 elements)
-                    for element in screen.elements[:3]:
-                        if "tappable" in element.capabilities:
-                            element_name = sanitize_identifier(element.id)
-                            test_content += f'''
-    def test_{element_name}_clickable(self, page):
-        """Test {element.id} is clickable"""
-        assert page.{element_name}.is_clickable()
-'''
-
-                    with open(test_file, "w", encoding="utf-8") as f:
-                        f.write(test_content)
-
-                    stats["tests"] += 1
-                    click.echo(f"   ✅ test_{sanitize_identifier(screen_id)}.py")
-                    logger.debug(f"Generated test: {test_file}")
-
-                except Exception as e:
-                    click.echo(f"   ⚠️  Failed to generate test for {screen_id}: {e}")
-                    logger.warning(f"Failed to generate test for {screen_id}: {e}")
-        except Exception as e:
-            click.echo(f"   ❌ Test generation failed: {e}")
-            logger.error(f"Test generation failed: {e}", exc_info=True)
+    for step in report.steps:
+        click.echo(f"\n{step.emoji}  {step.title}...")
+        for item in step.items:
+            click.echo(f"   ✅ {item}")
+        for warning in step.warnings:
+            click.echo(f"   ⚠️  {warning}")
 
     # Summary
+    stats = report.stats
     click.echo("\n" + "=" * 70)
     click.echo("✅ Test Suite Generation Complete!")
     click.echo("=" * 70)
@@ -603,7 +458,7 @@ class Test{class_name}:
     if stats["features"] > 0:
         click.echo(f"   📝 {stats['features']} BDD Features")
 
-    if all(v == 0 for v in stats.values()):
+    if report.nothing_generated:
         click.echo("   ⚠️  No code was generated. Check if model contains data.")
 
     click.echo(f"\n📁 Output: {project_path}")
