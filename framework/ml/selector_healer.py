@@ -2,41 +2,34 @@
 Selector healing engine for self-healing test scripts.
 
 Automatically detects broken selectors and generates alternative strategies.
+
+This module was decomposed by responsibility: the shared value types live in
+:mod:`framework.ml.healing_types`, the stateless strategy builders in
+:mod:`framework.ml.healing_strategies`, and the fallback-usage/Page-Object
+auto-update behaviour in :mod:`framework.ml.fallback_tracker` (inherited here).
+``HealingStrategy`` and ``HealingResult`` are re-exported so existing imports
+(``from framework.ml.selector_healer import ...``) keep working.
 """
 
 import logging
-from dataclasses import dataclass
-from enum import Enum
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
+from framework.ml.fallback_tracker import FallbackTracker
+from framework.ml.healing_strategies import (
+    heal_with_attributes,
+    heal_with_hierarchy,
+    heal_with_position,
+    heal_with_text,
+)
+from framework.ml.healing_types import HealingResult, HealingStrategy
 from framework.model.app_model import Selector
 
 logger = logging.getLogger(__name__)
 
-
-class HealingStrategy(str, Enum):
-    """Selector healing strategies."""
-
-    TEXT_BASED = "text_based"
-    POSITION_BASED = "position_based"
-    HIERARCHY_BASED = "hierarchy_based"
-    VISUAL_BASED = "visual_based"
-    ATTRIBUTE_BASED = "attribute_based"
+__all__ = ["HealingStrategy", "HealingResult", "SelectorHealer"]
 
 
-@dataclass
-class HealingResult:
-    """Result of selector healing attempt."""
-
-    success: bool
-    original_selector: str
-    healed_selector: Optional[str]
-    strategy: Optional[HealingStrategy]
-    confidence: float
-    reason: str
-
-
-class SelectorHealer:
+class SelectorHealer(FallbackTracker):
     """
     Self-healing selector engine.
 
@@ -49,9 +42,8 @@ class SelectorHealer:
 
     def __init__(self):
         """Initialize selector healer."""
+        super().__init__()
         self.healing_history: List[HealingResult] = []
-        self.fallback_reports: List[Dict[str, Any]] = []
-        self.page_object_updates: List[Dict[str, Any]] = []
         self.healing_stats: Dict[str, Any] = {
             "total_healed": 0,
             "successful": 0,
@@ -61,204 +53,6 @@ class SelectorHealer:
             # _heal_with_visual; must exist up front or every visual heal raises
             # KeyError (which the broad handler swallows -> heal silently lost).
             "visual_based": {"successes": 0, "failures": 0},
-        }
-
-    def report_fallback_usage(
-        self,
-        element_name: str,
-        page_object_file: str,
-        primary_selector: str,
-        successful_fallback: str,
-        fallback_index: int,
-        platform: str,
-    ) -> None:
-        """
-        Report that a fallback selector was used successfully.
-
-        This is called from Page Object _find_element_with_fallback() method
-        when a fallback selector succeeds after primary fails.
-
-        Args:
-            element_name: Name of the element (e.g., 'login_button')
-            page_object_file: Path to Page Object file
-            primary_selector: The selector that failed
-            successful_fallback: The fallback selector that succeeded
-            fallback_index: Index of fallback (0-based)
-            platform: 'android' or 'ios'
-        """
-        report = {
-            "timestamp": self._get_timestamp(),
-            "element_name": element_name,
-            "page_object_file": page_object_file,
-            "primary_selector": primary_selector,
-            "successful_fallback": successful_fallback,
-            "fallback_index": fallback_index,
-            "platform": platform,
-        }
-
-        self.fallback_reports.append(report)
-
-        logger.info(
-            f"[SelectorHealer] Fallback reported: {element_name} in {page_object_file}\n"
-            f"  Failed: {primary_selector}\n"
-            f"  Succeeded: {successful_fallback} (fallback #{fallback_index + 1})"
-        )
-
-        # Auto-update Page Object if threshold reached
-        if self._should_auto_update(element_name, page_object_file):
-            self.update_page_object(page_object_file, element_name, successful_fallback, platform)
-
-    def _should_auto_update(self, element_name: str, page_object_file: str) -> bool:
-        """
-        Determine if Page Object should be auto-updated.
-
-        Auto-update if:
-        - Same element failed 3+ times
-        - Same fallback succeeded 3+ times
-        """
-        # Count failures for this element in this file
-        failures = [
-            r
-            for r in self.fallback_reports
-            if r["element_name"] == element_name and r["page_object_file"] == page_object_file
-        ]
-
-        if len(failures) < 3:
-            return False
-
-        # Check if same fallback succeeded multiple times
-        recent_failures = failures[-5:]  # Last 5 failures
-        fallback_counts = {}
-
-        for failure in recent_failures:
-            fallback = failure["successful_fallback"]
-            fallback_counts[fallback] = fallback_counts.get(fallback, 0) + 1
-
-        # If any fallback succeeded 3+ times, auto-update
-        return any(count >= 3 for count in fallback_counts.values())
-
-    def update_page_object(
-        self, page_object_file: str, element_name: str, new_primary_selector: str, platform: str
-    ) -> bool:
-        """
-        Update Page Object file with new primary selector.
-
-        Args:
-            page_object_file: Path to Page Object file
-            element_name: Element to update
-            new_primary_selector: New selector to promote to primary
-            platform: 'android' or 'ios'
-
-        Returns:
-            True if update successful
-        """
-        from pathlib import Path
-        import re
-
-        page_path = Path(page_object_file)
-
-        if not page_path.exists():
-            logger.error(f"[SelectorHealer] Page Object not found: {page_object_file}")
-            return False
-
-        try:
-            # Read current Page Object
-            content = page_path.read_text()
-
-            # Find selector dictionary for this element
-            selector_name = f"{element_name.upper()}_SELECTOR"
-
-            # Pattern to match selector dictionary
-            pattern = rf'({selector_name}\s*=\s*\{{[^}}]+"{platform}"\s*:\s*)"([^"]+)"'
-
-            # Replace with new selector
-            def replace_selector(match):
-                prefix = match.group(1)
-                old_selector = match.group(2)
-
-                logger.info(
-                    f"[SelectorHealer] Updating {element_name} in {page_object_file}\n"
-                    f"  Old ({platform}): {old_selector}\n"
-                    f"  New ({platform}): {new_primary_selector}"
-                )
-
-                return f'{prefix}"{new_primary_selector}"'
-
-            updated_content = re.sub(pattern, replace_selector, content, count=1)
-
-            if updated_content == content:
-                logger.warning(f"[SelectorHealer] Selector not found for update: {selector_name} ({platform})")
-                return False
-
-            # Backup original file
-            backup_path = page_path.with_suffix(".py.bak")
-            page_path.rename(backup_path)
-
-            # Write updated content
-            page_path.write_text(updated_content)
-
-            # Record update
-            update_record = {
-                "timestamp": self._get_timestamp(),
-                "page_object_file": page_object_file,
-                "element_name": element_name,
-                "platform": platform,
-                "new_primary_selector": new_primary_selector,
-                "backup_file": str(backup_path),
-            }
-
-            self.page_object_updates.append(update_record)
-
-            logger.info(
-                "[SelectorHealer] Page Object updated successfully!\n"
-                f"  File: {page_object_file}\n"
-                f"  Element: {element_name}\n"
-                f"  Platform: {platform}\n"
-                f"  New selector: {new_primary_selector}\n"
-                f"  Backup: {backup_path}"
-            )
-
-            return True
-
-        except (OSError, re.error, UnicodeDecodeError, ValueError) as e:
-            logger.error(f"[SelectorHealer] Failed to update Page Object: {e}")
-            return False
-
-    def _get_timestamp(self) -> str:
-        """Get current timestamp as ISO string."""
-        from datetime import datetime
-
-        return datetime.now().isoformat()
-
-    def get_fallback_stats(self) -> Dict[str, Any]:
-        """Get statistics about fallback usage."""
-        if not self.fallback_reports:
-            return {
-                "total_fallbacks": 0,
-                "unique_elements": 0,
-                "unique_page_objects": 0,
-                "auto_updates": len(self.page_object_updates),
-                "by_platform": {},
-            }
-
-        # Count unique elements and files
-        unique_elements = set(r["element_name"] for r in self.fallback_reports)
-        unique_files = set(r["page_object_file"] for r in self.fallback_reports)
-
-        # Count by platform
-        by_platform = {}
-        for report in self.fallback_reports:
-            platform = report["platform"]
-            if platform not in by_platform:
-                by_platform[platform] = 0
-            by_platform[platform] += 1
-
-        return {
-            "total_fallbacks": len(self.fallback_reports),
-            "unique_elements": len(unique_elements),
-            "unique_page_objects": len(unique_files),
-            "auto_updates": len(self.page_object_updates),
-            "by_platform": by_platform,
         }
 
     def detect_broken_selector(self, selector: Selector, execution_result: Dict[str, Any]) -> bool:
@@ -381,23 +175,21 @@ class SelectorHealer:
     def _try_healing_strategy(
         self, broken_selector: Selector, context: Dict[str, Any], strategy: HealingStrategy
     ) -> HealingResult:
-        """Try specific healing strategy."""
+        """Dispatch to a specific healing strategy.
 
+        The stateless builders live in :mod:`framework.ml.healing_strategies`;
+        visual healing stays here as it updates ``healing_stats``.
+        """
         if strategy == HealingStrategy.TEXT_BASED:
-            return self._heal_with_text(broken_selector, context)
-
+            return heal_with_text(broken_selector, context)
         elif strategy == HealingStrategy.ATTRIBUTE_BASED:
-            return self._heal_with_attributes(broken_selector, context)
-
+            return heal_with_attributes(broken_selector, context)
         elif strategy == HealingStrategy.HIERARCHY_BASED:
-            return self._heal_with_hierarchy(broken_selector, context)
-
+            return heal_with_hierarchy(broken_selector, context)
         elif strategy == HealingStrategy.POSITION_BASED:
-            return self._heal_with_position(broken_selector, context)
-
+            return heal_with_position(broken_selector, context)
         elif strategy == HealingStrategy.VISUAL_BASED:
             return self._heal_with_visual(broken_selector, context)
-
         else:
             return HealingResult(
                 success=False,
@@ -407,159 +199,6 @@ class SelectorHealer:
                 confidence=0.0,
                 reason=f"Unknown strategy: {strategy}",
             )
-
-    def _heal_with_text(self, broken_selector: Selector, context: Dict[str, Any]) -> HealingResult:
-        """Heal selector using element text."""
-        text = context.get("text")
-
-        if not text:
-            return HealingResult(
-                success=False,
-                original_selector=str(broken_selector),
-                healed_selector=None,
-                strategy=HealingStrategy.TEXT_BASED,
-                confidence=0.0,
-                reason="No text available",
-            )
-
-        # Generate text-based selector
-        platform = context.get("platform", "android")
-
-        if platform == "android":
-            healed = f"//android.widget.*[@text='{text}']"
-        else:  # iOS
-            healed = f"//XCUIElementType*[@label='{text}']"
-
-        confidence = 0.8 if not context.get("text_dynamic") else 0.6
-
-        return HealingResult(
-            success=True,
-            original_selector=str(broken_selector),
-            healed_selector=healed,
-            strategy=HealingStrategy.TEXT_BASED,
-            confidence=confidence,
-            reason=f"Using text-based selector: {text}",
-        )
-
-    def _heal_with_attributes(self, broken_selector: Selector, context: Dict[str, Any]) -> HealingResult:
-        """Heal selector using element attributes."""
-        # Collect available attributes
-        attributes = []
-
-        if context.get("content_desc"):
-            attributes.append(f"@content-desc='{context['content_desc']}'")
-
-        if context.get("class"):
-            attributes.append(f"@class='{context['class']}'")
-
-        if context.get("clickable"):
-            attributes.append("@clickable='true'")
-
-        if not attributes:
-            return HealingResult(
-                success=False,
-                original_selector=str(broken_selector),
-                healed_selector=None,
-                strategy=HealingStrategy.ATTRIBUTE_BASED,
-                confidence=0.0,
-                reason="No attributes available",
-            )
-
-        # Build XPath with multiple attributes
-        platform = context.get("platform", "android")
-
-        if platform == "android":
-            healed = f"//android.widget.*[{' and '.join(attributes)}]"
-        else:
-            healed = f"//XCUIElementType*[{' and '.join(attributes)}]"
-
-        confidence = 0.75
-
-        return HealingResult(
-            success=True,
-            original_selector=str(broken_selector),
-            healed_selector=healed,
-            strategy=HealingStrategy.ATTRIBUTE_BASED,
-            confidence=confidence,
-            reason=f"Using attribute-based selector with {len(attributes)} attributes",
-        )
-
-    def _heal_with_hierarchy(self, broken_selector: Selector, context: Dict[str, Any]) -> HealingResult:
-        """Heal selector using parent/sibling hierarchy."""
-        parent = context.get("parent")
-
-        if not parent:
-            return HealingResult(
-                success=False,
-                original_selector=str(broken_selector),
-                healed_selector=None,
-                strategy=HealingStrategy.HIERARCHY_BASED,
-                confidence=0.0,
-                reason="No parent information available",
-            )
-
-        # Build hierarchy-based selector
-        child_text = context.get("text", "")
-        parent_class = parent.get("class", "*")
-
-        platform = context.get("platform", "android")
-
-        if platform == "android":
-            if child_text:
-                healed = f"//{parent_class}/*[@text='{child_text}']"
-            else:
-                healed = f"//{parent_class}/*[@clickable='true']"
-        else:
-            if child_text:
-                healed = f"//{parent_class}/*[@label='{child_text}']"
-            else:
-                healed = f"//{parent_class}/*[@enabled='true']"
-
-        confidence = 0.65
-
-        return HealingResult(
-            success=True,
-            original_selector=str(broken_selector),
-            healed_selector=healed,
-            strategy=HealingStrategy.HIERARCHY_BASED,
-            confidence=confidence,
-            reason="Using parent-child hierarchy",
-        )
-
-    def _heal_with_position(self, broken_selector: Selector, context: Dict[str, Any]) -> HealingResult:
-        """Heal selector using position (fragile)."""
-        position = context.get("position")
-
-        if position is None:
-            return HealingResult(
-                success=False,
-                original_selector=str(broken_selector),
-                healed_selector=None,
-                strategy=HealingStrategy.POSITION_BASED,
-                confidence=0.0,
-                reason="No position information available",
-            )
-
-        # Build position-based selector
-        element_class = context.get("class", "*")
-        platform = context.get("platform", "android")
-
-        if platform == "android":
-            healed = f"(//{element_class})[{position + 1}]"
-        else:
-            healed = f"(//{element_class})[{position + 1}]"
-
-        # Low confidence (position is fragile)
-        confidence = 0.4
-
-        return HealingResult(
-            success=True,
-            original_selector=str(broken_selector),
-            healed_selector=healed,
-            strategy=HealingStrategy.POSITION_BASED,
-            confidence=confidence,
-            reason=f"Using position-based selector (index: {position}) - WARNING: fragile",
-        )
 
     def _heal_with_visual(self, broken_selector: Selector, context: Dict[str, Any]) -> HealingResult:
         """Heal selector using visual recognition (requires screenshot)."""
