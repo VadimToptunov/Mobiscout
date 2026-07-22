@@ -109,3 +109,20 @@ def test_taint_command_runs(runner, tmp_path):
     # severity.upper() on an enum -> crashes.
     result = runner.invoke(security, ["taint", _project(tmp_path, _VULN_SRC)])
     _no_crash(result)
+
+
+_SECRET_SRC = {"cfg.py": "API_KEY = 'sk_live_abcdef1234567890xyz'\nimport logging\nlogging.info(user.email)\n"}
+
+
+def test_secrets_command_runs(runner, tmp_path):
+    # Was: finding.file_path/line_number (only .location), finding.recommendation
+    # (.remediation), risk_level.value.upper() (RiskLevel value is int) -> crashes.
+    result = runner.invoke(security, ["secrets", _project(tmp_path, _SECRET_SRC)])
+    _no_crash(result)
+
+
+def test_privacy_command_runs(runner, tmp_path):
+    # Was: checker.check_compliance(...) doesn't exist (check_pii_logging /
+    # check_tracking_sdks) and finding.file_path/line_number -> crashes.
+    result = runner.invoke(security, ["privacy", _project(tmp_path, _SECRET_SRC), "-r", "gdpr"])
+    _no_crash(result)

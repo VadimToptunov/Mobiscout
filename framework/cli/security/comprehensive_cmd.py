@@ -64,12 +64,16 @@ def comprehensive(
 
     # Run the five analyses in the service, surfacing each step as a progress spinner.
     with create_progress_context() as progress:
+
+        def _on_step(label: str) -> None:
+            progress.add_task(label, total=None)
+
         scan = run_comprehensive_scan(
             app_path,
             platform,
             source_path=source_path,
             target_host=target_host,
-            on_step=lambda label: progress.add_task(label, total=None),
+            on_step=_on_step,
         )
 
     # Summary
