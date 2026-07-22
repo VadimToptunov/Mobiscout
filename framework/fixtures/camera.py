@@ -18,12 +18,12 @@ from typing import Any
 from framework.fixtures.provider import Provider, RealDeviceGateError
 
 
-def _bs_executor(driver, action: str, arguments: dict) -> Any:
+def _bs_executor(driver: Any, action: str, arguments: dict) -> Any:
     payload = json.dumps({"action": action, "arguments": arguments})
     return driver.execute_script(f"browserstack_executor: {payload}")
 
 
-def inject_scan(driver, media: str, provider: Provider = Provider.LOCAL) -> Any:
+def inject_scan(driver: Any, media: str, provider: Provider = Provider.LOCAL) -> Any:
     """Make the camera 'see' ``media`` — for a QR scan or a document scan.
 
     BrowserStack: injects the uploaded media into the camera feed. Local: relies
@@ -42,13 +42,13 @@ def inject_scan(driver, media: str, provider: Provider = Provider.LOCAL) -> Any:
     return {"provider": "local", "action": "camera_image", "image": media}
 
 
-def scan_qr(driver, payload_image: str, provider: Provider = Provider.LOCAL) -> Any:
+def scan_qr(driver: Any, payload_image: str, provider: Provider = Provider.LOCAL) -> Any:
     """Emulate scanning a QR code whose contents are encoded in ``payload_image``
     (generate the QR for the value the app expects, then inject it)."""
     return inject_scan(driver, payload_image, provider)
 
 
-def scan_document(driver, document_image: str, provider: Provider = Provider.LOCAL) -> Any:
+def scan_document(driver: Any, document_image: str, provider: Provider = Provider.LOCAL) -> Any:
     """Emulate scanning an ID/passport by feeding a test document image to the
     scanner (Regula and similar accept image input as well as a live camera)."""
     return inject_scan(driver, document_image, provider)
