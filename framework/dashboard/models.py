@@ -5,7 +5,7 @@ Dashboard data models
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 class TestStatus(Enum):
@@ -37,7 +37,7 @@ class TestResult:
     file_path: str
     error_message: Optional[str] = None
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
@@ -63,7 +63,7 @@ class TestHealth:
     last_failure: Optional[datetime]
     trend: str  # "improving", "stable", "degrading"
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "test_name": self.test_name,
             "total_runs": self.total_runs,
@@ -104,7 +104,7 @@ class HealedSelector:
     def new_selector(self) -> tuple:
         return (self.new_selector_type, self.new_selector_value)
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "test_name": self.test_name,
@@ -134,7 +134,7 @@ class DashboardStats:
     healed_selectors_approved: int
     avg_pass_rate: float
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "total_tests": self.total_tests,
             "passing_tests": self.passing_tests,

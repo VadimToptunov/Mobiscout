@@ -8,7 +8,7 @@ import logging
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Type, List, Optional
+from typing import Type, List, Optional, Any
 
 from .models import TestResult, TestHealth, HealedSelector, TestStatus, HealingStatus
 from types import TracebackType
@@ -27,22 +27,29 @@ class DashboardDB:
             db_path: Path to SQLite database file
         """
         self.db_path = db_path
-        self.conn = None
+        self.conn: Optional[sqlite3.Connection] = None
         import threading
 
         self._lock = threading.Lock()  # Thread safety for shared connection
         self._init_db()
 
-    def __enter__(self):
+    @property
+    def _db(self) -> sqlite3.Connection:
+        """The live SQLite connection; raises if the DB has been closed."""
+        if self.conn is None:
+            raise RuntimeError("DashboardDB connection is closed")
+        return self.conn
+
+    def __enter__(self) -> "DashboardDB":
         """Context manager entry"""
         return self
 
     def __exit__(
         self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
-    ) -> bool:
+    ) -> None:
         """Context manager exit - ensure connection is closed"""
         self.close()
-        return False
+        return None
 
     def __del__(self) -> None:
         """Destructor - ensure connection is closed"""
@@ -152,11 +159,11 @@ class DashboardDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_results_timestamp ON test_results(timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_healed_selectors_status ON healed_selectors(status)")
 
-        self.conn.commit()
+        self._db.commit()
 
     def add_test_result(self, result: TestResult) -> None:
         """Add test result to database"""
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
         cursor.execute(
             """
             INSERT OR REPLACE INTO test_results (id, name, status, duration, timestamp, file_path, error_message)
@@ -172,16 +179,16 @@ class DashboardDB:
                 result.error_message,
             ),
         )
-        self.conn.commit()
+        self._db.commit()
 
     def get_test_results(
         self, limit: int = 100, status: Optional[TestStatus] = None, since: Optional[datetime] = None
     ) -> List[TestResult]:
         """Get test results"""
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
 
         query = "SELECT * FROM test_results WHERE 1=1"
-        params = []
+        params: List[Any] = []
 
         if status:
             query += " AND status = ?"
@@ -216,7 +223,7 @@ class DashboardDB:
         """Calculate test health metrics"""
         since = datetime.now() - timedelta(days=days)
 
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
         cursor.execute(
             """
                        SELECT name,
@@ -266,7 +273,7 @@ class DashboardDB:
 
     def add_healed_selector(self, selector: HealedSelector) -> None:
         """Add healed selector to database"""
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
         cursor.execute(
             """
             INSERT OR REPLACE INTO healed_selectors
@@ -292,11 +299,11 @@ class DashboardDB:
                 selector.test_passes_after,
             ),
         )
-        self.conn.commit()
+        self._db.commit()
 
     def get_healed_selectors(self, status: Optional[HealingStatus] = None) -> List[HealedSelector]:
         """Get healed selectors"""
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
 
         if status:
             cursor.execute("SELECT * FROM healed_selectors WHERE status = ? ORDER BY timestamp DESC", (status.value,))
@@ -328,14 +335,14 @@ class DashboardDB:
 
     def update_selector_status(self, selector_id: str, status: HealingStatus) -> bool:
         """Update selector status"""
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
         cursor.execute("UPDATE healed_selectors SET status = ? WHERE id = ?", (status.value, selector_id))
-        self.conn.commit()
-        return cursor.rowcount > 0
+        self._db.commit()
+        return bool(cursor.rowcount > 0)
 
     def get_selector(self, selector_id: str) -> Optional[HealedSelector]:
         """Get single healed selector"""
-        cursor = self.conn.cursor()
+        cursor = self._db.cursor()
         cursor.execute("SELECT * FROM healed_selectors WHERE id = ?", (selector_id,))
 
         row = cursor.fetchone()

@@ -40,12 +40,12 @@ class DashboardServer:
         """Setup API routes"""
 
         @self.app.get("/")
-        async def root():
+        async def root() -> HTMLResponse:
             """Serve main dashboard page"""
             return HTMLResponse(self._get_dashboard_html())
 
         @self.app.get("/api/stats")
-        async def get_stats():
+        async def get_stats() -> JSONResponse:
             """Get dashboard statistics"""
             health = self.db.get_test_health(days=30)
 
@@ -72,27 +72,27 @@ class DashboardServer:
             return JSONResponse(stats.to_dict())
 
         @self.app.get("/api/tests")
-        async def get_tests(limit: int = 100, status: Optional[str] = None):
+        async def get_tests(limit: int = 100, status: Optional[str] = None) -> JSONResponse:
             """Get test results"""
             test_status = TestStatus(status) if status else None
             results = self.db.get_test_results(limit=limit, status=test_status)
             return JSONResponse([r.to_dict() for r in results])
 
         @self.app.get("/api/tests/health")
-        async def get_test_health(days: int = 30):
+        async def get_test_health(days: int = 30) -> JSONResponse:
             """Get test health metrics"""
             health = self.db.get_test_health(days=days)
             return JSONResponse([h.to_dict() for h in health])
 
         @self.app.get("/api/selectors")
-        async def get_selectors(status: Optional[str] = None):
+        async def get_selectors(status: Optional[str] = None) -> JSONResponse:
             """Get healed selectors"""
             selector_status = HealingStatus(status) if status else None
             selectors = self.db.get_healed_selectors(status=selector_status)
             return JSONResponse([s.to_dict() for s in selectors])
 
         @self.app.post("/api/selectors/{selector_id}/approve")
-        async def approve_selector(selector_id: str):
+        async def approve_selector(selector_id: str) -> JSONResponse:
             """Approve healed selector"""
             selector = self.db.get_selector(selector_id)
             if not selector:
@@ -108,7 +108,7 @@ class DashboardServer:
             return JSONResponse({"status": "approved", "selector_id": selector_id})
 
         @self.app.post("/api/selectors/{selector_id}/reject")
-        async def reject_selector(selector_id: str):
+        async def reject_selector(selector_id: str) -> JSONResponse:
             """Reject healed selector"""
             selector = self.db.get_selector(selector_id)
             if not selector:
@@ -121,7 +121,7 @@ class DashboardServer:
             return JSONResponse({"status": "rejected", "selector_id": selector_id})
 
         @self.app.get("/api/selectors/{selector_id}")
-        async def get_selector(selector_id: str):
+        async def get_selector(selector_id: str) -> JSONResponse:
             """Get single selector"""
             selector = self.db.get_selector(selector_id)
             if not selector:
