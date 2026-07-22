@@ -274,8 +274,6 @@ class LoadTester:
         if not devices:
             raise RuntimeError("No devices available")
 
-        device = devices[user_id % len(devices)]
-
         # Run test
         runner = TestRunner()
         test_path = Path(self.config.test_path) if self.config.test_path else None

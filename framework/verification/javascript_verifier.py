@@ -40,7 +40,6 @@ class JavaScriptVerifier(LanguageVerifier):
             is_test_file = ".test." in file_path.name or ".spec." in file_path.name
 
             if is_test_file:
-                frameworks = ["jest", "mocha", "jasmine", "vitest"]
                 if not any(f in content.lower() for f in ["describe(", "it(", "test("]):
                     issues.append(
                         VerificationIssue(

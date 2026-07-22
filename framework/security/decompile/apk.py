@@ -177,8 +177,6 @@ class APKDecompiler:
                 # Binary XML - would need axml parser
                 return info
 
-            ns = {"android": "http://schemas.android.com/apk/res/android"}
-
             # Package info
             info["package"] = root.get("package")
             info["version_name"] = root.get("{http://schemas.android.com/apk/res/android}versionName")

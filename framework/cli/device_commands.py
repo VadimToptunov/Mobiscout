@@ -219,7 +219,7 @@ def pool_create(name: str, devices: str, strategy: str) -> None:
         pool_strategy = strategy_map[strategy]
 
         # Create pool
-        pool = manager.create_pool(name, pool_strategy)
+        manager.create_pool(name, pool_strategy)
 
         # Add devices
         device_manager = DeviceManager()

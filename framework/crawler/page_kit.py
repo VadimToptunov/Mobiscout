@@ -112,7 +112,6 @@ def _navigation_tests(result: CrawlResult, app_package: str, pages: Dict[str, st
     fps = list(result.screens)
     if not fps:
         return ""
-    idx_of = {fp: i + 1 for i, fp in enumerate(fps)}
     name_of = {}
     for i, (fp, screen) in enumerate(result.screens.items(), 1):
         name_of[fp] = _screen_name(i, screen, app_package)
