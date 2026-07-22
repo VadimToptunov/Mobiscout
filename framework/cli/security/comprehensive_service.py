@@ -165,7 +165,7 @@ def run_comprehensive_scan(
         (
             "SAST",
             "Complete" if sast_result else "Skipped",
-            f"{len(sast_result.vulnerabilities) if sast_result else 0} vulnerabilities",
+            f"{len(sast_result.findings) if sast_result else 0} vulnerabilities",
         ),
         ("Runtime Protection", "Complete", f"Score: {runtime_score:.0f}%"),
         (

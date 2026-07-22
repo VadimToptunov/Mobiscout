@@ -69,11 +69,11 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
             "high": "red",
             "medium": "yellow",
             "low": "dim",
-        }.get(finding.severity, "white")
+        }.get(finding.severity.value, "white")
 
         table.add_row(
             finding.category,
-            f"[{severity_style}]{finding.severity.upper()}[/{severity_style}]",
+            f"[{severity_style}]{finding.severity.value.upper()}[/{severity_style}]",
             finding.title[:50] + ("..." if len(finding.title) > 50 else ""),
         )
 
@@ -143,10 +143,10 @@ def ssl(host: str, port: int) -> None:
             "high": "yellow",
             "medium": "blue",
             "low": "dim",
-        }.get(finding.severity, "white")
+        }.get(finding.severity.value, "white")
 
         table.add_row(
-            f"[{severity_style}]{finding.severity.upper()}[/{severity_style}]",
+            f"[{severity_style}]{finding.severity.value.upper()}[/{severity_style}]",
             finding.title,
             finding.recommendation[:40] + "...",
         )
@@ -205,7 +205,7 @@ def api(base_url: str, auth_header: Optional[str], endpoints: Optional[Path]) ->
             f"[dim]Vulnerability:[/dim] {finding.vulnerability_type}\n\n"
             f"{finding.description}\n\n"
             f"[cyan]Recommendation:[/cyan] {finding.recommendation}",
-            title=f"[{severity_style}]{finding.severity.upper()}[/{severity_style}]",
+            title=f"[{severity_style}]{finding.severity.value.upper()}[/{severity_style}]",
             border_style=severity_style,
         )
         console.print(panel)

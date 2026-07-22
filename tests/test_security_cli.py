@@ -84,3 +84,28 @@ def test_full_scan_exports_each_format(runner, tmp_path, fmt):
     )
     _no_crash(result)
     assert out.exists() and any(out.iterdir())  # a report file was written
+
+
+# A source file with clear findings so the display code paths actually run.
+_VULN_SRC = {"app.py": "import os\nos.system(user_input)\neval(data)\npassword = 'hardcoded12345'\n"}
+
+
+def test_sast_command_runs(runner, tmp_path):
+    # Was: result.vulnerabilities (SASTResult has .findings), severity == "critical"
+    # (Severity is not a str-enum -> always False), export_sarif(result) -> crashes.
+    result = runner.invoke(security, ["sast", _project(tmp_path, _VULN_SRC), "--language", "python"])
+    _no_crash(result)
+
+
+def test_sast_sarif_export(runner, tmp_path):
+    out = tmp_path / "sast.sarif"
+    result = runner.invoke(security, ["sast", _project(tmp_path, _VULN_SRC), "-o", str(out), "--format", "sarif"])
+    _no_crash(result)
+    assert out.exists()
+
+
+def test_taint_command_runs(runner, tmp_path):
+    # Was: flow.source_line / flow.sink_line (TaintFlow has no such attrs),
+    # severity.upper() on an enum -> crashes.
+    result = runner.invoke(security, ["taint", _project(tmp_path, _VULN_SRC)])
+    _no_crash(result)
