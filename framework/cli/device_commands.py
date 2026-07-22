@@ -52,7 +52,7 @@ def list(platform: str, status: str) -> None:
 
         # Filter by status if specified
         if status != "all":
-            all_devices = [d for d in all_devices if d.status.lower() == status]
+            all_devices = [d for d in all_devices if d["status"].lower() == status]
 
         if not all_devices:
             print_info(f"No {status} devices found")
@@ -67,21 +67,21 @@ def list(platform: str, status: str) -> None:
         table.add_column("Status", style="bold")
 
         for device in all_devices:
-            status_emoji = {"available": "✅", "busy": "🔄", "offline": "❌"}.get(device.status.lower(), "❓")
+            status_emoji = {"available": "✅", "busy": "🔄", "offline": "❌"}.get(device["status"].lower(), "❓")
 
             table.add_row(
-                device.device_id,
-                device.name or "Unknown",
-                device.platform.value,
-                device.os_version or "Unknown",
-                f"{status_emoji} {device.status}",
+                device["id"],
+                device.get("name") or "Unknown",
+                device["platform"],
+                device.get("api_level") or device.get("ios_version") or "Unknown",
+                f"{status_emoji} {device['status']}",
             )
 
         console.print(table)
 
         # Show counts by platform
-        android_count = len([d for d in all_devices if d.platform.value == "android"])
-        ios_count = len([d for d in all_devices if d.platform.value == "ios"])
+        android_count = len([d for d in all_devices if d["platform"] == "android"])
+        ios_count = len([d for d in all_devices if d["platform"] == "ios"])
 
         print_info("\n📊 Summary:")
         print_info(f"  Android: {android_count}")
@@ -165,12 +165,12 @@ def health() -> None:
         if healthy:
             print_success(f"✅ Healthy devices: {len(healthy)}")
             for device in healthy:
-                print_info(f"  • {device.device_id} ({device.name})")
+                print_info(f"  • {device["id"]} ({device.get('name')})")
 
         if unhealthy:
             print_error(f"\n❌ Unhealthy devices: {len(unhealthy)}")
             for device in unhealthy:
-                print_error(f"  • {device.device_id} ({device.name})")
+                print_error(f"  • {device["id"]} ({device.get('name')})")
 
         # Summary
         health_percentage = (len(healthy) / len(all_devices) * 100) if all_devices else 0
