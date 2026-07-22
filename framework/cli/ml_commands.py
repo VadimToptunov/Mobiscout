@@ -61,7 +61,7 @@ def train(training_data_path: str, output_path: str, test_split: float) -> None:
         print_info("\n🔄 Training model...")
         accuracy = classifier.train_from_data(training_data, test_size=test_split)
 
-        print_success(f"\n✅ Model trained!")  # noqa: F541
+        print_success("\n✅ Model trained!")
         print_info(f"Accuracy: {accuracy:.2%}")
 
         # Save model
@@ -188,7 +188,7 @@ def predict(model_path: str, element_data: str) -> None:
         element_type, confidence = classifier.predict(element)
 
         # Display result
-        print_success(f"\n✅ Prediction:")  # noqa: F541
+        print_success("\n✅ Prediction:")
         print_info(f"  Type: {element_type.value}")
         print_info(f"  Confidence: {confidence:.2%}")
 
@@ -240,7 +240,7 @@ def create_universal_model(output_path: str, samples_per_type: int) -> None:
         classifier = ElementClassifier()
         accuracy = classifier.train_from_data(training_data, test_size=0.2)
 
-        print_success(f"\n✅ Universal model trained!")  # noqa: F541
+        print_success("\n✅ Universal model trained!")
         print_info(f"Accuracy: {accuracy:.2%}")
 
         # Save model

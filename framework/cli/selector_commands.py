@@ -49,7 +49,7 @@ def parse(selector_string: str, platform: str):
             selector = by_text(selector_string)
             selector_type = "Text"
 
-        console.print(f"[green]✅ Valid selector![/green]\n")
+        console.print("[green]✅ Valid selector![/green]\n")
         console.print(f"Type: [cyan]{selector_type}[/cyan]")
         console.print(f"Value: [cyan]{selector.value}[/cyan]\n")
 
@@ -308,7 +308,7 @@ def benchmark():
         table.add_row(operation, total, avg)
 
     console.print(table)
-    console.print(f"\n[green]✅ All operations completed successfully[/green]")
+    console.print("\n[green]✅ All operations completed successfully[/green]")
 
 
 if __name__ == "__main__":

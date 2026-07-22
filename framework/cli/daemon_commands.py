@@ -462,7 +462,7 @@ def daemon_command(stdio: bool, tcp: Optional[int]):
     server = JSONRPCServer()
 
     if tcp:
-        click.echo(f"TCP mode not yet implemented. Use --stdio for now.", err=True)
+        click.echo("TCP mode not yet implemented. Use --stdio for now.", err=True)
         sys.exit(1)
     else:
         # Configure logging to stderr (won't interfere with JSON-RPC on stdout)
