@@ -85,7 +85,7 @@ def decompile(
 
     console.print(info_table)
 
-    if result.protections:
+    if result.protection_infos:
         console.print("\n[bold]Protection Mechanisms Detected:[/bold]")
 
         protection_table = Table()
@@ -93,7 +93,7 @@ def decompile(
         protection_table.add_column("Status", style="bold")
         protection_table.add_column("Details", style="dim")
 
-        for prot in result.protections:
+        for prot in result.protection_infos:
             status_style = "green" if prot.detected else "red"
             status = "Detected" if prot.detected else "Not Found"
             protection_table.add_row(
@@ -124,10 +124,10 @@ def decompile(
         if len(result.interesting_strings) > 15:
             console.print(f"  [dim]... and {len(result.interesting_strings) - 15} more[/dim]")
 
-    if result.native_libs:
-        console.print(f"\n[bold]Native Libraries ({len(result.native_libs)}):[/bold]")
+    if result.native_lib_infos:
+        console.print(f"\n[bold]Native Libraries ({len(result.native_lib_infos)}):[/bold]")
 
-        for lib in result.native_libs[:10]:
+        for lib in result.native_lib_infos[:10]:
             arch_str = ", ".join(lib.architectures) if lib.architectures else "Unknown"
             console.print(f"  [cyan]•[/cyan] {lib.name} ({arch_str})")
 

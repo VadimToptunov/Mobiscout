@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from framework.security.sast_analyzer import SASTAnalyzer
+from framework.security.sast.base import Severity
 from framework.cli.security.base import (
     security,
     console,
@@ -69,7 +70,7 @@ def sast(
         task = progress.add_task("Running SAST analysis...", total=None)
         result = analyzer.analyze(
             source_path,
-            language=language if language != "all" else None,
+            language=language if language != "all" else "auto",
             enable_taint=taint,
             enable_crypto=crypto,
         )
@@ -78,36 +79,36 @@ def sast(
     console.print()
     console.print(Panel.fit("SAST Analysis Results", style="bold green"))
 
-    if not result.vulnerabilities:
+    if not result.findings:
         console.print("[green]✓[/green] No vulnerabilities found!")
         raise SystemExit(0)
 
     by_type: Dict[str, List] = {}
-    for vuln in result.vulnerabilities:
+    for vuln in result.findings:
         vtype = vuln.vulnerability_type.value
         if vtype not in by_type:
             by_type[vtype] = []
         by_type[vtype].append(vuln)
 
-    table = Table(title=f"Found {len(result.vulnerabilities)} Vulnerabilities")
+    table = Table(title=f"Found {len(result.findings)} Vulnerabilities")
     table.add_column("Type", style="cyan")
     table.add_column("Count", justify="right")
     table.add_column("Critical", style="red", justify="right")
     table.add_column("High", style="yellow", justify="right")
 
     for vtype, vulns in sorted(by_type.items(), key=lambda x: len(x[1]), reverse=True):
-        critical = len([v for v in vulns if v.severity == "critical"])
-        high = len([v for v in vulns if v.severity == "high"])
+        critical = len([v for v in vulns if v.severity == Severity.CRITICAL])
+        high = len([v for v in vulns if v.severity == Severity.HIGH])
         table.add_row(vtype, str(len(vulns)), str(critical) if critical else "-", str(high) if high else "-")
 
     console.print(table)
 
     console.print("\n[bold]Top Findings:[/bold]")
-    critical_vulns = [v for v in result.vulnerabilities if v.severity == "critical"]
-    high_vulns = [v for v in result.vulnerabilities if v.severity == "high"]
+    critical_vulns = [v for v in result.findings if v.severity == Severity.CRITICAL]
+    high_vulns = [v for v in result.findings if v.severity == Severity.HIGH]
 
     for vuln in (critical_vulns + high_vulns)[:10]:
-        severity_style = "red bold" if vuln.severity == "critical" else "yellow"
+        severity_style = "red bold" if vuln.severity == Severity.CRITICAL else "yellow"
         console.print(
             f"  [{severity_style}]•[/{severity_style}] [{severity_style}]{vuln.vulnerability_type.value}[/{severity_style}]"
         )
@@ -119,7 +120,7 @@ def sast(
 
     if output:
         if format == "sarif":
-            analyzer.export_sarif(result, output)
+            analyzer.export_sarif(result.findings, output)
         elif format == "html":
             analyzer.export_html(result, output)
         else:
@@ -157,7 +158,7 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
     with console.status("[cyan]Analyzing taint flows..."):
         result = analyzer.analyze(source_path, enable_taint=True, enable_crypto=False)
 
-    taint_vulns = [v for v in result.vulnerabilities if v.taint_flow]
+    taint_vulns = [v for v in result.findings if v.taint_flow]
 
     if not taint_vulns:
         console.print("[green]✓[/green] No taint flow vulnerabilities found!")
@@ -167,19 +168,20 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
 
     for vuln in taint_vulns[:15]:
         flow = vuln.taint_flow
-        severity_style = "red" if vuln.severity in ["critical", "high"] else "yellow"
+        assert flow is not None  # taint_vulns is filtered on `v.taint_flow` above
+        severity_style = "red" if vuln.severity in [Severity.CRITICAL, Severity.HIGH] else "yellow"
 
         panel = Panel(
             f"[bold]{vuln.vulnerability_type.value}[/bold]\n\n"
-            f"[dim]Source:[/dim] {flow.source} (line {flow.source_line})\n"
-            f"[dim]Sink:[/dim] {flow.sink} (line {flow.sink_line})\n"
+            f"[dim]Source:[/dim] {flow.source}\n"
+            f"[dim]Sink:[/dim] {flow.sink}\n"
             f"[dim]File:[/dim] {vuln.file_path}\n"
             f"[dim]Path Length:[/dim] {len(flow.path)} nodes\n\n"
             f"[cyan]Flow Path:[/cyan]\n"
             + " -> ".join(flow.path[:5])
             + (f" -> ... ({len(flow.path) - 5} more)" if len(flow.path) > 5 else "")
             + f"\n\n[yellow]CWE-{vuln.cwe_id}:[/yellow] {vuln.description}",
-            title=f"[{severity_style}]{vuln.severity.upper()}[/{severity_style}]",
+            title=f"[{severity_style}]{vuln.severity.value.upper()}[/{severity_style}]",
             border_style=severity_style,
         )
         console.print(panel)
