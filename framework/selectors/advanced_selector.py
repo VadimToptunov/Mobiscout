@@ -9,7 +9,7 @@ Provides advanced selector capabilities:
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import List, Optional, Dict, Any
 
@@ -97,8 +97,6 @@ class SelectorFilter:
             return str(attr_value).endswith(str(self.value))
 
         if self.operator == FilterOperator.MATCHES:
-            import re
-
             return bool(re.search(str(self.value), str(attr_value)))
 
         if self.operator == FilterOperator.GREATER_THAN:
@@ -146,15 +144,11 @@ class AdvancedSelector:
 
     type: SelectorType
     value: str
-    filters: List[SelectorFilter] = None
+    filters: List[SelectorFilter] = field(default_factory=list)
     relationship: Optional[SelectorType] = None
     relationship_target: Optional["AdvancedSelector"] = None
     index: Optional[int] = None  # If multiple matches, pick this index
     fuzzy: bool = False  # Enable fuzzy matching
-
-    def __post_init__(self):
-        if self.filters is None:
-            self.filters = []
 
     def to_appium(self, platform: str = "android") -> Dict[str, str]:
         """Convert to Appium selector format"""
@@ -310,6 +304,8 @@ class AdvancedSelectorEngine:
 
     def _apply_relationship(self, candidates: List[Dict[str, Any]], selector: AdvancedSelector) -> List[Dict[str, Any]]:
         """Apply relationship selector"""
+        # Precondition: the caller only invokes this when both are set (see match()).
+        assert selector.relationship is not None and selector.relationship_target is not None
         results = []
 
         for element in candidates:
