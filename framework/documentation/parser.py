@@ -62,7 +62,7 @@ class CodeParser:
         # otherwise those are silently dropped.
         for parent in ast.walk(tree):
             for child in ast.iter_child_nodes(parent):
-                child.parent = parent
+                child.parent = parent  # type: ignore[attr-defined]  # dynamic parent link used below
 
         module_doc = ModuleDoc(
             name=file_path.stem,
@@ -160,7 +160,7 @@ class CodeParser:
         # Build signature
         param_strs = []
         for param in parameters:
-            param_str = param["name"]
+            param_str = str(param["name"])
             if param["type"]:
                 param_str += f": {param['type']}"
             if param["default"] is not None:
@@ -216,7 +216,12 @@ class CodeParser:
         elif isinstance(node, (ast.List, ast.Tuple, ast.Set)):
             return [self._get_value(elt) for elt in node.elts]
         elif isinstance(node, ast.Dict):
-            return {self._get_value(k): self._get_value(v) for k, v in zip(node.keys, node.values)}
+            # A dict literal's keys include None for `**spread` entries; guard it
+            # so `_get_value` isn't handed a None (which would crash ast.unparse).
+            return {
+                (self._get_value(k) if k is not None else None): self._get_value(v)
+                for k, v in zip(node.keys, node.values)
+            }
         else:
             return ast.unparse(node) if hasattr(ast, "unparse") else "..."
 

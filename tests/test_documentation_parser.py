@@ -85,6 +85,15 @@ def test_get_value_handles_containers(tmp_path):
     assert doc.constants["L"] == [1, 2, 3]
 
 
+def test_get_value_survives_dict_spread(tmp_path):
+    # Regression: a `{**base}` dict literal has a None key in node.keys, which
+    # used to reach ast.unparse(None) and crash the parser.
+    f = tmp_path / "s.py"
+    f.write_text("base = {'a': 1}\nCONFIG = {'k': 1, **base}\n")
+    doc = CodeParser().parse_file(f)  # must not raise
+    assert "CONFIG" in doc.constants
+
+
 def test_docstring_parser_google_style():
     doc = """Short description.
 
