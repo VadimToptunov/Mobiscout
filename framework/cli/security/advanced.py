@@ -5,7 +5,7 @@ Advanced security analysis commands: secrets, pinning, binary, privacy, rootchec
 """
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, List, Any
 import json
 
 import click
@@ -70,12 +70,12 @@ def secrets(source_path: Path, output: Optional[Path], format: str) -> None:
 
         panel = Panel(
             f"[bold]{finding.title}[/bold]\n\n"
-            f"[dim]File:[/dim] {finding.file_path}:{finding.line_number}\n"
+            f"[dim]Location:[/dim] {finding.location}\n"
             f"[dim]Secret Type:[/dim] {finding.metadata.get('secret_type', 'Unknown')}\n"
             f"[dim]Entropy:[/dim] {finding.metadata.get('entropy', 0):.2f}\n\n"
             f"[cyan]Evidence:[/cyan] {finding.evidence[:100]}...\n\n"
-            f"[yellow]Recommendation:[/yellow] {finding.recommendation}",
-            title=f"[{risk_style}]{finding.risk_level.value.upper()}[/{risk_style}]",
+            f"[yellow]Recommendation:[/yellow] {finding.remediation}",
+            title=f"[{risk_style}]{finding.risk_level.name}[/{risk_style}]",
             border_style=risk_style.split()[0],
         )
         console.print(panel)
@@ -85,12 +85,10 @@ def secrets(source_path: Path, output: Optional[Path], format: str) -> None:
         console.print(f"[dim]... and {len(findings) - 20} more findings[/dim]")
 
     if output:
-        if format == "sarif":
-            scanner.export_sarif(findings, output)
-        else:
-            data = [f.to_dict() for f in findings]
-            with open(output, "w") as f:
-                json.dump(data, f, indent=2, default=str)
+        # HardcodedSecretsScanner has no SARIF exporter; findings are written as JSON.
+        data = [f.to_dict() for f in findings]
+        with open(output, "w") as f:
+            json.dump(data, f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
     raise SystemExit(1 if findings else 0)
@@ -117,7 +115,7 @@ def pinning(app_path: Path, platform: str) -> None:
     analyzer = CertificatePinningAnalyzer()
 
     with console.status("[cyan]Analyzing certificate pinning..."):
-        findings = analyzer.analyze(app_path, platform)
+        findings = analyzer.analyze_ios(app_path) if platform == "ios" else analyzer.analyze_android(app_path)
 
     if not findings:
         console.print("[green]✓[/green] Certificate pinning properly configured!")
@@ -128,7 +126,7 @@ def pinning(app_path: Path, platform: str) -> None:
     for finding in findings:
         console.print(f"[red]•[/red] {finding.title}")
         console.print(f"  {finding.description}")
-        console.print(f"  [dim]Recommendation:[/dim] {finding.recommendation}")
+        console.print(f"  [dim]Recommendation:[/dim] {finding.remediation}")
         console.print()
 
     raise SystemExit(1)
@@ -217,7 +215,7 @@ def privacy(source_path: Path, regulation: str, output: Optional[Path]) -> None:
     checker = PrivacyComplianceChecker()
 
     with console.status("[cyan]Analyzing privacy compliance..."):
-        findings = checker.check_compliance(source_path, regulation)
+        findings = checker.check_pii_logging(source_path) + checker.check_tracking_sdks(source_path)
 
     if not findings:
         console.print(f"[green]✓[/green] No {regulation.upper()} compliance issues found!")
@@ -229,9 +227,9 @@ def privacy(source_path: Path, regulation: str, output: Optional[Path]) -> None:
         risk_style = "red" if finding.risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH] else "yellow"
 
         console.print(f"[{risk_style}]•[/{risk_style}] [{risk_style}]{finding.title}[/{risk_style}]")
-        console.print(f"  [dim]File:[/dim] {finding.file_path}:{finding.line_number}")
+        console.print(f"  [dim]File:[/dim] {finding.location}")
         console.print(f"  {finding.description}")
-        console.print(f"  [cyan]Recommendation:[/cyan] {finding.recommendation}")
+        console.print(f"  [cyan]Recommendation:[/cyan] {finding.remediation}")
         console.print()
 
     if output:
@@ -275,7 +273,7 @@ def rootcheck(source_path: Path, platform: str) -> None:
     for finding in findings:
         console.print(f"[yellow]•[/yellow] {finding.title}")
         console.print(f"  {finding.description}")
-        console.print(f"  [cyan]Recommendation:[/cyan] {finding.recommendation}")
+        console.print(f"  [cyan]Recommendation:[/cyan] {finding.remediation}")
         console.print()
 
     raise SystemExit(1)
@@ -310,7 +308,7 @@ def code(source_path: Path, language: str, output: Optional[Path]) -> None:
         console.print("[green]✓[/green] No secure coding issues found!")
         raise SystemExit(0)
 
-    by_category = {}
+    by_category: Dict[str, List[Any]] = {}
     for finding in findings:
         cat = finding.owasp_category.value if finding.owasp_category else "Other"
         if cat not in by_category:
@@ -325,7 +323,7 @@ def code(source_path: Path, language: str, output: Optional[Path]) -> None:
         for finding in cat_findings[:5]:
             risk_style = "red" if finding.risk_level in [RiskLevel.CRITICAL, RiskLevel.HIGH] else "yellow"
             console.print(f"  [{risk_style}]•[/{risk_style}] {finding.title}")
-            console.print(f"    [dim]{finding.file_path}:{finding.line_number}[/dim]")
+            console.print(f"    [dim]{finding.location}[/dim]")
 
         if len(cat_findings) > 5:
             console.print(f"    [dim]... and {len(cat_findings) - 5} more[/dim]")

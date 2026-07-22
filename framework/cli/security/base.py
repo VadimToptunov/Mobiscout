@@ -88,7 +88,7 @@ def print_scan_summary(result: SecurityScanResult) -> None:
     console.print(f"\nRisk Level: {risk}")
 
 
-def create_progress_context():
+def create_progress_context() -> Progress:
     """Create a progress context with spinner."""
     return Progress(
         SpinnerColumn(),
