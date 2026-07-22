@@ -88,7 +88,6 @@ class BaseAnalyzer(ABC, Generic[T]):
         Returns:
             AnalysisResult containing findings and metadata
         """
-        pass
 
     def _start_timing(self) -> None:
         """Start timing the analysis."""

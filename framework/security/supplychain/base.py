@@ -12,15 +12,10 @@ Features:
 - CVE database lookup
 """
 
-import hashlib
-import json
-import re
-import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import Dict, Any, List, Optional
 
 
 class DependencyType(Enum):

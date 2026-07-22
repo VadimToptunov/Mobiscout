@@ -29,7 +29,6 @@ def a11y() -> None:
 
     Automated WCAG 2.1 compliance checking.
     """
-    pass
 
 
 @a11y.command()

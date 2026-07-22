@@ -20,7 +20,6 @@ console = Console()
 @click.group(name="select")
 def select() -> None:
     """🎯 Intelligent test selection commands"""
-    pass
 
 
 @select.command()

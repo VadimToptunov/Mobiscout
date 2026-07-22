@@ -5,16 +5,14 @@ Shared utilities, console instance, and main security CLI group.
 """
 
 from pathlib import Path
-from typing import Optional, List, Any, Dict
+from typing import Any
 
 import click
 from rich.console import Console
-from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from framework.security.scanner import (
-    SecurityScanner,
     SeverityLevel,
     SecurityScanResult,
 )
@@ -123,4 +121,3 @@ def security() -> None:
 
     Automated security testing following OWASP Mobile guidelines.
     """
-    pass

@@ -1,29 +1,9 @@
 """Analyzer extracted from decompiler (mechanical split; see decompile/base.py)."""
 
-import hashlib
-import json
-import os
 import re
-import shutil
-import struct
 import subprocess
-import tempfile
-import zipfile
-from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
-import xml.etree.ElementTree as ET
-
-from framework.security.decompile.base import (
-    ProtectionType,
-    BinaryType,
-    StringFinding,
-    ProtectionInfo,
-    NativeLibInfo,
-    SecurityFinding,
-    DecompileResult,
-)
+from typing import Dict, Any
 
 
 class NativeLibAnalyzer:

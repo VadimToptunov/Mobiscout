@@ -1,21 +1,14 @@
 """Analyzer extracted from runtime_protection (mechanical split; see runtime/base.py)."""
 
-import json
 import re
-from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, List
 
 from framework.security.runtime.base import (
     ProtectionCategory,
     ImplementationQuality,
     ProtectionIndicator,
     ProtectionAnalysis,
-    ProtectionStatus,
-    BypassMethod,
-    RuntimeProtectionResult,
-    QuickCheckResult,
 )
 
 

@@ -1,31 +1,17 @@
 """Analyzer extracted from advanced_security (mechanical split; see advanced/base.py)."""
 
-import base64
-import hashlib
-import hmac
-import json
 import logging
-import os
 import re
-import secrets
 import shutil
 import subprocess
 import tempfile
-import threading
-import time
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Callable, Dict, Generator, List, Optional, Pattern, Set, Tuple, Union
-from urllib.parse import parse_qs, urlparse
+from typing import List
 
 from framework.security.advanced.base import (
     OWASPMobileTop10,
     RiskLevel,
     SecurityVulnerability,
-    SecretPattern,
 )
 
 logger = logging.getLogger(__name__)

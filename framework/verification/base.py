@@ -97,18 +97,15 @@ class LanguageVerifier(ABC):
     @abstractmethod
     def language(self) -> str:
         """Language name"""
-        pass
 
     @property
     @abstractmethod
     def file_extensions(self) -> List[str]:
         """Supported file extensions"""
-        pass
 
     @abstractmethod
     def verify(self, file_path: Path) -> VerificationResult:
         """Verify a file"""
-        pass
 
     def supports_file(self, file_path: Path) -> bool:
         """Check if this verifier supports the file"""

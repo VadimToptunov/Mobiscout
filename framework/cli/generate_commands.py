@@ -15,7 +15,6 @@ logger = get_logger(__name__)
 @click.group()
 def generate():
     """Generate test code"""
-    pass
 
 
 @generate.command()

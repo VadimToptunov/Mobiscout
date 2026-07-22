@@ -21,7 +21,6 @@ from framework.reporting.junit_parser import JUnitParser
 @click.group(name="dashboard")
 def dashboard() -> None:
     """🎯 Test maintenance dashboard commands"""
-    pass
 
 
 @dashboard.command()

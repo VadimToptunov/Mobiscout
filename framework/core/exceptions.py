@@ -44,49 +44,33 @@ class MobileTestError(Exception):
 class DeviceError(MobileTestError):
     """Base class for device-related errors."""
 
-    pass
-
 
 class DeviceNotFoundError(DeviceError):
     """Device not found or not connected."""
-
-    pass
 
 
 class DeviceOfflineError(DeviceError):
     """Device is offline or unreachable."""
 
-    pass
-
 
 class DeviceConnectionError(DeviceError):
     """Failed to establish connection with device."""
-
-    pass
 
 
 class BackendError(MobileTestError):
     """Base class for automation backend errors."""
 
-    pass
-
 
 class BackendNotAvailableError(BackendError):
     """Automation backend not installed or not running."""
-
-    pass
 
 
 class SessionError(BackendError):
     """Error managing automation session."""
 
-    pass
-
 
 class SessionNotFoundError(SessionError):
     """Automation session not found."""
-
-    pass
 
 
 # ============================================================================
@@ -97,37 +81,25 @@ class SessionNotFoundError(SessionError):
 class ElementError(MobileTestError):
     """Base class for element-related errors."""
 
-    pass
-
 
 class ElementNotFoundError(ElementError):
     """Element not found with given selector."""
-
-    pass
 
 
 class ElementNotInteractableError(ElementError):
     """Element exists but cannot be interacted with."""
 
-    pass
-
 
 class SelectorError(MobileTestError):
     """Base class for selector-related errors."""
-
-    pass
 
 
 class InvalidSelectorError(SelectorError):
     """Selector syntax is invalid."""
 
-    pass
-
 
 class SelectorTimeoutError(SelectorError):
     """Timeout waiting for selector to match."""
-
-    pass
 
 
 # ============================================================================
@@ -138,55 +110,37 @@ class SelectorTimeoutError(SelectorError):
 class AnalysisError(MobileTestError):
     """Base class for analysis errors."""
 
-    pass
-
 
 class ASTParsingError(AnalysisError):
     """Failed to parse AST."""
-
-    pass
 
 
 class SecurityViolationError(AnalysisError):
     """Security vulnerability detected."""
 
-    pass
-
 
 class AccessibilityViolationError(AnalysisError):
     """Accessibility issue detected."""
-
-    pass
 
 
 class MLError(MobileTestError):
     """Base class for ML-related errors."""
 
-    pass
-
 
 class ModelNotFoundError(MLError):
     """ML model not found or not loaded."""
-
-    pass
 
 
 class ModelNotTrainedError(MLError):
     """ML model not trained yet."""
 
-    pass
-
 
 class PredictionError(MLError):
     """Error during ML prediction."""
 
-    pass
-
 
 class TrainingError(MLError):
     """Error during ML model training."""
-
-    pass
 
 
 # ============================================================================
@@ -197,19 +151,13 @@ class TrainingError(MLError):
 class ConfigurationError(MobileTestError):
     """Base class for configuration errors."""
 
-    pass
-
 
 class InvalidConfigError(ConfigurationError):
     """Configuration is invalid or malformed."""
 
-    pass
-
 
 class MissingConfigError(ConfigurationError):
     """Required configuration is missing."""
-
-    pass
 
 
 # ============================================================================
@@ -220,37 +168,25 @@ class MissingConfigError(ConfigurationError):
 class TestGenerationError(MobileTestError):
     """Base class for test generation errors."""
 
-    pass
-
 
 class CodeGenerationError(TestGenerationError):
     """Failed to generate test code."""
-
-    pass
 
 
 class TemplateError(TestGenerationError):
     """Template rendering error."""
 
-    pass
-
 
 class ExecutionError(MobileTestError):
     """Base class for test execution errors."""
-
-    pass
 
 
 class TestFailureError(ExecutionError):
     """Test execution failed."""
 
-    pass
-
 
 class TimeoutError(ExecutionError):
     """Operation timed out."""
-
-    pass
 
 
 # ============================================================================
@@ -261,31 +197,21 @@ class TimeoutError(ExecutionError):
 class StorageError(MobileTestError):
     """Base class for storage errors."""
 
-    pass
-
 
 class FileNotFoundError(StorageError):
     """File not found at specified path."""
-
-    pass
 
 
 class FileAccessError(StorageError):
     """Cannot access file (permissions, locked, etc.)."""
 
-    pass
-
 
 class SerializationError(StorageError):
     """Failed to serialize/deserialize data."""
 
-    pass
-
 
 class DatabaseError(StorageError):
     """Database operation failed."""
-
-    pass
 
 
 # ============================================================================
@@ -296,37 +222,25 @@ class DatabaseError(StorageError):
 class NetworkError(MobileTestError):
     """Base class for network errors."""
 
-    pass
-
 
 class ConnectionError(NetworkError):
     """Network connection failed."""
-
-    pass
 
 
 class APIError(MobileTestError):
     """Base class for API errors."""
 
-    pass
-
 
 class APIRequestError(APIError):
     """API request failed."""
-
-    pass
 
 
 class APIResponseError(APIError):
     """API returned unexpected response."""
 
-    pass
-
 
 class APITimeoutError(APIError):
     """API request timed out."""
-
-    pass
 
 
 # ============================================================================
@@ -337,31 +251,21 @@ class APITimeoutError(APIError):
 class PerformanceError(MobileTestError):
     """Base class for performance issues."""
 
-    pass
-
 
 class PerformanceThresholdExceededError(PerformanceError):
     """Performance metric exceeded threshold."""
-
-    pass
 
 
 class MemoryError(PerformanceError):
     """Memory usage exceeded limit."""
 
-    pass
-
 
 class FuzzingError(MobileTestError):
     """Base class for fuzzing errors."""
 
-    pass
-
 
 class InvalidInputError(FuzzingError):
     """Generated input is invalid."""
-
-    pass
 
 
 # ============================================================================

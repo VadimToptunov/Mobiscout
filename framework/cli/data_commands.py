@@ -20,7 +20,6 @@ console = Console()
 @click.group(name="data")
 def data() -> None:
     """📊 Test data management commands"""
-    pass
 
 
 @data.command()

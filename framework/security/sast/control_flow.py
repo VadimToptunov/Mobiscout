@@ -1,25 +1,14 @@
 """Analyzer extracted from sast_analyzer (mechanical split; see sast/base.py)."""
 
 import ast
-import hashlib
-import json
 import logging
-import re
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
-import xml.etree.ElementTree as ET
+from typing import List
 
 from framework.security.sast.base import (
     VulnerabilityType,
     Severity,
-    TaintSource,
-    TaintSink,
-    TaintFlow,
     SASTFinding,
-    SASTResult,
 )
 
 logger = logging.getLogger(__name__)

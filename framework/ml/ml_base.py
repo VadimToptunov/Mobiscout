@@ -5,12 +5,11 @@ prediction/training dataclasses, and the abstract MLModel that every concrete
 model (selector predictor, step recommender, element scorer) inherits.
 """
 
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 class MLBackend(Enum):
@@ -76,7 +75,6 @@ class MLModel(ABC):
         Returns:
             Prediction result with confidence
         """
-        pass
 
     @abstractmethod
     def train(self, training_data: TrainingData) -> Dict[str, Any]:
@@ -89,17 +87,14 @@ class MLModel(ABC):
         Returns:
             Training metrics
         """
-        pass
 
     @abstractmethod
     def save(self, path: Path):
         """Save model to disk"""
-        pass
 
     @abstractmethod
     def load(self, path: Path):
         """Load model from disk"""
-        pass
 
     def get_info(self) -> Dict[str, Any]:
         """Get model information"""

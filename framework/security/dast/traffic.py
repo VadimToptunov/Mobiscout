@@ -1,28 +1,14 @@
 """Analyzer extracted from dast_analyzer (mechanical split; see dast/base.py)."""
 
-import hashlib
-import json
 import re
-import socket
-import ssl
-import subprocess
-import time
-import threading
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from urllib.parse import urlparse, parse_qs
+from typing import List
+from urllib.parse import urlparse
 
 from framework.security.dast.base import (
     DASTTestType,
     DASTSeverity,
     NetworkRequest,
     DASTFinding,
-    SSLAnalysisResult,
-    DASTResult,
-    APITestResult,
 )
 
 

@@ -13,8 +13,6 @@ logger = get_logger(__name__)
 class ValidationError(Exception):
     """Custom exception for validation errors."""
 
-    pass
-
 
 def validate_path(
     path: Path,

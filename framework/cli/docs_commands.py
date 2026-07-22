@@ -17,7 +17,6 @@ console = Console()
 @click.group()
 def docs() -> None:
     """Generate documentation from code"""
-    pass
 
 
 @docs.command()

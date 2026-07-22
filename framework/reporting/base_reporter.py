@@ -99,7 +99,6 @@ class BaseReporter(ABC):
             output_path: Path where the report will be saved
             format: Output format (JSON, HTML, etc.)
         """
-        pass
 
     def _create_metadata(self) -> ReportMetadata:
         """

@@ -17,7 +17,6 @@ console = Console()
 @click.group(name="perf")
 def perf() -> None:
     """⚡ Performance analysis commands"""
-    pass
 
 
 @perf.command()

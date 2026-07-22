@@ -44,7 +44,6 @@ class Notifier(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
 
 
 class SlackNotifier(Notifier):

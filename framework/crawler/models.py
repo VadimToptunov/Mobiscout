@@ -9,7 +9,7 @@ without pulling in the crawler engine.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Protocol, Tuple
+from typing import Dict, List, Protocol, Tuple
 
 
 class CrawlerDriver(Protocol):

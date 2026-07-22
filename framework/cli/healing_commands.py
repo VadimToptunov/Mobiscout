@@ -23,7 +23,6 @@ console = Console()
 @click.group(name="heal")
 def heal() -> None:
     """🔧 Self-healing test maintenance commands"""
-    pass
 
 
 @heal.command()

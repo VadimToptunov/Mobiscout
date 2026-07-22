@@ -12,9 +12,9 @@ from typing import Any, Optional
 import yaml
 
 try:
-    from yaml import CSafeLoader as SafeLoader, CDumper as Dumper
+    from yaml import CDumper as Dumper
 except ImportError:
-    from yaml import SafeLoader, Dumper
+    from yaml import Dumper
 
 from pydantic import BaseModel, Field
 

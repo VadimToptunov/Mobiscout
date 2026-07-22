@@ -22,7 +22,6 @@ console = Console()
 @click.group(name="ml")
 def ml() -> None:
     """🤖 Machine Learning commands for element classification"""
-    pass
 
 
 @ml.command()

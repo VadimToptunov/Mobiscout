@@ -17,31 +17,21 @@ logger = get_logger(__name__)
 class RecorderError(Exception):
     """Base exception for Mobiscout errors."""
 
-    pass
-
 
 class ValidationError(RecorderError):
     """Raised when validation fails."""
-
-    pass
 
 
 class AnalysisError(RecorderError):
     """Raised when analysis fails."""
 
-    pass
-
 
 class GenerationError(RecorderError):
     """Raised when code generation fails."""
 
-    pass
-
 
 class IntegrationError(RecorderError):
     """Raised when project integration fails."""
-
-    pass
 
 
 def handle_cli_errors(

@@ -195,7 +195,6 @@ def project() -> None:
 
     Analyze source code and integrate results into test frameworks
     """
-    pass
 
 
 @project.command()

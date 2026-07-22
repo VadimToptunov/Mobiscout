@@ -16,16 +16,9 @@ Features:
 - Hardcoded sensitive data detection
 """
 
-import ast
-import hashlib
-import json
-import re
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
-import xml.etree.ElementTree as ET
+from typing import Dict, Any, List, Optional
 
 
 class VulnerabilityType(Enum):

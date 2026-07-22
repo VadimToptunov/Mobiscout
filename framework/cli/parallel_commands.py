@@ -12,7 +12,6 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from rich.table import Table
 
 from framework.devices.device_manager import DeviceManager
-from framework.devices.device_pool import DevicePool, PoolStrategy
 from framework.execution.parallel_executor import ParallelExecutor, TestStatus
 from framework.execution.test_sharding import ShardStrategy, TestCase, TestSharding
 
@@ -22,7 +21,6 @@ console = Console()
 @click.group()
 def parallel() -> None:
     """Parallel test execution commands."""
-    pass
 
 
 @parallel.command()
