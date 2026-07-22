@@ -20,7 +20,7 @@ class DashboardServer:
     Web server for maintenance dashboard
     """
 
-    def __init__(self, repo_path: Path, db_path: Optional[Path] = None):
+    def __init__(self, repo_path: Path, db_path: Optional[Path] = None) -> None:
         """
         Initialize dashboard server
 
@@ -36,7 +36,7 @@ class DashboardServer:
         self.app = FastAPI(title="Test Maintenance Dashboard")
         self._setup_routes()
 
-    def _setup_routes(self):
+    def _setup_routes(self) -> None:
         """Setup API routes"""
 
         @self.app.get("/")
@@ -379,7 +379,7 @@ class DashboardServer:
 </html>
         """
 
-    def run(self, host: str = "0.0.0.0", port: int = 8080):
+    def run(self, host: str = "0.0.0.0", port: int = 8080) -> None:
         """
         Start dashboard server
 

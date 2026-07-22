@@ -192,7 +192,7 @@ class AdvancedSelectorEngine:
     Engine for executing advanced selectors
     """
 
-    def __init__(self, elements: List[Dict[str, Any]]):
+    def __init__(self, elements: List[Dict[str, Any]]) -> None:
         """
         Initialize with element hierarchy
 
@@ -205,7 +205,7 @@ class AdvancedSelectorEngine:
         self.elements = copy.deepcopy(elements)
         self._build_relationships()
 
-    def _build_relationships(self):
+    def _build_relationships(self) -> None:
         """Build parent-child-sibling relationships"""
         # Build element tree for relationship queries
         self.element_map = {el.get("id", i): el for i, el in enumerate(self.elements)}
@@ -350,7 +350,7 @@ class AdvancedSelectorEngine:
         if relationship == SelectorType.DESCENDANT:
             descendants = []
 
-            def collect_descendants(el):
+            def collect_descendants(el) -> None:
                 for child in el.get("_children", []):
                     descendants.append(child)
                     collect_descendants(child)
@@ -364,7 +364,7 @@ class AdvancedSelectorEngine:
 class SelectorBuilder:
     """Fluent builder for advanced selectors"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.selector = AdvancedSelector(type=SelectorType.XPATH, value="")
 
     def by_id(self, value: str) -> "SelectorBuilder":

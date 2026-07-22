@@ -45,7 +45,7 @@ class VisualAnalyzer:
     Analyzes visual differences between app screens
     """
 
-    def __init__(self, baseline_dir: Path):
+    def __init__(self, baseline_dir: Path) -> None:
         """
         Initialize visual analyzer
 

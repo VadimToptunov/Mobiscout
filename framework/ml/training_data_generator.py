@@ -25,7 +25,7 @@ class TrainingDataGenerator:
     3. Import from existing test code
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize generator."""
         self.labeled_data = []
 
@@ -263,7 +263,7 @@ class TrainingDataGenerator:
         logger.info(f"Generated {len(training_data)} samples from app model at {path}")
         return path
 
-    def save_labeled_data(self, labeled_events: List[Dict[str, Any]], output_path: Path):
+    def save_labeled_data(self, labeled_events: List[Dict[str, Any]], output_path: Path) -> None:
         """Save labeled training data to file."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 

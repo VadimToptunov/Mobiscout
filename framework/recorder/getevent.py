@@ -52,7 +52,7 @@ class GeteventParser:
         screen_h: device screen height in pixels.
     """
 
-    def __init__(self, touch_max_x: int, touch_max_y: int, screen_w: int, screen_h: int):
+    def __init__(self, touch_max_x: int, touch_max_y: int, screen_w: int, screen_h: int) -> None:
         self._max_x = touch_max_x
         self._max_y = touch_max_y
         self._w = screen_w

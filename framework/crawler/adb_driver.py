@@ -44,7 +44,7 @@ class AdbCrawlerDriver:
         settle: float = 0.8,
         timeout: float = 60.0,
         retries: int = 2,
-    ):
+    ) -> None:
         self._adb = adb
         self._serial = serial
         self._settle_max = settle

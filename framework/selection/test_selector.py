@@ -40,7 +40,7 @@ class TestSelector:
     Selects tests based on code changes
     """
 
-    def __init__(self, project_root: Path, test_root: Path):
+    def __init__(self, project_root: Path, test_root: Path) -> None:
         """
         Initialize test selector
 

@@ -147,7 +147,7 @@ class SASTResult:
     scan_time: str = field(default_factory=lambda: "")
     files_scanned: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         from datetime import datetime
 
         if not self.scan_time:

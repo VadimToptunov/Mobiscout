@@ -30,7 +30,7 @@ class NetworkTrafficAnalyzer:
         "bearer_token": r"Bearer\s+[\w\-\.]+",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.captured_requests: List[NetworkRequest] = []
 
     def analyze_request(self, request: NetworkRequest) -> List[DASTFinding]:

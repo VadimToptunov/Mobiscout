@@ -64,7 +64,7 @@ class ParallelExecutor:
     Executes tests in parallel across multiple workers
     """
 
-    def __init__(self, max_workers: int = 4, pytest_args: List[str] = None):
+    def __init__(self, max_workers: int = 4, pytest_args: List[str] = None) -> None:
         """
         Initialize parallel executor
 

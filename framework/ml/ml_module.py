@@ -53,7 +53,7 @@ class MLModule:
     Manages ML models and provides unified prediction interface
     """
 
-    def __init__(self, backend: MLBackend = MLBackend.SKLEARN, models_dir: Optional[Path] = None):
+    def __init__(self, backend: MLBackend = MLBackend.SKLEARN, models_dir: Optional[Path] = None) -> None:
         self.backend = backend
         self.models_dir = models_dir or Path.home() / ".mobiscout" / "models"
         self.models: Dict[ModelType, MLModel] = {}
@@ -61,7 +61,7 @@ class MLModule:
         # Initialize models
         self._initialize_models()
 
-    def _initialize_models(self):
+    def _initialize_models(self) -> None:
         """Initialize ML models"""
         self.models[ModelType.SELECTOR_PREDICTOR] = SelectorPredictor(self.backend)
         self.models[ModelType.STEP_RECOMMENDER] = NextStepRecommender(self.backend)
@@ -70,7 +70,7 @@ class MLModule:
         # Try to load pre-trained models
         self._load_models()
 
-    def _load_models(self):
+    def _load_models(self) -> None:
         """Load pre-trained models if available"""
         if not self.models_dir.exists():
             return

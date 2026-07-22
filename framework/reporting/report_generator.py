@@ -490,7 +490,7 @@ class ReportGenerator:
     Supports multiple output formats with a unified interface.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.generators = {
             ReportFormat.HTML: HTMLReportGenerator(),
             ReportFormat.MARKDOWN: MarkdownReportGenerator(),

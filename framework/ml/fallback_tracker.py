@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class FallbackTracker:
     """Tracks fallback-selector usage and auto-updates Page Objects."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the fallback report / page-object update history."""
         self.fallback_reports: List[Dict[str, Any]] = []
         self.page_object_updates: List[Dict[str, Any]] = []
@@ -129,7 +129,7 @@ class FallbackTracker:
             pattern = rf'({selector_name}\s*=\s*\{{[^}}]+"{platform}"\s*:\s*)"([^"]+)"'
 
             # Replace with new selector
-            def replace_selector(match):
+            def replace_selector(match) -> str:
                 prefix = match.group(1)
                 old_selector = match.group(2)
 

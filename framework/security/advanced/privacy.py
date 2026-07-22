@@ -20,7 +20,7 @@ class PrivacyComplianceChecker:
     Checks for privacy compliance issues (GDPR, CCPA)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.pii_patterns = {
             "email": re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),
             "phone": re.compile(r"\+?[1-9]\d{1,14}"),

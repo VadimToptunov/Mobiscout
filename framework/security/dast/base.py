@@ -72,7 +72,7 @@ class DASTFinding:
     method: str = ""
     vulnerability_type: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Set category from test_type if not provided
         if not self.category:
             self.category = self.test_type.value

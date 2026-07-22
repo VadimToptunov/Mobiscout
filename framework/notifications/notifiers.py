@@ -51,7 +51,7 @@ class SlackNotifier(Notifier):
     Slack webhook notifier
     """
 
-    def __init__(self, webhook_url: str):
+    def __init__(self, webhook_url: str) -> None:
         """
         Initialize Slack notifier
 
@@ -117,7 +117,7 @@ class TeamsNotifier(Notifier):
     Microsoft Teams webhook notifier
     """
 
-    def __init__(self, webhook_url: str):
+    def __init__(self, webhook_url: str) -> None:
         """
         Initialize Teams notifier
 
@@ -210,7 +210,7 @@ class EmailNotifier(Notifier):
         username: Optional[str] = None,
         password: Optional[str] = None,
         use_tls: bool = True,
-    ):
+    ) -> None:
         """
         Initialize email notifier
 
@@ -324,10 +324,10 @@ class NotificationManager:
     Manages multiple notification channels
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.notifiers: List[Notifier] = []
 
-    def add_notifier(self, notifier: Notifier):
+    def add_notifier(self, notifier: Notifier) -> None:
         """Add a notifier"""
         self.notifiers.append(notifier)
 

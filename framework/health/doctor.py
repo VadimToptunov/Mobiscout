@@ -50,7 +50,7 @@ class SystemDoctor:
     - Performance
     """
 
-    def __init__(self, console: Console):
+    def __init__(self, console: Console) -> None:
         self.console = console
         self.checks: List[HealthCheck] = []
 

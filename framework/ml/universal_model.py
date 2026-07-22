@@ -35,7 +35,7 @@ class UniversalModelBuilder:
     the framework or technology used to build it.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize builder."""
         self.element_templates = self._create_element_templates()
 

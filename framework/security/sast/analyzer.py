@@ -25,7 +25,7 @@ class SASTAnalyzer:
     Combines all static analysis techniques.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.taint_analyzer = TaintAnalyzer()
         self.control_flow_analyzer = ControlFlowAnalyzer()
         self.crypto_analyzer = CryptoAnalyzer()

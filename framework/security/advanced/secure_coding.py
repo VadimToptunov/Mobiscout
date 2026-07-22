@@ -20,7 +20,7 @@ class SecureCodingAnalyzer:
     Analyzes code for secure coding practices
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.insecure_patterns = [
             # Insecure random
             (

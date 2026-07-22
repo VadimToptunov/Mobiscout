@@ -22,7 +22,7 @@ class UpdateResult:
     backup_path: Optional[Path] = None
     error_message: Optional[str] = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         status = "✓" if self.success else "✗"
         return f"{status} {self.file_path}: {self.old_selector} → {self.new_selector}"
 
@@ -32,7 +32,7 @@ class FileUpdater:
     Updates Page Object files with healed selectors
     """
 
-    def __init__(self, create_backup: bool = True):
+    def __init__(self, create_backup: bool = True) -> None:
         """
         Initialize file updater
 

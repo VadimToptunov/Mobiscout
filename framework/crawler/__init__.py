@@ -33,7 +33,7 @@ class AppiumCrawlerDriver:
     fake driver instead.
     """
 
-    def __init__(self, driver):
+    def __init__(self, driver) -> None:
         self._driver = driver
 
     def page_source(self) -> str:

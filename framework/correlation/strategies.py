@@ -51,7 +51,7 @@ class TemporalProximityStrategy(CorrelationStrategy):
     Events that occur close together in time are likely related.
     """
 
-    def __init__(self, max_time_delta_ms: int = 5000):
+    def __init__(self, max_time_delta_ms: int = 5000) -> None:
         """
         Args:
             max_time_delta_ms: Maximum time difference in milliseconds
@@ -146,7 +146,7 @@ class HybridCorrelationStrategy(CorrelationStrategy):
     Uses multiple signals to establish correlation with higher confidence.
     """
 
-    def __init__(self, strategies: Optional[List[CorrelationStrategy]] = None):
+    def __init__(self, strategies: Optional[List[CorrelationStrategy]] = None) -> None:
         self.strategies = strategies or [
             CorrelationIDStrategy(),
             TemporalProximityStrategy(),

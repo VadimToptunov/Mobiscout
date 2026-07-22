@@ -29,7 +29,7 @@ class DASTAnalyzer:
     Combines all dynamic analysis techniques.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ssl_analyzer = SSLTLSAnalyzer()
         self.api_tester = APISecurityTester()
         self.network_analyzer = NetworkTrafficAnalyzer()

@@ -20,7 +20,7 @@ class ElementScorer(MLModel):
     Helps prioritize which elements to test first
     """
 
-    def __init__(self, backend: MLBackend = MLBackend.SKLEARN):
+    def __init__(self, backend: MLBackend = MLBackend.SKLEARN) -> None:
         super().__init__(ModelType.ELEMENT_SCORER, backend)
 
     def predict(self, features: Dict[str, Any]) -> PredictionResult:
@@ -67,13 +67,13 @@ class ElementScorer(MLModel):
         self.is_trained = True
         return {"samples": len(training_data.features)}
 
-    def save(self, path: Path):
+    def save(self, path: Path) -> None:
         """Save model"""
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             json.dump(self.get_info(), f, indent=2)
 
-    def load(self, path: Path):
+    def load(self, path: Path) -> None:
         """Load model"""
         with open(path, "r") as f:
             data = json.load(f)

@@ -8,9 +8,10 @@ import logging
 import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional
+from typing import Type, List, Optional
 
 from .models import TestResult, TestHealth, HealedSelector, TestStatus, HealingStatus
+from types import TracebackType
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 class DashboardDB:
     """Database for dashboard data"""
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path) -> None:
         """
         Initialize database
 
@@ -36,12 +37,14 @@ class DashboardDB:
         """Context manager entry"""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]
+    ) -> bool:
         """Context manager exit - ensure connection is closed"""
         self.close()
         return False
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor - ensure connection is closed"""
         try:
             self.close()
@@ -50,7 +53,7 @@ class DashboardDB:
             # close failure is diagnosable without ever raising during GC.
             logger.debug("DashboardDB.__del__: error during connection cleanup", exc_info=True)
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database schema"""
         # Use check_same_thread=False with explicit locking for thread safety
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
@@ -151,7 +154,7 @@ class DashboardDB:
 
         self.conn.commit()
 
-    def add_test_result(self, result: TestResult):
+    def add_test_result(self, result: TestResult) -> None:
         """Add test result to database"""
         cursor = self.conn.cursor()
         cursor.execute(
@@ -261,7 +264,7 @@ class DashboardDB:
 
         return health_list
 
-    def add_healed_selector(self, selector: HealedSelector):
+    def add_healed_selector(self, selector: HealedSelector) -> None:
         """Add healed selector to database"""
         cursor = self.conn.cursor()
         cursor.execute(
@@ -356,7 +359,7 @@ class DashboardDB:
             test_passes_after=row["test_passes_after"],
         )
 
-    def close(self):
+    def close(self) -> None:
         """Close database connection"""
         if self.conn:
             self.conn.close()

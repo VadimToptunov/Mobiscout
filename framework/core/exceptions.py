@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any
 class MobileTestError(Exception):
     """Base exception for all mobile test recorder errors."""
 
-    def __init__(self, message: str, code: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
+    def __init__(self, message: str, code: Optional[str] = None, details: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize error with context.
 

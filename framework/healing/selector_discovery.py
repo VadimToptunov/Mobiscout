@@ -37,7 +37,7 @@ class AlternativeSelector:
         """Return as (type, value) tuple"""
         return (self.strategy.value, self.value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"AlternativeSelector({self.strategy.value}, '{self.value}', confidence={self.confidence:.2f})"
 
 
@@ -46,7 +46,7 @@ class SelectorDiscovery:
     Discovers alternative selectors from page source
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.alternatives: List[AlternativeSelector] = []
         # child -> parent map, rebuilt per page source (ElementTree has no
         # parent pointers); used by _generate_xpath to build positional paths.
@@ -258,7 +258,9 @@ class SelectorDiscovery:
             if all(alt.element_attributes.get(key) == value for key, value in required_attributes.items())
         ]
 
-    def boost_confidence_by_context(self, screen_name: Optional[str] = None, nearby_text: Optional[List[str]] = None):
+    def boost_confidence_by_context(
+        self, screen_name: Optional[str] = None, nearby_text: Optional[List[str]] = None
+    ) -> None:
         """
         Adjust confidence scores based on context
 

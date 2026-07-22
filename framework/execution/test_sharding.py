@@ -58,7 +58,7 @@ class TestSharding:
     Divides tests into balanced shards for parallel execution
     """
 
-    def __init__(self, duration_history: Dict[str, float] = None):
+    def __init__(self, duration_history: Dict[str, float] = None) -> None:
         """
         Initialize test sharding
 

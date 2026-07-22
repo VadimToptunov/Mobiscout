@@ -45,7 +45,7 @@ from framework.cli.visual_commands import visual
 @click.group()
 @click.version_option(version=__version__)
 @click.pass_context
-def cli(ctx):
+def cli(ctx) -> None:
     """
     📱 Mobiscout
 
@@ -88,7 +88,7 @@ cli.add_command(verify)
 
 
 @cli.command()
-def info():
+def info() -> None:
     """Show framework information"""
     print_banner()
     click.echo("\n📦 Framework Information")

@@ -17,7 +17,7 @@ class SelectorBuilder:
     Creates cross-platform selectors with fallback chains.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.scorer = SelectorScorer()
 
     def build_selector(

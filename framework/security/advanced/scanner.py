@@ -29,7 +29,7 @@ class AdvancedSecurityScanner:
     Provides comprehensive security analysis for mobile applications
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.secrets_scanner = HardcodedSecretsScanner()
         self.cert_analyzer = CertificatePinningAnalyzer()
         self.binary_analyzer = BinarySecurityAnalyzer()

@@ -24,7 +24,7 @@ class HardcodedSecretsScanner:
     using pattern matching, entropy analysis, and context validation.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.patterns = self._initialize_patterns()
         self._false_positive_patterns = [
             re.compile(r"example|test|sample|placeholder|xxx|your[_-]?", re.I),

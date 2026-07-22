@@ -45,7 +45,7 @@ class MockStats:
 class MockSession:
     """Active mock recording/replay session"""
 
-    def __init__(self, session_id: str, mode: MockMode, storage: MockStorage, strict: bool = False):
+    def __init__(self, session_id: str, mode: MockMode, storage: MockStorage, strict: bool = False) -> None:
         self.session_id = session_id
         self.mode = mode
         self.storage = storage
@@ -136,7 +136,7 @@ class APIMocker:
     Provides record and replay functionality for HTTP API calls.
     """
 
-    def __init__(self, storage_dir: Path = Path("mock_data")):
+    def __init__(self, storage_dir: Path = Path("mock_data")) -> None:
         self.storage = MockStorage(storage_dir)
         self.active_session: Optional[MockSession] = None
         self._intercept_handlers: List[Callable] = []

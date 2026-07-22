@@ -22,11 +22,11 @@ class EventStore:
     - Fast indexed queries
     """
 
-    def __init__(self, db_path: str = "observe_events.db"):
+    def __init__(self, db_path: str = "observe_events.db") -> None:
         self.db_path = Path(db_path)
         self._init_database()
 
-    def _init_database(self):
+    def _init_database(self) -> None:
         """Initialize database schema"""
         with self._get_connection() as conn:
             conn.executescript("""
@@ -210,7 +210,7 @@ class EventStore:
 
         return count
 
-    def add_event(self, event: Dict[str, Any]):
+    def add_event(self, event: Dict[str, Any]) -> None:
         """Add single event to store"""
         # Extract common fields
         session_id = event.get("sessionId", "unknown")
@@ -235,7 +235,7 @@ class EventStore:
             if event_type == "navigation":
                 self._update_navigation_stats(conn, session_id, event)
 
-    def _ensure_session(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]):
+    def _ensure_session(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]) -> None:
         """Ensure session record exists"""
         result = conn.execute("SELECT session_id FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
 
@@ -267,7 +267,7 @@ class EventStore:
         else:
             return "unknown"
 
-    def _update_navigation_stats(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]):
+    def _update_navigation_stats(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]) -> None:
         """Update screen and flow statistics"""
         to_screen = event.get("toScreen")
         from_screen = event.get("fromScreen")
@@ -390,7 +390,7 @@ class EventStore:
         """Get complete event timeline for session"""
         return self.get_events(session_id=session_id, limit=10000)
 
-    def clear_session(self, session_id: str):
+    def clear_session(self, session_id: str) -> None:
         """Delete all data for session"""
         with self._get_connection() as conn:
             conn.execute("DELETE FROM flows WHERE session_id = ?", (session_id,))
@@ -398,7 +398,7 @@ class EventStore:
             conn.execute("DELETE FROM events WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
 
-    def clear_all(self):
+    def clear_all(self) -> None:
         """Clear all data"""
         with self._get_connection() as conn:
             conn.execute("DELETE FROM flows")

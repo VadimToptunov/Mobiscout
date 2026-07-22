@@ -46,7 +46,7 @@ class PatternRecognizer:
     - Suggest test scenarios
     """
 
-    def __init__(self, min_support: int = 2, min_confidence: float = 0.6):
+    def __init__(self, min_support: int = 2, min_confidence: float = 0.6) -> None:
         """
         Initialize pattern recognizer.
 
@@ -168,7 +168,7 @@ class PatternRecognizer:
 
         return patterns
 
-    def _mark_critical_paths(self, patterns: List[FlowPattern], sequences: List[List[str]]):
+    def _mark_critical_paths(self, patterns: List[FlowPattern], sequences: List[List[str]]) -> None:
         """Mark patterns that are likely critical paths."""
         # Critical path heuristics:
         # 1. High frequency (> 50% of sessions)

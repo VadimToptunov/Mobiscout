@@ -213,7 +213,7 @@ class MockProxy:
         upstream_timeout: seconds to wait on the real backend when recording.
     """
 
-    def __init__(self, mocker, port: int = 8888, host: str = "127.0.0.1", upstream_timeout: float = 30.0):
+    def __init__(self, mocker, port: int = 8888, host: str = "127.0.0.1", upstream_timeout: float = 30.0) -> None:
         self.mocker = mocker
         self.upstream_timeout = upstream_timeout
         self._server = ThreadingHTTPServer((host, port), _ProxyHandler)

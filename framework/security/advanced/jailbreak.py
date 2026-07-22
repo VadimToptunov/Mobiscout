@@ -19,7 +19,7 @@ class RootJailbreakAnalyzer:
     Analyzes root/jailbreak detection implementation
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.android_root_checks = [
             re.compile(r"RootBeer|rootbeer", re.I),
             re.compile(r"isDeviceRooted|checkRoot|detectRoot", re.I),

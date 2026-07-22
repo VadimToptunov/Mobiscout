@@ -97,7 +97,7 @@ class SessionRecorder:
         adb: adb executable name/path.
     """
 
-    def __init__(self, package: str, serial: Optional[str] = None, platform: str = "android", adb: str = "adb"):
+    def __init__(self, package: str, serial: Optional[str] = None, platform: str = "android", adb: str = "adb") -> None:
         self.package = package
         self.serial = serial
         self.platform = platform

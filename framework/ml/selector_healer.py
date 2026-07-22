@@ -40,7 +40,7 @@ class SelectorHealer(FallbackTracker):
     - Auto-repair test scripts
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize selector healer."""
         super().__init__()
         self.healing_history: List[HealingResult] = []

@@ -21,7 +21,7 @@ class SelectorPredictor(MLModel):
     which selector will be most stable.
     """
 
-    def __init__(self, backend: MLBackend = MLBackend.SKLEARN, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, backend: MLBackend = MLBackend.SKLEARN, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(ModelType.SELECTOR_PREDICTOR, backend)
         self.config = config or {}
         self._model = None
@@ -91,7 +91,7 @@ class SelectorPredictor(MLModel):
         else:
             raise NotImplementedError(f"Training not implemented for {self.backend}")
 
-    def save(self, path: Path):
+    def save(self, path: Path) -> None:
         """Save model to disk"""
         path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -122,7 +122,7 @@ class SelectorPredictor(MLModel):
         with open(path.with_suffix(".json"), "w") as f:
             json.dump(model_data, f, indent=2)
 
-    def load(self, path: Path):
+    def load(self, path: Path) -> None:
         """Load model from disk"""
         # Load metadata
         with open(path.with_suffix(".json"), "r") as f:
