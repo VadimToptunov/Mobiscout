@@ -25,7 +25,7 @@ class SelectorScorer:
     Helps prioritize which selectors to use and when to add fallbacks.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Scoring weights for different selector types
         self.type_scores = {
             "test_id": 1.0,  # Best: Developer-provided test IDs

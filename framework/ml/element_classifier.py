@@ -38,7 +38,7 @@ class ElementClassifier:
     Target: ElementType enum (BUTTON, INPUT, TEXT, LIST, etc.)
     """
 
-    def __init__(self, model_path: Optional[Path] = None):
+    def __init__(self, model_path: Optional[Path] = None) -> None:
         """
         Initialize element classifier.
 

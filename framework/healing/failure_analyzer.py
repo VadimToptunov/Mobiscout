@@ -81,7 +81,7 @@ class FailureAnalyzer:
         r"Selector.*did not match any elements",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.failures: List[SelectorFailure] = []
 
     def analyze_junit_results(self, junit_path: Path) -> List[SelectorFailure]:
@@ -136,12 +136,12 @@ class FailureAnalyzer:
             content = results_path.read_text()
             return self.analyze_pytest_output(content)
 
-    def _analyze_suite(self, suite: ET.Element):
+    def _analyze_suite(self, suite: ET.Element) -> None:
         """Analyze single test suite"""
         for testcase in suite.findall("testcase"):
             self._analyze_testcase(testcase)
 
-    def _analyze_testcase(self, testcase: ET.Element):
+    def _analyze_testcase(self, testcase: ET.Element) -> None:
         """Analyze single test case"""
         test_name = testcase.get("name", "Unknown")
         classname = testcase.get("classname", "")
@@ -258,7 +258,7 @@ class FailureAnalyzer:
 
         return self.failures
 
-    def enrich_with_screenshots(self, screenshots_dir: Path):
+    def enrich_with_screenshots(self, screenshots_dir: Path) -> None:
         """
         Link failures with screenshots
 
@@ -272,7 +272,7 @@ class FailureAnalyzer:
             if matches:
                 failure.screenshot_path = matches[0]
 
-    def enrich_with_page_source(self, page_source_dir: Path):
+    def enrich_with_page_source(self, page_source_dir: Path) -> None:
         """
         Link failures with page source dumps
 
@@ -286,7 +286,7 @@ class FailureAnalyzer:
             if matches:
                 failure.page_source_path = matches[0]
 
-    def enrich_with_page_objects(self, page_objects_dir: Path):
+    def enrich_with_page_objects(self, page_objects_dir: Path) -> None:
         """
         Find Page Object files containing the failing selectors
 

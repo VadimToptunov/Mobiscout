@@ -16,7 +16,7 @@ class SelectorOptimizer:
     Analyzes existing selectors and suggests improvements.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def optimize_selector(self, selector: Selector) -> Selector:

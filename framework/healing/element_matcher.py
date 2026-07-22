@@ -20,7 +20,7 @@ class MatchResult:
     combined_confidence: float  # ML + selector confidence
     reasoning: str
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"MatchResult({self.selector.strategy.value}, confidence={self.combined_confidence:.2f})"
 
 
@@ -29,7 +29,7 @@ class ElementMatcher:
     Matches correct element using ML model
     """
 
-    def __init__(self, ml_model_path: Optional[Path] = None):
+    def __init__(self, ml_model_path: Optional[Path] = None) -> None:
         """
         Initialize element matcher
 
@@ -42,7 +42,7 @@ class ElementMatcher:
         if ml_model_path and ml_model_path.exists():
             self._load_ml_model()
 
-    def _load_ml_model(self):
+    def _load_ml_model(self) -> None:
         """Load ML model from Phase 4"""
         try:
             from framework.ml.element_classifier import ElementClassifier

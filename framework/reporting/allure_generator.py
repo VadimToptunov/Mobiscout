@@ -18,7 +18,7 @@ class AllureGenerator:
     Generator for Allure report format
     """
 
-    def generate(self, suites: List[TestSuite], output_dir: Path):
+    def generate(self, suites: List[TestSuite], output_dir: Path) -> None:
         """
         Generate Allure JSON results
 
@@ -32,7 +32,7 @@ class AllureGenerator:
             for test in suite.tests:
                 self._generate_test_result(test, suite, output_dir)
 
-    def _generate_test_result(self, test: TestResult, suite: TestSuite, output_dir: Path):
+    def _generate_test_result(self, test: TestResult, suite: TestSuite, output_dir: Path) -> None:
         """Generate Allure result for single test"""
         test_uuid = str(uuid.uuid4())
 

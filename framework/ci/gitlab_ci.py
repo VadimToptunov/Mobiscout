@@ -15,7 +15,7 @@ class GitLabCIGenerator:
     Generates GitLab CI pipelines for mobile test automation
     """
 
-    def __init__(self, project_name: str = "Mobile Tests"):
+    def __init__(self, project_name: str = "Mobile Tests") -> None:
         self.project_name = project_name
 
     def generate_basic_pipeline(self, platforms: Optional[List[str]] = None, python_version: str = "3.13") -> str:
@@ -149,7 +149,7 @@ class GitLabCIGenerator:
             "when": "always",
         }
 
-    def save_pipeline(self, content: str, output_dir: Path, filename: str = ".gitlab-ci.yml"):
+    def save_pipeline(self, content: str, output_dir: Path, filename: str = ".gitlab-ci.yml") -> None:
         """
         Save pipeline to file
 

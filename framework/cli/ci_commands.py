@@ -17,7 +17,7 @@ console = Console()
 
 
 @click.group()
-def ci():
+def ci() -> None:
     """CI/CD integration commands."""
 
 
@@ -32,7 +32,7 @@ def ci():
     help="Template type",
 )
 @click.option("--output", "-o", type=Path, help="Output file (default: standard location)")
-def init(ci_system: str, template_type: str, output: Path):
+def init(ci_system: str, template_type: str, output: Path) -> None:
     """Initialize CI/CD configuration for your project."""
     console.print(f"\n[cyan]🚀 Generating {ci_system.upper()} {template_type} configuration...[/cyan]\n")
 
@@ -83,7 +83,7 @@ def init(ci_system: str, template_type: str, output: Path):
 
 
 @ci.command()
-def list_templates():
+def list_templates() -> None:
     """List all available CI/CD templates."""
     console.print("\n[bold]Available CI/CD Templates[/bold]\n")
 
@@ -118,7 +118,7 @@ def list_templates():
 @click.option(
     "--type", "-t", "template_type", type=click.Choice(["basic", "parallel", "multiplatform"]), default="basic"
 )
-def show(ci_system: str, template_type: str):
+def show(ci_system: str, template_type: str) -> None:
     """Show a CI/CD template without saving."""
     try:
         template = get_template(ci_system, template_type)
@@ -234,7 +234,7 @@ def validate(config_file: Path):
 
 
 @ci.command()
-def quickstart():
+def quickstart() -> None:
     """Show quick start guide for CI/CD integration."""
     guide = """
 # CI/CD Quick Start Guide

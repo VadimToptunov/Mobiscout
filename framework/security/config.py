@@ -47,7 +47,7 @@ class SecurityConfig:
     # Build variants that should never have crypto export enabled
     PRODUCTION_BUILD_VARIANTS = {"release", "production", "prod"}
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.session_key = self._get_or_generate_session_key()
         self.test_password = os.environ.get("TEST_USER_PASSWORD", self._generate_secure_password())
         self.debug_mode = os.environ.get("DEBUG_MODE", "false").lower() == "true"

@@ -59,7 +59,7 @@ class AndroidAppiumDriver:
         extra_caps: Optional[Dict[str, Any]] = None,
         idle_timeout_ms: int = 100,
         _session: Any = None,
-    ):
+    ) -> None:
         self.app_package = app_package
         self._settle = settle
         if _session is not None:

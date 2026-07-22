@@ -210,7 +210,7 @@ class ConfigManager:
         Path("config/mobiscout.yaml"),
     ]
 
-    def __init__(self, config_path: Optional[Path] = None, profile: str = "default"):
+    def __init__(self, config_path: Optional[Path] = None, profile: str = "default") -> None:
         self.profile = profile
         self.config_path = config_path or self._find_config()
         self.config = self._load_config()

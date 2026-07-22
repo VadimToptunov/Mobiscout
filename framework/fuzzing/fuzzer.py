@@ -73,7 +73,7 @@ class FuzzGenerator:
     Base fuzzing input generator
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         if seed:
             random.seed(seed)
 
@@ -354,7 +354,7 @@ class UIFuzzer:
     Fuzzes UI inputs (text fields, buttons, gestures)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.generator = FuzzGenerator()
         self.mutator = MutationFuzzer()
         self.results: List[FuzzResult] = []
@@ -440,7 +440,7 @@ class APIFuzzer:
     Fuzzes API endpoints with invalid/edge case inputs
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.generator = FuzzGenerator()
         self.results: List[FuzzResult] = []
 
@@ -506,7 +506,7 @@ class FuzzingCampaign:
     Orchestrates comprehensive fuzzing campaigns
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.ui_fuzzer = UIFuzzer()
         self.api_fuzzer = APIFuzzer()
         self.campaign_results: Dict[str, Any] = {}
@@ -573,7 +573,7 @@ class FuzzingCampaign:
         self.campaign_results["api"] = results
         return results
 
-    def export_report(self, output_path: Path):
+    def export_report(self, output_path: Path) -> None:
         """Export fuzzing campaign report"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 

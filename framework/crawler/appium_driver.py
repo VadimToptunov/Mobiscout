@@ -36,7 +36,7 @@ class IOSCrawlerDriver:
         server: str = "http://localhost:4723",
         settle: float = 1.2,
         process_args: Optional[List[str]] = None,
-    ):
+    ) -> None:
         # Imported lazily so the package works without Appium installed (adb-only
         # users never pay for it, and unit tests can stub the driver).
         from appium import webdriver

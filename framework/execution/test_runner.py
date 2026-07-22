@@ -108,7 +108,7 @@ class TestRunner:
         self,
         working_dir: Optional[Path] = None,
         timeout_seconds: int = 300,
-    ):
+    ) -> None:
         self.working_dir = working_dir or Path.cwd()
         self.timeout_seconds = timeout_seconds
 

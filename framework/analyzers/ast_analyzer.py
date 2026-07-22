@@ -76,7 +76,7 @@ class ASTAnalyzer:
     Can be extended to Kotlin/Java/Swift using appropriate parsers.
     """
 
-    def __init__(self, source_path: Path):
+    def __init__(self, source_path: Path) -> None:
         self.source_path = Path(source_path)
         self.functions: List[FunctionComplexity] = []
         self.data_flows: List[DataFlow] = []

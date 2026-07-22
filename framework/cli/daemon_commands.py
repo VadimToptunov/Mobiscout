@@ -106,7 +106,7 @@ def generate_selector(params: Dict[str, Any]) -> Dict[str, Any]:
 class JSONRPCServer:
     """JSON-RPC 2.0 server for IDE plugin communication."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.health_checker = HealthChecker()
         self.device_manager = DeviceManager()
         self.sessions = {}  # session_id -> {backend, backend_session_id, ...}
@@ -413,7 +413,7 @@ class JSONRPCServer:
                 "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
             }
 
-    def run_stdio(self):
+    def run_stdio(self) -> None:
         """Run server using stdin/stdout."""
         logger.info("Starting JSON-RPC server (stdio mode)")
 
@@ -451,7 +451,7 @@ class JSONRPCServer:
 @click.command(name="daemon")
 @click.option("--stdio", is_flag=True, default=True, help="Run in stdio mode (default)")
 @click.option("--tcp", type=int, help="Run in TCP mode on specified port (for debugging)")
-def daemon_command(stdio: bool, tcp: Optional[int]):
+def daemon_command(stdio: bool, tcp: Optional[int]) -> None:
     """
     Run JSON-RPC daemon for IDE plugin communication.
 

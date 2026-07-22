@@ -207,7 +207,7 @@ class ResultCollector(Generic[T]):
     Collect and summarize results from multiple operations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize result collector."""
         self.items: List[T] = []
         self.errors: List[Exception] = []
@@ -397,7 +397,7 @@ def handle_errors(operation: str, raise_on_error: bool = True) -> Iterator[Resul
 class ProgressTracker:
     """Track progress of long-running operations."""
 
-    def __init__(self, total: int, description: str = "Processing"):
+    def __init__(self, total: int, description: str = "Processing") -> None:
         """
         Initialize progress tracker.
 

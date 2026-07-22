@@ -36,7 +36,7 @@ class ChangeAnalyzer:
     Analyzes code changes to identify affected files
     """
 
-    def __init__(self, repo_path: Path):
+    def __init__(self, repo_path: Path) -> None:
         """
         Initialize change analyzer
 

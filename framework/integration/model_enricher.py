@@ -39,7 +39,7 @@ class ModelEnricher:
     - API endpoint discovery
     """
 
-    def __init__(self, preserve_existing: bool = True):
+    def __init__(self, preserve_existing: bool = True) -> None:
         self.preserve_existing = preserve_existing
         self.result = EnrichmentResult()
 
@@ -207,7 +207,7 @@ class ProjectIntegrator:
     - Update existing artifacts
     """
 
-    def __init__(self, project_path: Path):
+    def __init__(self, project_path: Path) -> None:
         self.project_path = Path(project_path)
         self.framework_type = None
 

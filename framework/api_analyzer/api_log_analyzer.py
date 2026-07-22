@@ -106,11 +106,11 @@ class APIAnalyzer:
     Analyzes captured API calls for patterns, errors, and timing
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_calls: List[APICall] = []
         self.correlations: Dict[str, List[APICall]] = defaultdict(list)
 
-    def add_api_call(self, api_call: APICall):
+    def add_api_call(self, api_call: APICall) -> None:
         """Add API call to analyzer"""
         self.api_calls.append(api_call)
 
@@ -245,7 +245,7 @@ class APIAnalyzer:
 
         return url
 
-    def export_har(self, output_path: Path):
+    def export_har(self, output_path: Path) -> None:
         """Export API calls in HAR format"""
         har: Dict[str, Any] = {
             "log": {"version": "1.2", "creator": {"name": "Mobiscout", "version": "1.0"}, "entries": []}
@@ -280,7 +280,7 @@ class LogAnalyzer:
     Analyzes device/application logs for patterns and errors
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logs: List[LogEntry] = []
         self.patterns: List[LogPattern] = []
         self.error_patterns: List[str] = [
@@ -293,11 +293,11 @@ class LogAnalyzer:
             r"out of memory",
         ]
 
-    def add_log(self, log: LogEntry):
+    def add_log(self, log: LogEntry) -> None:
         """Add log entry"""
         self.logs.append(log)
 
-    def add_logs(self, logs: List[LogEntry]):
+    def add_logs(self, logs: List[LogEntry]) -> None:
         """Add multiple log entries"""
         self.logs.extend(logs)
 
@@ -423,7 +423,7 @@ class LogAnalyzer:
 
         return pattern
 
-    def export_report(self, output_path: Path):
+    def export_report(self, output_path: Path) -> None:
         """Export analysis report"""
         report = {
             "summary": {
@@ -453,7 +453,7 @@ class APILogCorrelator:
     Provides unified view of application behavior
     """
 
-    def __init__(self, api_analyzer: APIAnalyzer, log_analyzer: LogAnalyzer):
+    def __init__(self, api_analyzer: APIAnalyzer, log_analyzer: LogAnalyzer) -> None:
         self.api_analyzer = api_analyzer
         self.log_analyzer = log_analyzer
 
@@ -541,7 +541,7 @@ class APILogModule:
     Unified interface for API and log analysis
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.api_analyzer = APIAnalyzer()
         self.log_analyzer = LogAnalyzer()
         self.correlator = APILogCorrelator(self.api_analyzer, self.log_analyzer)
@@ -622,7 +622,7 @@ class APILogModule:
             "assertions": self.correlator.generate_test_assertions(),
         }
 
-    def export_reports(self, output_dir: Path):
+    def export_reports(self, output_dir: Path) -> None:
         """Export all reports"""
         output_dir.mkdir(parents=True, exist_ok=True)
 

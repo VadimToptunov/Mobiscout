@@ -82,7 +82,7 @@ class TaintAnalyzer:
     substring detection.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Full multi-language source/sink patterns for the substring fallback
         # (non-Python files). Python files use the AST engine and _PY_* above.
         self.sources = {

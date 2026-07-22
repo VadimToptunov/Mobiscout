@@ -44,7 +44,7 @@ class SecurityAnalyzer:
     Analyzes mobile applications for security vulnerabilities
     """
 
-    def __init__(self, project_root: Path):
+    def __init__(self, project_root: Path) -> None:
         """
         Initialize security analyzer
 

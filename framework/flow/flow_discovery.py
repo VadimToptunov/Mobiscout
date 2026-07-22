@@ -151,14 +151,14 @@ class FlowDiscovery:
     - State machine extraction
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.nodes: Dict[str, FlowNode] = {}
         self.edges: List[FlowEdge] = []
         self.transitions: List[ScreenTransition] = []
         self.current_screen: Optional[str] = None
         self.ml_hooks: List[Callable] = []
 
-    def register_ml_hook(self, hook: Callable):
+    def register_ml_hook(self, hook: Callable) -> None:
         """
         Register ML hook for edge case detection
 
@@ -212,7 +212,7 @@ class FlowDiscovery:
         action: UIAction,
         duration_ms: float,
         api_calls: List[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         """
         Record a screen transition
 
@@ -284,13 +284,13 @@ class FlowDiscovery:
             edge_cases=edge_cases,
         )
 
-    def export_to_json(self, output_path: Path):
+    def export_to_json(self, output_path: Path) -> None:
         """Export flow graph to JSON"""
         graph = self.build_flow_graph()
         with open(output_path, "w") as f:
             json.dump(graph.to_dict(), f, indent=2)
 
-    def export_to_graphviz(self, output_path: Path):
+    def export_to_graphviz(self, output_path: Path) -> None:
         """Export flow graph to Graphviz DOT format"""
         graph = self.build_flow_graph()
 
@@ -375,7 +375,7 @@ class FlowDiscovery:
         visited = set()
         path = []
 
-        def dfs(node: str):
+        def dfs(node: str) -> None:
             if node in path:
                 # Found a loop
                 loop_start = path.index(node)
@@ -470,7 +470,7 @@ class FlowDiscovery:
 class StateExtractor:
     """Extract state machines from flow graph"""
 
-    def __init__(self, flow_discovery: FlowDiscovery):
+    def __init__(self, flow_discovery: FlowDiscovery) -> None:
         self.flow_discovery = flow_discovery
 
     def extract_states(self) -> List[Dict[str, Any]]:

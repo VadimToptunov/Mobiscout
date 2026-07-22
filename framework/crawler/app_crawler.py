@@ -87,7 +87,7 @@ class AppCrawler:
         max_depth: int = 20,
         blocklist: Tuple[str, ...] = DEFAULT_BLOCKLIST,
         waypoints: Optional[List["Waypoint"]] = None,
-    ):
+    ) -> None:
         self.driver = driver
         self.app_package = app_package
         self.max_steps = max_steps

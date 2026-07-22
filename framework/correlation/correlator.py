@@ -48,7 +48,7 @@ class EventCorrelator:
     Performance: Uses Rust implementation when available for 16-90x speedup.
     """
 
-    def __init__(self, event_store: Optional[EventStore] = None, force_python: bool = False):
+    def __init__(self, event_store: Optional[EventStore] = None, force_python: bool = False) -> None:
         """
         Initialize correlator
 

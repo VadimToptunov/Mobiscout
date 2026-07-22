@@ -42,7 +42,7 @@ def start(port: int, host: str, no_browser: bool, repo: str) -> None:
         # Open browser after a short delay
         if not no_browser:
 
-            def open_browser():
+            def open_browser() -> None:
                 time.sleep(1.5)
                 url = f"http://{host}:{port}"
                 print_info(f"Opening browser: {url}")

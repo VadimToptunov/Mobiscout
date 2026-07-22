@@ -82,7 +82,7 @@ class MockEntry:
 class MockStorage:
     """Persistent storage for API mocks"""
 
-    def __init__(self, storage_dir: Path = Path("mock_data")):
+    def __init__(self, storage_dir: Path = Path("mock_data")) -> None:
         self.storage_dir = storage_dir
         self.storage_dir.mkdir(parents=True, exist_ok=True)
 

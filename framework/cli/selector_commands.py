@@ -23,14 +23,14 @@ console = Console()
 
 
 @click.group()
-def selector():
+def selector() -> None:
     """Advanced selector utilities."""
 
 
 @selector.command()
 @click.argument("selector_string")
 @click.option("--platform", default="android", help="Platform (android/ios)")
-def parse(selector_string: str, platform: str):
+def parse(selector_string: str, platform: str) -> None:
     """Parse and validate a selector string."""
     console.print(f"\n[bold]Parsing selector:[/bold] [cyan]{selector_string}[/cyan]\n")
 
@@ -63,7 +63,7 @@ def parse(selector_string: str, platform: str):
 
 
 @selector.command()
-def examples():
+def examples() -> None:
     """Show selector examples."""
     examples_text = """
 # Simple Selectors
@@ -198,7 +198,7 @@ element = driver.find_element(**appium_selector)
 
 
 @selector.command()
-def operators():
+def operators() -> None:
     """List all available filter operators."""
     table = Table(title="Filter Operators")
     table.add_column("Operator", style="cyan")
@@ -225,7 +225,7 @@ def operators():
 
 
 @selector.command()
-def relationships():
+def relationships() -> None:
     """List all available relationship types."""
     table = Table(title="Relationship Selectors")
     table.add_column("Relationship", style="cyan")
@@ -247,7 +247,7 @@ def relationships():
 
 
 @selector.command()
-def benchmark():
+def benchmark() -> None:
     """Benchmark selector performance."""
     import time
 

@@ -32,7 +32,7 @@ class AnalyticsDashboard:
     - Selector stability over time
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.report_data = {}
 
     def generate_execution_report(self, test_results: List[Dict[str, Any]], output_path: Path):

@@ -21,7 +21,7 @@ class RuntimeProtectionAnalyzer:
     Analyzes mobile apps for runtime protection implementations.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.android_analyzer = AndroidProtectionAnalyzer()
         self.ios_analyzer = IOSProtectionAnalyzer()
 

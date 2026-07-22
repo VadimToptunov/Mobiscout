@@ -32,7 +32,7 @@ class HealingOrchestrator:
     Orchestrates the complete healing process
     """
 
-    def __init__(self, repo_path: Path, ml_model_path: Optional[Path] = None, min_confidence: float = 0.7):
+    def __init__(self, repo_path: Path, ml_model_path: Optional[Path] = None, min_confidence: float = 0.7) -> None:
         """
         Initialize healing orchestrator
 
@@ -198,7 +198,7 @@ class HealingOrchestrator:
 
         return results
 
-    def _commit_healings(self, results: List[HealingResult], branch_name: Optional[str]):
+    def _commit_healings(self, results: List[HealingResult], branch_name: Optional[str]) -> None:
         """Commit healed selectors to git"""
         updated_files = [r.update_result.file_path for r in results if r.update_result]
 

@@ -9,7 +9,7 @@ from framework.config.config_manager import ConfigManager
 class HealthChecker:
     """Health checker for the CLI daemon."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.start_time = time.time()
         self.config = ConfigManager()
 

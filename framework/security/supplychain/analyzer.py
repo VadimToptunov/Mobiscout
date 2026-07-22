@@ -33,7 +33,7 @@ class SupplyChainAnalyzer:
     Analyzes all dependencies for security vulnerabilities.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.python_parser = PythonDependencyParser()
         self.js_parser = JavaScriptDependencyParser()
         self.gradle_parser = GradleDependencyParser()

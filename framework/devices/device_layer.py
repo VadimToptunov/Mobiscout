@@ -58,7 +58,7 @@ class DeviceCapabilities:
     browser_name: Optional[str] = None
     extra_caps: Dict[str, Any] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.extra_caps is None:
             self.extra_caps = {}
 
@@ -128,7 +128,7 @@ class DeviceProvider(Protocol):
         """Connect to device"""
         ...
 
-    def disconnect(self, device: "Device"):
+    def disconnect(self, device: "Device") -> None:
         """Disconnect from device"""
         ...
 
@@ -144,7 +144,7 @@ class Device:
     - Element inspection
     """
 
-    def __init__(self, capabilities: DeviceCapabilities, driver: Any):
+    def __init__(self, capabilities: DeviceCapabilities, driver: Any) -> None:
         self.capabilities = capabilities
         self.driver = driver
         self.screenshots: List[Screenshot] = []
@@ -258,7 +258,7 @@ class Device:
 
         return logs
 
-    def start_api_trace(self):
+    def start_api_trace(self) -> None:
         """Start capturing API traces (requires proxy or instrumentation)"""
         # This would integrate with mitmproxy or Charles Proxy
         # For now, it's a placeholder for the API tracing capability
@@ -279,7 +279,7 @@ class Device:
             # iOS - get current view controller
             return "iOS_View"  # Placeholder
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect from device"""
         if self._is_connected:
             try:
@@ -435,7 +435,7 @@ class LocalDeviceProvider:
 
         return Device(caps, driver)
 
-    def disconnect(self, device: Device):
+    def disconnect(self, device: Device) -> None:
         """Disconnect from device"""
         device.disconnect()
 
@@ -446,7 +446,7 @@ class CloudDeviceProvider:
 
     """
 
-    def __init__(self, provider: str, username: str, access_key: str):
+    def __init__(self, provider: str, username: str, access_key: str) -> None:
 
         self.provider = provider.lower()
         self.username = username
@@ -498,7 +498,7 @@ class CloudDeviceProvider:
 
         return Device(caps, driver)
 
-    def disconnect(self, device: Device):
+    def disconnect(self, device: Device) -> None:
         """Disconnect from cloud device"""
         device.disconnect()
 
@@ -510,12 +510,12 @@ class DeviceLayer:
     Manages device connections and captures artifacts
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.local_provider = LocalDeviceProvider()
         self.cloud_provider: Optional[CloudDeviceProvider] = None
         self.connected_devices: List[Device] = []
 
-    def configure_cloud(self, provider: str, username: str, access_key: str):
+    def configure_cloud(self, provider: str, username: str, access_key: str) -> None:
         """Configure cloud device provider (PRO/ENTERPRISE feature)"""
         self.cloud_provider = CloudDeviceProvider(provider, username, access_key)
 
@@ -556,7 +556,7 @@ class DeviceLayer:
         self.connected_devices.append(device)
         return device
 
-    def disconnect_device(self, device: Device):
+    def disconnect_device(self, device: Device) -> None:
         """Disconnect from device"""
         if device.capabilities.device_type == DeviceType.CLOUD:
             if self.cloud_provider:
@@ -567,7 +567,7 @@ class DeviceLayer:
         if device in self.connected_devices:
             self.connected_devices.remove(device)
 
-    def disconnect_all(self):
+    def disconnect_all(self) -> None:
         """Disconnect from all devices"""
         for device in list(self.connected_devices):
             self.disconnect_device(device)

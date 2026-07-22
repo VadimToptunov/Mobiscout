@@ -22,7 +22,7 @@ class CertificatePinningAnalyzer:
     Checks for proper SSL/TLS certificate pinning in mobile apps
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.android_pinning_patterns = [
             # OkHttp CertificatePinner
             re.compile(r"CertificatePinner\.Builder\(\)", re.MULTILINE),

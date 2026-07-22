@@ -58,7 +58,7 @@ class MLModel(ABC):
     Provides interface for prediction, training, and serialization
     """
 
-    def __init__(self, model_type: ModelType, backend: MLBackend):
+    def __init__(self, model_type: ModelType, backend: MLBackend) -> None:
         self.model_type = model_type
         self.backend = backend
         self.version = "1.0.0"

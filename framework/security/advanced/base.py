@@ -115,7 +115,7 @@ class SecretPattern:
         severity: RiskLevel,
         entropy_threshold: float = 3.5,
         validators: Optional[List[Callable]] = None,
-    ):
+    ) -> None:
         self.name = name
         self.pattern = re.compile(pattern, re.IGNORECASE | re.MULTILINE)
         self.severity = severity

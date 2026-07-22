@@ -20,7 +20,7 @@ class NextStepRecommender(MLModel):
     Analyzes navigation patterns and suggests likely next actions
     """
 
-    def __init__(self, backend: MLBackend = MLBackend.SKLEARN):
+    def __init__(self, backend: MLBackend = MLBackend.SKLEARN) -> None:
         super().__init__(ModelType.STEP_RECOMMENDER, backend)
         self._transition_history: Dict[str, List[str]] = {}
 
@@ -88,7 +88,7 @@ class NextStepRecommender(MLModel):
             "total_transitions": sum(len(v) for v in self._transition_history.values()),
         }
 
-    def save(self, path: Path):
+    def save(self, path: Path) -> None:
         """Save model"""
         path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -105,7 +105,7 @@ class NextStepRecommender(MLModel):
                 indent=2,
             )
 
-    def load(self, path: Path):
+    def load(self, path: Path) -> None:
         """Load model"""
         with open(path, "r") as f:
             data = json.load(f)

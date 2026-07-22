@@ -15,7 +15,7 @@ console = Console()
 
 
 @click.group()
-def mock():
+def mock() -> None:
     """API mocking and replay commands."""
 
 
@@ -23,7 +23,7 @@ def mock():
 @click.argument("session_id")
 @click.option("--appium-server", help="Appium server URL to proxy")
 @click.option("--port", default=8888, help="Mock server port")
-def record(session_id: str, appium_server: str, port: int):
+def record(session_id: str, appium_server: str, port: int) -> None:
     """Start recording API calls for a test session.
 
     Runs a forward HTTP proxy on ``--port``; point the app/emulator's HTTP proxy at
@@ -81,7 +81,7 @@ def record(session_id: str, appium_server: str, port: int):
 @click.argument("session_id")
 @click.option("--strict/--fuzzy", default=False, help="Strict matching (body + URL)")
 @click.option("--port", default=8888, help="Mock server port")
-def replay(session_id: str, strict: bool, port: int):
+def replay(session_id: str, strict: bool, port: int) -> None:
     """Replay recorded API calls.
 
     Runs the proxy in replay mode: recorded requests are answered from the session
@@ -142,12 +142,12 @@ def replay(session_id: str, strict: bool, port: int):
 
 
 @mock.command(name="list")
-def list_command():
+def list_command() -> None:
     """List all recorded mock sessions."""
     _list_sessions()
 
 
-def _list_sessions():
+def _list_sessions() -> None:
     """Helper to list sessions"""
     mocker = APIMocker()
     sessions = mocker.list_sessions()
@@ -171,7 +171,7 @@ def _list_sessions():
 
 @mock.command()
 @click.argument("session_id")
-def inspect(session_id: str):
+def inspect(session_id: str) -> None:
     """Inspect a mock session's contents."""
 
     try:
@@ -208,7 +208,7 @@ def _format_headers(headers: dict) -> str:
 @mock.command()
 @click.argument("session_id")
 @click.confirmation_option(prompt="Are you sure you want to delete this session?")
-def delete(session_id: str):
+def delete(session_id: str) -> None:
     """Delete a mock session."""
     mocker = APIMocker()
 
@@ -221,7 +221,7 @@ def delete(session_id: str):
 @mock.command()
 @click.argument("session_id")
 @click.option("--output", "-o", type=Path, required=True, help="Output file path")
-def export(session_id: str, output: Path):
+def export(session_id: str, output: Path) -> None:
     """Export a mock session to a file."""
     mocker = APIMocker()
 
@@ -234,7 +234,7 @@ def export(session_id: str, output: Path):
 
 @mock.command(name="import")
 @click.argument("input_file", type=Path)
-def import_command(input_file: Path):
+def import_command(input_file: Path) -> None:
     """Import a mock session from a file."""
     mocker = APIMocker()
 
@@ -248,7 +248,7 @@ def import_command(input_file: Path):
 @mock.command()
 @click.argument("swagger_file", type=Path)
 @click.argument("session_id")
-def from_swagger(swagger_file: Path, session_id: str):
+def from_swagger(swagger_file: Path, session_id: str) -> None:
     """Generate mocks from Swagger/OpenAPI specification."""
     if not swagger_file.exists():
         console.print(f"[red]❌ File not found: {swagger_file}[/red]")
@@ -287,7 +287,7 @@ def from_swagger(swagger_file: Path, session_id: str):
 @click.argument("session_id")
 @click.argument("old_url")
 @click.argument("new_url")
-def rewrite_urls(session_id: str, old_url: str, new_url: str):
+def rewrite_urls(session_id: str, old_url: str, new_url: str) -> None:
     """Rewrite URLs in a mock session (e.g., change base URL)."""
     from framework.mocking.storage import MockStorage
 

@@ -25,7 +25,7 @@ class Decompiler:
     Combines all decompilation and analysis capabilities.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.apk_decompiler = APKDecompiler()
         self.ipa_analyzer = IPAAnalyzer()
         self.native_analyzer = NativeLibAnalyzer()

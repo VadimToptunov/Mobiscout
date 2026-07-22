@@ -52,7 +52,7 @@ class MetricsCollector:
     - healing_success_rate
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.metrics: Dict[str, Metric] = {}
         self.histograms: Dict[str, List[float]] = {}
 
@@ -203,7 +203,7 @@ class StructuredLogger:
     - Correlation IDs
     """
 
-    def __init__(self, log_path: Optional[Path] = None):
+    def __init__(self, log_path: Optional[Path] = None) -> None:
         self.log_path = log_path or Path("logs/mobiscout.json")
         self.context: Dict[str, Any] = {}
 
@@ -259,7 +259,7 @@ class TracingContext:
     Simplified tracing for test execution flows.
     """
 
-    def __init__(self, trace_id: Optional[str] = None):
+    def __init__(self, trace_id: Optional[str] = None) -> None:
         self.trace_id = trace_id or self._generate_trace_id()
         self.spans: List[Dict[str, Any]] = []
         self.current_span: Optional[str] = None
@@ -330,7 +330,7 @@ class ObservabilityManager:
 
     _instance: Optional["ObservabilityManager"] = None
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.metrics = MetricsCollector()
         self.logger = StructuredLogger()
         self.tracing: Optional[TracingContext] = None

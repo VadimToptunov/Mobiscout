@@ -279,7 +279,7 @@ class AccessibilityScanner:
     Orchestrates all accessibility checks and generates comprehensive reports.
     """
 
-    def __init__(self, wcag_level: WCAGLevel = WCAGLevel.AA):
+    def __init__(self, wcag_level: WCAGLevel = WCAGLevel.AA) -> None:
         self.wcag_level = wcag_level
         self.contrast_checker = ColorContrastChecker()
         self.touch_validator = TouchTargetValidator()

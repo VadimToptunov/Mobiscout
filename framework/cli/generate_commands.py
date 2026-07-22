@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 @click.group()
-def generate():
+def generate() -> None:
     """Generate test code"""
 
 

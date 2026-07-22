@@ -170,7 +170,7 @@ class TestDataGenerator:
 
     PRODUCT_CATEGORIES = ["electronics", "clothing", "home", "sports", "books", "toys", "food", "beauty"]
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None) -> None:
         """Initialize generator with optional seed for reproducibility"""
         if seed:
             random.seed(seed)

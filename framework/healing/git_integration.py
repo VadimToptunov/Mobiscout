@@ -28,7 +28,7 @@ class GitIntegration:
     Git operations for healing system
     """
 
-    def __init__(self, repo_path: Path):
+    def __init__(self, repo_path: Path) -> None:
         """
         Initialize git integration
 
@@ -78,7 +78,7 @@ class GitIntegration:
             print(f"Git commit failed: {e}")
             return None
 
-    def _create_branch(self, branch_name: str):
+    def _create_branch(self, branch_name: str) -> None:
         """Create and checkout new branch"""
         result = subprocess.run(
             ["git", "checkout", "-b", branch_name], cwd=self.repo_path, capture_output=True, text=True
@@ -88,7 +88,7 @@ class GitIntegration:
             # Branch might already exist, try to checkout
             subprocess.run(["git", "checkout", branch_name], cwd=self.repo_path, capture_output=True, text=True)
 
-    def _git_add(self, file_path: Path):
+    def _git_add(self, file_path: Path) -> None:
         """Stage file for commit"""
         relative_path = file_path.relative_to(self.repo_path)
 
@@ -251,7 +251,7 @@ class GitIntegration:
         except (subprocess.SubprocessError, OSError):
             return False
 
-    def save_healing_metadata(self, healing_details: List[dict], output_path: Optional[Path] = None):
+    def save_healing_metadata(self, healing_details: List[dict], output_path: Optional[Path] = None) -> None:
         """
         Save healing metadata to JSON file
 

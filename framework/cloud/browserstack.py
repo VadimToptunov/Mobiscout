@@ -25,7 +25,7 @@ class BrowserStackClient:
     BASE_URL = "https://api-cloud.browserstack.com"
     APP_AUTOMATE_URL = "https://api-cloud.browserstack.com/app-automate"
 
-    def __init__(self, username: str, access_key: str):
+    def __init__(self, username: str, access_key: str) -> None:
         """
         Initialize BrowserStack client
 
@@ -124,7 +124,7 @@ class BrowserStackClient:
 
         return response.json()
 
-    def delete_session(self, session_id: str):
+    def delete_session(self, session_id: str) -> None:
         """
         Delete a session
 

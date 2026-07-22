@@ -34,7 +34,7 @@ class VisualDetector:
     - Visual regression detection
     """
 
-    def __init__(self, tesseract_path: Optional[str] = None):
+    def __init__(self, tesseract_path: Optional[str] = None) -> None:
         """
         Initialize visual detector.
 
@@ -216,13 +216,15 @@ class VisualDetector:
 
         return has_changes, similarity, diff_image
 
-    def save_visual_diff(self, diff_image: np.ndarray, output_path: Path):
+    def save_visual_diff(self, diff_image: np.ndarray, output_path: Path) -> None:
         """Save visual diff image to disk."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(output_path), diff_image)
         logger.info(f"Visual diff saved to {output_path}")
 
-    def extract_element_screenshot(self, screenshot_path: Path, bounds: Tuple[int, int, int, int], output_path: Path):
+    def extract_element_screenshot(
+        self, screenshot_path: Path, bounds: Tuple[int, int, int, int], output_path: Path
+    ) -> None:
         """
         Extract element region from screenshot.
 

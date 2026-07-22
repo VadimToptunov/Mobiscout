@@ -24,7 +24,7 @@ class MultiLanguageVerifier:
     Verifies test code across all supported programming languages.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.verifiers: List[LanguageVerifier] = [
             PythonVerifier(),
             KotlinVerifier(),
