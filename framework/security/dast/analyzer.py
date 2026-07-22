@@ -177,8 +177,6 @@ class DASTAnalyzer:
         """
         findings = []
 
-        auth_header = headers.get("Authorization") if headers else None
-
         # If no endpoints provided, test base URL
         if not endpoints:
             endpoints = [{"path": "/", "method": "GET"}]

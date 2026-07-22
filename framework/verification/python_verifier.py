@@ -98,7 +98,6 @@ class PythonVerifier(LanguageVerifier):
     def _check_imports(self, tree: ast.AST, file_path: Path) -> List[VerificationIssue]:
         """Check import statements"""
         issues = []
-        required_imports = {"pytest", "appium", "selenium"}
         found_imports: Set[str] = set()
 
         for node in ast.walk(tree):

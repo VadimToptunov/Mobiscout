@@ -75,7 +75,7 @@ def generate(
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("Generating documentation...", total=None)
+        progress.add_task("Generating documentation...", total=None)
         generator.generate()
 
     # Success message

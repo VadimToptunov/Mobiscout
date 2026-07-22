@@ -40,9 +40,6 @@ class AndroidManifestAnalyzer:
             tree = ET.parse(manifest_path)
             root = tree.getroot()
 
-            # Namespace
-            ns = {"android": "http://schemas.android.com/apk/res/android"}
-
             # Check application attributes
             app = root.find(".//application")
             if app is not None:

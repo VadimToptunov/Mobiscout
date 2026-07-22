@@ -92,7 +92,7 @@ class SSLTLSAnalyzer:
                 context.verify_mode = ssl.CERT_NONE
 
                 with socket.create_connection((hostname, port), timeout=5) as sock:
-                    with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                    with context.wrap_socket(sock, server_hostname=hostname):
                         if name in self.DEPRECATED_PROTOCOLS:
                             findings.append(
                                 DASTFinding(

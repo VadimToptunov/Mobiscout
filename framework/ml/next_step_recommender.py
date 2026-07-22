@@ -35,7 +35,6 @@ class NextStepRecommender(MLModel):
             Recommended next step with confidence
         """
         current_screen = features.get("current_screen", "")
-        recent_actions = features.get("recent_actions", [])
 
         # Use transition history for prediction
         if current_screen in self._transition_history:

@@ -174,7 +174,6 @@ def _list_sessions():
 @click.argument("session_id")
 def inspect(session_id: str):
     """Inspect a mock session's contents."""
-    mocker = APIMocker()
 
     try:
         from framework.mocking.storage import MockStorage

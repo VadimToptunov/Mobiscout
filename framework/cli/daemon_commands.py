@@ -473,6 +473,6 @@ def daemon_command(stdio: bool, tcp: Optional[int]):
         except KeyboardInterrupt:
             logger.info("Daemon shutting down")
             sys.exit(0)
-        except (OSError, ConnectionError, RuntimeError) as e:
+        except (OSError, ConnectionError, RuntimeError):
             logger.exception("Fatal error in daemon")
             sys.exit(1)
