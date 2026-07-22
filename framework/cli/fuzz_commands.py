@@ -380,7 +380,7 @@ def campaign(config: Optional[str], output: str) -> None:
     with console.status("[cyan]Running UI fuzzing campaign..."):
         ui_results = campaign_runner.run_ui_campaign(ui_targets)
 
-    console.print(f"  [green]✓[/green] UI fuzzing complete")
+    console.print("  [green]✓[/green] UI fuzzing complete")
     console.print(f"    Targets: {len(ui_targets)}")
     console.print(f"    Inputs: {ui_results.get('total_inputs', 0)}")
     console.print(f"    Crashes: {ui_results.get('crashes', 0)}")
@@ -390,7 +390,7 @@ def campaign(config: Optional[str], output: str) -> None:
     with console.status("[cyan]Running API fuzzing campaign..."):
         api_results = campaign_runner.run_api_campaign(api_endpoints)
 
-    console.print(f"  [green]✓[/green] API fuzzing complete")
+    console.print("  [green]✓[/green] API fuzzing complete")
     console.print(f"    Endpoints: {len(api_endpoints)}")
     console.print(f"    Requests: {api_results.get('total_requests', 0)}")
     console.print(f"    Errors: {api_results.get('errors', 0)}")

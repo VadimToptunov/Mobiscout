@@ -132,7 +132,7 @@ class PythonPlugin(LanguagePlugin):
             selector = elem.get("selector", "")
             selector_type = elem.get("type", "id")
 
-            lines.append(f"    @property")
+            lines.append("    @property")
             lines.append(f"    def {name}(self):")
             lines.append(f'        return self.driver.find_element(AppiumBy.{selector_type.upper()}, "{selector}")')
             lines.append("")

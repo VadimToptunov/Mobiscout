@@ -75,7 +75,7 @@ def write_json_file(file_path: Path, data: Dict[str, Any], pretty: bool = True) 
             else:
                 json.dump(data, f, ensure_ascii=False)
     except (TypeError, ValueError) as e:
-        raise SerializationError(f"Cannot serialize data to JSON", details={"path": str(file_path), "error": str(e)})
+        raise SerializationError("Cannot serialize data to JSON", details={"path": str(file_path), "error": str(e)})
 
 
 def ensure_directory(directory: Path) -> Path:

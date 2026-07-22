@@ -240,7 +240,7 @@ class DocGenerator:
         if module.classes:
             html += "<h2>Classes</h2>\n"
             for cls in module.classes:
-                html += f"<div class='class'>\n"
+                html += "<div class='class'>\n"
                 html += f"<h3>{cls.name}</h3>\n"
                 if cls.docstring:
                     html += f"<p>{cls.docstring}</p>\n"
@@ -261,7 +261,7 @@ class DocGenerator:
         if module.functions:
             html += "<h2>Functions</h2>\n"
             for func in module.functions:
-                html += f"<div class='function'>\n"
+                html += "<div class='function'>\n"
                 html += f"<h3><code>{func.signature}</code></h3>\n"
                 if func.docstring:
                     html += f"<p>{func.docstring}</p>\n"

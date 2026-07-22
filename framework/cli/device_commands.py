@@ -83,7 +83,7 @@ def list(platform: str, status: str) -> None:
         android_count = len([d for d in all_devices if d.platform.value == "android"])
         ios_count = len([d for d in all_devices if d.platform.value == "ios"])
 
-        print_info(f"\n📊 Summary:")  # noqa: F541
+        print_info("\n📊 Summary:")
         print_info(f"  Android: {android_count}")
         print_info(f"  iOS: {ios_count}")
         print_info(f"  Total: {len(all_devices)}")
@@ -118,7 +118,7 @@ def info(device_id: str) -> None:
 
         capabilities = device.get("capabilities", {})
         if capabilities:
-            print_info(f"\n  Capabilities:")  # noqa: F541
+            print_info("\n  Capabilities:")
             for key, value in capabilities.items():
                 print_info(f"    {key}: {value}")
 
@@ -274,14 +274,14 @@ def pool_info(pool_name: str) -> None:
         print_info(f"  Devices:  {len(pool.devices)}")
 
         if pool.devices:
-            print_info(f"\n  Device List:")  # noqa: F541
+            print_info("\n  Device List:")
             for device in pool.devices:
                 status_emoji = {"available": "✅", "busy": "🔄", "offline": "❌"}.get(device.status.value.lower(), "❓")
                 print_info(f"    {status_emoji} {device.id} ({device.name})")
 
         # Health check
         health = pool.health_check()
-        print_info(f"\n  Health:")  # noqa: F541
+        print_info("\n  Health:")
         print_info(f"    Total: {health['total']}")
         print_info(f"    Available: {health['available']}")
         print_info(f"    Busy: {health['busy']}")

@@ -184,7 +184,7 @@ def compare(baseline: str, current: str) -> None:
         improvements = sum(1 for v in diff.values() if v < 0)
         regressions = sum(1 for v in diff.values() if v > 0)
 
-        print_info(f"\n📈 Summary:")  # noqa: F541
+        print_info("\n📈 Summary:")
         print_info(f"  Improvements: {improvements}")
         print_info(f"  Regressions: {regressions}")
 
