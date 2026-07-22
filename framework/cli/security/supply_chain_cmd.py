@@ -126,7 +126,7 @@ def supply_chain(
 
     if output:
         if format == "sbom":
-            analyzer.generate_sbom(result, output)
+            analyzer.generate_sbom_file(result, output)
             console.print(f"\n[green]✓[/green] SBOM saved to {output}")
         elif format == "html":
             analyzer.export_html(result, output)
@@ -167,7 +167,7 @@ def sbom(project_path: Path, output: Path, format: str) -> None:
 
     with console.status("[cyan]Generating SBOM..."):
         result = analyzer.analyze(project_path, check_vulnerabilities=False)
-        analyzer.generate_sbom(result, output, format=format)
+        analyzer.generate_sbom_file(result, output, format=format)
 
     console.print(f"\n[green]✓[/green] SBOM generated: {output}")
     console.print(f"[dim]Format: {format.upper()}[/dim]")

@@ -304,7 +304,7 @@ def code(source_path: Path, language: str, output: Optional[Path]) -> None:
     analyzer = SecureCodingAnalyzer()
 
     with console.status("[cyan]Analyzing code security..."):
-        findings = analyzer.analyze(source_path, language)
+        findings = analyzer.analyze(source_path)
 
     if not findings:
         console.print("[green]✓[/green] No secure coding issues found!")
@@ -378,7 +378,7 @@ def full(
 
     with create_progress_context() as progress:
         task = progress.add_task("Running full security scan...", total=None)
-        result = scanner.full_scan(app_path, platform, app_name)
+        result = scanner.full_scan(app_path, platform)
         progress.update(task, completed=True)
 
     console.print()
@@ -392,7 +392,7 @@ def full(
     summary_table.add_column("Low", style="dim", justify="right")
 
     categories = {}
-    for finding in result.findings:
+    for finding in scanner.all_vulnerabilities:
         cat = finding.owasp_category.value if finding.owasp_category else "Other"
         if cat not in categories:
             categories[cat] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
@@ -417,9 +417,9 @@ def full(
 
     console.print(summary_table)
 
-    total = len(result.findings)
-    critical = len([f for f in result.findings if f.risk_level == RiskLevel.CRITICAL])
-    high = len([f for f in result.findings if f.risk_level == RiskLevel.HIGH])
+    total = len(scanner.all_vulnerabilities)
+    critical = len([f for f in scanner.all_vulnerabilities if f.risk_level == RiskLevel.CRITICAL])
+    high = len([f for f in scanner.all_vulnerabilities if f.risk_level == RiskLevel.HIGH])
 
     console.print(f"\n[bold]Total Findings:[/bold] {total}")
     console.print(f"[red]Critical:[/red] {critical} | [yellow]High:[/yellow] {high}")
@@ -438,16 +438,16 @@ def full(
 
         if format == "sarif":
             sarif_path = output / f"{app_name}_security.sarif"
-            scanner.export_sarif(result.findings, sarif_path)
+            scanner.export_sarif(sarif_path)
             console.print(f"\n[green]✓[/green] SARIF report: {sarif_path}")
         elif format == "html":
             html_path = output / f"{app_name}_security.html"
-            scanner.export_html(result, html_path)
+            scanner.export_html_report(html_path)
             console.print(f"\n[green]✓[/green] HTML report: {html_path}")
         else:
             json_path = output / f"{app_name}_security.json"
             with open(json_path, "w") as f:
-                json.dump(result.to_dict(), f, indent=2, default=str)
+                json.dump(result, f, indent=2, default=str)
             console.print(f"\n[green]✓[/green] JSON report: {json_path}")
 
     if critical > 0:
