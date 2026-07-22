@@ -125,7 +125,7 @@ class APIAnalyzer:
         Returns:
             Analysis results with patterns, frequencies, etc.
         """
-        analysis = {
+        analysis: Dict[str, Any] = {
             "total_calls": len(self.api_calls),
             "by_method": Counter(),
             "by_status": Counter(),
@@ -216,7 +216,6 @@ class APIAnalyzer:
             # Response time assertions
             durations = [c.duration_ms for c in calls if c.duration_ms]
             if durations:
-                avg_duration = sum(durations) / len(durations)
                 max_duration = max(durations)
 
                 assertions.append(
@@ -248,7 +247,9 @@ class APIAnalyzer:
 
     def export_har(self, output_path: Path):
         """Export API calls in HAR format"""
-        har = {"log": {"version": "1.2", "creator": {"name": "Mobiscout", "version": "1.0"}, "entries": []}}
+        har: Dict[str, Any] = {
+            "log": {"version": "1.2", "creator": {"name": "Mobiscout", "version": "1.0"}, "entries": []}
+        }
 
         for call in self.api_calls:
             entry = {
@@ -380,7 +381,6 @@ class LogAnalyzer:
             Mapping of API calls to related logs
         """
         correlations = {}
-        time_window = timedelta(milliseconds=time_window_ms)
 
         for api_call in api_calls:
             related_logs = []
@@ -471,7 +471,6 @@ class APILogCorrelator:
 
         for api_call in self.api_analyzer.api_calls:
             # Find related logs
-            time_window = timedelta(milliseconds=time_window_ms)
             related_logs = [
                 log
                 for log in self.log_analyzer.logs
