@@ -18,7 +18,6 @@ console = Console()
 @click.group(name="devices")
 def devices() -> None:
     """📱 Device management commands"""
-    pass
 
 
 @devices.command()
@@ -185,7 +184,6 @@ def health() -> None:
 @devices.group(name="pool")
 def pool() -> None:
     """Device pool management"""
-    pass
 
 
 @pool.command(name="create")

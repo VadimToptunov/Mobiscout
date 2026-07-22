@@ -17,7 +17,6 @@ console = Console()
 @click.group()
 def mock():
     """API mocking and replay commands."""
-    pass
 
 
 @mock.command()

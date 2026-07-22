@@ -25,7 +25,6 @@ console = Console()
 @click.group()
 def load() -> None:
     """Load testing and performance profiling"""
-    pass
 
 
 @load.command()

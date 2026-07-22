@@ -19,7 +19,6 @@ console = Console()
 @click.group()
 def ci():
     """CI/CD integration commands."""
-    pass
 
 
 @ci.command()

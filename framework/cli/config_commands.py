@@ -27,7 +27,6 @@ def config() -> None:
 
     Manage framework settings, profiles, and integrations.
     """
-    pass
 
 
 @config.command()

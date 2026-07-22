@@ -21,7 +21,6 @@ console = Console()
 @click.group(name="visual")
 def visual() -> None:
     """👁️  Visual regression testing commands"""
-    pass
 
 
 @visual.command()

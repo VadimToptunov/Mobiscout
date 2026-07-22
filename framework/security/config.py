@@ -8,7 +8,7 @@ import logging
 import os
 import secrets
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 try:
     from argon2 import PasswordHasher, exceptions as argon2_exceptions
@@ -249,8 +249,6 @@ class SecurityConfig:
 
 class SecurityError(Exception):
     """Raised when a security constraint is violated"""
-
-    pass
 
 
 # Global security config instance

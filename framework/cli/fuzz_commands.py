@@ -20,7 +20,6 @@ from framework.fuzzing.fuzzer import (
     APIFuzzer,
     FuzzingCampaign,
     InputType,
-    FuzzingStrategy,
 )
 
 console = Console()
@@ -33,7 +32,6 @@ def fuzz() -> None:
 
     Automated testing with random and edge case inputs.
     """
-    pass
 
 
 @fuzz.command()

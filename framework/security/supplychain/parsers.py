@@ -1,27 +1,15 @@
 """Extracted from supply_chain (mechanical split; see supplychain/base.py)."""
 
-import hashlib
 import json
 import logging
 import re
-import subprocess
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import List
 
 from framework.security.supplychain.base import (
     DependencyType,
     VulnerabilitySeverity,
-    LicenseType,
     Dependency,
-    Vulnerability,
-    SupplyChainFinding,
-    DependencyWithVulns,
-    VulnerabilityInfo,
-    LicenseIssue,
-    SupplyChainResult,
 )
 
 logger = logging.getLogger(__name__)

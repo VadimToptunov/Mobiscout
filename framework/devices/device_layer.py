@@ -262,7 +262,6 @@ class Device:
         """Start capturing API traces (requires proxy or instrumentation)"""
         # This would integrate with mitmproxy or Charles Proxy
         # For now, it's a placeholder for the API tracing capability
-        pass
 
     def stop_api_trace(self) -> List[APITrace]:
         """Stop capturing API traces"""

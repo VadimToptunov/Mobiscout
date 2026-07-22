@@ -55,7 +55,6 @@ class LanguagePlugin(ABC):
         Returns:
             Generated test code as string
         """
-        pass
 
     @abstractmethod
     def generate_page_object(self, screen_name: str, elements: List[Dict[str, Any]], output_path: Path) -> str:
@@ -70,7 +69,6 @@ class LanguagePlugin(ABC):
         Returns:
             Generated page object code as string
         """
-        pass
 
     def get_imports(self) -> List[str]:
         """Get required imports for the language/framework."""

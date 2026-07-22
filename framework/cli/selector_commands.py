@@ -25,7 +25,6 @@ console = Console()
 @click.group()
 def selector():
     """Advanced selector utilities."""
-    pass
 
 
 @selector.command()

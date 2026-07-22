@@ -1,14 +1,9 @@
 """Extracted from supply_chain (mechanical split; see supplychain/base.py)."""
 
-import hashlib
 import json
-import re
-import subprocess
-from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Set, Tuple
+from typing import Dict, Any, List, Tuple
 
 from framework.security.supplychain.base import (
     DependencyType,

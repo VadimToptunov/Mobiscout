@@ -28,7 +28,6 @@ def report() -> None:
 
     Generate professional reports in multiple formats.
     """
-    pass
 
 
 @report.command()

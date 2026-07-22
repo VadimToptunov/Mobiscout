@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Deque, List, Optional, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen

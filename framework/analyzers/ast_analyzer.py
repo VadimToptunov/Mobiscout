@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Try to import Rust core
 RUST_AVAILABLE = False
 try:
-    from mobiscout_core import RustAstAnalyzer, ComplexityMetrics as RustComplexityMetrics
+    pass
 
     RUST_AVAILABLE = True
     logger.info("✅ Rust core available - using high-performance backend")

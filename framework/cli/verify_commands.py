@@ -5,7 +5,7 @@ STEP 12: Multi-Language Verification CLI Interface
 """
 
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 import click
 from rich.console import Console
@@ -28,7 +28,6 @@ def verify() -> None:
 
     Verify test code across Python, Kotlin, Swift, JavaScript, Go, and Ruby.
     """
-    pass
 
 
 @verify.command()

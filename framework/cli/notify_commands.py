@@ -45,7 +45,6 @@ def save_config(config: Dict[str, Any]) -> None:
 @click.group(name="notify")
 def notify() -> None:
     """🔔 Notification commands"""
-    pass
 
 
 @notify.command()

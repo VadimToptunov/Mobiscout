@@ -17,7 +17,6 @@ def business() -> None:
 
     Extract and analyze business logic from source code
     """
-    pass
 
 
 @business.command()

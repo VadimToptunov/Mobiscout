@@ -29,7 +29,6 @@ def observe_() -> None:
 
     Metrics, logs, and tracing for production monitoring.
     """
-    pass
 
 
 @observe_.command()

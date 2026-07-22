@@ -164,7 +164,6 @@ def run_tests_with_monitor(test_path: str, pytest_args: str) -> int:
 @click.group(name="execute")
 def execute() -> None:
     """🏃 Live test execution commands"""
-    pass
 
 
 @execute.command()

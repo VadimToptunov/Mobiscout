@@ -1,11 +1,9 @@
 """PythonVerifier — extracted from verifier.py (mechanical split; see base.py)."""
 
 import ast
-import json
 import re
-import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import List, Set
 
 from framework.verification.base import (
     LanguageVerifier,
