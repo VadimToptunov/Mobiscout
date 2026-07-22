@@ -33,8 +33,14 @@ def sanitize_identifier(name: str, default: str = "item") -> str:
     # Remove invalid characters
     sanitized = re.sub(r"[^a-z0-9_]", "", sanitized)
 
-    # Remove leading digits
-    sanitized = re.sub(r"^[0-9]+", "", sanitized)
+    # A Python identifier can't start with a digit. Rather than drop leading
+    # digits (which loses information and can make distinct names collide), move
+    # the digit run to the end: "123-invalid" -> "invalid_123".
+    leading = re.match(r"^([0-9]+)(.*)$", sanitized)
+    if leading:
+        digits, rest = leading.groups()
+        rest = rest.strip("_")
+        sanitized = f"{rest}_{digits}" if rest else ""
 
     # Ensure not empty
     if not sanitized:
@@ -122,8 +128,13 @@ def sanitize_class_name(name: str, default: str = "Item") -> str:
 
     result = "".join(cleaned_parts)
 
-    # Remove leading digits
-    result = re.sub(r"^[0-9]+", "", result)
+    # A class name can't start with a digit. Move a leading digit run to the end
+    # (re-capitalising what becomes the new first letter) so "123Test" -> "Test123"
+    # instead of dropping the digits.
+    leading = re.match(r"^([0-9]+)(.*)$", result)
+    if leading:
+        digits, rest = leading.groups()
+        result = (rest[0].upper() + rest[1:] + digits) if rest else ""
 
     if not result:
         return default
