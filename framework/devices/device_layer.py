@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Protocol
+from typing import List, Dict, Any, Optional, Protocol, cast
 
 
 class Platform(Enum):
@@ -78,7 +78,8 @@ class DeviceCapabilities:
         if self.browser_name:
             caps["browserName"] = self.browser_name
 
-        caps.update(self.extra_caps)
+        if self.extra_caps:
+            caps.update(self.extra_caps)
         return caps
 
 
@@ -269,12 +270,12 @@ class Device:
 
     def get_page_source(self) -> str:
         """Get current page source/hierarchy"""
-        return self.driver.page_source
+        return cast(str, self.driver.page_source)
 
     def get_current_activity(self) -> str:
         """Get current activity (Android) or view (iOS)"""
         if self.platform == Platform.ANDROID:
-            return self.driver.current_activity
+            return cast(str, self.driver.current_activity)
         else:
             # iOS - get current view controller
             return "iOS_View"  # Placeholder

@@ -33,7 +33,7 @@ import socket
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import requests
 
@@ -74,12 +74,12 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     # BaseHTTPRequestHandler logs every request to stderr; route it through logging.
-    def log_message(self, format: str, *args) -> None:  # noqa: A002 - signature is fixed
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - signature is fixed
         logger.debug("proxy %s - %s", self.address_string(), format % args)
 
     @property
     def _proxy(self) -> "MockProxy":
-        return self.server.mock_proxy  # type: ignore[attr-defined]
+        return self.server.mock_proxy  # type: ignore[attr-defined,no-any-return]
 
     def _read_body(self) -> Optional[str]:
         """Read the request body per ``Content-Length``; ``None`` if there is none."""
@@ -213,7 +213,7 @@ class MockProxy:
         upstream_timeout: seconds to wait on the real backend when recording.
     """
 
-    def __init__(self, mocker, port: int = 8888, host: str = "127.0.0.1", upstream_timeout: float = 30.0) -> None:
+    def __init__(self, mocker: Any, port: int = 8888, host: str = "127.0.0.1", upstream_timeout: float = 30.0) -> None:
         self.mocker = mocker
         self.upstream_timeout = upstream_timeout
         self._server = ThreadingHTTPServer((host, port), _ProxyHandler)
@@ -257,5 +257,5 @@ class MockProxy:
     def __enter__(self) -> "MockProxy":
         return self.start()
 
-    def __exit__(self, *exc) -> None:
+    def __exit__(self, *exc: Any) -> None:
         self.stop()

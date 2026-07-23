@@ -92,7 +92,7 @@ class PerformanceProfiler:
         test_duration = time.perf_counter() - test_start
 
         # Stop CPU profiling
-        if self.config.profile_cpu:
+        if self.config.profile_cpu and self.profiler is not None:
             self.profiler.disable()
 
         # Capture memory snapshot

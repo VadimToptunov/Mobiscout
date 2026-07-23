@@ -10,7 +10,7 @@ Provides integration with BrowserStack for:
 
 import time
 from pathlib import Path
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, cast
 
 import requests
 
@@ -59,7 +59,7 @@ class BrowserStackClient:
             platform_key = "android" if platform.lower() == "android" else "ios"
             devices = [d for d in devices if d.get("os", "").lower().startswith(platform_key)]
 
-        return devices
+        return cast(List[Dict[Any, Any]], devices)
 
     def upload_app(self, app_path: Path) -> str:
         """
@@ -88,7 +88,7 @@ class BrowserStackClient:
         app_url = data.get("app_url")
         print(f"✓ Upload complete: {app_url}")
 
-        return app_url
+        return cast(str, app_url)
 
     def get_sessions(self, limit: int = 10) -> List[Dict]:
         """
@@ -106,7 +106,7 @@ class BrowserStackClient:
         response = self.session.get(url, params=params)
         response.raise_for_status()
 
-        return response.json()
+        return cast(List[Dict[Any, Any]], response.json())
 
     def get_session(self, session_id: str) -> Dict:
         """
@@ -122,7 +122,7 @@ class BrowserStackClient:
         response = self.session.get(url)
         response.raise_for_status()
 
-        return response.json()
+        return cast(Dict[Any, Any], response.json())
 
     def delete_session(self, session_id: str) -> None:
         """
@@ -151,7 +151,7 @@ class BrowserStackClient:
         response = self.session.get(url)
         response.raise_for_status()
 
-        return response.json()
+        return cast(Dict[Any, Any], response.json())
 
     def get_builds(self, limit: int = 10) -> List[Dict]:
         """
@@ -169,7 +169,7 @@ class BrowserStackClient:
         response = self.session.get(url, params=params)
         response.raise_for_status()
 
-        return response.json()
+        return cast(List[Dict[Any, Any]], response.json())
 
     def get_plan(self) -> Dict:
         """
@@ -182,7 +182,7 @@ class BrowserStackClient:
         response = self.session.get(url)
         response.raise_for_status()
 
-        return response.json()
+        return cast(Dict[Any, Any], response.json())
 
     def generate_capabilities(
         self,
