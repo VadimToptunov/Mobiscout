@@ -33,9 +33,9 @@ class AnalyticsDashboard:
     """
 
     def __init__(self) -> None:
-        self.report_data = {}
+        self.report_data: Dict[str, Any] = {}
 
-    def generate_execution_report(self, test_results: List[Dict[str, Any]], output_path: Path):
+    def generate_execution_report(self, test_results: List[Dict[str, Any]], output_path: Path) -> None:
         """
         Generate test execution report with charts.
 
@@ -98,7 +98,7 @@ class AnalyticsDashboard:
         fig.add_trace(go.Bar(x=test_names, y=exec_times, marker=dict(color="#007bff")), row=2, col=1)
 
         # 4. Failure categories
-        failure_reasons = defaultdict(int)
+        failure_reasons: Dict[str, int] = defaultdict(int)
         for result in test_results:
             if result.get("status") == "failed":
                 reason = result.get("failure_reason", "Unknown")
@@ -180,7 +180,7 @@ class AnalyticsDashboard:
 
         logger.info(f"Execution report saved to {output_path}")
 
-    def generate_selector_stability_report(self, selector_history: List[Dict[str, Any]], output_path: Path):
+    def generate_selector_stability_report(self, selector_history: List[Dict[str, Any]], output_path: Path) -> None:
         """
         Generate selector stability trend report.
 
@@ -256,7 +256,7 @@ class AnalyticsDashboard:
         logger.info(f"Selector stability report saved to {output_path}")
 
 
-def generate_ml_performance_dashboard(model_metrics: Dict[str, Any], output_path: Path):
+def generate_ml_performance_dashboard(model_metrics: Dict[str, Any], output_path: Path) -> None:
     """
     Generate ML model performance dashboard.
 

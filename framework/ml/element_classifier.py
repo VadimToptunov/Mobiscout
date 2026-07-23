@@ -301,7 +301,7 @@ class ElementClassifier:
 
         # Train using the main train method
         metrics = self.train(features_df, labels_series, test_size=test_size)
-        return metrics.get("test_accuracy", 0.0)
+        return float(metrics.get("test_accuracy", 0.0))
 
     def predict(self, element_data: Dict[str, Any]) -> Tuple[ElementType, float]:
         """
@@ -313,7 +313,7 @@ class ElementClassifier:
         Returns:
             (predicted_type, confidence_score)
         """
-        if not self.trained or self.model is None:
+        if not self.trained or self.model is None or self.label_encoder is None:
             raise ValueError("Model not trained. Call train() first or load_model()")
 
         # Extract features
@@ -340,7 +340,7 @@ class ElementClassifier:
 
     def predict_batch(self, elements_data: List[Dict[str, Any]]) -> List[Tuple[ElementType, float]]:
         """Predict multiple elements at once."""
-        if not self.trained or self.model is None:
+        if not self.trained or self.model is None or self.label_encoder is None:
             raise ValueError("Model not trained")
 
         # Extract features for all elements
@@ -366,9 +366,9 @@ class ElementClassifier:
 
         return results
 
-    def save_model(self, path: Path):
+    def save_model(self, path: Path) -> None:
         """Save trained model to disk."""
-        if not self.trained or self.model is None:
+        if not self.trained or self.model is None or self.label_encoder is None:
             raise ValueError("No trained model to save")
 
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -378,7 +378,7 @@ class ElementClassifier:
         joblib.dump(model_data, path)
         logger.info(f"Model saved to {path}")
 
-    def load_model(self, path: Path):
+    def load_model(self, path: Path) -> None:
         """Load trained model from disk."""
         if not path.exists():
             raise FileNotFoundError(f"Model file not found: {path}")
@@ -394,7 +394,7 @@ class ElementClassifier:
 
     def get_feature_importance(self, top_n: int = 20) -> pd.DataFrame:
         """Get top N most important features."""
-        if not self.trained or self.model is None:
+        if not self.trained or self.model is None or self.label_encoder is None:
             raise ValueError("Model not trained")
 
         importance_df = (

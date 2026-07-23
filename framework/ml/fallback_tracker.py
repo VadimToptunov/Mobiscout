@@ -85,7 +85,7 @@ class FallbackTracker:
 
         # Check if same fallback succeeded multiple times
         recent_failures = failures[-5:]  # Last 5 failures
-        fallback_counts = {}
+        fallback_counts: Dict[str, int] = {}
 
         for failure in recent_failures:
             fallback = failure["successful_fallback"]
@@ -129,7 +129,7 @@ class FallbackTracker:
             pattern = rf'({selector_name}\s*=\s*\{{[^}}]+"{platform}"\s*:\s*)"([^"]+)"'
 
             # Replace with new selector
-            def replace_selector(match) -> str:
+            def replace_selector(match: Any) -> str:
                 prefix = match.group(1)
                 old_selector = match.group(2)
 

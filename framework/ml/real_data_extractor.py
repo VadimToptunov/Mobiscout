@@ -143,7 +143,8 @@ def load_shipped_real_dataset() -> List[Dict[str, Any]]:
     if not SHIPPED_DATASET.exists():
         return []
     try:
-        return json.loads(SHIPPED_DATASET.read_text(encoding="utf-8"))
+        data: List[Dict[str, Any]] = json.loads(SHIPPED_DATASET.read_text(encoding="utf-8"))
+        return data
     except (ValueError, OSError):
         return []
 
