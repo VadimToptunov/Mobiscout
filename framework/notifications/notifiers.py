@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -72,7 +72,7 @@ class SlackNotifier(Notifier):
                 color = "#d00000"  # Red
 
             # Build message
-            message = {
+            message: Dict[str, Any] = {
                 "text": f"*{title}*",
                 "attachments": [
                     {
@@ -138,7 +138,7 @@ class TeamsNotifier(Notifier):
                 theme_color = "dc3545"  # Red
 
             # Build message card
-            message = {
+            message: Dict[str, Any] = {
                 "@type": "MessageCard",
                 "@context": "https://schema.org/extensions",
                 "summary": title,

@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 
 
 class ReportFormat(Enum):
@@ -491,7 +491,7 @@ class ReportGenerator:
     """
 
     def __init__(self) -> None:
-        self.generators = {
+        self.generators: Dict[ReportFormat, Any] = {
             ReportFormat.HTML: HTMLReportGenerator(),
             ReportFormat.MARKDOWN: MarkdownReportGenerator(),
             ReportFormat.JSON: JSONReportGenerator(),

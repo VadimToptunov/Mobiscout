@@ -6,7 +6,7 @@ Uses ML model to match correct element from alternatives.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import Any, List, Optional, Dict
 
 from .selector_discovery import AlternativeSelector
 
@@ -37,13 +37,14 @@ class ElementMatcher:
             ml_model_path: Path to ML model (from Phase 4)
         """
         self.ml_model_path = ml_model_path
-        self.ml_model = None
+        self.ml_model: Optional[Any] = None
 
         if ml_model_path and ml_model_path.exists():
             self._load_ml_model()
 
     def _load_ml_model(self) -> None:
         """Load ML model from Phase 4"""
+        assert self.ml_model_path is not None  # only called when the path exists
         try:
             from framework.ml.element_classifier import ElementClassifier
 
@@ -133,12 +134,12 @@ class ElementMatcher:
 
             # If expected type provided, check if it matches
             if expected_type and type_name == expected_type:
-                return confidence
+                return float(confidence)
             elif not expected_type:
-                return confidence
+                return float(confidence)
             else:
                 # Type mismatch - lower confidence
-                return confidence * 0.5
+                return float(confidence * 0.5)
 
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             print(f"ML prediction error: {e}")

@@ -44,7 +44,7 @@ def transform_analysis_to_integration_format(analysis_data: Dict[str, Any]) -> D
     """
     logger.info("Transforming analysis data to integration format")
 
-    result = {
+    result: Dict[str, Any] = {
         "screens": [],
         "api_endpoints": [],
         "navigation": [],

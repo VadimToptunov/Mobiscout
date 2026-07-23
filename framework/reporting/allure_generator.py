@@ -8,7 +8,7 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
 from .unified_reporter import TestSuite, TestResult
 
@@ -41,7 +41,7 @@ class AllureGenerator:
         status = status_map.get(test.status, "unknown")
 
         # Create Allure result
-        result = {
+        result: Dict[str, Any] = {
             "uuid": test_uuid,
             "historyId": self._get_history_id(test.name),
             "name": test.name,
