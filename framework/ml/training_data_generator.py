@@ -27,7 +27,7 @@ class TrainingDataGenerator:
 
     def __init__(self) -> None:
         """Initialize generator."""
-        self.labeled_data = []
+        self.labeled_data: List[Dict[str, Any]] = []
 
     def auto_label_hierarchy_events(self, hierarchy_events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -110,7 +110,7 @@ class TrainingDataGenerator:
         num_samples: int = 1000,
         output_path: Path = Path("training_data/synthetic_elements.json"),
         hard_fraction: float = 0.45,
-    ):
+    ) -> Path:
         """
         Generate a synthetic training dataset with labeled examples.
 
@@ -134,7 +134,7 @@ class TrainingDataGenerator:
         # HARD templates: the class is a generic container (Android View/ViewGroup/
         # FrameLayout & Compose's single AndroidComposeView; iOS "Other"/plain
         # StaticText), so the type is decidable only from behaviour + geometry.
-        hard_templates = {
+        hard_templates: Dict[ElementType, List[Dict[str, Any]]] = {
             ElementType.BUTTON: [
                 {"class": "android.view.View", "clickable": True, "text": "Continue"},
                 {"class": "android.view.ViewGroup", "clickable": True, "content_desc": "Add to cart"},
@@ -168,7 +168,7 @@ class TrainingDataGenerator:
         }
 
         # Define templates for each element type
-        templates = {
+        templates: Dict[ElementType, List[Dict[str, Any]]] = {
             ElementType.BUTTON: [
                 {"class": "android.widget.Button", "clickable": True, "text": "Submit"},
                 {"class": "android.widget.ImageButton", "clickable": True, "content_desc": "Back"},
@@ -288,7 +288,7 @@ class TrainingDataGenerator:
         return {"events": labeled_events, "total_samples": len(labeled_events)}
 
 
-def create_demo_training_dataset():
+def create_demo_training_dataset() -> Path:
     """Create a demo training dataset for testing."""
     generator = TrainingDataGenerator()
 

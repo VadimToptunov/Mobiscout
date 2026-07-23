@@ -89,11 +89,11 @@ class MLModel(ABC):
         """
 
     @abstractmethod
-    def save(self, path: Path):
+    def save(self, path: Path) -> None:
         """Save model to disk"""
 
     @abstractmethod
-    def load(self, path: Path):
+    def load(self, path: Path) -> None:
         """Load model from disk"""
 
     def get_info(self) -> Dict[str, Any]:

@@ -126,7 +126,7 @@ class PatternRecognizer:
 
         Uses a simple sequential pattern mining algorithm.
         """
-        patterns = []
+        patterns: List[Any] = []
 
         # Find patterns of length 2, 3, 4, 5
         for length in range(2, 6):
@@ -137,7 +137,7 @@ class PatternRecognizer:
 
     def _find_patterns_of_length(self, sequences: List[List[str]], length: int) -> List[FlowPattern]:
         """Find all patterns of specific length."""
-        pattern_counts = Counter()
+        pattern_counts: Counter = Counter()
 
         # Count subsequences
         for sequence in sequences:
@@ -146,7 +146,7 @@ class PatternRecognizer:
                 pattern_counts[subsequence] += 1
 
         # Filter by min_support
-        patterns = []
+        patterns: List[Any] = []
         for pattern, count in pattern_counts.items():
             if count >= self.min_support:
                 confidence = count / len(sequences)
@@ -404,7 +404,7 @@ class PatternRecognizer:
 
     def _count_by_length(self) -> Dict[int, int]:
         """Count patterns by length."""
-        counts = defaultdict(int)
+        counts: Dict[int, int] = defaultdict(int)
 
         for pattern in self.detected_patterns:
             length = len(pattern.screens)

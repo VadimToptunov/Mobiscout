@@ -24,7 +24,7 @@ class SelectorPredictor(MLModel):
     def __init__(self, backend: MLBackend = MLBackend.SKLEARN, config: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(ModelType.SELECTOR_PREDICTOR, backend)
         self.config = config or {}
-        self._model = None
+        self._model: Optional[Any] = None
         self._feature_names = [
             "has_id",
             "has_accessibility_id",
@@ -178,6 +178,7 @@ class SelectorPredictor(MLModel):
 
     def _predict_with_model(self, feature_vector: List[float]) -> Tuple[str, float]:
         """Use trained model for prediction"""
+        assert self._model is not None  # callers only invoke this once trained
         try:
             if self.backend == MLBackend.SKLEARN:
                 import numpy as np

@@ -70,7 +70,7 @@ class VisualDetector:
             # Extract text
             text = pytesseract.image_to_string(image)
 
-        return text.strip()
+        return str(text).strip()
 
     def find_element_by_image(
         self, screenshot_path: Path, template_path: Path, threshold: float = 0.8
@@ -140,7 +140,7 @@ class VisualDetector:
 
         if method == "mse":
             # Mean Squared Error (lower is better)
-            mse = float(np.mean((img1 - img2) ** 2))  # type: ignore[call-overload]
+            mse = float(np.mean((img1 - img2) ** 2))  # type: ignore[arg-type]
             # Normalize to 0-1 (1 = identical)
             max_mse = 255.0**2
             similarity = 1.0 - (mse / max_mse)

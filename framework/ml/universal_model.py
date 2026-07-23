@@ -446,7 +446,7 @@ class UniversalModelBuilder:
 
     def train_universal_model(
         self, dataset_path: Path, output_model_path: Path = Path("ml_models/universal_element_classifier.pkl")
-    ):
+    ) -> Dict[str, Any]:
         """
         Train universal model on generated dataset.
 
@@ -509,7 +509,7 @@ class UniversalModelBuilder:
         return metrics
 
 
-def create_universal_pretrained_model():
+def create_universal_pretrained_model() -> Path:
     """
     Create universal pre-trained model.
 
