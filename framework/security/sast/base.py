@@ -165,8 +165,8 @@ class SASTResult:
 
     def get_summary(self) -> Dict[str, Any]:
         """Get summary statistics"""
-        by_severity = {}
-        by_type = {}
+        by_severity: Dict[str, int] = {}
+        by_type: Dict[str, int] = {}
 
         for finding in self.findings:
             sev = finding.severity.value

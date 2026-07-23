@@ -57,7 +57,7 @@ class PythonDependencyParser:
 
     def parse_requirements(self, requirements_path: Path) -> List[Dependency]:
         """Parse requirements.txt"""
-        dependencies = []
+        dependencies: List[Dependency] = []
 
         try:
             content = requirements_path.read_text()
@@ -94,13 +94,13 @@ class PythonDependencyParser:
 
     def parse_pyproject(self, pyproject_path: Path) -> List[Dependency]:
         """Parse pyproject.toml"""
-        dependencies = []
+        dependencies: List[Dependency] = []
 
         try:
             import tomllib  # Python 3.11+
         except ImportError:
             try:
-                import tomli as tomllib  # Fallback
+                import tomli as tomllib  # type: ignore[no-redef]  # Fallback
             except ImportError:
                 return dependencies
 
@@ -183,7 +183,7 @@ class JavaScriptDependencyParser:
 
     def parse_package_json(self, package_path: Path) -> List[Dependency]:
         """Parse package.json"""
-        dependencies = []
+        dependencies: List[Dependency] = []
 
         try:
             with open(package_path, "r") as f:
@@ -238,7 +238,7 @@ class GradleDependencyParser:
 
     def parse_build_gradle(self, gradle_path: Path) -> List[Dependency]:
         """Parse build.gradle"""
-        dependencies = []
+        dependencies: List[Dependency] = []
 
         try:
             content = gradle_path.read_text()
@@ -281,7 +281,7 @@ class CocoaPodsDependencyParser:
 
     def parse_podfile_lock(self, podfile_lock_path: Path) -> List[Dependency]:
         """Parse Podfile.lock"""
-        dependencies = []
+        dependencies: List[Dependency] = []
 
         try:
             content = podfile_lock_path.read_text()

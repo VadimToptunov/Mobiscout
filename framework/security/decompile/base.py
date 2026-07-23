@@ -158,7 +158,7 @@ class DecompileResult:
     @property
     def size_bytes(self) -> int:
         """File size for CLI compatibility"""
-        return self.metadata.get("file_size", 0)
+        return int(self.metadata.get("file_size", 0))
 
     @property
     def interesting_strings(self) -> List[StringFinding]:

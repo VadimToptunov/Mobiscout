@@ -210,24 +210,26 @@ class SupplyChainAnalyzer:
         try:
             from packaging import version as pkg_version
 
-            cur = pkg_version.parse(current)
-            thr = pkg_version.parse(threshold_str)
+            cur: Any = pkg_version.parse(current)
+            thr: Any = pkg_version.parse(threshold_str)
         except ImportError:
             # No packaging available: compare numeric tuples, never lexically.
-            def _key(v: str):
+            def _key(v: str) -> tuple:
                 return tuple(int(p) if p.isdigit() else 0 for p in v.split("."))
 
             cur, thr = _key(current), _key(threshold_str)
         except Exception:
             return False  # unparseable version -> conservatively no match
 
-        return {
-            "<=": cur <= thr,
-            ">=": cur >= thr,
-            "==": cur == thr,
-            "<": cur < thr,
-            ">": cur > thr,
-        }[op]
+        return bool(
+            {
+                "<=": cur <= thr,
+                ">=": cur >= thr,
+                "==": cur == thr,
+                "<": cur < thr,
+                ">": cur > thr,
+            }[op]
+        )
 
     def generate_sbom(self, dependencies: List[Dependency]) -> Dict[str, Any]:
         """Generate Software Bill of Materials (SBOM)"""
@@ -252,8 +254,8 @@ class SupplyChainAnalyzer:
 
     def get_summary(self, findings: List[SupplyChainFinding]) -> Dict[str, Any]:
         """Get analysis summary"""
-        by_severity = {}
-        by_type = {}
+        by_severity: Dict[str, int] = {}
+        by_type: Dict[str, int] = {}
 
         for finding in findings:
             sev = finding.severity.value

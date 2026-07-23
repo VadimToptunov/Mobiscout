@@ -8,7 +8,7 @@ import logging
 import os
 import secrets
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 try:
     from argon2 import PasswordHasher, exceptions as argon2_exceptions
@@ -175,7 +175,7 @@ class SecurityConfig:
     @staticmethod
     def sanitize_for_logging(data: dict) -> dict:
         """Remove sensitive data from dict before logging"""
-        sanitized = {}
+        sanitized: Dict[str, Any] = {}
         for key, value in data.items():
             key_upper = key.upper()
             is_sensitive = any(sensitive in key_upper for sensitive in SecurityConfig.SENSITIVE_ENV_VARS)

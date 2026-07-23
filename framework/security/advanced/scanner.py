@@ -102,7 +102,7 @@ class AdvancedSecurityScanner:
         risk_score = self._calculate_risk_score()
 
         # Group by category
-        by_category = {}
+        by_category: Dict[str, List[Dict[str, Any]]] = {}
         for vuln in self.all_vulnerabilities:
             cat = vuln.owasp_category.value
             if cat not in by_category:
@@ -110,7 +110,7 @@ class AdvancedSecurityScanner:
             by_category[cat].append(vuln.to_dict())
 
         # Group by severity
-        by_severity = {level.name: [] for level in RiskLevel}
+        by_severity: Dict[str, List[Dict[str, Any]]] = {level.name: [] for level in RiskLevel}
         for vuln in self.all_vulnerabilities:
             by_severity[vuln.risk_level.name].append(vuln.to_dict())
 
@@ -205,7 +205,7 @@ class AdvancedSecurityScanner:
 
     def export_sarif(self, output_path: Path) -> None:
         """Export results in SARIF format for CI/CD integration"""
-        sarif = {
+        sarif: Dict[str, Any] = {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
             "version": "2.1.0",
             "runs": [

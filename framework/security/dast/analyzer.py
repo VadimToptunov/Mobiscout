@@ -67,8 +67,8 @@ class DASTAnalyzer:
 
     def get_summary(self, findings: List[DASTFinding]) -> Dict[str, Any]:
         """Get analysis summary"""
-        by_severity = {}
-        by_type = {}
+        by_severity: Dict[str, int] = {}
+        by_type: Dict[str, int] = {}
 
         for finding in findings:
             sev = finding.severity.value
@@ -144,7 +144,7 @@ class DASTAnalyzer:
 
                     cert = ssock.getpeercert()
                     if cert:
-                        cert_expiry = cert.get("notAfter", "")
+                        cert_expiry = str(cert.get("notAfter", ""))
         except (socket.error, ssl.SSLError, OSError):
             pass
 
