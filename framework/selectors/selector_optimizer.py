@@ -4,7 +4,7 @@ Selector Optimizer
 Optimizes and improves existing selectors.
 """
 
-from typing import Dict, List
+from typing import Any, Dict, List, Tuple
 
 from framework.model.app_model import Selector, SelectorStability as ModelStability
 
@@ -57,7 +57,7 @@ class SelectorOptimizer:
 
         return optimized_xpath
 
-    def analyze_selectors(self, selectors: List[Selector]) -> Dict[str, any]:
+    def analyze_selectors(self, selectors: List[Selector]) -> Dict[str, Any]:
         """
         Analyze a collection of selectors
 
@@ -79,7 +79,7 @@ class SelectorOptimizer:
         unknown = sum(1 for s in selectors if s.stability == ModelStability.UNKNOWN)
 
         # Count by primary selector type
-        strategies = {}
+        strategies: Dict[str, int] = {}
         for selector in selectors:
             # Determine primary strategy from what's set
             if selector.test_id:
@@ -143,7 +143,7 @@ class SelectorOptimizer:
             "recommendations": recommendations,
         }
 
-    def find_duplicate_selectors(self, selectors: List[Selector]) -> List[tuple[str, str]]:
+    def find_duplicate_selectors(self, selectors: List[Selector]) -> List[Tuple[int, int]]:
         """
         Find duplicate selectors (same selector for different elements)
 
@@ -154,7 +154,7 @@ class SelectorOptimizer:
             List of (element_id1, element_id2) tuples with duplicate selectors
         """
         duplicates = []
-        seen = {}
+        seen: Dict[str, int] = {}
 
         for i, selector in enumerate(selectors):
             # Use selector string as key

@@ -82,10 +82,10 @@ class SelectorFilter:
             return False
 
         if self.operator == FilterOperator.EQUALS:
-            return attr_value == self.value
+            return bool(attr_value == self.value)
 
         if self.operator == FilterOperator.NOT_EQUALS:
-            return attr_value != self.value
+            return bool(attr_value != self.value)
 
         if self.operator == FilterOperator.CONTAINS:
             return str(self.value) in str(attr_value)
@@ -101,13 +101,13 @@ class SelectorFilter:
 
         if self.operator == FilterOperator.GREATER_THAN:
             try:
-                return float(attr_value) > float(self.value)
+                return float(str(attr_value)) > float(str(self.value))
             except (ValueError, TypeError):
                 return False
 
         if self.operator == FilterOperator.LESS_THAN:
             try:
-                return float(attr_value) < float(self.value)
+                return float(str(attr_value)) < float(str(self.value))
             except (ValueError, TypeError):
                 return False
 
@@ -330,10 +330,10 @@ class AdvancedSelectorEngine:
             return []
 
         if relationship == SelectorType.CHILD:
-            return element.get("_children", [])
+            return list(element.get("_children", []))
 
         if relationship == SelectorType.SIBLING:
-            return element.get("_siblings", [])
+            return list(element.get("_siblings", []))
 
         if relationship == SelectorType.ANCESTOR:
             ancestors = []
@@ -350,7 +350,7 @@ class AdvancedSelectorEngine:
         if relationship == SelectorType.DESCENDANT:
             descendants = []
 
-            def collect_descendants(el) -> None:
+            def collect_descendants(el: Dict[str, Any]) -> None:
                 for child in el.get("_children", []):
                     descendants.append(child)
                     collect_descendants(child)
