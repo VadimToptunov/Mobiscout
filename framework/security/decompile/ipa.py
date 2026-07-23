@@ -143,7 +143,8 @@ class IPAAnalyzer:
             import plistlib
 
             with open(plist_path, "rb") as f:
-                return plistlib.load(f)
+                plist: Dict[str, Any] = plistlib.load(f)
+                return plist
         except (OSError, Exception):
             return {}
 

@@ -32,7 +32,7 @@ class BinarySecurityAnalyzer:
 
     def analyze_android_apk(self, apk_path: Path) -> List[SecurityVulnerability]:
         """Analyze Android APK for binary security issues"""
-        vulnerabilities = []
+        vulnerabilities: List[SecurityVulnerability] = []
 
         # Per-run private temp dir: a shared, world-writable /tmp/apk_analysis
         # invited symlink attacks and let concurrent scans clobber each other.
@@ -127,7 +127,7 @@ class BinarySecurityAnalyzer:
 
     def analyze_native_libraries(self, lib_path: Path) -> List[SecurityVulnerability]:
         """Analyze native libraries (.so files) for security features"""
-        vulnerabilities = []
+        vulnerabilities: List[SecurityVulnerability] = []
 
         try:
             # Use readelf to check security features

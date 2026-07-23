@@ -18,7 +18,7 @@ class SessionAnalyzer:
 
     def analyze_session(self, session_token: str, cookies: Dict[str, str]) -> List[DASTFinding]:
         """Analyze session security"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         # Analyze token strength
         findings.extend(self._analyze_token_strength(session_token))
@@ -30,7 +30,7 @@ class SessionAnalyzer:
 
     def _analyze_token_strength(self, token: str) -> List[DASTFinding]:
         """Analyze session token strength"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         # Check token length
         if len(token) < 32:
@@ -79,7 +79,7 @@ class SessionAnalyzer:
 
     def _analyze_cookies(self, cookies: Dict[str, str]) -> List[DASTFinding]:
         """Analyze cookie security attributes"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         # Note: In real implementation, you'd parse actual cookie headers
         # with all attributes (Secure, HttpOnly, SameSite, etc.)

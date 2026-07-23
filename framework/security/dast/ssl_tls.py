@@ -27,7 +27,7 @@ class SSLTLSAnalyzer:
 
     def analyze_host(self, hostname: str, port: int = 443) -> List[DASTFinding]:
         """Analyze SSL/TLS configuration of a host"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         try:
             # Test protocol versions
@@ -58,7 +58,7 @@ class SSLTLSAnalyzer:
 
     def _test_protocols(self, hostname: str, port: int) -> List[DASTFinding]:
         """Test for deprecated protocol support"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         protocols_to_test = [
             (ssl.PROTOCOL_TLSv1, "TLSv1.0"),
@@ -100,7 +100,7 @@ class SSLTLSAnalyzer:
 
     def _test_ciphers(self, hostname: str, port: int) -> List[DASTFinding]:
         """Test for weak cipher suites"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         try:
             context = ssl.create_default_context()
@@ -135,7 +135,7 @@ class SSLTLSAnalyzer:
 
     def _test_certificate(self, hostname: str, port: int) -> List[DASTFinding]:
         """Test certificate validity and configuration"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         try:
             context = ssl.create_default_context()
@@ -146,7 +146,7 @@ class SSLTLSAnalyzer:
 
                     if cert:
                         # Check expiration
-                        not_after = ssl.cert_time_to_seconds(cert.get("notAfter", ""))
+                        not_after = ssl.cert_time_to_seconds(str(cert.get("notAfter", "")))
                         days_until_expiry = (not_after - time.time()) / 86400
 
                         if days_until_expiry < 0:
@@ -175,8 +175,8 @@ class SSLTLSAnalyzer:
                             )
 
                         # Check for self-signed
-                        issuer = dict(x[0] for x in cert.get("issuer", []))
-                        subject = dict(x[0] for x in cert.get("subject", []))
+                        issuer = dict(x[0] for x in cert.get("issuer", []))  # type: ignore[misc]
+                        subject = dict(x[0] for x in cert.get("subject", []))  # type: ignore[misc]
 
                         if issuer == subject:
                             findings.append(
@@ -210,7 +210,7 @@ class SSLTLSAnalyzer:
 
     def _test_vulnerabilities(self, hostname: str, port: int) -> List[DASTFinding]:
         """Test for known SSL/TLS vulnerabilities"""
-        findings = []
+        findings: List[DASTFinding] = []
 
         # Test for HSTS header (requires HTTP connection)
         # This is a simplified check

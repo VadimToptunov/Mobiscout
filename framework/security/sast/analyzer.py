@@ -97,9 +97,9 @@ class SASTAnalyzer:
 
     def get_summary(self, findings: List[SASTFinding]) -> Dict[str, Any]:
         """Get analysis summary"""
-        by_severity = {}
-        by_type = {}
-        by_cwe = {}
+        by_severity: Dict[str, int] = {}
+        by_type: Dict[str, int] = {}
+        by_cwe: Dict[str, int] = {}
 
         for finding in findings:
             # By severity
@@ -127,7 +127,7 @@ class SASTAnalyzer:
 
     def export_sarif(self, findings: List[SASTFinding], output_path: Path) -> None:
         """Export findings in SARIF format"""
-        sarif = {
+        sarif: Dict[str, Any] = {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
             "version": "2.1.0",
             "runs": [
