@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Optional
 
 from framework.codegen.emitters._kotlin_common import kotlin_str
-from framework.codegen.ir import Selector, SelectorStrategy
+from framework.codegen.ir import Selector, SelectorStrategy, TestModel
 
 
 def resource_id_segment(value: str) -> str:
@@ -28,9 +28,11 @@ def resource_id_segment(value: str) -> str:
     return value.split("/")[-1].split(":")[-1]
 
 
-def matcher_expr(sel: Selector) -> Optional[str]:
+def matcher_expr(sel: Optional[Selector]) -> Optional[str]:
     """Render a Hamcrest ViewMatcher for one selector, or None if the strategy
-    has no Espresso equivalent (XPath)."""
+    has no Espresso equivalent (XPath) or there is no selector."""
+    if sel is None:
+        return None
     s = sel.strategy
     if s is SelectorStrategy.ID:
         return f"withId(R.id.{resource_id_segment(sel.value)})"
@@ -45,7 +47,7 @@ def matcher_expr(sel: Selector) -> Optional[str]:
     raise ValueError(f"Unsupported selector strategy for Espresso: {s}")
 
 
-def activity_class(model) -> str:
+def activity_class(model: TestModel) -> str:
     """The simple Activity class name for ActivityScenarioRule (from the IR's
     app_activity, defaulting to MainActivity)."""
     activity = model.app_activity or ".MainActivity"

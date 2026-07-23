@@ -10,6 +10,11 @@ This supersedes the legacy generators/page_object_gen.py.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from framework.model.app_model import AppModel, Screen
+
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -41,7 +46,7 @@ class PageObject:
     fields: List[PageObjectField] = field(default_factory=list)
 
 
-def build_page_object(screen) -> PageObject:
+def build_page_object(screen: Screen) -> PageObject:
     """Build a PageObject from a pydantic model.Screen (locatable elements only)."""
     fields: List[PageObjectField] = []
     seen = set()
@@ -69,7 +74,7 @@ def _env() -> Environment:
     return env
 
 
-def emit_page_objects(app_model) -> Dict[str, str]:
+def emit_page_objects(app_model: AppModel) -> Dict[str, str]:
     """Render one Appium Page Object module per screen with locatable elements.
 
     Returns a mapping of ``{filename: python_source}``.

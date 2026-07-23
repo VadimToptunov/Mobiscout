@@ -11,6 +11,11 @@ comprehensive testing, complementing the UI crawl.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from framework.model.app_model import AppModel
+
 import os
 import re
 from dataclasses import dataclass, field
@@ -37,7 +42,7 @@ class _ApiTest:
         return self.method in _BODY_METHODS and bool(self.body)
 
 
-def _build(app_model) -> List[_ApiTest]:
+def _build(app_model: AppModel) -> List[_ApiTest]:
     tests: List[_ApiTest] = []
     used = set()
     for call in app_model.api_calls.values():
@@ -53,7 +58,7 @@ def _build(app_model) -> List[_ApiTest]:
     return tests
 
 
-def emit_api_tests(app_model, base_url: str = "http://localhost:8000") -> Dict[str, str]:
+def emit_api_tests(app_model: AppModel, base_url: str = "http://localhost:8000") -> Dict[str, str]:
     """Render a pytest+requests API contract test module (empty if no api_calls)."""
     tests = _build(app_model)
     if not tests:

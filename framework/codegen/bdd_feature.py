@@ -8,6 +8,11 @@ field; this reads the real ``flow.steps``).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from framework.model.app_model import AppModel, Flow
+
 import re
 from typing import Dict
 
@@ -28,7 +33,7 @@ def _step_phrase(step: dict) -> str:
     return " ".join(str(v) for v in step.values()) or "continue"
 
 
-def _render_feature(flow) -> str:
+def _render_feature(flow: Flow) -> str:
     lines = [f"Feature: {flow.name}"]
     if flow.description:
         lines.append(f"  {flow.description}")
@@ -43,7 +48,7 @@ def _render_feature(flow) -> str:
     return "\n".join(lines) + "\n"
 
 
-def emit_feature_files(app_model) -> Dict[str, str]:
+def emit_feature_files(app_model: AppModel) -> Dict[str, str]:
     """Render one .feature file per flow. Returns ``{filename: gherkin}``."""
     out: Dict[str, str] = {}
     for flow in app_model.flows:

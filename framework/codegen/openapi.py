@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import cast, Any, Dict, List, Optional
 
 from framework.model.api import APICall
 
@@ -43,13 +43,13 @@ def load_spec(source: str) -> Dict[str, Any]:
     if source.endswith((".yaml", ".yml")):
         import yaml
 
-        return yaml.safe_load(text)
+        return cast(Dict[str, Any], yaml.safe_load(text))
     try:
-        return json.loads(text)
+        return cast(Dict[str, Any], json.loads(text))
     except json.JSONDecodeError:
         import yaml
 
-        return yaml.safe_load(text)
+        return cast(Dict[str, Any], yaml.safe_load(text))
 
 
 def _resolve_ref(spec: Dict[str, Any], node: Any, _seen: Optional[set] = None) -> Any:
@@ -117,7 +117,7 @@ def parse_openapi(spec: Dict[str, Any]) -> List[APICall]:
             used.add(name)
             responses = [{"status": code} for code in (op.get("responses") or {}).keys()]
             calls.append(
-                APICall(
+                APICall(  # type: ignore[call-arg]  # triggers_state_change is optional (default None)
                     name=name,
                     endpoint=path,
                     method=method.upper(),

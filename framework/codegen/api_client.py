@@ -9,6 +9,11 @@ non-existent ``api_call.parameters`` field; this reads the real
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from framework.model.app_model import AppModel
+
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -33,7 +38,7 @@ class _Endpoint:
         return "json" if self.method.upper() in _BODY_METHODS else "params"
 
 
-def _build_endpoints(app_model) -> List[_Endpoint]:
+def _build_endpoints(app_model: AppModel) -> List[_Endpoint]:
     endpoints: List[_Endpoint] = []
     for call in app_model.api_calls.values():
         params = [snake(k) for k in (call.request_schema or {}).keys()]
@@ -48,7 +53,7 @@ def _build_endpoints(app_model) -> List[_Endpoint]:
     return endpoints
 
 
-def emit_api_client(app_model) -> Dict[str, str]:
+def emit_api_client(app_model: AppModel) -> Dict[str, str]:
     """Render a single api_client.py from the model's api_calls (empty dict if none)."""
     endpoints = _build_endpoints(app_model)
     if not endpoints:

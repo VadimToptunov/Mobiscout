@@ -9,6 +9,8 @@ imperative and a future BDD Kotlin emitter share one locator definition.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from framework.codegen.ir import Selector, SelectorStrategy
 
 # Abstract strategy -> AppiumBy factory method (same names as the Java client).
@@ -21,9 +23,11 @@ _BY_FACTORY = {
 }
 
 
-def kotlin_str(value: str) -> str:
+def kotlin_str(value: Optional[str]) -> str:
     """Render a Kotlin double-quoted string literal, safely escaped. ``$`` is
     escaped too, since it begins a string template in Kotlin."""
+    if value is None:
+        value = ""
     escaped = (
         value.replace("\\", "\\\\")
         .replace('"', '\\"')

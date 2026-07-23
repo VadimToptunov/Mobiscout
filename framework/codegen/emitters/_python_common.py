@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from framework.codegen.emitters._bdd_common import collect_targets, target_key  # noqa: F401
-from framework.codegen.ir import Selector, SelectorStrategy
+from framework.codegen.ir import Selector, SelectorStrategy, TestModel
 
 # Abstract strategy -> AppiumBy member used in generated Python code.
 APPIUM_BY = {
@@ -64,7 +64,7 @@ def locator_chain(sel: Selector) -> str:
     return "[" + ", ".join(items) + "]"
 
 
-def collect_locators(model) -> List[Tuple[str, str]]:
+def collect_locators(model: TestModel) -> List[Tuple[str, str]]:
     """(target_key, python locator_chain) for every selector in the model.
     Targets/ordering come from the shared BDD helper; only the rendering of the
     chain is Python-specific."""

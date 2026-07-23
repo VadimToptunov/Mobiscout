@@ -14,12 +14,12 @@ from typing import Dict
 from framework.codegen.emitters._naming import snake
 from framework.codegen.emitters._python_common import by_value, keycode, py_str
 from framework.codegen.emitters.base import Emitter
-from framework.codegen.ir import TestModel
+from framework.codegen.ir import Selector, TestModel
 from framework.codegen.targets import Target, register
 from framework.core.engine import Language
 
 
-def _data_key(selector) -> str:
+def _data_key(selector: Selector) -> str:
     """A stable TEST_DATA key for an input field — its human field name, snake_cased
     ('Email address' -> email_address), falling back to the locator value."""
     return snake(getattr(selector, "description", "") or getattr(selector, "value", "") or "input")
