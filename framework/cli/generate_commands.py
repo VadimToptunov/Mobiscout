@@ -3,7 +3,7 @@ Code generation commands for creating test artifacts.
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import click
 
@@ -302,7 +302,7 @@ def api_review(openapi: str, output: str) -> None:
         else:
             print_info(md)
 
-        sev = {}
+        sev: Dict[str, int] = {}
         for f in findings:
             sev[f.severity] = sev.get(f.severity, 0) + 1
         summary = ", ".join(f"{n} {s}" for s, n in sev.items()) or "no issues"
