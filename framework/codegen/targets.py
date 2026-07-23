@@ -10,7 +10,7 @@ plus a template folder — the core never changes.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Dict, List
+from typing import Any, Callable, Dict, List
 
 from framework.core.engine import Language
 
@@ -46,7 +46,7 @@ def get_target(target_id: str) -> Target:
     return _REGISTRY[target_id][0]
 
 
-def get_emitter(target_id: str):
+def get_emitter(target_id: str) -> Any:
     """Instantiate the emitter registered for ``target_id``."""
     if target_id not in _REGISTRY:
         raise KeyError(f"Unknown target '{target_id}'. Available: {', '.join(sorted(_REGISTRY))}")
