@@ -130,7 +130,7 @@ def _make_driver(config: Dict[str, Any]):
     if platform == "ios":
         from framework.crawler.appium_driver import IOSCrawlerDriver
 
-        drv = IOSCrawlerDriver(
+        drv: Any = IOSCrawlerDriver(
             bundle_id=package,
             udid=config.get("udid"),
             device_name=config.get("device_name") or "iPhone 17",

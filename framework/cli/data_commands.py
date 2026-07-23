@@ -6,7 +6,7 @@ Commands for generating and managing test data.
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Any
 
 import click
 from rich.console import Console
@@ -51,7 +51,7 @@ def generate(data_type: str, count: int, output: str, seed: Optional[int]) -> No
     print_info("\n🔄 Generating data...")
 
     if data_type == "user":
-        data = generator.generate_users(count)
+        data: List[Any] = generator.generate_users(count)
     elif data_type == "product":
         data = generator.generate_products(count)
     elif data_type == "transaction":

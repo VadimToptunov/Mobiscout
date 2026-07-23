@@ -209,7 +209,7 @@ class ProjectIntegrator:
 
     def __init__(self, project_path: Path) -> None:
         self.project_path = Path(project_path)
-        self.framework_type = None
+        self.framework_type: Optional[str] = None
 
     def detect_framework(self) -> str:
         """

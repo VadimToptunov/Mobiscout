@@ -8,8 +8,8 @@ try:
     from .device_manager import DeviceManager
     from .device_pool import DevicePool
 except ImportError:
-    DeviceManager = None
-    DevicePool = None
+    DeviceManager = None  # type: ignore[assignment]
+    DevicePool = None  # type: ignore[assignment]
 
 # STEP 2: New device layer
 from .device_layer import (

@@ -97,7 +97,7 @@ def build_crawl_driver(
 
     if platform == "ios":
         try:
-            crawl_driver = IOSCrawlerDriver(
+            crawl_driver: Any = IOSCrawlerDriver(
                 bundle_id=package,
                 udid=udid,
                 device_name=device_name or "iPhone 17",

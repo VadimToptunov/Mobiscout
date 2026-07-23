@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 
 class SelectorStrategy(Enum):
@@ -218,7 +218,7 @@ class SelectorDiscovery:
         """Generate XPath for element"""
         # Build path from root
         path_parts = []
-        current = elem
+        current: Optional[Any] = elem
 
         while current is not None:
             # Get element position among siblings

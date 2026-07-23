@@ -14,7 +14,7 @@ import yaml
 try:
     from yaml import CDumper as Dumper
 except ImportError:
-    from yaml import Dumper
+    from yaml import Dumper  # type: ignore[assignment]
 
 from pydantic import BaseModel, Field
 
