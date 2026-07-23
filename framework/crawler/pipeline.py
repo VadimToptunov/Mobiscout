@@ -122,7 +122,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _make_driver(config: Dict[str, Any]):
+def _make_driver(config: Dict[str, Any]) -> Any:
     """Build a crawler driver from the config; returns (driver, owns_session)."""
     package = config["package"]
     platform = config.get("platform", "android")

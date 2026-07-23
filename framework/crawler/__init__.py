@@ -7,6 +7,8 @@ The CrawlResult can be turned into codegen IR to generate tests for the paths
 the crawler discovered — the "explore -> automate" seam.
 """
 
+from typing import Any, cast
+
 from framework.crawler.app_crawler import (
     AppCrawler,
     CrawlElement,
@@ -33,11 +35,11 @@ class AppiumCrawlerDriver:
     fake driver instead.
     """
 
-    def __init__(self, driver) -> None:
+    def __init__(self, driver: Any) -> None:
         self._driver = driver
 
     def page_source(self) -> str:
-        return self._driver.page_source
+        return cast(str, self._driver.page_source)
 
     def type_text(self, text: str) -> None:
         try:
@@ -53,7 +55,7 @@ class AppiumCrawlerDriver:
         self._driver.back()
 
     def current_package(self) -> str:
-        return self._driver.current_package
+        return cast(str, self._driver.current_package)
 
 
 __all__ = [

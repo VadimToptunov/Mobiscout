@@ -7,6 +7,7 @@ accessibility report, and runnable test code in the chosen language(s).
 """
 
 from pathlib import Path
+from typing import Optional, Tuple
 
 import click
 
@@ -62,23 +63,23 @@ logger = get_logger(__name__)
     "--launch-arg -MyAppStartUnlocked --launch-arg 1 to skip a login gate",
 )
 def crawl(
-    package,
-    platform,
-    driver,
-    serial,
-    udid,
-    device_name,
-    server,
-    caps,
-    output,
-    targets,
-    app_activity,
-    style,
-    scaffold,
-    max_steps,
-    max_depth,
-    launch_args,
-):
+    package: str,
+    platform: str,
+    driver: str,
+    serial: Optional[str],
+    udid: Optional[str],
+    device_name: Optional[str],
+    server: str,
+    caps: Tuple[str, ...],
+    output: str,
+    targets: str,
+    app_activity: Optional[str],
+    style: str,
+    scaffold: bool,
+    max_steps: int,
+    max_depth: int,
+    launch_args: Tuple[str, ...],
+) -> None:
     """
     Crawl a running app and export an element inventory + tests.
 

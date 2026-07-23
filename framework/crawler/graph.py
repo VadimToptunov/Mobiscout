@@ -24,7 +24,7 @@ from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-from framework.codegen.ir import ActionType, AssertionType, Step, TestCase
+from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
 from framework.crawler.to_codegen import _owned, selector_for
@@ -254,7 +254,7 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     return graph
 
 
-def _sample_value(element) -> str:
+def _sample_value(element: CrawlElement) -> str:
     """A realistic sample for a form field, inferred from its label/id/class."""
     hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
     if "email" in hint or "e-mail" in hint:
@@ -312,10 +312,10 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
         degree[e.dst] = degree.get(e.dst, 0) + 1
 
     by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
-    for from_fp, element, to_fp in result.transitions:
-        by_pair[(from_fp, to_fp)].append(element)
+    for from_fp, elem, to_fp in result.transitions:
+        by_pair[(from_fp, to_fp)].append(elem)
 
-    def _landmark(screen: CrawlScreen):
+    def _landmark(screen: CrawlScreen) -> Optional[Selector]:
         owned = _owned(screen, app_package)
         return next((s for s in (selector_for(e, owned, screen.platform) for e in owned) if s), None)
 

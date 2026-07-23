@@ -24,9 +24,12 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, cast
 
 from framework.crawler.app_crawler import CrawlElement
+
+if TYPE_CHECKING:
+    from framework.ml.element_classifier import ElementClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -98,12 +101,12 @@ def ensure_model(force: bool = False) -> Optional[Path]:
         return None
 
 
-def _load_model():
+def _load_model() -> Optional["ElementClassifier"]:
     """Lazily load the classifier once; None if unavailable (-> heuristic).
     Does NOT train — provisioning is an explicit ensure_model() call."""
     global _model
     if _model is not _UNSET:
-        return _model
+        return cast("Optional[ElementClassifier]", _model)
     path = _model_path()
     if not path.exists():
         _model = None
@@ -117,7 +120,7 @@ def _load_model():
     except Exception:
         # A broken/incompatible model must never break a crawl.
         _model = None
-    return _model
+    return cast("Optional[ElementClassifier]", _model)
 
 
 @dataclass(frozen=True)

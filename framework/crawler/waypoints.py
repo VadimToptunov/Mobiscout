@@ -70,12 +70,12 @@ def _find(els: List[CrawlElement], hint: str) -> Optional[CrawlElement]:
     return next((e for e in els if h in _haystack(e)), None)
 
 
-def _tap(driver, element: CrawlElement) -> None:
+def _tap(driver: Any, element: CrawlElement) -> None:
     x, y = element.center
     driver.tap(x, y)
 
 
-def apply(waypoint: Waypoint, driver, screen: CrawlScreen) -> bool:
+def apply(waypoint: Waypoint, driver: Any, screen: CrawlScreen) -> bool:
     """Perform the waypoint's action on the current screen via the driver/fixtures.
     Returns True if it did something (the crawler should then re-read the screen)."""
     els = screen.elements
@@ -106,7 +106,7 @@ def apply(waypoint: Waypoint, driver, screen: CrawlScreen) -> bool:
     return False
 
 
-def _fill(driver, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
+def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     """Fill inputs by field hint, then tap the submit control."""
     fields: Dict[str, str] = data.get("fields", {})
     inputs = [e for e in els if _is_input(e)]
@@ -126,7 +126,7 @@ def _fill(driver, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     return did
 
 
-def _totp(driver, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
+def _totp(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     from framework.fixtures.totp import totp
 
     field_el = _find(els, data.get("field", "otp")) or _find(els, "code")
@@ -140,7 +140,7 @@ def _totp(driver, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     return True
 
 
-def apply_first_match(waypoints: List[Waypoint], driver, screen: CrawlScreen) -> bool:
+def apply_first_match(waypoints: List[Waypoint], driver: Any, screen: CrawlScreen) -> bool:
     """Apply the first waypoint that matches the screen; True if one fired."""
     for wp in waypoints or []:
         if matches(wp, screen):
