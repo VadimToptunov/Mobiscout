@@ -8,7 +8,7 @@ import json
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, cast
 
 
 @dataclass
@@ -165,4 +165,4 @@ class MockStorage:
 
         shutil.copy(input_path, session_file)
 
-        return session_id
+        return cast(str, session_id)

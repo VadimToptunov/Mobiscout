@@ -7,6 +7,7 @@ requests>=2.31.0
 jsonschema>=4.20.0
 rich>=15.0.0
 types-PyYAML>=6.0.12.20260518
+types-requests>=2.33.0.20260712
 argon2-cffi>=23.1.0  # Secure password hashing
 
 # Mobile testing - Updated for Appium 3.x support
