@@ -17,12 +17,14 @@ import re
 from typing import Dict, List, Optional, Tuple
 
 from framework.codegen.emitters._naming import snake
-from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestModel
+from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase, TestModel
 
 
-def target_key(sel: Selector) -> str:
+def target_key(sel: Optional[Selector]) -> str:
     """A friendly, human-facing handle for a selector — the Gherkin target name
     and the LOCATORS registry key. Stable and readable."""
+    if sel is None:
+        return "element"
     return sel.description or sel.value
 
 
@@ -131,7 +133,7 @@ def _variant(param: str, value: str) -> str:
     return f"{value} 2".strip()
 
 
-def _type_outline(case) -> Optional[List[str]]:
+def _type_outline(case: TestCase) -> Optional[List[str]]:
     """If the case fills a form, render it as a Scenario Outline whose typed
     values are Examples columns — the tester plugs their own data in the table."""
     type_steps = [s for s in case.steps if s.action is ActionType.TYPE and s.selector is not None]
@@ -155,7 +157,7 @@ def _type_outline(case) -> Optional[List[str]]:
     return lines
 
 
-def _visible_outline(case) -> Optional[List[str]]:
+def _visible_outline(case: TestCase) -> Optional[List[str]]:
     """If the case only asserts visibility of many elements, collapse it to one
     Scenario Outline over "<element>" is visible with an Examples table."""
     targets: List[str] = []
