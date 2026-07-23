@@ -3,6 +3,7 @@ CLI Commands - Documentation generation
 """
 
 from pathlib import Path
+from typing import Any, Dict, List
 
 import click
 from rich.console import Console
@@ -205,7 +206,7 @@ def coverage(source_dir: str, output: str | None) -> None:
 
     total_items = 0
     documented_items = 0
-    coverage_by_file = []
+    coverage_by_file: List[Dict[str, Any]] = []
 
     with console.status("[bold green]Analyzing coverage..."):
         for file_path in python_files:

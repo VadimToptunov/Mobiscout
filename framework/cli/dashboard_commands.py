@@ -7,6 +7,7 @@ Commands for running and managing the test maintenance dashboard.
 import threading
 import time
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -14,8 +15,42 @@ import click
 
 from framework.cli.rich_output import print_header, print_info, print_success, print_error
 from framework.dashboard.database import DashboardDB
+from framework.dashboard.models import TestResult as DbTestResult, TestStatus
 from framework.dashboard.server import DashboardServer
 from framework.reporting.junit_parser import JUnitParser
+from framework.reporting.unified_reporter import TestResult as ParsedTestResult
+
+
+def _to_db_result(parsed: ParsedTestResult, source: str, timestamp: datetime) -> DbTestResult:
+    """Adapt a parsed JUnit result to the dashboard's storage model.
+
+    The JUnit parser emits `reporting.unified_reporter.TestResult` (string
+    status, no id/timestamp/file_path), while the dashboard DB stores
+    `dashboard.models.TestResult`. This bridges the two so `import-results`
+    actually persists rows instead of crashing on the mismatched shape.
+
+    Args:
+        parsed: One test from the parsed JUnit suite.
+        source: The JUnit file the result came from (used as file_path and to
+            derive a stable, dedup-friendly id).
+        timestamp: When the suite ran (falls back to import time upstream).
+
+    Returns:
+        A dashboard TestResult ready for `DashboardDB.add_test_result`.
+    """
+    try:
+        status = TestStatus(parsed.status)
+    except ValueError:
+        status = TestStatus.ERROR
+    return DbTestResult(
+        id=f"{source}::{parsed.name}",
+        name=parsed.name,
+        status=status,
+        duration=parsed.duration,
+        timestamp=timestamp,
+        file_path=source,
+        error_message=parsed.error_message,
+    )
 
 
 @click.group(name="dashboard")
@@ -87,12 +122,18 @@ def import_results(junit_path: str, repo: str) -> None:
 
         print_info(f"Found {len(results.tests)} test results")
 
+        # The suite timestamp is an ISO string (possibly empty); fall back to now.
+        try:
+            suite_ts = datetime.fromisoformat(results.timestamp) if results.timestamp else datetime.now()
+        except ValueError:
+            suite_ts = datetime.now()
+
         # Import into database
         db = DashboardDB(db_path)
 
         imported = 0
         for result in results.tests:
-            db.add_test_result(result)
+            db.add_test_result(_to_db_result(result, str(junit_file), suite_ts))
             imported += 1
 
         print_success(f"✅ Imported {imported} test results")

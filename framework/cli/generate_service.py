@@ -20,7 +20,7 @@ from typing import Dict, List
 import yaml  # type: ignore
 from pydantic import ValidationError
 
-from framework.model.app_model import AppModel
+from framework.model.app_model import AppModel, Screen
 from framework.utils.logger import get_logger
 from framework.utils.sanitizer import sanitize_class_name, sanitize_identifier
 
@@ -118,7 +118,7 @@ def load_app_model(model_path: Path) -> AppModel:
         raise GenerateServiceError(f"Failed to load model: {e}")
 
 
-def _integration_test_source(screen_id: str, screen) -> str:
+def _integration_test_source(screen_id: str, screen: Screen) -> str:
     """Render the integration-test source for one screen (Page-Object driven).
 
     Args:

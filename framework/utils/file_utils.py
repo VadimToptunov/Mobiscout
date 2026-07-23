@@ -4,7 +4,7 @@ File operation utilities.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import yaml
 
@@ -76,7 +76,7 @@ def load_json(file_path: Path) -> Optional[Dict[str, Any]]:
     try:
         validated_path = validate_path(file_path, must_exist=True, must_be_file=True)
         with validated_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            return cast(Optional[Dict[str, Any]], json.load(f))
     except (ValidationError, json.JSONDecodeError, IOError) as e:
         logger.error(f"Failed to load JSON from {file_path}: {e}")
         return None
@@ -127,7 +127,7 @@ def load_yaml(file_path: Path) -> Optional[Dict[str, Any]]:
     try:
         validated_path = validate_path(file_path, must_exist=True, must_be_file=True)
         with validated_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            return cast(Optional[Dict[str, Any]], yaml.safe_load(f))
     except (ValidationError, yaml.YAMLError, IOError) as e:
         logger.error(f"Failed to load YAML from {file_path}: {e}")
         return None

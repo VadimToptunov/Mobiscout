@@ -6,7 +6,7 @@ Commands for sending test notifications to various channels.
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 import click
 
@@ -30,7 +30,7 @@ def load_config() -> Dict[str, Any]:
         return {}
     try:
         with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
+            return cast(Dict[str, Any], json.load(f))
     except (json.JSONDecodeError, IOError):
         return {}
 
