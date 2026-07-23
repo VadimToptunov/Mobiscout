@@ -22,7 +22,7 @@ from framework.storage.event_store import EventStore
 
 # Try to import Rust core for 16-90x performance improvement
 try:
-    from rust_core import RustCorrelator
+    from rust_core import RustCorrelator  # type: ignore[attr-defined]
 
     USE_RUST = True
     logger = logging.getLogger(__name__)

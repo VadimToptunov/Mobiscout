@@ -549,7 +549,12 @@ class FuzzingCampaign:
 
     def run_api_campaign(self, endpoints: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Run API fuzzing campaign"""
-        results = {"endpoints": [], "total_requests": 0, "errors": 0, "start_time": datetime.datetime.now().isoformat()}
+        results: Dict[str, Any] = {
+            "endpoints": [],
+            "total_requests": 0,
+            "errors": 0,
+            "start_time": datetime.datetime.now().isoformat(),
+        }
 
         for endpoint_config in endpoints:
             method = endpoint_config.get("method", "GET")
@@ -582,7 +587,7 @@ class FuzzingCampaign:
 
     def get_summary(self) -> Dict[str, Any]:
         """Get campaign summary"""
-        summary = {"total_inputs": 0, "total_crashes": 0, "total_errors": 0, "campaigns": []}
+        summary: Dict[str, Any] = {"total_inputs": 0, "total_crashes": 0, "total_errors": 0, "campaigns": []}
 
         if "ui" in self.campaign_results:
             ui = self.campaign_results["ui"]
