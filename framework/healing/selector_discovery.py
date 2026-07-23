@@ -217,7 +217,7 @@ class SelectorDiscovery:
     def _generate_xpath(self, elem: ET.Element) -> str:
         """Generate XPath for element"""
         # Build path from root
-        path_parts = []
+        path_parts: List[str] = []
         current: Optional[Any] = elem
 
         while current is not None:

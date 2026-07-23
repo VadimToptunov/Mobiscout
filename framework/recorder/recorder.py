@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from framework.codegen import get_emitter
 from framework.codegen.ir import ActionType, Platform, Step, TestCase, TestModel
@@ -149,7 +149,7 @@ class SessionRecorder:
             self.steps.append(step)
         return step
 
-    def record(self, on_step=None) -> None:
+    def record(self, on_step: Optional[Callable[..., None]] = None) -> None:
         """Stream ``getevent`` and capture taps until interrupted (blocking).
 
         Args:

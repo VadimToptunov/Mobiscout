@@ -546,7 +546,7 @@ class APILogModule:
         self.log_analyzer = LogAnalyzer()
         self.correlator = APILogCorrelator(self.api_analyzer, self.log_analyzer)
 
-    def capture_api_call(self, method: str, url: str, **kwargs) -> APICall:
+    def capture_api_call(self, method: str, url: str, **kwargs: Any) -> APICall:
         """
         Capture API call
 
@@ -575,7 +575,7 @@ class APILogModule:
         self.api_analyzer.add_api_call(api_call)
         return api_call
 
-    def capture_log(self, level: str, message: str, source: str, **kwargs) -> LogEntry:
+    def capture_log(self, level: str, message: str, source: str, **kwargs: Any) -> LogEntry:
         """
         Capture log entry
 

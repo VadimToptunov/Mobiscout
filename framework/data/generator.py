@@ -11,7 +11,7 @@ import string
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 
 
 class DataType(Enum):
@@ -346,4 +346,4 @@ class TestDataGenerator:
         """Convert dataclass to dict"""
         if hasattr(obj, "__dataclass_fields__"):
             return {k: v for k, v in obj.__dict__.items()}
-        return obj
+        return cast(Dict[str, Any], obj)

@@ -263,7 +263,7 @@ class EventStore:
         elif "method" in event and "url" in event:
             return "network"
         elif "eventType" in event:
-            return event["eventType"]
+            return str(event["eventType"])
         else:
             return "unknown"
 
@@ -320,7 +320,7 @@ class EventStore:
     ) -> List[Dict[str, Any]]:
         """Query events with filters"""
         query = "SELECT * FROM events WHERE 1=1"
-        params = []
+        params: List[Any] = []
 
         if session_id:
             query += " AND session_id = ?"

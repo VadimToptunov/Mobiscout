@@ -286,3 +286,12 @@ class TestRunner:
                 duration_ms=0,
                 message=str(e),
             )
+
+        # Only pytest is wired up here; any other framework falls through the
+        # `if` above without running, so report it rather than returning None.
+        return TestResult(
+            name=test_name,
+            status=TestResultStatus.ERROR,
+            duration_ms=0,
+            message=f"Unsupported framework: {framework}",
+        )

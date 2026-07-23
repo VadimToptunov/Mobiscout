@@ -230,7 +230,7 @@ class FailureAnalyzer:
         lines = output.split("\n")
 
         current_test = None
-        error_buffer = []
+        error_buffer: List[str] = []
 
         for line in lines:
             # Detect test start
