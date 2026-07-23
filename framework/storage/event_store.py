@@ -411,7 +411,7 @@ class EventStore:
         with self._get_connection() as conn:
             if session_id:
                 query_suffix = "WHERE session_id = ?"
-                params = (session_id,)
+                params: tuple = (session_id,)
             else:
                 query_suffix = ""
                 params = ()

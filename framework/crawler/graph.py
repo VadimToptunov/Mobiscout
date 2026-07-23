@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 from framework.codegen.ir import ActionType, AssertionType, Step, TestCase
-from framework.crawler.app_crawler import CrawlResult, CrawlScreen
+from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
 from framework.crawler.to_codegen import _owned, selector_for
 
@@ -147,7 +147,8 @@ class InteractionGraph:
                     q.append(e.dst)
         paths: Dict[int, List[int]] = {}
         for node in parent:
-            path, cur2 = [], node
+            path: List[int] = []
+            cur2: Optional[int] = node
             while cur2 is not None:
                 path.append(cur2)
                 cur2 = parent[cur2]
@@ -338,7 +339,7 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
         for edge in walk:
             from_fp, to_fp = fp_of[edge.src], fp_of[edge.dst]
             candidates = by_pair.get((from_fp, to_fp), [])
-            element = next(
+            element: Optional[CrawlElement] = next(
                 (e for e in candidates if (e.label or e.class_name) == edge.label),
                 candidates[0] if candidates else None,
             )

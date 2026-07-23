@@ -3,6 +3,7 @@ Code generation commands for creating test artifacts.
 """
 
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -234,7 +235,7 @@ def api_tests(model: str, openapi: str, output: str, base_url: str):
             from framework.codegen.openapi import load_spec, parse_openapi
 
             calls = parse_openapi(load_spec(openapi))
-            app_model = SimpleNamespace(api_calls={c.name: c for c in calls})
+            app_model: Any = SimpleNamespace(api_calls={c.name: c for c in calls})
         else:
             from framework.model.app_model import AppModel
 

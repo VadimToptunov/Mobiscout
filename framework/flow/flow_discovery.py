@@ -211,7 +211,7 @@ class FlowDiscovery:
         to_screen: str,
         action: UIAction,
         duration_ms: float,
-        api_calls: List[Dict[str, Any]] = None,
+        api_calls: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """
         Record a screen transition

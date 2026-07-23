@@ -8,7 +8,7 @@ import hashlib
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 class ShardStrategy(Enum):
@@ -58,7 +58,7 @@ class TestSharding:
     Divides tests into balanced shards for parallel execution
     """
 
-    def __init__(self, duration_history: Dict[str, float] = None) -> None:
+    def __init__(self, duration_history: Optional[Dict[str, float]] = None) -> None:
         """
         Initialize test sharding
 

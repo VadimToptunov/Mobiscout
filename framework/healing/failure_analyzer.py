@@ -148,10 +148,10 @@ class FailureAnalyzer:
         test_file = Path(classname.replace(".", "/") + ".py")
 
         # Check for failures or errors
-        failure = testcase.find("failure")
+        failure_node = testcase.find("failure")
         error = testcase.find("error")
 
-        failure_elem = failure if failure is not None else error
+        failure_elem = failure_node if failure_node is not None else error
         if failure_elem is None:
             return  # Test passed
 

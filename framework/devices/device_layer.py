@@ -56,7 +56,7 @@ class DeviceCapabilities:
     automation_name: str = "Appium"
     app_path: Optional[str] = None
     browser_name: Optional[str] = None
-    extra_caps: Dict[str, Any] = None
+    extra_caps: Optional[Dict[str, Any]] = None
 
     def __post_init__(self) -> None:
         if self.extra_caps is None:
