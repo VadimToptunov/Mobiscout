@@ -6,7 +6,7 @@ on Ctrl+C emits a test in the chosen target. HTTP mocking of the session's API
 traffic is a separate concern — see `mobiscout mock record`.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
@@ -32,7 +32,7 @@ def record(
     platform: str,
     app_activity: Optional[str],
     no_launch: bool,
-):
+) -> None:
     """
     Record a live session and generate a test from your taps.
 
@@ -57,7 +57,7 @@ def record(
     print_info("Interact with the app now. Each tap is captured as a step.")
     print_info("Press Ctrl+C to stop and generate the test.\n")
 
-    def _on_step(step) -> None:
+    def _on_step(step: Any) -> None:
         loc = step.selector.value if step.selector else "?"
         print_info(f"  • tap {step.description or loc}")
 

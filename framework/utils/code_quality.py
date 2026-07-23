@@ -11,7 +11,7 @@ import json
 import logging
 from functools import wraps
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Callable, TypeVar, Generic
+from typing import Dict, Any, Optional, List, Callable, TypeVar, Generic, cast
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def read_json_file(file_path: Path) -> Dict[str, Any]:
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            return cast(Dict[str, Any], json.load(f))
     except json.JSONDecodeError as e:
         raise SerializationError(
             f"Invalid JSON in file: {file_path}", details={"path": str(file_path), "error": str(e)}
@@ -315,8 +315,8 @@ def retry_on_error(
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(*args, **kwargs):
-            last_error = None
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            last_error: Optional[Exception] = None
 
             for attempt in range(1, max_attempts + 1):
                 try:
@@ -336,8 +336,10 @@ def retry_on_error(
                     else:
                         logger.error(f"All {max_attempts} attempts failed")
 
-            # All attempts failed
-            raise last_error
+            # All attempts failed (loop always runs at least once, so this is set)
+            if last_error is not None:
+                raise last_error
+            raise RuntimeError("retry: no attempts were made")
 
         return wrapper
 
@@ -373,7 +375,7 @@ def handle_errors(operation: str, raise_on_error: bool = True) -> Iterator[Resul
                 except Exception as e:
                     results.add_error(e)
     """
-    collector = ResultCollector()
+    collector: ResultCollector[Any] = ResultCollector()
 
     try:
         yield collector

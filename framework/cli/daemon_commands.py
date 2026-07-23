@@ -109,8 +109,8 @@ class JSONRPCServer:
     def __init__(self) -> None:
         self.health_checker = HealthChecker()
         self.device_manager = DeviceManager()
-        self.sessions = {}  # session_id -> {backend, backend_session_id, ...}
-        self.backends = {}  # backend_name -> backend_instance
+        self.sessions: Dict[str, Dict[str, Any]] = {}  # session_id -> {backend, backend_session_id, ...}
+        self.backends: Dict[str, Any] = {}  # backend_name -> backend_instance
 
         self.handlers = {
             "health/check": self.handle_health_check,
