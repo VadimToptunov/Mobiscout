@@ -71,16 +71,19 @@ def analyze(test_results_path: str, screenshots: Optional[str], repo: str, min_c
             task = progress.add_task("Analyzing failures...", total=len(failures))
 
             for failure in failures:
-                # Find alternative selectors
-                alternatives = orchestrator.selector_discovery.find_alternatives(
-                    failure.element_info, failure.page_source
+                if failure.page_source_path is None:
+                    continue  # can't discover alternatives without a captured page source
+                # Find alternative selectors (real API takes the page-source file
+                # and the failing selector as a (type, value) tuple).
+                alternatives = orchestrator.selector_discovery.discover_from_page_source(
+                    failure.page_source_path, (failure.selector_type, failure.selector_value)
                 )
 
                 if alternatives:
                     healing_candidates.append(
                         {
                             "test_name": failure.test_name,
-                            "selector": failure.selector,
+                            "selector": failure.selector_value,
                             "error": failure.error_message,
                             "alternatives_found": len(alternatives),
                             "best_alternative": str(alternatives[0]) if alternatives else None,
@@ -101,10 +104,10 @@ def analyze(test_results_path: str, screenshots: Optional[str], repo: str, min_c
 
             for candidate in healing_candidates[:10]:  # Show top 10
                 table.add_row(
-                    candidate["test_name"],
-                    candidate["selector"],
+                    str(candidate["test_name"]),
+                    str(candidate["selector"]),
                     str(candidate["alternatives_found"]),
-                    candidate["best_alternative"] or "N/A",
+                    str(candidate["best_alternative"] or "N/A"),
                 )
 
             console.print(table)
@@ -176,14 +179,16 @@ def auto(
 
             for failure in failures:
                 if dry_run:
+                    if failure.page_source_path is None:
+                        continue  # no captured page source -> nothing to analyze
                     # Just analyze, don't apply
-                    alternatives = orchestrator.selector_discovery.find_alternatives(
-                        failure.element_info, failure.page_source
+                    alternatives = orchestrator.selector_discovery.discover_from_page_source(
+                        failure.page_source_path, (failure.selector_type, failure.selector_value)
                     )
                     if alternatives:
                         result = {
                             "test_name": failure.test_name,
-                            "old_selector": failure.selector,
+                            "old_selector": failure.selector_value,
                             "new_selector": str(alternatives[0]),
                             "success": True,
                         }
@@ -193,7 +198,7 @@ def auto(
                         # No alternatives found - track as failed
                         result = {
                             "test_name": failure.test_name,
-                            "old_selector": failure.selector,
+                            "old_selector": failure.selector_value,
                             "new_selector": None,
                             "success": False,
                             "error": "No alternative selectors found",
@@ -202,18 +207,18 @@ def auto(
                         failed_count += 1
                 else:
                     # Actually heal
-                    result = orchestrator.heal_failure(failure, dry_run=False)
+                    heal_result = orchestrator.heal_failure(failure, dry_run=False)
                     healing_results.append(
                         {
                             "test_name": failure.test_name,
-                            "old_selector": failure.selector,
-                            "new_selector": str(result.best_match.selector) if result.best_match else None,
-                            "success": result.success,
-                            "error": result.error_message,
+                            "old_selector": failure.selector_value,
+                            "new_selector": (str(heal_result.best_match.selector) if heal_result.best_match else None),
+                            "success": heal_result.success,
+                            "error": heal_result.error_message,
                         }
                     )
 
-                    if result.success:
+                    if heal_result.success:
                         healed_count += 1
                     else:
                         failed_count += 1
@@ -236,7 +241,12 @@ def auto(
 
         for result in healing_results[:10]:  # Show top 10
             status = "✅ Healed" if result["success"] else f"❌ {result.get('error', 'Failed')}"
-            table.add_row(result["test_name"], result["old_selector"], result.get("new_selector", "N/A"), status)
+            table.add_row(
+                str(result["test_name"]),
+                str(result["old_selector"]),
+                str(result.get("new_selector", "N/A")),
+                status,
+            )
 
         console.print(table)
 
@@ -257,8 +267,11 @@ def auto(
                 if len(successful_healings) > 5:
                     commit_msg += f"... and {len(successful_healings) - 5} more\n"
 
-                orchestrator.git_integration.commit_message = commit_msg
-                print_success("✅ Changes committed to git")
+                # NOTE: auto-commit is not wired up — GitIntegration.commit_healing
+                # needs the list of updated files, which this command does not track.
+                # Surface the prepared message instead of falsely claiming a commit.
+                print_info("Prepared commit message (auto-commit not yet wired up):")
+                print_info(commit_msg)
             except Exception as e:
                 print_error(f"Failed to commit changes: {e}")
                 print_info("💡 Changes were applied but not committed")
