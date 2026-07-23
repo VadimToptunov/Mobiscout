@@ -17,6 +17,7 @@ from framework.analysis.accessibility_analyzer import (
     AccessibilityScanner,
     WCAGLevel,
     A11yViolationSeverity,
+    A11yScanResult,
 )
 
 console = Console()
@@ -306,7 +307,7 @@ def summary(report_file: Path) -> None:
     _print_summary(result)
 
 
-def _print_summary(result) -> None:
+def _print_summary(result: A11yScanResult) -> None:
     """Print accessibility scan summary"""
     console.print(f"[bold]Accessibility Scan: {result.app_name}[/bold]")
     console.print(f"Screen: {result.screen_name} | WCAG Level: {result.wcag_level.value}\n")

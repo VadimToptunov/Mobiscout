@@ -14,7 +14,7 @@ produces, so parse_screen and the rest of the pipeline are unchanged.
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 
 def build_uiautomator2_options(
@@ -23,7 +23,7 @@ def build_uiautomator2_options(
     udid: Optional[str] = None,
     device_name: str = "Android Device",
     extra_caps: Optional[Dict[str, Any]] = None,
-):
+) -> Any:
     """Build UiAutomator2Options (kept separate so it can be unit-tested without a
     running Appium server). extra_caps carries cloud/grid capabilities verbatim."""
     from appium.options.android import UiAutomator2Options
@@ -77,7 +77,7 @@ class AndroidAppiumDriver:
             pass
 
     def page_source(self) -> str:
-        return self._driver.page_source
+        return cast(str, self._driver.page_source)
 
     def tap(self, x: int, y: int) -> None:
         self._driver.execute_script("mobile: clickGesture", {"x": x, "y": y})

@@ -141,7 +141,7 @@ def show(ci_system: str, template_type: str) -> None:
 
 @ci.command()
 @click.argument("config_file", type=Path)
-def validate(config_file: Path):
+def validate(config_file: Path) -> None:
     """Validate CI/CD configuration file."""
     if not config_file.exists():
         console.print(f"[red]❌ File not found: {config_file}[/red]")

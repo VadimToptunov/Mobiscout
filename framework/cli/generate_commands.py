@@ -3,7 +3,7 @@ Code generation commands for creating test artifacts.
 """
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 import click
 
@@ -22,7 +22,7 @@ def generate() -> None:
 @click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
 @click.option("--output", default="tests/pages", help="Output directory for page objects")
 @click.option("--platform", type=click.Choice(["android", "ios", "cross"]), default="cross")
-def pages(model: str, output: str, platform: str):
+def pages(model: str, output: str, platform: str) -> None:
     """
     Generate Page Object classes from app model
 
@@ -65,7 +65,7 @@ def pages(model: str, output: str, platform: str):
 @generate.command()
 @click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
 @click.option("--output", default="tests/api", help="Output directory for API clients")
-def api(model: str, output: str):
+def api(model: str, output: str) -> None:
     """Generate API client classes"""
     print_header("🌐 Generating API Clients")
 
@@ -102,7 +102,7 @@ def api(model: str, output: str):
 @generate.command()
 @click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
 @click.option("--output", default="tests/features", help="Output directory for BDD features")
-def features(model: str, output: str):
+def features(model: str, output: str) -> None:
     """Generate BDD feature files"""
     print_header("🥒 Generating BDD Features")
 
@@ -144,7 +144,15 @@ def features(model: str, output: str):
 @click.option("--app-activity", default=None, help="Android entry activity, e.g. .MainActivity")
 @click.option("--suite-name", default="SmokeFlow", help="Generated suite/class name")
 @click.option("--list-targets", is_flag=True, help="List available codegen targets and exit")
-def tests(model, app_package, target, output, app_activity, suite_name, list_targets):
+def tests(
+    model: str,
+    app_package: str,
+    target: str,
+    output: str,
+    app_activity: Optional[str],
+    suite_name: str,
+    list_targets: bool,
+) -> None:
     """
     Generate runnable test code in any supported language from an app model.
 
@@ -211,7 +219,7 @@ def tests(model, app_package, target, output, app_activity, suite_name, list_tar
 @click.option("--openapi", help="OpenAPI/Swagger spec: local file OR http(s) URL (JSON or YAML)")
 @click.option("--output", default="tests/api", help="Output directory")
 @click.option("--base-url", default="http://localhost:8000", help="Backend base URL for the tests")
-def api_tests(model: str, openapi: str, output: str, base_url: str):
+def api_tests(model: str, openapi: str, output: str, base_url: str) -> None:
     """
     Generate runnable API contract tests (pytest + requests).
 
@@ -268,7 +276,7 @@ def api_tests(model: str, openapi: str, output: str, base_url: str):
 @generate.command("api-review")
 @click.option("--openapi", required=True, help="OpenAPI/Swagger spec: local file OR http(s) URL (JSON or YAML)")
 @click.option("--output", default=None, help="Write the API context sheet to this Markdown file")
-def api_review(openapi: str, output: str):
+def api_review(openapi: str, output: str) -> None:
     """
     Review an OpenAPI/Swagger spec: emit an endpoint inventory (context for
     writing tests) plus findings about gaps that weaken generated tests
@@ -294,7 +302,7 @@ def api_review(openapi: str, output: str):
         else:
             print_info(md)
 
-        sev = {}
+        sev: Dict[str, int] = {}
         for f in findings:
             sev[f.severity] = sev.get(f.severity, 0) + 1
         summary = ", ".join(f"{n} {s}" for s, n in sev.items()) or "no issues"

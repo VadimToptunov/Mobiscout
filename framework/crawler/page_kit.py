@@ -20,7 +20,7 @@ from typing import Dict, List
 from framework.codegen.emitters._naming import pascal, snake
 from framework.codegen.ir import Platform, TestModel
 from framework.codegen.page_object import PageObject, PageObjectField, _env
-from framework.crawler.app_crawler import CrawlResult, CrawlScreen
+from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.to_codegen import _owned, selector_for
 
 
@@ -34,7 +34,7 @@ def _screen_name(index: int, screen: CrawlScreen, app_package: str) -> str:
     return f"Screen{index}"
 
 
-def _accessor(element) -> str:
+def _accessor(element: CrawlElement) -> str:
     """A valid Python identifier for an element accessor (used identically in the
     page object and the tests, so they always agree)."""
     raw = element.text or element.content_desc or element.resource_id.split("/")[-1] or element.class_name
