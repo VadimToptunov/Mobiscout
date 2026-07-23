@@ -522,6 +522,8 @@ class FuzzingCampaign:
 
         for target in targets:
             target_id = target.get("id")
+            if target_id is None:
+                continue
             target_type = target.get("type", "text_field")
             input_type = InputType(target.get("input_type", "text"))
 
@@ -559,6 +561,8 @@ class FuzzingCampaign:
         for endpoint_config in endpoints:
             method = endpoint_config.get("method", "GET")
             endpoint = endpoint_config.get("endpoint")
+            if endpoint is None:
+                continue
             param_type = InputType(endpoint_config.get("param_type", "text"))
 
             fuzz_results = self.api_fuzzer.fuzz_endpoint(method, endpoint, param_type, count=100)

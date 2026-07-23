@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple, Callable
+from typing import List, Dict, Any, Optional, Set, Tuple, Callable
 
 
 class TransitionType(Enum):
@@ -373,7 +373,7 @@ class FlowDiscovery:
         """Detect loops in flow graph using DFS"""
         loops = []
         visited = set()
-        path = []
+        path: List[str] = []
 
         def dfs(node: str) -> None:
             if node in path:
@@ -403,7 +403,7 @@ class FlowDiscovery:
     def get_critical_paths(self) -> List[List[str]]:
         """Get critical user paths (most frequently used)"""
         # Build path frequency map
-        path_freq = defaultdict(int)
+        path_freq: Dict[str, int] = defaultdict(int)
 
         for transition in self.transitions:
             path_key = f"{transition.from_screen}->{transition.to_screen}"
@@ -420,7 +420,7 @@ class FlowDiscovery:
         tested = set((e.from_node, e.to_node) for e in self.edges)
 
         # Generate all possible transitions based on element actions
-        possible = set()
+        possible: Set[Tuple[str, str]] = set()
         for screen_id, node in self.nodes.items():
             for element in node.elements:
                 if element.get("enabled") and element.get("type") in ["button", "link"]:

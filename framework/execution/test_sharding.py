@@ -32,7 +32,7 @@ class TestCase:
     def full_name(self) -> str:
         return f"{self.file}::{self.name}"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.file, self.name))
 
 
@@ -242,4 +242,4 @@ class TestSharding:
 
         mean = sum(values) / len(values)
         variance = sum((x - mean) ** 2 for x in values) / len(values)
-        return variance**0.5
+        return float(variance**0.5)

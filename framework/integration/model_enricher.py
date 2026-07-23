@@ -229,7 +229,7 @@ class ProjectIntegrator:
 
     def find_page_objects(self) -> List[Path]:
         """Find existing Page Object files"""
-        page_object_files = []
+        page_object_files: List[Path] = []
 
         # Common patterns
         patterns = ["page_objects/**/*.py", "pages/**/*.py", "pom/**/*.py", "pageobjects/**/*.py"]
