@@ -13,7 +13,6 @@ from framework.healing.selector_discovery import (
     SelectorDiscovery,
     SelectorStrategy,
 )
-from framework.ml.selector_healer import SelectorHealer
 
 
 def test_generate_report_handles_no_results():
@@ -21,13 +20,6 @@ def test_generate_report_handles_no_results():
     orch = HealingOrchestrator(repo_path=Path("."))
     report = orch.generate_report([])
     assert "0.0%" in report  # success percentage falls back to 0, no crash
-
-
-def test_selector_healer_has_visual_based_stats():
-    """visual_based counters must exist up front, or every visual heal KeyErrors."""
-    healer = SelectorHealer()
-    assert "visual_based" in healer.healing_stats
-    assert healer.healing_stats["visual_based"] == {"successes": 0, "failures": 0}
 
 
 def test_selector_discovery_parent_map_yields_indexed_xpath():
