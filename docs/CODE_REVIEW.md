@@ -76,11 +76,17 @@ gives the accurate figure:
 
 **(2) Roadmap-ahead — KEEP (encodes real product intent; wire it, don't delete):**
 
+> *Caveat (learned the hard way):* "documented / plausible" ≠ "the owner wants it".
+> `cloud/browserstack` was first parked here as roadmap, but the owner never wanted
+> it — so it was **deleted**, not wired. The crawler's real cloud-grid support is
+> Appium `--cap`, independent of that client. Each cluster below needs an explicit
+> owner *yes* before wiring; absent that, it is a delete candidate.
+
+
 | Cluster | LoC | Capability (no live equivalent) |
 | --- | ---: | --- |
 | `ml/` healing cluster | 2638 | ML self-healing. Real, complete parts: `fallback_tracker` (auto-promote a proven fallback to primary — unique), `healing_strategies`, `pattern_recognizer` (flow mining + Gherkin), `visual_detector` (OpenCV/OCR). Stubs to drop: `selector_predictor` (TF/PyTorch `NotImplementedError`), `element_scorer`, `next_step_recommender`, `ml_module`, `analytics_dashboard` (mock data). |
 | `api_analyzer/api_log_analyzer` + `storage/event_store` | 1071 | API↔UI assertion synthesis + session persistence/replay — additive, tested |
-| `cloud/browserstack` | 280 | cloud device grid (real client; crawl already supports grids via `--cap`) |
 | `ml/rico_extractor` | 121 | RICO training-data pipeline → the "raise ML accuracy" roadmap |
 | `analyzers/android_analyzer` | 585 | source-structure analysis to *plan a crawl* — a different kind of analysis from `security/` |
 
@@ -170,9 +176,10 @@ selectors — #234.
 Remaining, in order:
 
 1. **Wire the roadmap-ahead clusters (§2 group 2) to the CLI one by one** *(owner
-   decision, 2026-07-24)* — ML self-healing, `api_log_analyzer`, `event_store`,
-   `cloud/browserstack`, `rico_extractor`. Each gets a real command + tests; drop the
-   stubs inside `ml/` as they are reached.
+   decision, 2026-07-24)* — done: `rico_extractor` (`ml import-rico`, #236). Pending an
+   explicit owner *yes* each: ML self-healing, `api_log_analyzer`, `event_store`. Drop
+   the stubs inside `ml/` as they are reached. (`cloud/browserstack` was **deleted** —
+   the owner never wanted it.)
 2. **Harvest the good-ideas-wrong-place (§2 group 3):** `core/exceptions` → `domain/`;
    `selector_scorer` ranking → `to_codegen`; `flow_discovery` edge-case detection →
    `graph.py`; `security/config` argon2/secret-patterns → `security/`.
