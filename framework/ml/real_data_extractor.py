@@ -158,6 +158,55 @@ def build_real_dataset(kit_dirs: Iterable[Path], out: Path = SHIPPED_DATASET) ->
     return len(rows)
 
 
+def _merge_key(row: Dict[str, Any]) -> tuple:
+    """A full-field identity for cross-source merges. Unlike ``_row_key`` (tuned
+    for crawl rows, keyed on class/desc/text/size), this also folds in resource_id
+    and label so rows from a *different* source — e.g. RICO, whose text/desc are
+    empty for privacy — are not collapsed onto each other by an over-narrow key.
+    Only exact duplicates are dropped."""
+    b = row.get("bounds", {}) or {}
+    return (
+        row.get("class", ""),
+        row.get("content_desc", ""),
+        row.get("text", ""),
+        row.get("resource_id", ""),
+        row.get("label", ""),
+        int(b.get("width", 0)),
+        int(b.get("height", 0)),
+    )
+
+
+def merge_into_shipped(rows: List[Dict[str, Any]], out: Optional[Path] = None) -> int:
+    """Merge new labelled rows into the shipped real dataset, dropping only exact
+    duplicates, and write it back. Returns the total row count after the merge.
+
+    This is the blend point for extra real sources (e.g. RICO via
+    ``ml.rico_extractor.build_rico_rows``): once merged, ``load_shipped_real_dataset``
+    and therefore ``classify.ensure_model`` pick the rows up on the next training.
+
+    Args:
+        rows: new labelled training rows to add.
+        out: dataset file to update (defaults to the shipped one).
+
+    Returns:
+        The row count in the dataset after merging.
+    """
+    # Resolve the target at call time (not as a default arg) so tests can redirect
+    # SHIPPED_DATASET via monkeypatch, and so load_shipped_real_dataset reads the
+    # same file we write.
+    target = out if out is not None else SHIPPED_DATASET
+    merged = load_shipped_real_dataset()
+    seen = {_merge_key(r) for r in merged}
+    for row in rows:
+        key = _merge_key(row)
+        if key not in seen:
+            seen.add(key)
+            merged.append(row)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(merged, ensure_ascii=False, indent=1), encoding="utf-8")
+    return len(merged)
+
+
 def extract_from_kits(kit_dirs: Iterable[Path], dedupe: bool = True) -> List[Dict[str, Any]]:
     """Labelled rows from many kit directories (each with an ``inventory.json``),
     de-duplicated by default so repeated chrome doesn't dominate."""

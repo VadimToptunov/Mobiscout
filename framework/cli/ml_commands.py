@@ -6,6 +6,7 @@ Commands for machine learning model training and element classification.
 
 import json
 from pathlib import Path
+from typing import Dict, Optional
 
 import click
 from rich.console import Console
@@ -296,6 +297,82 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
     except Exception as e:
         print_error(f"Generation failed: {e}")
         raise click.Abort()
+
+
+@ml.command(name="import-rico")
+@click.option(
+    "--rico-dir",
+    required=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="Directory of RICO semantic-annotation *.json files (interactionmining.org/rico)",
+)
+@click.option(
+    "--output",
+    "-o",
+    "output_path",
+    type=click.Path(),
+    default=None,
+    help="Write the labelled rows here as JSON (feed to `ml train`). Omit to only summarise.",
+)
+@click.option("--per-label-cap", default=500, type=int, show_default=True, help="Max rows per element type")
+@click.option("--max-files", default=6000, type=int, show_default=True, help="Stop after scanning this many files")
+@click.option(
+    "--merge-shipped",
+    is_flag=True,
+    help="Also merge the rows into the shipped real_elements.json, so `ensure_model` blends "
+    "RICO into every auto-trained model (raises element-typing accuracy on real apps).",
+)
+def import_rico(
+    rico_dir: str,
+    output_path: Optional[str],
+    per_label_cap: int,
+    max_files: int,
+    merge_shipped: bool,
+) -> None:
+    """Turn a RICO dump into real, human-labelled element-classifier training rows.
+
+    RICO's semantic annotations label every UI node with a role independent of its
+    Android class — exactly the hard cases live crawls of Compose/custom-view apps
+    can't give us cleanly. Use the rows with `ml train`, or `--merge-shipped` to
+    enrich the dataset the universal model is auto-trained from.
+    """
+    from framework.ml.rico_extractor import build_rico_rows
+    from framework.ml.real_data_extractor import merge_into_shipped
+
+    print_header("Importing RICO training data", rico_dir)
+
+    try:
+        rows = build_rico_rows(Path(rico_dir), per_label_cap=per_label_cap, max_files=max_files)
+    except Exception as e:
+        print_error(f"Failed to read RICO data: {e}")
+        raise click.Abort()
+
+    if not rows:
+        print_error("No labelled rows extracted — is this a RICO semantic-annotations directory?")
+        raise click.Abort()
+
+    by_label: Dict[str, int] = {}
+    for row in rows:
+        by_label[row["label"]] = by_label.get(row["label"], 0) + 1
+    table = Table(title=f"{len(rows)} labelled rows")
+    table.add_column("Element type", style="cyan")
+    table.add_column("Rows", justify="right", style="green")
+    for label in sorted(by_label):
+        table.add_row(label, str(by_label[label]))
+    console.print(table)
+
+    if output_path:
+        Path(output_path).write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+        print_success(f"✅ Wrote {len(rows)} rows to {output_path}")
+
+    if merge_shipped:
+        total = merge_into_shipped(rows)
+        print_success(
+            f"✅ Merged into the shipped dataset — {total} rows total; retrain with `ml create-universal-model`"
+        )
+
+    if not output_path and not merge_shipped:
+        print_info("Nothing written. Pass --output to save rows, or --merge-shipped to enrich the model dataset.")
 
 
 if __name__ == "__main__":
