@@ -8,7 +8,7 @@ functions — the strategy catalog, separate from the orchestrator.
 
 from typing import Any, Dict
 
-from framework.ml.healing_types import HealingResult, HealingStrategy
+from framework.healing.healing_types import HealingResult, HealingStrategy
 from framework.model.app_model import Selector
 
 
