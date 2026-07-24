@@ -4,13 +4,7 @@ Enum types for the mobile application model.
 
 from enum import Enum
 
-
-class Platform(str, Enum):
-    """Supported platforms"""
-
-    ANDROID = "android"
-    IOS = "ios"
-    CROSS_PLATFORM = "cross-platform"
+from framework.domain import Platform  # re-exported: canonical definition
 
 
 class ActionType(str, Enum):
@@ -54,3 +48,8 @@ class SelectorStability(str, Enum):
     MEDIUM = "medium"  # text-based
     LOW = "low"  # XPath with index
     UNKNOWN = "unknown"
+
+
+# Platform is re-exported from the canonical domain layer for backward
+# compatibility (`from framework.model.enums import Platform` still works).
+__all__ = ["Platform", "ActionType", "ElementType", "TestPriority", "SelectorStability"]
