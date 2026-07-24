@@ -47,39 +47,66 @@ dead-on-arrival (fixed in #231). It is a latent-bug *generator*, not a style nit
 
 ---
 
-## 2. Necessity map — 39 modules / 9 631 lines unreachable from the CLI (18%)
+## 2. Necessity map — what is *truly* dead vs merely un-wired
 
-These form **parallel / aborted subsystems that reference only each other**. This
-is *not* an automatic "delete" list — Mobiscout is open-core and some of these are
-roadmap features documented ahead of their wiring (e.g. the Event Correlator is
-documented as a Rust component in `docs/TECHNICAL_DESIGN.md`). Each needs a
-public-API / pytest-fixture / dynamic-import check before removal. Verdict column:
-**DUP** = duplicates a live module, **ROADMAP** = documented-but-unwired feature,
-**GHOST** = built, tested, never referenced.
+**Correction (important).** A first pass reported "39 modules / 9 631 lines
+unreachable from the CLI". That over-counted: the reachability graph did not model
+Python's rule that *importing a submodule executes every ancestor package
+`__init__`*. Many packages (`ml/`, `selectors/`, `analyzers/`, `fixtures/`) have an
+`__init__` that eagerly imports their whole cluster, so those modules **are loaded
+at runtime** whenever the package is touched — they are the package's public API,
+not corpses. Re-running the analysis with ancestor-`__init__` side-effects credited
+gives the accurate figure:
 
-| Package | LoC | Modules | Verdict |
-| --- | ---: | --- | --- |
-| `ml/` (healing cluster) | 2638 | `selector_predictor`, `pattern_recognizer`, `selector_healer`, `visual_detector`, `analytics_dashboard`, `fallback_tracker`, `healing_strategies`, `next_step_recommender`, `element_scorer`, `ml_module`, `ml_base`, `healing_types`, `rico_extractor` | ROADMAP? — second ML system, parallel to the live `element_classifier`+`universal_model`+`classify` typing path |
-| `correlation/` + `api_analyzer/` + `storage/event_store` | 1830 | `correlator`, `strategies`, `types`, `api_log_analyzer`, `event_store` | ROADMAP — API↔UI correlation; Rust twin documented |
-| `utils/` | 785 | `code_quality`, `file_utils`, `validator` | GHOST — enterprise utils never wired |
-| `selectors/` | 630 | `selector_builder`, `selector_optimizer`, `selector_scorer` | DUP of live `crawler/to_codegen` + `selectors/advanced_selector` |
-| `analyzers/` | 585 | `android_analyzer`, `base_analyzer`, `analysis_result` | DUP of live `security/` |
-| `flow/flow_discovery` | 524 | 1 | ROADMAP — flow mining not wired to CLI |
-| `ci/` | 509 | `github_actions`, `gitlab_ci` | GHOST — CI-config generators |
-| `analysis/security_analyzer` | 342 | 1 | DUP of `security/` |
-| `security/config` | 341 | 1 | GHOST |
-| `plugins/languages` | 330 | 1 | **DUP (confirmed dead)** — abandoned plugin-codegen, parallel to live `emitters/` registry, zero external imports |
-| `core/exceptions` | 311 | 1 | GHOST — used only by the dead `utils/code_quality` |
-| `cloud/browserstack` | 280 | 1 | GHOST/ROADMAP |
-| `reporting/base_reporter` | 261 | 1 | GHOST |
-| `fixtures/` | 166 | `camera`, `device` | check: may be pytest fixtures |
-| `codegen/ir_builder` | 99 | 1 | **DUP (confirmed dead)** — its own docstring calls it the "explore→automate seam", but the live seam is `crawler/to_codegen.py`; superseded and abandoned |
+> **14 modules / 4 449 lines are never imported at all** (the rest are loaded via a
+> package `__init__` but simply not invoked from a CLI command).
+
+"Dead" therefore splits three ways, and *unreachable ≠ unneeded*:
+
+**(1) Abandoned predecessors — DELETE (a debt, not a loss):**
+
+| Module | LoC | Why |
+| --- | ---: | --- |
+| `codegen/ir_builder` | 99 | superseded by the live `crawler/to_codegen.py` seam (its own docstring mislabels it) |
+| `plugins/languages` | 330 | superseded by the live `codegen/emitters/` registry; zero imports |
+| `correlation/{correlator,strategies,types}` | 759 | **superseded by the real Rust correlator** — verified: `rust_core/src/correlator.rs`, exported from `lib.rs` as `RustCorrelator`. The Python copy is a fallback. |
+| `utils/code_quality`, `utils/file_utils` | 613 | YAGNI ghost utils (retry/ResultCollector/file wrappers); stdlib / `tenacity` / `pathlib` do it better; `file_utils` is only named in a docstring |
+| `ci/{github_actions,gitlab_ci}` | 509 | generator classes superseded by the live template approach (`ci/templates.py`, used by `cli/ci_commands.py`) |
+| `analysis/security_analyzer` | 342 | pale duplicate of the mature `security/` subsystem |
+
+**(2) Roadmap-ahead — KEEP (encodes real product intent; wire it, don't delete):**
+
+| Cluster | LoC | Capability (no live equivalent) |
+| --- | ---: | --- |
+| `ml/` healing cluster | 2638 | ML self-healing. Real, complete parts: `fallback_tracker` (auto-promote a proven fallback to primary — unique), `healing_strategies`, `pattern_recognizer` (flow mining + Gherkin), `visual_detector` (OpenCV/OCR). Stubs to drop: `selector_predictor` (TF/PyTorch `NotImplementedError`), `element_scorer`, `next_step_recommender`, `ml_module`, `analytics_dashboard` (mock data). |
+| `api_analyzer/api_log_analyzer` + `storage/event_store` | 1071 | API↔UI assertion synthesis + session persistence/replay — additive, tested |
+| `cloud/browserstack` | 280 | cloud device grid (real client; crawl already supports grids via `--cap`) |
+| `ml/rico_extractor` | 121 | RICO training-data pipeline → the "raise ML accuracy" roadmap |
+| `analyzers/android_analyzer` | 585 | source-structure analysis to *plan a crawl* — a different kind of analysis from `security/` |
+
+**(3) Good ideas in the wrong place — HARVEST into the live path:**
+
+| Module | LoC | Harvest what → where |
+| --- | ---: | --- |
+| `core/exceptions` | 311 | a well-designed exception hierarchy → fold into the new `framework/domain/` (it is an earlier aborted attempt at exactly that shared layer) |
+| `selectors/selector_scorer` (+ builder/optimizer) | 630 | 0..1 selector ranking with XPath-depth / dynamic-text penalties → richer than the live `to_codegen._selector_for` hard-coded scores; lift it in |
+| `flow/flow_discovery` | 524 | edge-case detection (error/loading/permission/empty screens) + ML hooks → `graph.py` (the live flow successor), then delete the rest |
+| `security/config` | 341 | argon2 hashing + secret-pattern list → the live `security/` |
+
+`reporting/base_reporter` (261) is an abstract base the live `unified_reporter`
+should inherit from but reimplements — refactor, don't delete. `fixtures/{camera,
+device}` are **not dead**: they are the shipped fixture library that *generated*
+test projects import (loaded via `fixtures/__init__`, which the live crawler
+`waypoints` reaches). KEEP.
 
 **Sobering note for this session:** `code_quality`, `file_utils`, `flow_discovery`,
 `event_store`, `browserstack`, `api_log_analyzer` were all made mypy-clean in
-PRs #229–#231 — and every one of them is in the dead list above. ~2 000 lines of
-corpses were polished. `unit-test-everything` also partly tests them, so the
-coverage number is inflated by dead code.
+PRs #229–#231 — and every one is in the dead/un-wired set. ~2 000 lines of corpses
+were polished, and `unit-test-everything` partly tests them, so the coverage number
+is inflated by code the product never runs.
+
+**Decision (owner, 2026-07-24):** update this doc first (done), then **wire the
+roadmap-ahead clusters to the CLI one by one** rather than park or delete them.
 
 ---
 
@@ -136,12 +163,24 @@ dashboard-server / proxy shared state is a targeted follow-up, not yet done.
 
 ## 6. Prioritized backlog
 
-1. **`framework/domain/` layer** — unify `Platform`/`TestStatus`/`Severity`/`TestResult`;
-   kills the equality-trap bug class. *(Authorized; safe/additive.)*
-2. **Decide dead-code fate** (§2) per cluster: delete GHOST/DUP, wire-up or `.coveragerc`-exclude
-   ROADMAP. Blocked on owner decision for the ROADMAP clusters.
-3. **`graph.py` O(n²) + double-compute** (§4) — speed.
-4. **`_python_common.locator_value` inner-quote fix**, XPath escape in `selector_discovery`.
-5. **Make mypy blocking** + tighten config; add per-module coverage floor so new code in
-   low-coverage subsystems can't merge untested.
-6. **CliRunner coverage** for the command layer (the "dead-on-arrival" class).
+Landed: `framework/domain/` (Platform ×3 + TestStatus ×4) — #232; `graph.py`
+O(n²)→O(Σlen) + single edge-paths call — #233; systemic `ua_escape` for UiAutomator
+selectors — #234.
+
+Remaining, in order:
+
+1. **Wire the roadmap-ahead clusters (§2 group 2) to the CLI one by one** *(owner
+   decision, 2026-07-24)* — ML self-healing, `api_log_analyzer`, `event_store`,
+   `cloud/browserstack`, `rico_extractor`. Each gets a real command + tests; drop the
+   stubs inside `ml/` as they are reached.
+2. **Harvest the good-ideas-wrong-place (§2 group 3):** `core/exceptions` → `domain/`;
+   `selector_scorer` ranking → `to_codegen`; `flow_discovery` edge-case detection →
+   `graph.py`; `security/config` argon2/secret-patterns → `security/`.
+3. **Delete the abandoned predecessors (§2 group 1):** `ir_builder`, `plugins/languages`,
+   `correlation/*` (Rust-superseded), `code_quality`/`file_utils`, `ci/{github_actions,
+   gitlab_ci}`, `analysis/security_analyzer` — with their now-dead tests.
+4. **Make mypy blocking** + tighten config; add a per-module coverage floor so new code
+   in low-coverage subsystems can't merge untested.
+5. **CliRunner coverage** for the command layer (the "dead-on-arrival" class).
+6. **XPath escape** in `healing/selector_discovery` (once healing is wired); full
+   concurrency audit of daemon / dashboard-server / proxy.
