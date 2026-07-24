@@ -320,12 +320,24 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
         return next((s for s in (selector_for(e, owned, screen.platform) for e in owned) if s), None)
 
     # Keep only maximal walks (drop those that are a strict prefix of a longer one).
-    raw_paths = [tuple([w[0].src] + [e.dst for e in w]) for w in graph.edge_coverage_paths() if len(w) >= 2]
-    maximal = {p for p in raw_paths if not any(other != p and other[: len(p)] == p for other in raw_paths)}
+    # edge_coverage_paths() is computed once and reused (it was previously called
+    # twice). Maximality is found in O(sum of path lengths) instead of O(n^2): a
+    # path is non-maximal iff it is a proper prefix of another path, so we mark
+    # every proper prefix that is itself a path and subtract that set.
+    all_walks = graph.edge_coverage_paths()
+    raw_paths = [tuple([w[0].src] + [e.dst for e in w]) for w in all_walks if len(w) >= 2]
+    path_set = set(raw_paths)
+    non_maximal = set()
+    for p in path_set:
+        for k in range(1, len(p)):
+            prefix = p[:k]
+            if prefix in path_set:
+                non_maximal.add(prefix)
+    maximal = path_set - non_maximal
 
     scored: List[Tuple[tuple, TestCase]] = []
     seen_paths = set()
-    for walk in graph.edge_coverage_paths():
+    for walk in all_walks:
         if len(walk) < 2:
             continue
         node_path = tuple([walk[0].src] + [e.dst for e in walk])
