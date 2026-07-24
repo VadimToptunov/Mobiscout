@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Optional
 
 from framework.codegen.ir import Selector, SelectorStrategy
+from framework.codegen.emitters._naming import ua_escape
 
 # Abstract strategy -> AppiumBy factory method (same names as the Java client).
 _BY_FACTORY = {
@@ -43,7 +44,7 @@ def by_expr(sel: Selector) -> str:
     """Render an ``AppiumBy.x("value")`` expression for one selector."""
     factory = _BY_FACTORY[sel.strategy]
     if sel.strategy is SelectorStrategy.TEXT:
-        value = kotlin_str(f'new UiSelector().text("{sel.value}")')
+        value = kotlin_str(f'new UiSelector().text("{ua_escape(sel.value)}")')
     else:
         value = kotlin_str(sel.value)
     return f"AppiumBy.{factory}({value})"

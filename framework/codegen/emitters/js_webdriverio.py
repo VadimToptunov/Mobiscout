@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Dict
 
 from framework.codegen.emitters._js_common import js_str, selector_array
+from framework.codegen.emitters._naming import ua_escape
 from framework.codegen.emitters._naming import kebab
 from framework.codegen.emitters.base import Emitter
 from framework.codegen.ir import TestModel
@@ -24,6 +25,7 @@ class JsWebdriverIOEmitter(Emitter):
         from framework.codegen.emitters._python_common import keycode
 
         self.env.filters["selector_array"] = selector_array
+        self.env.filters["ua_escape"] = ua_escape
         self.env.filters["js_str"] = js_str
         self.env.filters["keycode"] = keycode
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Dict
 
 from framework.codegen.emitters._kotlin_common import by_array, by_expr, kotlin_str
+from framework.codegen.emitters._naming import ua_escape
 from framework.codegen.emitters._naming import camel, pascal
 from framework.codegen.emitters.base import Emitter
 from framework.codegen.ir import TestModel
@@ -24,6 +25,7 @@ class KotlinAppiumEmitter(Emitter):
 
     def _register_filters(self) -> None:
         self.env.filters["by_expr"] = by_expr
+        self.env.filters["ua_escape"] = ua_escape
         self.env.filters["by_array"] = by_array
         self.env.filters["kotlin_str"] = kotlin_str
         self.env.filters["camel"] = camel

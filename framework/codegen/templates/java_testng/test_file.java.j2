@@ -110,7 +110,7 @@ public class {{ class_name }} {
 {% elif step.action.value == "long_press" %}
         new org.openqa.selenium.interactions.Actions(driver).clickAndHold(find({{ step.selector | by_expr }}, {{ step.selector | by_array }})).pause(java.time.Duration.ofSeconds(1)).release().perform();
 {% elif step.action.value == "scroll_to" %}
-        driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator({{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ (step.selector.description or step.selector.value) ~ '"))') | java_str }}));
+        driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator({{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"))') | java_str }}));
 {% elif step.action.value == "deep_link" %}
 {% if model.platform.value == "ios" %}
         driver.get({{ step.text | java_str }});

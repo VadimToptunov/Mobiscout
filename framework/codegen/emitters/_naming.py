@@ -42,3 +42,17 @@ def pascal(name: str) -> str:
     """``login_flow`` / ``login flow`` -> ``LoginFlow``."""
     parts = [p for p in name.replace("-", "_").replace(" ", "_").split("_") if p]
     return "".join(p[:1].upper() + p[1:] for p in parts) or "Generated"
+
+
+def ua_escape(value: str) -> str:
+    """Escape a value for embedding inside a UiAutomator expression string.
+
+    UiAutomator selectors are strings like ``new UiSelector().text("...")`` that
+    are *themselves* embedded in a host-language string literal (Python/Java/
+    Kotlin/JS). The value therefore lives in two nested string contexts; this
+    escapes the inner (UiAutomator) layer — backslash and double-quote — so a
+    value such as ``he said "hi"`` cannot produce an unbalanced expression that
+    Appium mis-parses. The host-language literal is escaped separately by
+    ``py_str``/``java_str``/``kotlin_str``/``js_str``.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')

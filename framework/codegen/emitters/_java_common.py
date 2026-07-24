@@ -10,6 +10,7 @@ Java" and can never drift.
 from __future__ import annotations
 
 from framework.codegen.ir import Selector, SelectorStrategy
+from framework.codegen.emitters._naming import ua_escape
 
 # Abstract strategy -> AppiumBy factory method (returns an org.openqa.selenium.By).
 _BY_FACTORY = {
@@ -35,7 +36,7 @@ def by_expr(sel: Selector) -> str:
     """Render an ``AppiumBy.x("value")`` expression for one selector."""
     factory = _BY_FACTORY[sel.strategy]
     if sel.strategy is SelectorStrategy.TEXT:
-        value = java_str(f'new UiSelector().text("{sel.value}")')
+        value = java_str(f'new UiSelector().text("{ua_escape(sel.value)}")')
     else:
         value = java_str(sel.value)
     return f"AppiumBy.{factory}({value})"
