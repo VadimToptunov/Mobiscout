@@ -15,10 +15,16 @@ Every value here is a ``str``-based ``Enum`` so that:
 
 and there is exactly **one** definition of each concept. Subsystems that used to
 declare their own copy now re-export from here, so all instances share identity.
+
+Only concepts with a *real* cross-subsystem duplication live here: ``Platform``
+(was defined 3x) and ``TestStatus`` (4x). ``Severity`` is deliberately absent —
+its only live definition already lives, consolidated, in ``security.types`` (as a
+plain ``Enum`` whose serialization semantics that module intentionally preserves),
+and the remaining ``RiskLevel`` is an *int*-valued score, a different value object.
+Adding a Severity here with no second consumer would just be speculative generality.
 """
 
 from framework.domain.platform import Platform
-from framework.domain.severity import Severity
 from framework.domain.status import TestStatus
 
-__all__ = ["Platform", "Severity", "TestStatus"]
+__all__ = ["Platform", "TestStatus"]

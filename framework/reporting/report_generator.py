@@ -16,6 +16,7 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from framework.domain import TestStatus
 from pathlib import Path
 from typing import Any, List, Dict, Optional
 
@@ -27,15 +28,6 @@ class ReportFormat(Enum):
     PDF = "pdf"
     MARKDOWN = "markdown"
     JSON = "json"
-
-
-class TestStatus(Enum):
-    """Test execution status"""
-
-    PASSED = "passed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    ERROR = "error"
 
 
 @dataclass
