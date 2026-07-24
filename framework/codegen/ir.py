@@ -5,7 +5,7 @@ This is the single source of truth for *what* a test does. It carries no
 language- or framework-specific syntax. Emitters (one per target language)
 turn an :class:`TestModel` into runnable source code via templates.
 
-Pipeline:  FlowGraph/Screens -> ir_builder -> TestModel -> Emitter -> files
+Pipeline:  AppModel / CrawlResult -> (app_model_adapter | crawler.to_codegen) -> TestModel -> Emitter -> files
 
 Everything here is plain dataclasses with ``to_dict``/``from_dict`` so IR can
 be serialized as JSON fixtures for golden-file tests (no device required).

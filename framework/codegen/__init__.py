@@ -1,7 +1,7 @@
 """
 Language-agnostic code generation pipeline.
 
-    Screens/FlowGraph --(ir_builder)--> TestModel --(emitter)--> source files
+    AppModel / CrawlResult --(adapter | crawler.to_codegen)--> TestModel --(emitter)--> source files
 
 The IR (:mod:`framework.codegen.ir`) is the single source of truth; emitters
 are thin, template-driven, and registered per target. This is the foundation
