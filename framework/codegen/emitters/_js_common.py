@@ -14,6 +14,7 @@ share one definition of "how a locator looks in WebdriverIO".
 from __future__ import annotations
 
 from framework.codegen.ir import Selector, SelectorStrategy
+from framework.codegen.emitters._naming import ua_escape
 
 
 def js_str(value: str) -> str:
@@ -33,11 +34,11 @@ def _wdio_selector(sel: Selector) -> str:
     if s is SelectorStrategy.XPATH:
         return sel.value
     if s is SelectorStrategy.ID:
-        return f'android=new UiSelector().resourceId("{sel.value}")'
+        return f'android=new UiSelector().resourceId("{ua_escape(sel.value)}")'
     if s is SelectorStrategy.CLASS_NAME:
-        return f'android=new UiSelector().className("{sel.value}")'
+        return f'android=new UiSelector().className("{ua_escape(sel.value)}")'
     if s is SelectorStrategy.TEXT:
-        return f'android=new UiSelector().text("{sel.value}")'
+        return f'android=new UiSelector().text("{ua_escape(sel.value)}")'
     raise ValueError(f"Unsupported selector strategy for WebdriverIO: {s}")
 
 

@@ -13,6 +13,7 @@ from typing import List, Tuple
 
 from framework.codegen.emitters._bdd_common import collect_targets, target_key  # noqa: F401
 from framework.codegen.ir import Selector, SelectorStrategy, TestModel
+from framework.codegen.emitters._naming import ua_escape
 
 # Abstract strategy -> AppiumBy member used in generated Python code.
 APPIUM_BY = {
@@ -48,7 +49,9 @@ def py_str(value: str) -> str:
 def locator_value(sel: Selector) -> str:
     """Produce the locator value string as it should appear in Python."""
     if sel.strategy is SelectorStrategy.TEXT:
-        return py_str(f'new UiSelector().text("{sel.value}")')
+        # ua_escape handles the inner UiAutomator string layer; py_str the outer
+        # Python literal (two nested string contexts).
+        return py_str(f'new UiSelector().text("{ua_escape(sel.value)}")')
     return py_str(sel.value)
 
 
