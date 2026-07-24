@@ -17,6 +17,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from framework.domain import Platform
+
 
 class ActionType(Enum):
     """A single interaction the test performs."""
@@ -161,11 +163,6 @@ class TestCase:
             description=data.get("description", ""),
             steps=[Step.from_dict(s) for s in data.get("steps", [])],
         )
-
-
-class Platform(Enum):
-    ANDROID = "android"
-    IOS = "ios"
 
 
 @dataclass

@@ -18,12 +18,7 @@ from enum import Enum
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Protocol, cast
 
-
-class Platform(Enum):
-    """Supported platforms"""
-
-    ANDROID = "android"
-    IOS = "ios"
+from framework.domain import Platform
 
 
 class DeviceType(Enum):

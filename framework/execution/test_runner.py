@@ -9,18 +9,9 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from framework.domain import TestStatus as TestResultStatus
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
-
-class TestResultStatus(Enum):
-    """Test result status."""
-
-    PASSED = "passed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    ERROR = "error"
 
 
 @dataclass

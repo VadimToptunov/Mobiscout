@@ -5,16 +5,8 @@ Dashboard data models
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from framework.domain import TestStatus
 from typing import Optional, Dict, Any
-
-
-class TestStatus(Enum):
-    """Test execution status"""
-
-    PASSED = "passed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    ERROR = "error"
 
 
 class HealingStatus(Enum):

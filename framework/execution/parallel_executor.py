@@ -9,20 +9,11 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from framework.domain import TestStatus
 from pathlib import Path
 from typing import List, Dict, Optional, Callable
 
 from .test_sharding import TestCase, TestShard
-
-
-class TestStatus(Enum):
-    """Test execution status"""
-
-    PASSED = "passed"
-    FAILED = "failed"
-    SKIPPED = "skipped"
-    ERROR = "error"
 
 
 @dataclass
