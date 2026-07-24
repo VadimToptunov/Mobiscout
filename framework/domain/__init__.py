@@ -24,7 +24,8 @@ and the remaining ``RiskLevel`` is an *int*-valued score, a different value obje
 Adding a Severity here with no second consumer would just be speculative generality.
 """
 
+from framework.domain.exceptions import MobiscoutError
 from framework.domain.platform import Platform
 from framework.domain.status import TestStatus
 
-__all__ = ["Platform", "TestStatus"]
+__all__ = ["MobiscoutError", "Platform", "TestStatus"]
