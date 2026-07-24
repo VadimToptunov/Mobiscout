@@ -2,8 +2,8 @@
 Adapter: framework.model.AppModel (the canonical, pydantic app model) -> codegen IR.
 
 This is the bridge that lets the codegen pipeline (and the CLI) generate test
-code in any registered language from a recorded app model. It mirrors
-ir_builder.build_smoke_model but consumes the richer pydantic model.Screen /
+code in any registered language from a recorded app model. It consumes the
+richer pydantic model.Screen /
 model.Element / model.Selector instead of the legacy core.engine dataclasses.
 
 v1 produces a smoke suite: per screen, launch the app and assert each element
