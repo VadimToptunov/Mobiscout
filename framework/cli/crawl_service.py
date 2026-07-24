@@ -16,8 +16,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
+from framework.domain import MobiscoutError
 
-class CrawlServiceError(Exception):
+
+class CrawlServiceError(MobiscoutError):
     """A user-facing failure while setting up or running a crawl.
 
     The message is already phrased for the tester (it names the likely cause and

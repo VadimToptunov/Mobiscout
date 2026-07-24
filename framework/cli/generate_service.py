@@ -21,13 +21,14 @@ import yaml  # type: ignore
 from pydantic import ValidationError
 
 from framework.model.app_model import AppModel, Screen
+from framework.domain import MobiscoutError
 from framework.utils.logger import get_logger
 from framework.utils.sanitizer import sanitize_class_name, sanitize_identifier
 
 logger = get_logger(__name__)
 
 
-class GenerateServiceError(Exception):
+class GenerateServiceError(MobiscoutError):
     """A model could not be loaded/validated. The message is ready to print."""
 
 
