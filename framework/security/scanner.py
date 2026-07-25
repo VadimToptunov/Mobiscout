@@ -14,15 +14,45 @@ Features:
 
 import json
 import re
+import shutil
+import subprocess
+import tempfile
+import zipfile
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from framework.security.types import Severity
 
 # Canonical severity vocabulary; kept under the historical name for callers.
 SeverityLevel = Severity
+
+# Runs of printable ASCII — enough to pull string literals out of a .dex or a
+# bundled resource without decompiling. 6+ chars to cut noise.
+_PRINTABLE = re.compile(rb"[\x20-\x7e]{6,}")
+# Dex type descriptor, e.g. Lcom/example/LoginActivity; — used to sample class names.
+_DEX_DESCRIPTOR = re.compile(r"L([A-Za-z0-9_/$]+);")
+
+
+def _zip_strings(archive: Path, want: Callable[[str], bool]) -> str:
+    """Printable ASCII strings from the entries of a zip (an APK/IPA is a zip)
+    whose name satisfies ``want``. Real, stdlib-only content for string-based
+    scanning — no apktool/jadx needed. Empty string if it is not a readable zip."""
+    try:
+        with zipfile.ZipFile(archive) as zf:
+            out: List[str] = []
+            for name in zf.namelist():
+                if not want(name):
+                    continue
+                try:
+                    data = zf.read(name)
+                except (OSError, zipfile.BadZipFile, RuntimeError):
+                    continue
+                out.append(b"\n".join(_PRINTABLE.findall(data)).decode("ascii", "ignore"))
+            return "\n".join(out)
+    except (zipfile.BadZipFile, OSError):
+        return ""
 
 
 class SecurityCheckCategory(Enum):
@@ -95,24 +125,54 @@ class AndroidSecurityScanner:
     """
 
     def scan(self, apk_path: Path) -> List[SecurityFinding]:
-        """Run Android security scans"""
+        """Run Android security scans over an APK.
+
+        Real where it is cheap and honest: hardcoded-secret scanning runs over the
+        APK's actual embedded strings (dex + resources, via stdlib zip). Manifest
+        attributes and full bytecode need apktool/androguard; when those aren't
+        available the scan says so explicitly (the coverage finding) instead of
+        returning an empty — and so falsely reassuring — result.
+        """
+        manifest = self._extract_manifest(apk_path)
+        obfuscated = self._is_code_obfuscated(apk_path)
+
         findings: List[SecurityFinding] = []
-
-        # Note: This is a simplified version
-        # Production would use tools like MobSF, APKTool, etc.
-
-        findings.extend(self._check_manifest(apk_path))
+        findings.extend(self._check_manifest(manifest))
         findings.extend(self._check_hardcoded_secrets(apk_path))
-        findings.extend(self._check_obfuscation(apk_path))
-
+        findings.extend(self._check_obfuscation(obfuscated))
+        findings.extend(self._coverage_notes(apk_path, manifest, obfuscated))
         return findings
 
-    def _check_manifest(self, apk_path: Path) -> List[SecurityFinding]:
-        """Check AndroidManifest.xml for security issues"""
-        findings = []
+    @staticmethod
+    def _coverage_notes(apk_path: Path, manifest: str, obfuscated: Optional[bool]) -> List["SecurityFinding"]:
+        """An explicit INFO finding for anything the scan could NOT inspect, so an
+        empty result is never mistaken for a clean bill of health."""
+        gaps = []
+        if not manifest:
+            gaps.append("AndroidManifest.xml attributes (needs apktool/androguard)")
+        if obfuscated is None:
+            gaps.append("bytecode / obfuscation")
+        if not gaps:
+            return []
+        return [
+            SecurityFinding(
+                category=SecurityCheckCategory.CLIENT_CODE_QUALITY,
+                severity=SeverityLevel.INFO,
+                title="Partial analysis — not a clean bill of health",
+                description=(
+                    "Only the APK's embedded strings were scanned. Not analysed: "
+                    + "; ".join(gaps)
+                    + ". Absence of findings here does NOT mean the app is secure."
+                ),
+                location=str(apk_path),
+                recommendation="Install apktool + androguard (or run MobSF) for full manifest/bytecode analysis.",
+            )
+        ]
 
-        # Placeholder: In production, parse actual manifest
-        manifest_content = self._extract_manifest(apk_path)
+    def _check_manifest(self, manifest_content: str) -> List[SecurityFinding]:
+        """Check the (apktool-decoded) AndroidManifest.xml for security issues.
+        Empty when the manifest could not be decoded — see the coverage finding."""
+        findings = []
 
         # Check debuggable flag
         if 'android:debuggable="true"' in manifest_content:
@@ -196,16 +256,13 @@ class AndroidSecurityScanner:
 
         return findings
 
-    def _check_obfuscation(self, apk_path: Path) -> List[SecurityFinding]:
-        """Check if code is obfuscated"""
+    def _check_obfuscation(self, is_obfuscated: Optional[bool]) -> List[SecurityFinding]:
+        """Flag missing obfuscation — but only when we could actually tell it is
+        absent (``is_obfuscated is False``). Unknown (None) is reported as a
+        coverage gap, not as 'not obfuscated'."""
         findings = []
 
-        # Check for ProGuard/R8 signatures
-        # In production, analyze actual bytecode
-
-        is_obfuscated = self._is_code_obfuscated(apk_path)
-
-        if not is_obfuscated:
+        if is_obfuscated is False:
             findings.append(
                 SecurityFinding(
                     category=SecurityCheckCategory.REVERSE_ENGINEERING,
@@ -221,21 +278,51 @@ class AndroidSecurityScanner:
 
     @staticmethod
     def _extract_manifest(apk_path: Path) -> str:
-        """Extract AndroidManifest.xml (placeholder)"""
-        # In production: use apktool or similar
-        return ""
+        """The decoded AndroidManifest.xml via apktool, if it is installed.
+
+        The manifest inside an APK is binary AXML, so without apktool/androguard we
+        cannot read its attributes — this returns "" and the scan reports the gap
+        rather than a false pass."""
+        if not shutil.which("apktool"):
+            return ""
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "decoded"
+                subprocess.run(
+                    ["apktool", "d", "-f", "-s", "-o", str(out), str(apk_path)],
+                    capture_output=True,
+                    timeout=180,
+                    check=True,
+                )
+                manifest = out / "AndroidManifest.xml"
+                return manifest.read_text(encoding="utf-8", errors="ignore") if manifest.exists() else ""
+        except (subprocess.SubprocessError, OSError):
+            return ""
 
     @staticmethod
     def _extract_source_code(apk_path: Path) -> str:
-        """Extract decompiled source code (placeholder)"""
-        # In production: use jadx or similar
-        return ""
+        """Printable strings from the APK's dex + bundled text resources. Real and
+        stdlib-only — enough to catch secrets embedded as string literals. (Full
+        decompilation would need jadx; this is the honest floor, not a fake.)"""
+        return _zip_strings(
+            apk_path,
+            lambda n: n.endswith(".dex")
+            or n.startswith(("assets/", "res/raw/"))
+            or n.endswith((".json", ".txt", ".properties", ".js")),
+        )
 
     @staticmethod
-    def _is_code_obfuscated(apk_path: Path) -> bool:
-        """Check if code is obfuscated (placeholder)"""
-        # In production: analyze class names, method names
-        return False
+    def _is_code_obfuscated(apk_path: Path) -> Optional[bool]:
+        """Heuristic from the APK's class descriptors: ProGuard/R8 collapse names to
+        a/b/c, so a majority of ≤2-char leaf class names ⇒ obfuscated. Returns None
+        when no class names can be sampled (can't tell — reported as a gap)."""
+        strings = _zip_strings(apk_path, lambda n: n.endswith(".dex"))
+        skip = ("java/", "javax/", "android/", "androidx/", "kotlin/", "kotlinx/")
+        leaves = [d.rsplit("/", 1)[-1] for d in _DEX_DESCRIPTOR.findall(strings) if "/" in d and not d.startswith(skip)]
+        if len(leaves) < 20:
+            return None
+        short = sum(1 for leaf in leaves if len(leaf.split("$")[-1]) <= 2)
+        return (short / len(leaves)) > 0.5
 
 
 class IOSSecurityScanner:
@@ -251,13 +338,30 @@ class IOSSecurityScanner:
     """
 
     def scan(self, ipa_path: Path) -> List[SecurityFinding]:
-        """Run iOS security scans"""
+        """Run iOS security scans over an IPA.
+
+        Info.plist / ATS / binary (PIE, encryption) inspection needs a plist parser
+        and macOS binary tools (otool); until those are wired the scan is honest
+        about it rather than returning an empty, falsely-reassuring result."""
         findings: List[SecurityFinding] = []
 
         findings.extend(self._check_info_plist(ipa_path))
         findings.extend(self._check_ats(ipa_path))
         findings.extend(self._check_binary_protection(ipa_path))
-
+        findings.append(
+            SecurityFinding(
+                category=SecurityCheckCategory.CLIENT_CODE_QUALITY,
+                severity=SeverityLevel.INFO,
+                title="Partial analysis — not a clean bill of health",
+                description=(
+                    "iOS deep inspection (Info.plist attributes, ATS exceptions, PIE / "
+                    "binary encryption) is not yet performed. Absence of findings does "
+                    "NOT mean the app is secure."
+                ),
+                location=str(ipa_path),
+                recommendation="Run a full iOS analyzer (e.g. MobSF, otool) for binary/plist checks.",
+            )
+        )
         return findings
 
     def _check_info_plist(self, ipa_path: Path) -> List[SecurityFinding]:
