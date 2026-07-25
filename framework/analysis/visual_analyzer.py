@@ -99,38 +99,50 @@ class VisualAnalyzer:
         return diff
 
     def _calculate_diff(self, baseline: Path, current: Path) -> float:
-        """
-        Calculate percentage difference between images
+        """Real per-pixel difference (0–100%) between two screenshots via Pillow.
 
-        Note: This is a placeholder. In production, use:
-        - PIL/Pillow for image loading
-        - numpy for pixel comparison
-        - opencv for advanced comparison
+        Both images are converted to RGB; a differently-sized current capture is
+        resized to the baseline so it still compares. The metric is the mean
+        absolute per-channel difference as a percentage — 0% for identical images,
+        higher the more they diverge. (Previously this compared *file sizes*, which
+        is meaningless: two different images of equal size scored 0%.)
         """
         try:
-            # Simplified: compare file sizes as proxy
-            baseline_size = baseline.stat().st_size
-            current_size = current.stat().st_size
+            from PIL import Image, ImageChops
 
-            if baseline_size == 0:
-                return 100.0
-
-            size_diff = abs(current_size - baseline_size) / baseline_size
-            return min(size_diff * 100, 100.0)
-
+            with Image.open(baseline) as b_img, Image.open(current) as c_img:
+                base = b_img.convert("RGB")
+                cur = c_img.convert("RGB")
+                if cur.size != base.size:
+                    cur = cur.resize(base.size)
+                diff = ImageChops.difference(base, cur)
+                hist = diff.histogram()  # 256 bins per RGB channel
+                total = sum(value * hist[channel * 256 + value] for channel in range(3) for value in range(256))
+                max_total = base.size[0] * base.size[1] * 3 * 255
+                return min((total / max_total) * 100, 100.0) if max_total else 0.0
         except (OSError, ValueError) as e:
             logger.error(f"Error calculating visual diff: {e}")
             return 0.0
 
     def _find_diff_regions(self, baseline: Path, current: Path) -> List[Tuple[int, int, int, int]]:
-        """
-        Find regions with visual differences
+        """The bounding box of the changed area, as one ``(x, y, width, height)``
+        region (via Pillow). Empty when the images match or can't be read."""
+        try:
+            from PIL import Image, ImageChops
 
-        Returns:
-            List of (x, y, width, height) tuples
-        """
-        # Placeholder - in production use image diff algorithms
-        return []
+            with Image.open(baseline) as b_img, Image.open(current) as c_img:
+                base = b_img.convert("RGB")
+                cur = c_img.convert("RGB")
+                if cur.size != base.size:
+                    cur = cur.resize(base.size)
+                bbox = ImageChops.difference(base, cur).getbbox()
+                if bbox is None:
+                    return []
+                left, upper, right, lower = bbox
+                return [(left, upper, right - left, lower - upper)]
+        except (OSError, ValueError) as e:
+            logger.error(f"Error finding visual diff regions: {e}")
+            return []
 
     def _create_baseline(self, screen_name: str, image: Path) -> None:
         """Create new baseline image"""
