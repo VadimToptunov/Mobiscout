@@ -5,7 +5,6 @@ This package provides common utilities used across the framework:
 - logger: Structured logging with Rich formatting
 - validator: Input validation utilities
 - sanitizer: Code identifier sanitization
-- file_utils: File operation helpers
 - error_handling: Comprehensive error handling
 """
 

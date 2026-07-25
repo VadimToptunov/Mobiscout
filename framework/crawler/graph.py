@@ -40,6 +40,7 @@ class GraphNode:
     type_histogram: Dict[str, int]
     is_entry: bool = False
     depth: int = -1  # BFS distance from entry; -1 = unreachable
+    edge_case: Optional[str] = None  # error/loading/permission/network screen, if flagged
 
     def to_dict(self) -> Dict:
         return {
@@ -51,6 +52,7 @@ class GraphNode:
             "type_histogram": self.type_histogram,
             "is_entry": self.is_entry,
             "depth": self.depth,
+            "edge_case": self.edge_case,
         }
 
 
@@ -203,6 +205,28 @@ class InteractionGraph:
         }
 
 
+# Keyword → edge-case screen kind, harvested from the former flow.flow_discovery.
+# Only high-signal, text-based kinds are kept; its count-based "empty_state" is
+# dropped as too noisy for real screens (many legit screens have 1–2 controls).
+_EDGE_CASE_KEYWORDS = (
+    ("error_screen", ("error", "failed", "went wrong", "crash")),
+    ("loading_screen", ("loading", "please wait", "in progress")),
+    ("permission_dialog", ("permission", "allow ", "grant", "deny")),
+    ("network_error", ("no connection", "offline", "network error", "no internet")),
+)
+
+
+def _classify_screen(screen: CrawlScreen) -> Optional[str]:
+    """Flag a special screen (error / loading / permission / network) from its
+    element texts, so the interaction graph and its report call out screens a
+    tester should treat specially. None for an ordinary screen."""
+    texts = " ".join(f"{e.text} {e.content_desc}" for e in screen.elements).lower()
+    for kind, keywords in _EDGE_CASE_KEYWORDS:
+        if any(keyword in texts for keyword in keywords):
+            return kind
+    return None
+
+
 def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     """Build the interaction graph from a crawl, with typed, locatable edges."""
     fps = list(result.screens)
@@ -221,6 +245,7 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
                 element_count=len(owned),
                 type_histogram=dict(hist),
                 is_entry=(fp == fps[0]) if fps else False,
+                edge_case=_classify_screen(screen),
             )
         )
 

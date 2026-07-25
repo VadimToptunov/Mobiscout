@@ -1,24 +1,13 @@
 """Coverage for the pure utility helpers: identifier/name/filename sanitizing,
-path + project-structure validation, and the safe file/JSON/YAML round-trips.
-These modules underpin codegen and I/O, so their behaviour is pinned here
+and path + project-structure validation. These underpin codegen and I/O, so
+their behaviour is pinned here
 (including the leading-digit handling that now matches the documented intent).
 """
 
-import json
 from pathlib import Path
 
 import pytest
-import yaml
 
-from framework.utils.file_utils import (
-    ensure_directory,
-    load_json,
-    load_yaml,
-    safe_read_file,
-    safe_write_file,
-    save_json,
-    save_yaml,
-)
 from framework.utils.sanitizer import sanitize_class_name, sanitize_filename, sanitize_identifier
 from framework.utils.validator import (
     ValidationError,
@@ -159,62 +148,3 @@ def test_validate_output_format():
     assert validate_output_format("JSON", ["json", "yaml"]) == "json"
     with pytest.raises(ValidationError):
         validate_output_format("xml", ["json", "yaml"])
-
-
-# --- file_utils -------------------------------------------------------------
-
-
-def test_safe_read_write_round_trip(tmp_path):
-    f = tmp_path / "sub" / "note.txt"
-    assert safe_write_file(f, "héllo", create_dirs=True) is True
-    assert safe_read_file(f) == "héllo"
-
-
-def test_safe_read_missing_returns_none(tmp_path):
-    assert safe_read_file(tmp_path / "missing.txt") is None
-
-
-def test_json_round_trip_and_bad_input(tmp_path):
-    f = tmp_path / "d" / "data.json"
-    data = {"a": 1, "ключ": [1, 2, 3]}
-    assert save_json(f, data) is True
-    assert load_json(f) == data
-    assert load_json(tmp_path / "missing.json") is None
-    # invalid JSON on disk -> None, not a raise
-    bad = tmp_path / "bad.json"
-    bad.write_text("{not valid")
-    assert load_json(bad) is None
-
-
-def test_save_json_non_serializable_returns_false(tmp_path):
-    assert save_json(tmp_path / "x.json", {"bad": {1, 2, 3}}) is False  # set isn't JSON
-
-
-def test_yaml_round_trip_and_bad_input(tmp_path):
-    f = tmp_path / "d" / "data.yaml"
-    data = {"name": "démo", "items": [1, 2]}
-    assert save_yaml(f, data) is True
-    assert load_yaml(f) == data
-    assert load_yaml(tmp_path / "missing.yaml") is None
-    bad = tmp_path / "bad.yaml"
-    bad.write_text("key: : :\n  - broken\n:::")
-    assert load_yaml(bad) is None
-
-
-def test_ensure_directory(tmp_path):
-    d = tmp_path / "a" / "b" / "c"
-    assert ensure_directory(d) is True
-    assert d.is_dir()
-    assert ensure_directory(d) is True  # idempotent
-
-
-def test_written_json_is_readable_by_stdlib(tmp_path):
-    f = tmp_path / "o.json"
-    save_json(f, {"k": "v"})
-    assert json.loads(f.read_text()) == {"k": "v"}
-
-
-def test_written_yaml_is_readable_by_pyyaml(tmp_path):
-    f = tmp_path / "o.yaml"
-    save_yaml(f, {"k": "v"})
-    assert yaml.safe_load(f.read_text()) == {"k": "v"}
