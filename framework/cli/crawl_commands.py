@@ -62,6 +62,14 @@ logger = get_logger(__name__)
     help="iOS launch argument passed to the app on start (repeatable) — e.g. "
     "--launch-arg -MyAppStartUnlocked --launch-arg 1 to skip a login gate",
 )
+@click.option(
+    "--record-events",
+    "record_events",
+    default=None,
+    type=click.Path(),
+    help="Also record the crawl as a queryable event session (SQLite). Off by default so it "
+    "never affects crawl speed — events are derived after the crawl. Query with `mobiscout events`.",
+)
 def crawl(
     package: str,
     platform: str,
@@ -79,6 +87,7 @@ def crawl(
     max_steps: int,
     max_depth: int,
     launch_args: Tuple[str, ...],
+    record_events: Optional[str],
 ) -> None:
     """
     Crawl a running app and export an element inventory + tests.
@@ -140,6 +149,17 @@ def crawl(
         if appium_session:
             appium_session.quit()
     print_success(f"Discovered {len(result.screens)} screen(s), {len(result.transitions)} transition(s)")
+
+    # Opt-in: persist the crawl as a queryable event session. Derived from the
+    # finished result, so it adds nothing to crawl latency.
+    if record_events:
+        import uuid
+
+        from framework.storage.crawl_recorder import record_crawl_session
+
+        session_id = f"{package}-{uuid.uuid4().hex[:8]}"
+        n_events = record_crawl_session(result, record_events, session_id, package=package, platform=platform)
+        print_info(f"Recorded {n_events} event(s) as session '{session_id}' in {record_events}")
 
     report = write_kit(
         result=result,
