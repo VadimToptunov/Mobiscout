@@ -11,8 +11,7 @@ from click.testing import CliRunner
 
 from framework.cli.source_commands import source
 
-_KOTLIN = textwrap.dedent(
-    """
+_KOTLIN = textwrap.dedent("""
     @Composable
     fun LoginScreen() {
         Button(modifier = Modifier.testTag("login_button")) { Text("Login") }
@@ -22,8 +21,7 @@ _KOTLIN = textwrap.dedent(
         @POST("auth/login")
         suspend fun login(): Token
     }
-    """
-)
+    """)
 
 
 @pytest.fixture()
