@@ -60,6 +60,10 @@ class A11yScanResult:
     violations: List[A11yViolation] = field(default_factory=list)
     pass_count: int = 0
     total_checks: int = 0
+    # Elements whose colour contrast could NOT be checked (no colours known and no
+    # screenshot to sample from). Tracked so a scan never counts "not checked" as a
+    # pass — an honest coverage number for the contrast rule.
+    contrast_not_checked: int = 0
 
     @property
     def critical_count(self) -> int:
@@ -122,11 +126,23 @@ class ColorContrastChecker:
         self,
         element: Dict[str, Any],
         wcag_level: WCAGLevel = WCAGLevel.AA,
+        colors: Optional[tuple] = None,
     ) -> Optional[A11yViolation]:
-        """Check if element meets contrast requirements"""
-        # Extract colors (placeholder - in production, parse from styles)
-        fg_color = element.get("text_color", (0, 0, 0))
-        bg_color = element.get("background_color", (255, 255, 255))
+        """Check an element against WCAG contrast — using *real* colours only.
+
+        Colours come from ``colors`` (sampled from a screenshot) or from the
+        element's own ``text_color``/``background_color``. When neither is available
+        this returns None and does NOT assume black-on-white — the caller records it
+        as 'not checked' rather than a false pass. (Previously it defaulted to
+        black/white, so every element without colours silently scored 21:1.)
+        """
+        if colors is not None:
+            fg_color, bg_color = colors
+        elif "text_color" in element and "background_color" in element:
+            fg_color = element["text_color"]
+            bg_color = element["background_color"]
+        else:
+            return None  # colours unknown — cannot check
 
         if not isinstance(fg_color, tuple) or not isinstance(bg_color, tuple):
             return None
@@ -292,8 +308,13 @@ class AccessibilityScanner:
         app_name: str,
         screen_name: str,
         platform: str = "android",
+        screenshot: Optional[Path] = None,
     ) -> A11yScanResult:
-        """Scan UI hierarchy for accessibility issues"""
+        """Scan a UI hierarchy for accessibility issues.
+
+        Contrast is only checked when real colours are known — carried on the
+        element, or sampled from ``screenshot`` at the element's bounds. Elements
+        with no colours are counted as *not checked* (never a silent pass)."""
         result = A11yScanResult(
             app_name=app_name,
             screen_name=screen_name,
@@ -303,23 +324,79 @@ class AccessibilityScanner:
         elements = self._flatten_hierarchy(hierarchy)
 
         for element in elements:
-            # Run all checks
+            # Checks that don't need colours always run.
             checks = [
-                self.contrast_checker.check_element_contrast(element, self.wcag_level),
                 self.touch_validator.check_touch_target(element, platform),
                 self.screen_reader_checker.check_content_description(element),
                 self.text_checker.check_text_size(element),
             ]
-
             result.total_checks += len(checks)
-
             for violation in checks:
                 if violation:
                     result.violations.append(violation)
                 else:
                     result.pass_count += 1
 
+            # Contrast: only with real colours; otherwise honestly "not checked".
+            colors = self._resolve_colors(element, screenshot)
+            if colors is None:
+                result.contrast_not_checked += 1
+            else:
+                result.total_checks += 1
+                contrast = self.contrast_checker.check_element_contrast(element, self.wcag_level, colors=colors)
+                if contrast:
+                    result.violations.append(contrast)
+                else:
+                    result.pass_count += 1
+
         return result
+
+    def _resolve_colors(self, element: Dict[str, Any], screenshot: Optional[Path]) -> Optional[tuple]:
+        """Real (foreground, background) colours for an element: from the element if
+        it carries them, else sampled from the screenshot at its bounds. None when
+        neither is available."""
+        fg = element.get("text_color")
+        bg = element.get("background_color")
+        if isinstance(fg, tuple) and isinstance(bg, tuple):
+            return (fg, bg)
+        if screenshot is not None:
+            return self._sample_colors(screenshot, element.get("bounds"))
+        return None
+
+    @staticmethod
+    def _sample_colors(screenshot: Path, bounds: Any) -> Optional[tuple]:
+        """Sample (foreground, background) from an element's screen region with
+        Pillow: background = the most common colour in the crop, foreground = the
+        colour furthest from it (the text/icon). None if the region is unusable."""
+        if not isinstance(bounds, dict):
+            return None
+        try:
+            from PIL import Image
+
+            raw_x = bounds.get("x", bounds.get("left"))
+            raw_y = bounds.get("y", bounds.get("top"))
+            if raw_x is None or raw_y is None:
+                return None
+            x, y = int(raw_x), int(raw_y)
+            w = int(bounds.get("width", 0))
+            h = int(bounds.get("height", 0))
+            if x < 0 or y < 0 or w <= 0 or h <= 0:
+                return None
+            with Image.open(screenshot) as img:
+                crop = img.convert("RGB").crop((x, y, x + w, y + h))
+                counted = crop.getcolors(maxcolors=100000)
+                if not counted:
+                    return None
+                counted.sort(reverse=True)  # by pixel count, descending
+                bg = counted[0][1]
+                fg = max(
+                    (color for _, color in counted),
+                    key=lambda c: sum((a - b) ** 2 for a, b in zip(c, bg)),
+                    default=bg,
+                )
+                return (fg, bg)
+        except (OSError, ValueError):
+            return None
 
     def _flatten_hierarchy(self, node: Dict[str, Any], elements: Optional[List] = None) -> List[Dict[str, Any]]:
         """Flatten UI hierarchy into list of elements"""

@@ -40,6 +40,12 @@ def a11y() -> None:
 @click.option("--wcag-level", "-w", type=click.Choice(["A", "AA", "AAA"]), default="AA", help="WCAG level")
 @click.option("--output", "-o", type=Path, help="Output report path")
 @click.option("--format", "-f", type=click.Choice(["json", "html"]), default="json", help="Report format")
+@click.option(
+    "--screenshot",
+    type=Path,
+    default=None,
+    help="Screenshot of the screen — enables REAL colour-contrast checks by sampling each element's bounds.",
+)
 def scan(
     hierarchy_file: Path,
     app_name: str,
@@ -48,6 +54,7 @@ def scan(
     wcag_level: str,
     output: Optional[Path],
     format: str,
+    screenshot: Optional[Path],
 ) -> None:
     """
     Scan UI hierarchy for accessibility issues.
@@ -73,7 +80,12 @@ def scan(
     scanner = AccessibilityScanner(wcag_level=level)
 
     # Scan
-    result = scanner.scan_hierarchy(hierarchy, app_name, screen, platform)
+    result = scanner.scan_hierarchy(hierarchy, app_name, screen, platform, screenshot=screenshot)
+    if result.contrast_not_checked:
+        console.print(
+            f"[yellow]⚠[/yellow]  Colour contrast not checked for {result.contrast_not_checked} element(s) "
+            "(no colours in the hierarchy). Pass --screenshot to check contrast for real.\n"
+        )
 
     # Print summary
     _print_summary(result)
