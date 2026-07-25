@@ -26,6 +26,7 @@ from framework.cli.generate_commands import generate
 from framework.cli.crawl_commands import crawl
 from framework.cli.api_commands import api
 from framework.cli.events_commands import events
+from framework.cli.source_commands import source
 from framework.cli.healing_commands import heal
 from framework.cli.load_commands import load
 from framework.cli.ml_commands import ml
@@ -89,6 +90,7 @@ cli.add_command(fuzz)
 cli.add_command(verify)
 cli.add_command(api)
 cli.add_command(events)
+cli.add_command(source)
 
 
 @cli.command()
