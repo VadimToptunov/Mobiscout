@@ -16,6 +16,7 @@ import datetime
 import json
 import random
 import string
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -66,6 +67,9 @@ class FuzzResult:
     response_time_ms: float = 0.0
     coverage: Set[str] = field(default_factory=set)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    # True when no real target was exercised (UI fuzzing with no device driver):
+    # the input was generated but NOT sent, so this result is not a real finding.
+    simulated: bool = False
 
 
 class FuzzGenerator:
@@ -354,10 +358,14 @@ class UIFuzzer:
     Fuzzes UI inputs (text fields, buttons, gestures)
     """
 
-    def __init__(self) -> None:
+    def __init__(self, driver: Optional[Any] = None) -> None:
         self.generator = FuzzGenerator()
         self.mutator = MutationFuzzer()
         self.results: List[FuzzResult] = []
+        # An Appium/UiAutomator driver to actually drive the app. Without one,
+        # fuzzing is *simulated*: inputs are generated but not sent, and results
+        # are flagged simulated=True rather than inventing crashes.
+        self.driver = driver
 
     def fuzz_text_field(
         self, field_id: str, input_type: InputType = InputType.TEXT, count: int = 20
@@ -393,22 +401,40 @@ class UIFuzzer:
         return results
 
     def _execute_fuzz(self, target_id: str, fuzz_input: FuzzInput) -> FuzzResult:
-        """Execute fuzzing input (simulation)"""
-        # In real implementation, this would interact with device
-        # For now, simulate result
+        """Send one fuzz input to the target element via the driver.
 
-        success = random.random() > 0.1  # 90% success rate
-        crash = random.random() < 0.01  # 1% crash rate
-        response_time = random.uniform(10, 500)
+        With no driver this does NOT invent a result — it returns a ``simulated``
+        FuzzResult (input generated, not sent) so a report never shows fabricated
+        crashes. With a driver it types/clicks for real and a driver exception is a
+        genuine crash/error."""
+        if self.driver is None:
+            return FuzzResult(
+                input=fuzz_input,
+                success=True,
+                crash=False,
+                simulated=True,
+                metadata={"target": target_id, "note": "no device driver — input generated but not sent"},
+            )
 
-        return FuzzResult(
-            input=fuzz_input,
-            success=success,
-            crash=crash,
-            response_time_ms=response_time,
-            error="Crash detected" if crash else None,
-            metadata={"target": target_id},
-        )
+        start = time.perf_counter()
+        try:
+            element = self.driver.find_element("accessibility id", target_id)
+            if fuzz_input.input_type == InputType.TEXT and fuzz_input.value is not None:
+                element.send_keys(str(fuzz_input.value))
+            else:
+                element.click()
+            elapsed = (time.perf_counter() - start) * 1000
+            return FuzzResult(input=fuzz_input, success=True, response_time_ms=elapsed, metadata={"target": target_id})
+        except Exception as e:  # a driver error here is a real crash/mishandled input
+            elapsed = (time.perf_counter() - start) * 1000
+            return FuzzResult(
+                input=fuzz_input,
+                success=False,
+                crash=True,
+                response_time_ms=elapsed,
+                error=f"{type(e).__name__}: {e}",
+                metadata={"target": target_id},
+            )
 
     def get_crash_inputs(self) -> List[FuzzInput]:
         """Get inputs that caused crashes"""
@@ -457,22 +483,44 @@ class APIFuzzer:
         return results
 
     def _execute_api_fuzz(self, method: str, endpoint: str, fuzz_input: FuzzInput) -> FuzzResult:
-        """Execute API fuzzing (simulation)"""
-        # In real implementation, this would make HTTP requests
-        # For now, simulate result
+        """Send one fuzz input to a real endpoint over HTTP and judge the response.
 
-        success = random.random() > 0.2  # 80% success rate
-        crash = random.random() < 0.05  # 5% crash rate
-        response_time = random.uniform(50, 1000)
+        The malformed value is injected as a query param (and, for write methods, a
+        JSON body). A 5xx or a connection error/timeout means the input broke or
+        hung the server — a genuine crash; a 4xx is a handled (successful) rejection.
+        No randomness: findings come from the actual response."""
+        import requests
 
-        return FuzzResult(
-            input=fuzz_input,
-            success=success,
-            crash=crash,
-            response_time_ms=response_time,
-            error="API error" if not success else None,
-            metadata={"method": method, "endpoint": endpoint},
-        )
+        meta = {"method": method, "endpoint": endpoint}
+        value = fuzz_input.value
+        kwargs: Dict[str, Any] = {"params": {"input": str(value)}, "timeout": 10}
+        if method.upper() in ("POST", "PUT", "PATCH"):
+            kwargs["json"] = {"input": value}
+
+        start = time.perf_counter()
+        try:
+            resp = requests.request(method.upper(), endpoint, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            crashed = resp.status_code >= 500
+            return FuzzResult(
+                input=fuzz_input,
+                success=not crashed,  # the endpoint stayed up (even a 4xx is "handled")
+                crash=crashed,
+                response_time_ms=elapsed,
+                error=f"HTTP {resp.status_code}" if resp.status_code >= 400 else None,
+                metadata={**meta, "status": resp.status_code},
+            )
+        except requests.exceptions.RequestException as e:
+            # A timeout / connection reset on a fuzz input is a real crash/hang.
+            elapsed = (time.perf_counter() - start) * 1000
+            return FuzzResult(
+                input=fuzz_input,
+                success=False,
+                crash=True,
+                response_time_ms=elapsed,
+                error=f"{type(e).__name__}: {e}",
+                metadata=meta,
+            )
 
     def get_vulnerable_endpoints(self) -> List[Dict[str, Any]]:
         """Get endpoints with high error/crash rate"""
