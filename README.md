@@ -244,6 +244,20 @@ mobiscout load profile tests/test_checkout.py --cpu --memory
 
 # Documentation Generation
 mobiscout docs generate framework/ --format html
+
+# Analyze captured API traffic (HAR) into test assertions
+mobiscout api analyze capture.har --output api-report
+
+# Map an app's structure from its source, to plan a crawl
+mobiscout source analyze ./app/src --output structure.json
+
+# Record a crawl as a queryable session (opt-in; never affects crawl speed),
+# then browse it
+mobiscout crawl --package com.example.app --record-events session.db
+mobiscout events timeline session.db
+
+# Import RICO real-app data to sharpen ML element typing
+mobiscout ml import-rico --rico-dir ./rico --merge-shipped
 ```
 
 ---
@@ -392,8 +406,15 @@ mobiscout parallel run tests/ \
 
 ### Security Scanning
 
+Scans an APK/IPA against the OWASP Mobile Top 10 categories: it reads the app's
+embedded strings for hardcoded secrets and checks obfuscation for real (stdlib
+only). Full manifest/bytecode analysis uses `apktool`/`androguard` when installed;
+the report is explicit about anything it could not inspect, so an empty result is
+never presented as "secure".
+
 ```bash
-# Full OWASP Mobile Top 10 scan
+# OWASP Mobile Top 10 scan (real string/secret + obfuscation checks; deeper
+# manifest/bytecode analysis when apktool/androguard are available)
 mobiscout security scan app.apk \
   --output security-report.json \
   --format html
