@@ -172,10 +172,20 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
 
         results = []
         for i in range(count):
-            # Simulate fuzzing (in real implementation, this would interact with device)
             partial_results = fuzzer.fuzz_text_field(target_id, InputType(input_type), count=1)
             results.extend(partial_results)
             progress.update(task, advance=1)
+
+    # Be honest: with no device driver, UI fuzzing is simulated (inputs generated
+    # but not sent) — never present it as real device findings.
+    if results and all(getattr(r, "simulated", False) for r in results):
+        console.print(
+            Panel.fit(
+                "⚠️  SIMULATED — no device driver connected, so inputs were generated but NOT sent.\n"
+                "These are not real device findings. Attach a device/Appium session to fuzz for real.",
+                style="bold yellow",
+            )
+        )
 
     # Get statistics
     stats = fuzzer.get_statistics()
