@@ -61,8 +61,10 @@ class SelectorStrategy(Enum):
 class Selector:
     """How to locate an element, with ranked fallbacks for self-healing.
 
-    ``score`` is the stability score (0..1) from selector_scorer; emitters may
-    surface it as a comment so a human can see how fragile a locator is.
+    ``score`` is a stability estimate (0..1, higher = more stable): the strategy
+    tier (accessibility-id > resource-id > text) with a penalty for dynamic text.
+    The model path ranks candidates by it; emitters may surface it as a comment so
+    a human can see how fragile a locator is.
     """
 
     strategy: SelectorStrategy

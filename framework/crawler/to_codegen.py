@@ -28,6 +28,18 @@ from framework.codegen.ir import (
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 
 
+def _looks_dynamic(text: str) -> bool:
+    """Whether a visible-text value looks run-to-run *unstable* — so a locator
+    built from it is fragile and should score lower. Harvested from the former
+    ``selectors.selector_scorer``: flags multi-digit runs (counts, ids, times),
+    currency amounts, and very short strings (often generated/opaque)."""
+    if re.search(r"\d{2,}", text):
+        return True
+    if any(symbol in text for symbol in ("$", "€", "£", "¥")):
+        return True
+    return len(text.strip()) < 3
+
+
 def _xpath_by_label(value: str) -> str:
     """An iOS-safe XPath that locates an element by its visible label / name.
     Quote-safe: uses whichever quote the value lacks, or concat() if it has both."""
@@ -59,10 +71,17 @@ def _selector_for(element: CrawlElement, platform: str = "android") -> Optional[
         candidates.append(Selector(SelectorStrategy.ID, rid, score=0.90, description=label))
     txt = (element.text or "").strip()
     if txt:
+        # A text locator is already the least-stable tier; if the text itself
+        # looks dynamic (a count, price, timestamp) it is more fragile still, so
+        # score it lower. Order is unchanged — text stays last — this only makes
+        # the stability score honest for the inventory / model-path ranking.
+        text_score = 0.42 if _looks_dynamic(txt) else 0.60
         if platform == "ios":
-            candidates.append(Selector(SelectorStrategy.XPATH, _xpath_by_label(txt), score=0.60, description=label))
+            candidates.append(
+                Selector(SelectorStrategy.XPATH, _xpath_by_label(txt), score=text_score, description=label)
+            )
         else:
-            candidates.append(Selector(SelectorStrategy.TEXT, txt, score=0.60, description=label))
+            candidates.append(Selector(SelectorStrategy.TEXT, txt, score=text_score, description=label))
     if not candidates:
         return None
     primary, *rest = candidates
