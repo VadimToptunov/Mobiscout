@@ -220,17 +220,42 @@ class JSONRPCServer:
             ]
         }
 
+    def _session_driver(self, session: Dict[str, Any]) -> Any:
+        """The crawler driver for a session, built once and cached on it.
+
+        Platform-aware: Android over adb, iOS over an Appium/XCUITest session — so
+        the UI-tree/inspection features work on both, not just Android. Caching the
+        driver keeps a repeated inspect from paying a fresh Appium/WDA connection
+        every call."""
+        driver = session.get("_driver")
+        if driver is not None:
+            return driver
+        platform = str(session.get("platform") or "android").lower()
+        if platform == "ios":
+            from framework.crawler.appium_driver import IOSCrawlerDriver
+
+            driver = IOSCrawlerDriver(
+                bundle_id=session.get("bundle_id") or "",
+                udid=session.get("device_id"),
+                server=session.get("server") or "http://localhost:4723",
+                process_args=session.get("launch_args"),
+            )
+        else:
+            from framework.crawler.adb_driver import AdbCrawlerDriver
+
+            driver = AdbCrawlerDriver(serial=session.get("device_id"))
+        session["_driver"] = driver
+        return driver
+
     def handle_get_ui_tree(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Return the real UI tree for the session's device — the parsed element
-        list with a semantic type per element (not a mock). Android over adb."""
+        list with a semantic type per element (not a mock). Works on Android (adb)
+        and iOS (Appium), driven by the session's platform."""
         session_id = params.get("session_id")
         if session_id not in self.sessions:
             raise ValueError(f"Session not found: {session_id}")
 
-        from framework.crawler.adb_driver import AdbCrawlerDriver
-
-        device_id = self.sessions[session_id]["device_id"]
-        source = AdbCrawlerDriver(serial=device_id).page_source()
+        source = self._session_driver(self.sessions[session_id]).page_source()
         return ui_tree(source)
 
     def handle_session_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -241,20 +266,35 @@ class JSONRPCServer:
         device_id = params.get("device_id")
         backend = params.get("backend", "appium")
 
-        # Store session info (actual Appium connection in Phase 3)
+        # Store what building the device driver needs. The driver itself is built
+        # lazily on first use (see _session_driver) so starting a session stays
+        # cheap and doesn't require the device to be reachable yet.
         self.sessions[session_id] = {
             "id": session_id,
             "device_id": device_id,
             "backend": backend,
+            "platform": params.get("platform", "android"),
+            # iOS needs these to open an Appium session; harmless on Android.
+            "bundle_id": params.get("bundle_id") or params.get("package"),
+            "server": params.get("server") or "http://localhost:4723",
+            "launch_args": params.get("launch_args") or params.get("process_args"),
             "started_at": "2026-01-14T12:00:00Z",
         }
 
         return {"session_id": session_id, "backend": backend, "device_id": device_id}
 
     def handle_session_stop(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle session stop request."""
-        session_id = params.get("session_id")
-        if session_id in self.sessions:
+        """Handle session stop request — closing the device driver if one was
+        opened (an Appium session must be quit, or it leaks on the device)."""
+        session_id = str(params.get("session_id") or "")
+        session = self.sessions.get(session_id)
+        if session is not None:
+            driver = session.get("_driver")
+            if driver is not None and hasattr(driver, "quit"):
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
             del self.sessions[session_id]
         return {"status": "stopped"}
 
