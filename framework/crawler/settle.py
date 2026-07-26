@@ -14,12 +14,26 @@ second, redundant (and on adb, expensive) UI dump.
 from __future__ import annotations
 
 import hashlib
+import re
 import time
 from typing import Callable, Optional
 
+# Volatile content that changes every frame without the screen actually
+# *transitioning* — a ticking price, a live clock, a scroll offset in the XML, a
+# progress count. Stripping it before hashing makes settling key on the screen's
+# *structure*, so a live-updating screen (e.g. streaming prices) settles as soon
+# as its layout is stable instead of never matching and paying the full max_wait.
+_VOLATILE = re.compile(r"\d+|[$€£¥]")
+
 
 def _digest(source: str) -> str:
-    return hashlib.md5(source.encode("utf-8", "ignore")).hexdigest() if source else ""
+    """A structural fingerprint of a UI dump: hash it with volatile numeric /
+    currency content removed, so two frames that differ only in ticking values
+    count as the same (settled) screen."""
+    if not source:
+        return ""
+    structural = _VOLATILE.sub("", source)
+    return hashlib.md5(structural.encode("utf-8", "ignore")).hexdigest()
 
 
 def settle_until_stable(

@@ -34,7 +34,7 @@ class IOSCrawlerDriver:
         platform_version: Optional[str] = None,
         device_name: str = "iPhone 17",
         server: str = "http://localhost:4723",
-        settle: float = 1.2,
+        settle: float = 0.8,
         process_args: Optional[List[str]] = None,
     ) -> None:
         # Imported lazily so the package works without Appium installed (adb-only
@@ -63,8 +63,34 @@ class IOSCrawlerDriver:
         # A booted simulator is reused instead of shutting it down each run.
         options.set_capability("noReset", True)
         options.set_capability("shouldTerminateApp", False)
+        # Don't block session creation waiting for the app to go quiescent — a
+        # live-updating app (streaming prices) never does, so this otherwise
+        # stalls every launch to its timeout.
+        options.set_capability("waitForQuiescence", False)
 
         self._driver = webdriver.Remote(server, options=options)
+        self._tune_for_speed()
+
+    def _tune_for_speed(self) -> None:
+        """Push WDA into its fast path. The dominant iOS cost is that XCUITest
+        waits for the app to be *idle* before every command and returns a verbose,
+        full-depth element snapshot — brutal on a live-updating app. These settings
+        stop the idle wait, bound the snapshot, and compact the response, cutting
+        per-step latency dramatically. Best-effort: an older server simply ignores
+        keys it doesn't know."""
+        try:
+            self._driver.update_settings(
+                {
+                    "waitForIdleTimeout": 0,  # #1 win: never wait for "idle" (never happens on live apps)
+                    "animationCoolOffTimeout": 0,
+                    "shouldUseCompactResponses": True,  # smaller WDA payloads
+                    "snapshotMaxDepth": 40,  # bound deep trees (ChaosBank screens are ~100+ elements)
+                    "customSnapshotTimeout": 5,  # fail fast instead of hanging on a snapshot
+                    "maxTypingFrequency": 60,  # type faster
+                }
+            )
+        except Exception:
+            pass
 
     def page_source(self) -> str:
         # Serve the page source captured while settling (fresh) to avoid a second
