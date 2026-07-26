@@ -1,11 +1,13 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.models.ProductRelease
 
 // Migrated to the IntelliJ Platform Gradle Plugin 2.x (the 1.x line is frozen and
-// can't target 2024.2+ IDEs). Requires JDK 21 and Gradle 8.5+.
+// can't target 2024.2+ IDEs). Requires JDK 21 and Gradle 9.6+.
 plugins {
     id("java")
     id("org.jetbrains.kotlin.jvm") version "2.4.10"
-    id("org.jetbrains.intellij.platform") version "2.2.1"
+    id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
 group = "com.mobiletest"
@@ -53,10 +55,17 @@ intellijPlatform {
 
     pluginVerification {
         ides {
-            // Pin released IDEs — `recommended()` pulls unreleased EAP versions
-            // (e.g. ideaIC:2025.3) that aren't in the repository yet, failing CI.
-            ide("IC", "2024.2")
-            ide("IC", "2024.3")
+            // Verify against RELEASED IDEs only — `recommended()` pulls unreleased
+            // EAP versions that aren't in the repository yet, failing CI. Platform
+            // plugin 2.18.1 dropped the explicit ide("IC", …) pins; `select {}`
+            // with the RELEASE channel and a build range is the current way to pin
+            // a known set (here IC 2024.2–2024.3, builds 242–243).
+            select {
+                types = listOf(IntelliJPlatformType.IntellijIdeaCommunity)
+                channels = listOf(ProductRelease.Channel.RELEASE)
+                sinceBuild = "242"
+                untilBuild = "243.*"
+            }
         }
     }
 }
