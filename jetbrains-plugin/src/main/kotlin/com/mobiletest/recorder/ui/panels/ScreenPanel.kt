@@ -278,4 +278,8 @@ class ScreenPanel(
     }
     
     fun getPanel(): JComponent = panel
+
+    /** The id of the live device session, or null if none is started — so a
+     *  toolbar action (Capture Screenshot) can act on the same session. */
+    fun activeSessionId(): String? = currentSessionId
 }
