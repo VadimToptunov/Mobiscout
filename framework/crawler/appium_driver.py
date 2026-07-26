@@ -34,7 +34,7 @@ class IOSCrawlerDriver:
         platform_version: Optional[str] = None,
         device_name: str = "iPhone 17",
         server: str = "http://localhost:4723",
-        settle: float = 0.8,
+        settle: float = 0.4,
         process_args: Optional[List[str]] = None,
     ) -> None:
         # Imported lazily so the package works without Appium installed (adb-only
@@ -105,6 +105,12 @@ class IOSCrawlerDriver:
         self._cache = (time.monotonic(), source)
 
     def _settle_wait(self) -> None:
+        # max_wait is deliberately below the iOS source-dump latency (~0.6s): a
+        # single dump already exceeds it, so settle confirms the new screen with
+        # ONE dump instead of two — halving per-gesture cost, which dominates the
+        # crawl. On a fast-dump backend (adb, ~50ms) the same cap still fits two
+        # dumps, so it keeps its full two-snapshot stability check there. A rare
+        # mid-animation frame is recovered by _read_content_screen / _await_content.
         settle_until_stable(lambda: self._driver.page_source, self._remember, max_wait=self._settle_max)
 
     def tap(self, x: int, y: int) -> None:
@@ -154,7 +160,7 @@ class IOSCrawlerDriver:
                 pass
         self._settle_wait()
 
-    def refresh(self, wait: float = 0.6) -> str:
+    def refresh(self, wait: float = 0.35) -> str:
         # A second, longer look for screens whose content loads asynchronously
         # (SwiftUI `.task` / `onAppear` fetches). Those settle "stable but empty"
         # on the first read; waiting a beat and re-reading catches the real content.
@@ -188,7 +194,7 @@ class IOSCrawlerDriver:
             if self.current_package() == bundle:
                 self._settle_wait()
                 return True
-            time.sleep(0.5)  # let a launch animation / splash settle
+            time.sleep(0.3)  # let a launch animation / splash settle
         return self.current_package() == bundle
 
     def quit(self) -> None:
