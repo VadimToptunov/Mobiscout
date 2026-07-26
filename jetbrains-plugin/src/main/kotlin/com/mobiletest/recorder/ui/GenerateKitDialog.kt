@@ -32,6 +32,8 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
     private val udidField = JBTextField(20)
     private val serverField = JBTextField("http://localhost:4723", 24)
     private val maxStepsField = JBTextField("40", 5)
+    private val maxDepthField = JBTextField("8", 5)
+    private val launchArgsField = JBTextField(30)
 
     init {
         title = "Generate Test Kit"
@@ -60,7 +62,10 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
             .addSeparator()
             .addLabeledComponent("Device UDID (Appium):", udidField)
             .addLabeledComponent("Appium server:", serverField)
+            .addLabeledComponent("iOS launch args (space-separated):", launchArgsField)
+            .addSeparator()
             .addLabeledComponent("Max crawl steps:", maxStepsField)
+            .addLabeledComponent("Max crawl depth:", maxDepthField)
             .panel
         return panel
     }
@@ -85,6 +90,12 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         params["server"] = serverField.text.trim()
         if (udidField.text.isNotBlank()) params["udid"] = udidField.text.trim()
         params["max_steps"] = maxStepsField.text.trim().toIntOrNull() ?: 40
+        params["max_depth"] = maxDepthField.text.trim().toIntOrNull() ?: 8
+        // iOS launch arguments (e.g. -MyAppStartUnlocked 1) — passed to the app on
+        // start so the crawl begins past a gate. The engine reads them as
+        // `process_args` (see pipeline._make_driver).
+        val launchArgs = launchArgsField.text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (launchArgs.isNotEmpty()) params["process_args"] = launchArgs
         return params
     }
 
