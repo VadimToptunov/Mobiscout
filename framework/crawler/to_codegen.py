@@ -197,6 +197,11 @@ def _screen_cases(
         selector = selector_for(element, owned, screen.platform)
         if selector is None or selector.value in seen:
             continue
+        # Don't assert on an element whose only locator is a fragile dynamic/short
+        # text (score < 0.5, e.g. a bare "0"/"1" value): it flakes and isn't a
+        # dependable state check. Such elements are still tappable for navigation.
+        if selector.score < 0.5:
+            continue
         seen.add(selector.value)
         label = element.label or element.class_name
         steps.append(

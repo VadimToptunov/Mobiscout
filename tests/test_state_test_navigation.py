@@ -57,3 +57,34 @@ def test_unreachable_screen_gets_no_state_case():
     model = build_test_model(result, "com.example.app")
     # Only the entry screen is state-testable; the orphan is skipped.
     assert _case(model, "screen_2") is None
+
+
+def test_state_case_skips_fragile_numeric_text_assertions():
+    """An element whose only locator is a bare numeric/short text (e.g. "0") is a
+    fragile state check (found running the ChaosBank suite live) — the state case
+    must not assert it. A properly-identified control (accessibility id) stays."""
+    # A button located only by the text "0" (dynamic/short -> low score) plus a
+    # button with a stable accessibility id.
+    weak = CrawlElement(
+        resource_id="",
+        text="0",
+        content_desc="",
+        class_name="android.widget.Button",
+        clickable=True,
+        bounds=(0, 0, 10, 10),
+    )
+    strong = CrawlElement(
+        resource_id="",
+        text="Freeze card",
+        content_desc="card.freezeToggle",
+        class_name="android.widget.Button",
+        clickable=True,
+        bounds=(0, 20, 10, 30),
+    )
+    result = CrawlResult(screens={"home": _screen("home", weak, strong)}, transitions=[])
+    model = build_test_model(result, "com.example.app")
+    entry = _case(model, "screen_1")
+    assert entry is not None
+    asserted = " ".join(s.selector.value for s in entry.steps if s.selector)
+    assert "card.freezeToggle" in asserted  # the stable control is checked
+    assert '"0"' not in asserted and "text('0')" not in asserted  # the fragile "0" is not
