@@ -7,6 +7,7 @@ import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
 import com.intellij.openapi.ui.Messages
 import com.mobiletest.recorder.services.MTRDaemonService
+import com.mobiletest.recorder.services.MTRToolWindowService
 import java.io.File
 import java.util.Base64
 
@@ -15,9 +16,18 @@ class CaptureScreenshotAction : AnAction() {
         val project = e.project ?: return
         val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
         
-        // TODO: Get current session ID
-        val sessionId = "current_session"
-        
+        // Use the session started from the Screen panel; without one there's no
+        // device to screenshot, so tell the user how to get one.
+        val sessionId = project.getService(MTRToolWindowService::class.java).screenPanel?.activeSessionId()
+        if (sessionId == null) {
+            Messages.showInfoMessage(
+                project,
+                "No active device session. Open the Mobiscout tool window → Screen tab → Start Session first.",
+                "No Session",
+            )
+            return
+        }
+
         try {
             val result = daemonService.getScreenshot(sessionId, "png")
             if (result != null) {
