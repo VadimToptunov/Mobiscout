@@ -139,6 +139,47 @@ def test_round_robin_rotates_over_candidates():
     assert picks[0] == picks[3] and picks[1] == picks[4]
 
 
+def test_round_robin_acquires_distinct_devices_in_order():
+    # Bug 6: round-robin indexed into a shrinking candidate list, so reserving
+    # devices scrambled the index -> device mapping and could repeat/skip.
+    pool = DevicePool(name="p", strategy=PoolStrategy.ROUND_ROBIN)
+    pool.add_device(_device("a"))
+    pool.add_device(_device("b"))
+    pool.add_device(_device("c"))
+
+    picks = [pool.acquire_device().id for _ in range(3)]
+    assert sorted(picks) == ["a", "b", "c"]  # all three, each exactly once
+    assert pool.acquire_device() is None  # pool exhausted
+
+
+def test_round_robin_no_keyerror_under_add_and_remove():
+    # Bug 6: membership/index mutated without a lock -> KeyError/arbitrary picks.
+    pool = DevicePool(name="p", strategy=PoolStrategy.ROUND_ROBIN)
+    for i in range(4):
+        pool.add_device(_device(f"d{i}"))
+
+    d1 = pool.acquire_device()
+    assert d1 is not None
+    # Remove a *different*, unreserved device mid-flight.
+    to_remove = next(x for x in ["d0", "d1", "d2", "d3"] if x != d1.id)
+    pool.remove_device(to_remove)
+
+    # Release the acquired one, add a new one, keep acquiring — must not raise.
+    pool.release_device(d1.id)
+    pool.add_device(_device("d9"))
+
+    acquired = []
+    while True:
+        dev = pool.acquire_device()
+        if dev is None:
+            break
+        acquired.append(dev.id)
+
+    # No device is handed out twice, and the removed one never appears.
+    assert len(acquired) == len(set(acquired))
+    assert to_remove not in acquired
+
+
 def test_health_check_snapshot():
     pool = DevicePool(name="p")
     a = _device("a")

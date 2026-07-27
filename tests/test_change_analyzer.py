@@ -3,11 +3,9 @@
 Covers the FileChange/ChangeType dataclasses, the pure helpers
 (get_changed_directories, filter_by_extension), and the git-backed methods.
 
-Note: the production module invokes ``git dif`` (a typo for ``git diff``) in
-get_changes/_get_file_stats/_get_staged_changes. Against a real git repo this
-makes ``check=True`` raise CalledProcessError, so those paths are exercised both
-against a real repo (to confirm the graceful-degradation behavior) and via a
-mocked subprocess (to drive the status-line parsing branches).
+The git-backed methods are exercised both against a real repo (to confirm real
+diffs are detected and that a bad ref degrades gracefully) and via a mocked
+subprocess (to drive the status-line parsing branches).
 """
 
 import subprocess
@@ -29,6 +27,17 @@ from framework.selection.change_analyzer import (
 # --------------------------------------------------------------------------- #
 def _run_git(cwd, *args):
     subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+
+
+def _current_branch(cwd):
+    out = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return out.stdout.strip()
 
 
 @pytest.fixture
@@ -128,18 +137,55 @@ def test_filter_by_extension_returns_empty_when_none_match():
 
 
 # --------------------------------------------------------------------------- #
-# Real-repo behavior (exercises the `git dif` typo -> graceful degradation)
+# Real-repo behavior
 # --------------------------------------------------------------------------- #
-def test_get_changes_returns_empty_when_git_command_fails(git_repo, capsys):
+def test_get_changes_detects_real_committed_diff(git_repo):
+    """A real git repo with a committed modification must yield a non-empty
+    change list. This is the guard for the ``git dif`` -> ``git diff`` fix:
+    with the typo the subprocess raised CalledProcessError and get_changes()
+    always returned []."""
+    base = _current_branch(git_repo)
+    # Modify the seeded file and commit it on a new branch.
+    _run_git(git_repo, "checkout", "-b", "feature")
+    (git_repo / "seed.txt").write_text("hello\nworld\n")
+    _run_git(git_repo, "add", "seed.txt")
+    _run_git(git_repo, "commit", "-m", "modify seed")
+
     analyzer = ChangeAnalyzer(git_repo)
-    result = analyzer.get_changes(base_branch="HEAD", target_branch="HEAD")
+    changes = analyzer.get_changes(base_branch=base, target_branch="feature")
+
+    paths = {c.path for c in changes}
+    assert Path("seed.txt") in paths, f"expected seed.txt in {paths}"
+    modified = [c for c in changes if c.path == Path("seed.txt")]
+    assert modified and modified[0].change_type is ChangeType.MODIFIED
+    # numstat parsing populated the line counts (1 line added).
+    assert modified[0].lines_added >= 1
+
+
+def test_get_changed_files_detects_real_added_file(git_repo):
+    """get_changed_files sees a genuinely added-and-committed file via git diff."""
+    base = _current_branch(git_repo)
+    _run_git(git_repo, "checkout", "-b", "feature2")
+    (git_repo / "extra.py").write_text("y = 2\n")
+    _run_git(git_repo, "add", "extra.py")
+    _run_git(git_repo, "commit", "-m", "add extra")
+
+    analyzer = ChangeAnalyzer(git_repo)
+    paths = analyzer.get_changed_files(base_branch=base, target_branch="feature2")
+    assert Path("extra.py") in paths
+
+
+def test_get_changes_returns_empty_when_git_command_fails(git_repo, capsys):
+    """A bogus ref makes git fail; get_changes degrades to [] and warns."""
+    analyzer = ChangeAnalyzer(git_repo)
+    result = analyzer.get_changes(base_branch="does-not-exist", target_branch="also-missing")
     assert result == []
     assert "Git command failed" in capsys.readouterr().out
 
 
 def test_get_changed_files_returns_empty_list_on_failure(git_repo):
     analyzer = ChangeAnalyzer(git_repo)
-    assert analyzer.get_changed_files(base_branch="HEAD", target_branch="HEAD") == []
+    assert analyzer.get_changed_files(base_branch="nope-branch", target_branch="missing-branch") == []
 
 
 def test_get_untracked_files_lists_new_files(git_repo):

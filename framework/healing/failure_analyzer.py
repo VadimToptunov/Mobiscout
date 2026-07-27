@@ -187,29 +187,33 @@ class FailureAnalyzer:
         Returns:
             Dict with 'type' and 'value' or None
         """
-        # Try to extract selector from common patterns
+        # Try to extract selector from common patterns. Each entry pairs a regex
+        # with the selector type to use when the regex captures only the value
+        # (single group). Two-group regexes carry the type in their first group,
+        # so their fallback type is None. Previously every single-group match was
+        # labelled "xpath", so id/css selectors were mislabelled as xpath.
         patterns = [
-            # Appium/Selenium patterns
-            r"Using='(\w+)',.*?value='([^']+)'",
-            r"By\.(\w+):\s*([^\s\)]+)",
-            r"selector.*?\((\w+),\s*['\"]([^'\"]+)['\"]",
-            # XPath patterns
-            r"xpath['\"]?\s*[=:]\s*['\"]([^'\"]+)['\"]",
-            # ID patterns
-            r"id['\"]?\s*[=:]\s*['\"]([^'\"]+)['\"]",
-            # CSS patterns
-            r"css['\"]?\s*[=:]\s*['\"]([^'\"]+)['\"]",
+            # Appium/Selenium patterns (type captured in group 1)
+            (r"Using='(\w+)',.*?value='([^']+)'", None),
+            (r"By\.(\w+):\s*([^\s\)]+)", None),
+            (r"selector.*?\((\w+),\s*['\"]([^'\"]+)['\"]", None),
+            # XPath patterns (value only)
+            (r"xpath['\"]?\s*[=:]\s*['\"]([^'\"]+)['\"]", "xpath"),
+            # ID patterns (value only)
+            (r"id['\"]?\s*[=:]\s*['\"]([^'\"]+)['\"]", "id"),
+            # CSS patterns (value only)
+            (r"css['\"]?\s*[=:]\s*['\"]([^'\"]+)['\"]", "css"),
         ]
 
-        for pattern in patterns:
+        for pattern, single_group_type in patterns:
             match = re.search(pattern, error_text, re.IGNORECASE)
             if match:
                 groups = match.groups()
                 if len(groups) == 2:
                     return {"type": groups[0].lower(), "value": groups[1]}
                 elif len(groups) == 1:
-                    # Assume xpath if only value captured
-                    return {"type": "xpath", "value": groups[0]}
+                    # Use the type this pattern is known to match (id/css/xpath).
+                    return {"type": single_group_type or "xpath", "value": groups[0]}
 
         return None
 
@@ -232,29 +236,39 @@ class FailureAnalyzer:
         current_test = None
         error_buffer: List[str] = []
 
+        def flush(test_name: Optional[str], buffer: List[str]) -> None:
+            """Turn a completed test's buffered lines into a SelectorFailure."""
+            if not test_name or not buffer:
+                return
+            error_text = "\n".join(buffer)
+            if self._is_selector_failure(error_text):
+                selector_info = self._extract_selector_info(error_text)
+                if selector_info:
+                    self.failures.append(
+                        SelectorFailure(
+                            test_name=test_name,
+                            test_file=Path("unknown.py"),
+                            selector_type=selector_info["type"],
+                            selector_value=selector_info["value"],
+                            failure_type=FailureType.SELECTOR_NOT_FOUND,
+                            error_message=error_text[:200],
+                        )
+                    )
+
         for line in lines:
             # Detect test start
             if "::test_" in line or "FAILED" in line:
-                if current_test and error_buffer:
-                    # Process previous test
-                    error_text = "\n".join(error_buffer)
-                    if self._is_selector_failure(error_text):
-                        selector_info = self._extract_selector_info(error_text)
-                        if selector_info:
-                            failure = SelectorFailure(
-                                test_name=current_test,
-                                test_file=Path("unknown.py"),
-                                selector_type=selector_info["type"],
-                                selector_value=selector_info["value"],
-                                failure_type=FailureType.SELECTOR_NOT_FOUND,
-                                error_message=error_text[:200],
-                            )
-                            self.failures.append(failure)
+                # Process the previous test before starting the next one.
+                flush(current_test, error_buffer)
 
                 current_test = line.split("::")[-1] if "::" in line else None
                 error_buffer = []
             else:
                 error_buffer.append(line)
+
+        # Flush the final test — its buffer is never followed by a new marker,
+        # so without this the LAST failing test was silently dropped.
+        flush(current_test, error_buffer)
 
         return self.failures
 

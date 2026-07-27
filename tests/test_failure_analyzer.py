@@ -100,6 +100,44 @@ def test_analyze_pytest_output_text(tmp_path):
     assert "test_login" in failures[0].test_name
 
 
+def test_last_failing_test_is_captured(tmp_path):
+    """The LAST failing test has no trailing test marker after it. The parser
+    must flush the final buffer at end-of-input; previously it only processed a
+    test when the NEXT marker appeared, so the last failure was dropped."""
+    output = "\n".join(
+        [
+            "module.py::test_first PASSED",
+            "module.py::test_last FAILED",
+            "Unable to find element with Using='id', value='final_button'",
+            "  at some traceback line",
+        ]
+    )
+    txt = tmp_path / "out.txt"
+    txt.write_text(output)
+
+    failures = FailureAnalyzer().analyze_test_results(txt)
+
+    assert len(failures) == 1
+    assert failures[0].selector_value == "final_button"
+    assert "test_last" in failures[0].test_name
+
+
+def test_extract_selector_info_labels_id_css_and_xpath():
+    """Single-group selector patterns must be tagged with their OWN type. The
+    id/css branches previously fell through to the len==1 -> 'xpath' default and
+    were mislabelled as xpath."""
+    analyzer = FailureAnalyzer()
+
+    id_info = analyzer._extract_selector_info("Selector id='login_button' did not match any elements")
+    assert id_info == {"type": "id", "value": "login_button"}
+
+    css_info = analyzer._extract_selector_info("Selector css='.submit-btn' did not match any elements")
+    assert css_info == {"type": "css", "value": ".submit-btn"}
+
+    xpath_info = analyzer._extract_selector_info("Selector xpath='//button[@id=1]' did not match any elements")
+    assert xpath_info == {"type": "xpath", "value": "//button[@id=1]"}
+
+
 def test_enrichment_links_screenshot_page_source_and_page_object(tmp_path):
     xml = tmp_path / "results.xml"
     xml.write_text(JUNIT_XML)

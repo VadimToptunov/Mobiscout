@@ -138,18 +138,28 @@ class PatternRecognizer:
     def _find_patterns_of_length(self, sequences: List[List[str]], length: int) -> List[FlowPattern]:
         """Find all patterns of specific length."""
         pattern_counts: Counter = Counter()
+        # Track which sessions (by index) each subsequence appears in. Confidence
+        # is the share of sessions containing the pattern, NOT the raw number of
+        # repeats: a single looping session can repeat a subsequence many times,
+        # which previously drove count / len(sequences) above 1.0.
+        pattern_sessions: Dict[tuple, set] = defaultdict(set)
 
         # Count subsequences
-        for sequence in sequences:
+        for seq_index, sequence in enumerate(sequences):
             for i in range(len(sequence) - length + 1):
                 subsequence = tuple(sequence[i : i + length])
                 pattern_counts[subsequence] += 1
+                pattern_sessions[subsequence].add(seq_index)
 
         # Filter by min_support
+        total_sessions = len(sequences)
         patterns: List[Any] = []
         for pattern, count in pattern_counts.items():
             if count >= self.min_support:
-                confidence = count / len(sequences)
+                session_count = len(pattern_sessions[pattern])
+                confidence = session_count / total_sessions if total_sessions else 0.0
+                # Guard against any rounding/edge case leaving [0, 1].
+                confidence = max(0.0, min(1.0, confidence))
 
                 if confidence >= self.min_confidence:
                     pattern_id = f"pattern_{len(patterns) + 1}"

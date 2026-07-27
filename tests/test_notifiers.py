@@ -82,7 +82,7 @@ def test_slack_color_green_for_high_pass_rate(monkeypatch):
     post = _CapturingPost()
     monkeypatch.setattr(notifiers_mod.requests, "post", post)
     SlackNotifier("u").send(_summary(pass_rate=99.0))
-    assert post.last["json"]["attachments"][0]["color"] == "#36a64"
+    assert post.last["json"]["attachments"][0]["color"] == "#36a64f"
 
 
 def test_slack_color_red_for_low_pass_rate(monkeypatch):
@@ -103,6 +103,32 @@ def test_slack_adds_platform_and_report_link(monkeypatch):
 
 def test_slack_returns_false_on_http_error(monkeypatch):
     post = _CapturingPost(raise_exc=requests.RequestException("boom"))
+    monkeypatch.setattr(notifiers_mod.requests, "post", post)
+    assert SlackNotifier("u").send(_summary()) is False
+
+
+def test_slack_green_color_is_six_hex_digits(monkeypatch):
+    # Bug 4: the green color was "#36a64" (5 hex digits, invalid CSS/Slack color).
+    post = _CapturingPost()
+    monkeypatch.setattr(notifiers_mod.requests, "post", post)
+    SlackNotifier("u").send(_summary(pass_rate=99.0))
+    color = post.last["json"]["attachments"][0]["color"]
+    assert color == "#36a64f"
+    assert len(color) == 7 and color.startswith("#")
+    int(color[1:], 16)  # parses as a valid 6-digit hex color
+
+
+def test_slack_passes_timeout(monkeypatch):
+    # Bug 3: requests.post had no timeout -> a hung webhook blocks forever.
+    post = _CapturingPost()
+    monkeypatch.setattr(notifiers_mod.requests, "post", post)
+    SlackNotifier("u").send(_summary())
+    assert post.last["timeout"] == (5, 10)
+
+
+def test_slack_returns_false_on_timeout(monkeypatch):
+    # Bug 3: a timeout must be caught and reported as failure, not propagate.
+    post = _CapturingPost(raise_exc=requests.Timeout("slow"))
     monkeypatch.setattr(notifiers_mod.requests, "post", post)
     assert SlackNotifier("u").send(_summary()) is False
 
@@ -137,6 +163,20 @@ def test_teams_adds_report_and_build_actions(monkeypatch):
 
 def test_teams_returns_false_on_http_error(monkeypatch):
     post = _CapturingPost(raise_exc=requests.RequestException("down"))
+    monkeypatch.setattr(notifiers_mod.requests, "post", post)
+    assert TeamsNotifier("u").send(_summary()) is False
+
+
+def test_teams_passes_timeout(monkeypatch):
+    # Bug 3: requests.post had no timeout.
+    post = _CapturingPost()
+    monkeypatch.setattr(notifiers_mod.requests, "post", post)
+    TeamsNotifier("u").send(_summary())
+    assert post.last["timeout"] == (5, 10)
+
+
+def test_teams_returns_false_on_timeout(monkeypatch):
+    post = _CapturingPost(raise_exc=requests.Timeout("slow"))
     monkeypatch.setattr(notifiers_mod.requests, "post", post)
     assert TeamsNotifier("u").send(_summary()) is False
 
@@ -195,6 +235,49 @@ def test_email_builds_and_sends_html(monkeypatch):
     assert "Pass Rate" in html
 
 
+def test_email_html_has_real_values_not_placeholders(monkeypatch):
+    # Bug 2: html_body was a plain (non-f) string, so emails shipped literal
+    # "{summary.total}" / "{title}" / "{status_color}" placeholders, and
+    # status_color was commented out (undefined).
+    _FakeSMTP.sent = []
+    monkeypatch.setattr(notifiers_mod.smtplib, "SMTP", _FakeSMTP)
+
+    notifier = EmailNotifier(
+        smtp_host="smtp.test",
+        smtp_port=587,
+        sender_email="ci@test.dev",
+        recipients=["dev@test.dev"],
+    )
+    ok = notifier.send(
+        _summary(total=42, passed=40, failed=2, pass_rate=95.2, report_url="https://report.test/7"),
+        title="Nightly Build",
+    )
+    assert ok is True
+
+    html = _FakeSMTP.sent[0].get_payload()[0].get_payload()
+
+    # No literal template placeholders survive.
+    for placeholder in ("{summary.total}", "{title}", "{status_color}", "{summary.report_url}", "{{"):
+        assert placeholder not in html
+
+    # Real interpolated values are present.
+    assert ">42<" in html  # summary.total
+    assert "Nightly Build" in html  # title
+    assert "95.2%" in html  # pass_rate
+    assert "#28a745" in html  # status_color for a healthy run (>= 80%)
+    assert "https://report.test/7" in html  # report link
+
+
+def test_email_status_color_red_for_low_pass_rate(monkeypatch):
+    _FakeSMTP.sent = []
+    monkeypatch.setattr(notifiers_mod.smtplib, "SMTP", _FakeSMTP)
+    notifier = EmailNotifier("smtp.test", 587, "ci@test.dev", ["dev@test.dev"])
+    notifier.send(_summary(passed=1, failed=9, pass_rate=10.0), title="Bad Run")
+    html = _FakeSMTP.sent[0].get_payload()[0].get_payload()
+    # Header background uses the failure color.
+    assert "background-color: #dc3545" in html
+
+
 def test_email_returns_false_on_smtp_error(monkeypatch):
     def boom(host, port):
         raise smtplib.SMTPException("no server")
@@ -236,7 +319,7 @@ def test_manager_empty_returns_empty():
 
 @pytest.mark.parametrize(
     "rate,expected",
-    [(96.0, "#36a64"), (90.0, "#ff9900"), (50.0, "#d00000")],
+    [(96.0, "#36a64f"), (90.0, "#ff9900"), (50.0, "#d00000")],
 )
 def test_slack_color_boundaries(monkeypatch, rate, expected):
     post = _CapturingPost()

@@ -48,6 +48,47 @@ def test_html_report_is_written_with_title_and_totals(tmp_path):
     assert out.exists() and "My Run" in html
 
 
+def test_html_report_interpolates_suite_and_test_values(tmp_path):
+    # Bug 1: the per-suite/per-test HTML bodies were plain (non-f) strings, so
+    # reports rendered literal "{suite.name}" / "{test.status}" placeholders.
+    r = UnifiedReporter()
+    tests = [
+        TestResult(name="login_test", status="passed", duration=1.5),
+        TestResult(name="checkout_test", status="failed", duration=2.25, error_message="boom happened"),
+    ]
+    r.add_suite(TestSuite(name="Smoke Suite", tests=tests, timestamp="t", duration=3.75, platform="ios"))
+    out = tmp_path / "report.html"
+    r.generate_report(out, format=ReportFormat.HTML, title="Run")
+    html = out.read_text(encoding="utf-8")
+
+    # No literal placeholders survive.
+    for placeholder in ("{suite.name}", "{test.status}", "{test.name}", "{test.duration:.2f}", "{suite.duration:.2f}"):
+        assert placeholder not in html
+
+    # Real values are rendered.
+    assert "Smoke Suite" in html
+    assert "login_test" in html
+    assert "checkout_test" in html
+    assert "boom happened" in html
+    assert ">passed<" in html
+    assert "1.50s" in html  # test duration formatted
+    assert "3.75s" in html  # suite duration formatted
+
+
+def test_html_report_escapes_interpolated_text(tmp_path):
+    # Interpolated suite/test text must be HTML-escaped to avoid broken/injected markup.
+    r = UnifiedReporter()
+    tests = [TestResult(name="<script>alert(1)</script>", status="passed", duration=0.1)]
+    r.add_suite(TestSuite(name="A & B <suite>", tests=tests, timestamp="t", duration=0.1))
+    out = tmp_path / "report.html"
+    r.generate_report(out, format=ReportFormat.HTML, title="Run")
+    html = out.read_text(encoding="utf-8")
+
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "A &amp; B &lt;suite&gt;" in html
+
+
 def test_json_report_round_trips_the_numbers(tmp_path):
     r = UnifiedReporter()
     r.add_suite(_suite())

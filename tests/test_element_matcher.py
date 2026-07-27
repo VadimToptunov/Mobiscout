@@ -204,3 +204,100 @@ def test_match_result_repr_shows_strategy_and_confidence():
         selector=_alt(SelectorStrategy.ID, "x", 0.9), ml_confidence=0.0, combined_confidence=0.91, reasoning=""
     )
     assert m.__repr__() == "MatchResult(id, confidence=0.91)"
+
+
+def _trained_classifier():
+    """A minimally-fitted real ElementClassifier (button vs text).
+
+    Fitting the model directly (bypassing train()'s cross-validation) keeps the
+    test fast while still exercising the real extract_features/predict path — the
+    path that used to raise AttributeError when the matcher handed it a raw
+    ``bounds`` string.
+    """
+    import pandas as pd
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.preprocessing import LabelEncoder
+
+    from framework.ml.element_classifier import ElementClassifier
+
+    clf = ElementClassifier()
+    rows, labels = [], []
+    for _ in range(3):
+        rows.append(
+            clf.extract_features(
+                {
+                    "class": "android.widget.Button",
+                    "clickable": True,
+                    "text": "OK",
+                    "bounds": {"width": 200, "height": 80},
+                }
+            )
+        )
+        labels.append("button")
+        rows.append(
+            clf.extract_features(
+                {
+                    "class": "android.widget.TextView",
+                    "text": "some longer body text",
+                    "bounds": {"width": 300, "height": 40},
+                }
+            )
+        )
+        labels.append("text")
+
+    df = pd.DataFrame(rows)
+    clf.feature_names = list(df.columns)
+    clf.label_encoder = LabelEncoder()
+    y = clf.label_encoder.fit_transform(labels)
+    model = RandomForestClassifier(n_estimators=10, random_state=0)
+    model.fit(df, y)
+    clf.model = model
+    clf.trained = True
+    return clf
+
+
+def test_get_ml_confidence_positive_for_known_element_with_model():
+    """With a real model, ML confidence must be > 0 for a concrete element.
+
+    The matcher's _extract_features used to return ``bounds`` as the raw
+    UIAutomator string; ElementClassifier.extract_features then did
+    ``bounds.get("width")`` on a str, raising AttributeError which was swallowed
+    to a 0.0 confidence. Parsing bounds into a dict restores a real prediction.
+    """
+    matcher = ElementMatcher()
+    matcher.ml_model = _trained_classifier()
+
+    alt = _alt(
+        SelectorStrategy.ID,
+        "com.app:id/ok",
+        0.9,
+        **{
+            "class": "android.widget.Button",
+            "clickable": "true",
+            "text": "OK",
+            "bounds": "[0,0][200,80]",  # raw UIAutomator bounds string
+        },
+    )
+
+    confidence = matcher._get_ml_confidence(alt, expected_type=None)
+    assert confidence > 0.0
+
+
+def test_extract_features_parses_bounds_string_to_dict():
+    """_extract_features must hand the ML model a bounds *dict* with width/height,
+    parsed from the ``[x1,y1][x2,y2]`` UIAutomator string."""
+    matcher = ElementMatcher()
+    alt = _alt(SelectorStrategy.ID, "x", 0.9, **{"bounds": "[10,20][110,80]"})
+
+    features = matcher._extract_features(alt)
+
+    assert features["bounds"] == {"width": 100, "height": 60}
+
+
+def test_extract_features_bounds_missing_or_malformed_is_zero_dict():
+    matcher = ElementMatcher()
+    missing = matcher._extract_features(_alt(SelectorStrategy.ID, "x", 0.9))
+    malformed = matcher._extract_features(_alt(SelectorStrategy.ID, "x", 0.9, **{"bounds": "not-bounds"}))
+
+    assert missing["bounds"] == {"width": 0, "height": 0}
+    assert malformed["bounds"] == {"width": 0, "height": 0}

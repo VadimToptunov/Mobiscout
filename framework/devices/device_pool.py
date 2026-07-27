@@ -39,30 +39,37 @@ class DevicePool:
     _locks: Dict[str, threading.Lock] = field(default_factory=dict)
     _reserved: Dict[str, bool] = field(default_factory=dict)
     _last_used_index: int = 0
+    # Single reentrant pool lock guarding device membership, the reserved map,
+    # and the round-robin index. Reentrant so acquire_device can call the
+    # strategy helpers while already holding it.
+    _lock: threading.RLock = field(default_factory=threading.RLock)
 
     def add_device(self, device: Device) -> None:
         """Add device to pool"""
-        if device.id not in [d.id for d in self.devices]:
-            self.devices.append(device)
-            self._locks[device.id] = threading.Lock()
-            self._reserved[device.id] = False
-            print(f"  Added {device.name} to pool '{self.name}'")
+        with self._lock:
+            if device.id not in [d.id for d in self.devices]:
+                self.devices.append(device)
+                self._locks[device.id] = threading.Lock()
+                self._reserved[device.id] = False
+                print(f"  Added {device.name} to pool '{self.name}'")
 
     def remove_device(self, device_id: str) -> None:
         """Remove device from pool"""
-        self.devices = [d for d in self.devices if d.id != device_id]
-        if device_id in self._locks:
-            del self._locks[device_id]
-        if device_id in self._reserved:
-            del self._reserved[device_id]
+        with self._lock:
+            self.devices = [d for d in self.devices if d.id != device_id]
+            if device_id in self._locks:
+                del self._locks[device_id]
+            if device_id in self._reserved:
+                del self._reserved[device_id]
 
     def get_available_count(self) -> int:
         """Get number of available devices"""
-        return sum(
-            1
-            for device in self.devices
-            if not self._reserved.get(device.id, False) and device.status == DeviceStatus.AVAILABLE
-        )
+        with self._lock:
+            return sum(
+                1
+                for device in self.devices
+                if not self._reserved.get(device.id, False) and device.status == DeviceStatus.AVAILABLE
+            )
 
     def acquire_device(self, filters: Optional[Dict] = None) -> Optional[Device]:
         """
@@ -74,47 +81,44 @@ class DevicePool:
         Returns:
             Reserved device or None if no devices available
         """
-        # Filter devices
-        candidates = self._filter_devices(filters)
+        # Filtering, strategy selection and reservation are done atomically
+        # under the single pool lock so a concurrent add/remove/release cannot
+        # scramble the candidate list, the round-robin index or the reserved map.
+        with self._lock:
+            candidates = self._filter_devices(filters)
 
-        if not candidates:
-            return None
-
-        # Apply strategy
-        if self.strategy == PoolStrategy.ROUND_ROBIN:
-            device = self._acquire_round_robin(candidates)
-        elif self.strategy == PoolStrategy.LEAST_BUSY:
-            device = self._acquire_least_busy(candidates)
-        elif self.strategy == PoolStrategy.RANDOM:
-            import random
-
-            device = random.choice(candidates) if candidates else None
-        else:
-            device = candidates[0] if candidates else None
-
-        if device:
-            # Get lock reference while holding no locks to avoid race
-            device_id = device.id
-            if device_id not in self._locks:
+            if not candidates:
                 return None
-            lock = self._locks[device_id]
 
-            with lock:
-                # Double-check device still exists and is not reserved
-                if device_id not in self._reserved:
-                    return None
-                if not self._reserved[device_id]:
-                    self._reserved[device_id] = True
-                    device.status = DeviceStatus.BUSY
-                    print(f"  Acquired device: {device.name} ({device.id})")
-                    return device
+            # Apply strategy
+            if self.strategy == PoolStrategy.ROUND_ROBIN:
+                device = self._acquire_round_robin(candidates)
+            elif self.strategy == PoolStrategy.LEAST_BUSY:
+                device = self._acquire_least_busy(candidates)
+            elif self.strategy == PoolStrategy.RANDOM:
+                import random
+
+                device = random.choice(candidates) if candidates else None
+            else:
+                device = candidates[0] if candidates else None
+
+            if device is None:
+                return None
+
+            device_id = device.id
+            # Double-check device still exists and is not reserved
+            if not self._reserved.get(device_id, False):
+                self._reserved[device_id] = True
+                device.status = DeviceStatus.BUSY
+                print(f"  Acquired device: {device.name} ({device.id})")
+                return device
 
         return None
 
     def release_device(self, device_id: str) -> None:
         """Release (unreserve) a device back to the pool"""
-        if device_id in self._reserved:
-            with self._locks[device_id]:
+        with self._lock:
+            if device_id in self._reserved:
                 self._reserved[device_id] = False
 
                 # Update device status
@@ -192,17 +196,36 @@ class DevicePool:
             return 0
 
     def _acquire_round_robin(self, candidates: List[Device]) -> Optional[Device]:
-        """Round-robin device selection"""
+        """Round-robin device selection.
+
+        Rotates over a *stable* ordering (the full pool device list) rather than
+        over the shrinking ``candidates`` list, so that reserving devices does not
+        scramble the index -> device mapping. Only devices that are still in
+        ``candidates`` are eligible; the first eligible device after the last used
+        index is chosen.
+        """
         if not candidates:
             return None
 
-        # Find next device after last used index
-        # Guard against empty list (though checked above, for safety)
-        num_candidates = len(candidates)
-        if num_candidates == 0:
-            return None
-        self._last_used_index = (self._last_used_index + 1) % num_candidates
-        return candidates[self._last_used_index]
+        with self._lock:
+            # Use the full device list as the stable rotation ordering. Fall back
+            # to the candidates themselves when the pool list is empty (e.g. unit
+            # tests that pass candidates not added to the pool).
+            ordering = self.devices if self.devices else candidates
+            n = len(ordering)
+            if n == 0:
+                return None
+
+            candidate_ids = {d.id for d in candidates}
+            for step in range(1, n + 1):
+                idx = (self._last_used_index + step) % n
+                device = ordering[idx]
+                if device.id in candidate_ids:
+                    self._last_used_index = idx
+                    return device
+
+            # No ordering member is currently a candidate; fall back safely.
+            return candidates[0]
 
     def _acquire_least_busy(self, candidates: List[Device]) -> Optional[Device]:
         """Select least busy device (for future use with metrics)"""

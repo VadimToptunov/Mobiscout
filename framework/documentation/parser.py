@@ -52,7 +52,7 @@ class CodeParser:
 
     def parse_file(self, file_path: Path) -> ModuleDoc:
         """Parse a Python file"""
-        with open(file_path) as f:
+        with open(file_path, encoding="utf-8") as f:
             source = f.read()
 
         tree = ast.parse(source, filename=str(file_path))

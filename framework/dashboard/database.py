@@ -159,34 +159,34 @@ class DashboardDB:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_test_results_timestamp ON test_results(timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_healed_selectors_status ON healed_selectors(status)")
 
-        self._db.commit()
+        with self._lock:
+            self._db.commit()
 
     def add_test_result(self, result: TestResult) -> None:
         """Add test result to database"""
-        cursor = self._db.cursor()
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO test_results (id, name, status, duration, timestamp, file_path, error_message)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                result.id,
-                result.name,
-                result.status.value,
-                result.duration,
-                result.timestamp.isoformat(),
-                result.file_path,
-                result.error_message,
-            ),
-        )
-        self._db.commit()
+        with self._lock:
+            cursor = self._db.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO test_results (id, name, status, duration, timestamp, file_path, error_message)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    result.id,
+                    result.name,
+                    result.status.value,
+                    result.duration,
+                    result.timestamp.isoformat(),
+                    result.file_path,
+                    result.error_message,
+                ),
+            )
+            self._db.commit()
 
     def get_test_results(
         self, limit: int = 100, status: Optional[TestStatus] = None, since: Optional[datetime] = None
     ) -> List[TestResult]:
         """Get test results"""
-        cursor = self._db.cursor()
-
         query = "SELECT * FROM test_results WHERE 1=1"
         params: List[Any] = []
 
@@ -201,10 +201,13 @@ class DashboardDB:
         query += " ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
 
-        cursor.execute(query, params)
+        with self._lock:
+            cursor = self._db.cursor()
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
 
         results = []
-        for row in cursor.fetchall():
+        for row in rows:
             results.append(
                 TestResult(
                     id=row["id"],
@@ -223,24 +226,26 @@ class DashboardDB:
         """Calculate test health metrics"""
         since = datetime.now() - timedelta(days=days)
 
-        cursor = self._db.cursor()
-        cursor.execute(
-            """
-                       SELECT name,
-                              COUNT(*)                                                      as total_runs,
-                              SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END)            as passed,
-                              SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END)            as failed,
-                              AVG(duration)                                                 as avg_duration,
-                              MAX(CASE WHEN status = 'failed' THEN timestamp ELSE NULL END) as last_failure
-                       FROM test_results
-                       WHERE timestamp >= ?
-                       GROUP BY name
-                       """,
-            (since.isoformat(),),
-        )
+        with self._lock:
+            cursor = self._db.cursor()
+            cursor.execute(
+                """
+                           SELECT name,
+                                  COUNT(*)                                                      as total_runs,
+                                  SUM(CASE WHEN status = 'passed' THEN 1 ELSE 0 END)            as passed,
+                                  SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END)            as failed,
+                                  AVG(duration)                                                 as avg_duration,
+                                  MAX(CASE WHEN status = 'failed' THEN timestamp ELSE NULL END) as last_failure
+                           FROM test_results
+                           WHERE timestamp >= ?
+                           GROUP BY name
+                           """,
+                (since.isoformat(),),
+            )
+            rows = cursor.fetchall()
 
         health_list = []
-        for row in cursor.fetchall():
+        for row in rows:
             total = row["total_runs"]
             passed = row["passed"]
             pass_rate = passed / total if total > 0 else 0.0
@@ -273,45 +278,51 @@ class DashboardDB:
 
     def add_healed_selector(self, selector: HealedSelector) -> None:
         """Add healed selector to database"""
-        cursor = self._db.cursor()
-        cursor.execute(
-            """
-            INSERT OR REPLACE INTO healed_selectors
-            (id, test_name, element_name, file_path, old_selector_type, old_selector_value,
-             new_selector_type, new_selector_value, confidence, strategy, status, timestamp,
-             test_runs_after, test_passes_after)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-            (
-                selector.id,
-                selector.test_name,
-                selector.element_name,
-                selector.file_path,
-                selector.old_selector_type,
-                selector.old_selector_value,
-                selector.new_selector_type,
-                selector.new_selector_value,
-                selector.confidence,
-                selector.strategy,
-                selector.status.value,
-                selector.timestamp.isoformat(),
-                selector.test_runs_after,
-                selector.test_passes_after,
-            ),
-        )
-        self._db.commit()
+        with self._lock:
+            cursor = self._db.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO healed_selectors
+                (id, test_name, element_name, file_path, old_selector_type, old_selector_value,
+                 new_selector_type, new_selector_value, confidence, strategy, status, timestamp,
+                 test_runs_after, test_passes_after)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    selector.id,
+                    selector.test_name,
+                    selector.element_name,
+                    selector.file_path,
+                    selector.old_selector_type,
+                    selector.old_selector_value,
+                    selector.new_selector_type,
+                    selector.new_selector_value,
+                    selector.confidence,
+                    selector.strategy,
+                    selector.status.value,
+                    selector.timestamp.isoformat(),
+                    selector.test_runs_after,
+                    selector.test_passes_after,
+                ),
+            )
+            self._db.commit()
 
     def get_healed_selectors(self, status: Optional[HealingStatus] = None) -> List[HealedSelector]:
         """Get healed selectors"""
-        cursor = self._db.cursor()
+        with self._lock:
+            cursor = self._db.cursor()
 
-        if status:
-            cursor.execute("SELECT * FROM healed_selectors WHERE status = ? ORDER BY timestamp DESC", (status.value,))
-        else:
-            cursor.execute("SELECT * FROM healed_selectors ORDER BY timestamp DESC")
+            if status:
+                cursor.execute(
+                    "SELECT * FROM healed_selectors WHERE status = ? ORDER BY timestamp DESC", (status.value,)
+                )
+            else:
+                cursor.execute("SELECT * FROM healed_selectors ORDER BY timestamp DESC")
+
+            rows = cursor.fetchall()
 
         selectors = []
-        for row in cursor.fetchall():
+        for row in rows:
             selectors.append(
                 HealedSelector(
                     id=row["id"],
@@ -335,17 +346,19 @@ class DashboardDB:
 
     def update_selector_status(self, selector_id: str, status: HealingStatus) -> bool:
         """Update selector status"""
-        cursor = self._db.cursor()
-        cursor.execute("UPDATE healed_selectors SET status = ? WHERE id = ?", (status.value, selector_id))
-        self._db.commit()
-        return bool(cursor.rowcount > 0)
+        with self._lock:
+            cursor = self._db.cursor()
+            cursor.execute("UPDATE healed_selectors SET status = ? WHERE id = ?", (status.value, selector_id))
+            self._db.commit()
+            return bool(cursor.rowcount > 0)
 
     def get_selector(self, selector_id: str) -> Optional[HealedSelector]:
         """Get single healed selector"""
-        cursor = self._db.cursor()
-        cursor.execute("SELECT * FROM healed_selectors WHERE id = ?", (selector_id,))
+        with self._lock:
+            cursor = self._db.cursor()
+            cursor.execute("SELECT * FROM healed_selectors WHERE id = ?", (selector_id,))
+            row = cursor.fetchone()
 
-        row = cursor.fetchone()
         if not row:
             return None
 

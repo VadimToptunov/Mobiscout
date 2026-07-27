@@ -190,6 +190,12 @@ class TouchTargetValidator:
         "wcag_aaa": 44,
     }
 
+    @staticmethod
+    def applies(element: Dict[str, Any]) -> bool:
+        """Touch-target sizing only applies to clickable elements. A non-clickable
+        element is 'not applicable', not an automatic pass."""
+        return bool(element.get("clickable"))
+
     def check_touch_target(
         self,
         element: Dict[str, Any],
@@ -228,13 +234,19 @@ class ScreenReaderChecker:
     - Semantic structure
     """
 
-    def check_content_description(self, element: Dict[str, Any]) -> Optional[A11yViolation]:
-        """Check if interactive element has proper description"""
-        is_interactive = (
+    @staticmethod
+    def applies(element: Dict[str, Any]) -> bool:
+        """Content-description checks only apply to interactive elements; static
+        elements are 'not applicable' rather than a free pass."""
+        return bool(
             element.get("clickable")
             or element.get("focusable")
             or element.get("type") in ["Button", "TextField", "ImageButton"]
         )
+
+    def check_content_description(self, element: Dict[str, Any]) -> Optional[A11yViolation]:
+        """Check if interactive element has proper description"""
+        is_interactive = self.applies(element)
 
         has_description = bool(element.get("content_desc") or element.get("text") or element.get("accessibility_label"))
 
@@ -264,6 +276,13 @@ class TextSizeChecker:
     """
 
     MIN_TEXT_SIZE = 12  # CSS pixels
+
+    @classmethod
+    def applies(cls, element: Dict[str, Any]) -> bool:
+        """Text-size checks only apply to elements that actually carry text and
+        expose a known font size (> 0). Elements without text, or with an unknown
+        size, are 'not applicable' rather than an automatic pass."""
+        return bool(element.get("text")) and element.get("font_size", 0) > 0
 
     def check_text_size(self, element: Dict[str, Any]) -> Optional[A11yViolation]:
         """Check if text meets minimum size requirements"""
@@ -324,14 +343,28 @@ class AccessibilityScanner:
         elements = self._flatten_hierarchy(hierarchy)
 
         for element in elements:
-            # Checks that don't need colours always run.
-            checks = [
-                self.touch_validator.check_touch_target(element, platform),
-                self.screen_reader_checker.check_content_description(element),
-                self.text_checker.check_text_size(element),
+            # Each non-colour check is tri-state: it only counts when it actually
+            # applies to the element. A 'not applicable' result (e.g. touch-target
+            # sizing on a non-clickable element) is neither a pass nor a violation,
+            # so counting it as a pass previously inflated the compliance score.
+            # (applies, run) pairs; each run() is a zero-arg call so the differing
+            # signatures (touch-target also needs the platform) stay uniform.
+            applicable_checks = [
+                (
+                    self.touch_validator.applies(element),
+                    lambda e=element: self.touch_validator.check_touch_target(e, platform),
+                ),
+                (
+                    self.screen_reader_checker.applies(element),
+                    lambda e=element: self.screen_reader_checker.check_content_description(e),
+                ),
+                (self.text_checker.applies(element), lambda e=element: self.text_checker.check_text_size(e)),
             ]
-            result.total_checks += len(checks)
-            for violation in checks:
+            for applies, run in applicable_checks:
+                if not applies:
+                    continue
+                result.total_checks += 1
+                violation = run()
                 if violation:
                     result.violations.append(violation)
                 else:

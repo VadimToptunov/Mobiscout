@@ -193,7 +193,7 @@ class TestRunner:
     def _parse_pytest_report(self, report_path: Path) -> List[TestResult]:
         """Parse pytest JSON report."""
         try:
-            with open(report_path) as f:
+            with open(report_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             results = []
