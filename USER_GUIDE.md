@@ -1130,7 +1130,7 @@ def test_checkout():
 
 - GitHub
   Issues: [github.com/VadimToptunov/Mobiscout/issues](https://github.com/VadimToptunov/Mobiscout/issues)
-- Documentation: [Full docs](https://mobile-test-recorder.readthedocs.io)
+- Documentation: [Full docs](https://github.com/VadimToptunov/Mobiscout/tree/master/docs)
 
 **Contribute:**
 

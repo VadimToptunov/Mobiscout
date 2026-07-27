@@ -594,7 +594,7 @@ refactor: Code refactoring
 | **Total Lines**          | ~50,000                    |
 | **Python Code**          | 35,000 lines               |
 | **Rust Code**            | 1,830 lines                |
-| **Test Coverage**        | ~33%                       |
+| **Test Coverage**        | ~80% (measured)            |
 | **Platforms crawled live** | Android (adb + Appium), iOS (Appium/XCUITest) |
 | **Codegen targets**      | 8 (Python/Java/Kotlin/JS, imperative + BDD) |
 | **ML element typing**    | hybrid ML + heuristic (~95% model on synthetic) |
