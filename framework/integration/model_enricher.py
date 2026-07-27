@@ -309,7 +309,7 @@ class ProjectIntegrator:
         # Create or load App Model
         model_path = self.project_path / "config" / "app_model.yaml"
         if model_path.exists():
-            with open(model_path) as f:
+            with open(model_path, encoding="utf-8") as f:
                 existing_model = yaml.safe_load(f)
         else:
             # Create new model with elements extracted from Page Objects

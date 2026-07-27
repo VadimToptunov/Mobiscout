@@ -270,7 +270,7 @@ class APIMocker:
                 success_response = responses.get("200", responses.get("201", {}))
 
                 response = MockResponse(
-                    status_code=int(list(responses.keys())[0]) if responses else 200,
+                    status_code=self._select_status_code(responses),
                     headers={"Content-Type": "application/json"},
                     body=self._generate_sample_response_body(success_response),
                     latency_ms=100.0,  # Default latency
@@ -284,6 +284,26 @@ class APIMocker:
         logger.info(f"Generated {len(mocks)} mocks from Swagger spec")
 
         return len(mocks)
+
+    @staticmethod
+    def _select_status_code(responses: Dict[str, Any]) -> int:
+        """Pick a status code from a Swagger ``responses`` map.
+
+        Prefers explicit success codes ("200"/"201"), then the first numeric
+        response key. Non-numeric keys (e.g. "default") fall back to 200 instead
+        of crashing on ``int(...)``.
+        """
+        for key in ("200", "201"):
+            if key in responses:
+                return int(key)
+
+        for key in responses:
+            try:
+                return int(key)
+            except (ValueError, TypeError):
+                continue
+
+        return 200
 
     def _generate_sample_request_body(self, spec: Dict[str, Any]) -> Optional[str]:
         """Generate sample request body from spec"""

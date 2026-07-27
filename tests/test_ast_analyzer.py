@@ -273,3 +273,50 @@ def test_lines_of_code_is_zero_when_position_info_missing(tmp_path):
     del node.end_lineno
     analyzer._analyze_function(node, tmp_path / "x.py")
     assert analyzer.functions[0].lines_of_code == 0
+
+
+# ---- file skipping: only real test files are skipped ----
+
+
+def test_functions_found_under_path_containing_word_test(tmp_path):
+    """pytest's own tmp_path contains the substring 'test', yet a normal module
+    living there must still be analyzed. Previously ``"test" in str(py_file)``
+    skipped any such path, so complexity analysis found 0 functions under pytest
+    (and under dirs like 'latest'/'greatest')."""
+    assert "test" in str(tmp_path)  # the guard's whole premise
+    (tmp_path / "calculator.py").write_text(
+        "def add(a, b):\n    if a > b:\n        return a\n    return b\n",
+        encoding="utf-8",
+    )
+
+    result = ASTAnalyzer(tmp_path).analyze_python()
+
+    names = [f["name"] for f in result["functions"]]
+    assert "add" in names
+    assert result["summary"]["total_functions"] >= 1
+
+
+def test_only_real_test_files_are_skipped(tmp_path):
+    """test_*.py and *_test.py are skipped; 'latest_module.py' is NOT a test
+    file and must be analyzed."""
+    (tmp_path / "test_foo.py").write_text("def helper():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "bar_test.py").write_text("def other():\n    return 2\n", encoding="utf-8")
+    (tmp_path / "latest_module.py").write_text("def real_fn():\n    return 3\n", encoding="utf-8")
+
+    result = ASTAnalyzer(tmp_path).analyze_python()
+
+    names = [f["name"] for f in result["functions"]]
+    assert "real_fn" in names  # 'latest' merely contains 'test'? no — must be analyzed
+    assert "helper" not in names  # test_*.py skipped
+    assert "other" not in names  # *_test.py skipped
+
+
+def test_no_fake_rust_flag_or_misleading_docs():
+    """The Rust probe was a no-op (``try: pass``) that always set RUST_AVAILABLE
+    True though no Rust is used. The flag and the '50-100x'/'Rust core' claims
+    are removed."""
+    import framework.analyzers.ast_analyzer as m
+
+    assert not hasattr(m, "RUST_AVAILABLE")
+    assert "50-100x" not in (m.__doc__ or "")
+    assert "Rust" not in (m.__doc__ or "")

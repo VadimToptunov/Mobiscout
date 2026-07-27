@@ -8,6 +8,7 @@ from framework.security.sast.base import (
     Severity,
     SASTFinding,
     SASTResult,
+    default_severity_and_cwe,
 )
 
 from framework.security.sast.taint import TaintAnalyzer
@@ -41,16 +42,20 @@ class SASTAnalyzer:
         # Taint analysis
         taint_flows = self.taint_analyzer.analyze_file(file_path)
         for flow in taint_flows:
+            # Severity and CWE must reflect the actual vulnerability type of the
+            # flow (SQLi -> CWE-89, command injection -> CWE-78, ...) rather than
+            # a blanket HIGH / CWE-20 for every taint finding.
+            severity, cwe_id = default_severity_and_cwe(flow.vulnerability_type)
             findings.append(
                 SASTFinding(
                     vulnerability_type=flow.vulnerability_type,
-                    severity=Severity.HIGH,
+                    severity=severity,
                     title=f"Tainted data flow to {flow.sink.sink_type}",
                     description=f"User-controlled data flows from {flow.source.name} to {flow.sink.name}",
                     file_path=str(file_path),
                     line_number=flow.sink.line_number,
                     taint_flow=flow,
-                    cwe_id="CWE-20",
+                    cwe_id=cwe_id,
                 )
             )
 

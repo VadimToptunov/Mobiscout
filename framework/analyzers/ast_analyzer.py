@@ -1,10 +1,6 @@
 """
 Deep AST Analysis Module
 
-Hybrid implementation:
-- Tries to use Rust core for 50-100x speedup
-- Falls back to Python if Rust not available
-
 Provides deep Abstract Syntax Tree analysis for complex logic extraction.
 Currently supports Python AST analysis as a foundation.
 Future: Kotlin/Java AST parsing, Swift AST parsing.
@@ -17,17 +13,6 @@ from pathlib import Path
 from typing import List, Dict, Optional, Any, Union
 
 logger = logging.getLogger(__name__)
-
-# Try to import Rust core
-RUST_AVAILABLE = False
-try:
-    pass
-
-    RUST_AVAILABLE = True
-    logger.info("✅ Rust core available - using high-performance backend")
-except ImportError:
-    logger.info("⚠️  Rust core not available - using Python fallback")
-    logger.info("💡 To enable Rust: pip install maturin && cd rust_core && maturin develop")
 
 
 @dataclass
@@ -90,7 +75,7 @@ class ASTAnalyzer:
             Dict with complexity metrics, data flows, control flows
         """
         for py_file in self.source_path.rglob("*.py"):
-            if "test" in str(py_file) or "__pycache__" in str(py_file):
+            if self._is_test_file(py_file) or "__pycache__" in str(py_file):
                 continue
 
             try:
@@ -116,6 +101,18 @@ class ASTAnalyzer:
                 ),
             },
         }
+
+    @staticmethod
+    def _is_test_file(py_file: Path) -> bool:
+        """Whether a path is a real pytest test file.
+
+        Only the file name decides this: ``test_*.py`` or ``*_test.py``. Matching
+        the substring "test" anywhere in the path (the previous behaviour) wrongly
+        skipped files under pytest temp dirs and any path containing words like
+        "latest"/"greatest", so complexity analysis found zero functions.
+        """
+        name = py_file.name
+        return name.startswith("test_") or name.endswith("_test.py")
 
     def _analyze_tree(self, tree: ast.AST, file_path: Path) -> None:
         """Analyze AST tree for functions and complexity"""

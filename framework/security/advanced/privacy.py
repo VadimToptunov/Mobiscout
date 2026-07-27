@@ -23,7 +23,12 @@ class PrivacyComplianceChecker:
     def __init__(self) -> None:
         self.pii_patterns = {
             "email": re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"),
-            "phone": re.compile(r"\+?[1-9]\d{1,14}"),
+            # Require real phone formatting so a bare integer like "12345" is
+            # not flagged. Either strict E.164 (leading '+' and >= 7 digits),
+            # or digit groups joined by separators (space/dot/dash/parens).
+            "phone": re.compile(
+                r"\+[1-9]\d{6,14}\b" r"|(?:\+?\d{1,4}[\s.\-])?\(?\d{2,4}\)?[\s.\-]\d{2,4}[\s.\-]\d{2,4}"
+            ),
             "ssn": re.compile(r"\d{3}-\d{2}-\d{4}"),
             "credit_card": re.compile(r"\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}"),
             "ip_address": re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}"),

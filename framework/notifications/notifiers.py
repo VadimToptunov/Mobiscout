@@ -65,7 +65,7 @@ class SlackNotifier(Notifier):
         try:
             # Determine color based on pass rate
             if summary.pass_rate >= 95:
-                color = "#36a64"  # Green
+                color = "#36a64f"  # Green
             elif summary.pass_rate >= 80:
                 color = "#ff9900"  # Orange
             else:
@@ -102,11 +102,19 @@ class SlackNotifier(Notifier):
                 ]
 
             # Send to Slack
-            response = requests.post(self.webhook_url, json=message, headers={"Content-Type": "application/json"})
+            response = requests.post(
+                self.webhook_url,
+                json=message,
+                headers={"Content-Type": "application/json"},
+                timeout=(5, 10),
+            )
             response.raise_for_status()
 
             return True
 
+        except requests.Timeout as e:
+            print(f"Timeout sending Slack notification: {e}")
+            return False
         except (requests.RequestException, KeyError, ValueError, OSError) as e:
             print(f"Error sending Slack notification: {e}")
             return False
@@ -186,11 +194,19 @@ class TeamsNotifier(Notifier):
                     )
 
             # Send to Teams
-            response = requests.post(self.webhook_url, json=message, headers={"Content-Type": "application/json"})
+            response = requests.post(
+                self.webhook_url,
+                json=message,
+                headers={"Content-Type": "application/json"},
+                timeout=(5, 10),
+            )
             response.raise_for_status()
 
             return True
 
+        except requests.Timeout as e:
+            print(f"Timeout sending Teams notification: {e}")
+            return False
         except (requests.RequestException, KeyError, ValueError, OSError) as e:
             print(f"Error sending Teams notification: {e}")
             return False
@@ -241,9 +257,9 @@ class EmailNotifier(Notifier):
             msg["To"] = ", ".join(self.recipients)
 
             # Build HTML body
-            # status_color =  # Unused "#28a745" if summary.pass_rate >= 80 else "#dc3545"
+            status_color = "#28a745" if summary.pass_rate >= 80 else "#dc3545"
 
-            html_body = """
+            html_body = f"""
             <html>
             <head>
                 <style>
@@ -291,7 +307,7 @@ class EmailNotifier(Notifier):
 """
 
             if summary.report_url:
-                html_body += """
+                html_body += f"""
                     <a href="{summary.report_url}" class="button">View Full Report</a>
 """
 

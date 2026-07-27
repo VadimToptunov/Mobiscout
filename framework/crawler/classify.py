@@ -81,7 +81,7 @@ def ensure_model(force: bool = False) -> Optional[Path]:
             dataset = UniversalModelBuilder().generate_training_data(
                 output_path=path.parent / "training_data.json", samples_per_type=250
             )
-            with open(dataset) as f:
+            with open(dataset, encoding="utf-8") as f:
                 data = json.load(f)
             # Blend in real-app elements (clean-labelled crawls) so the model sees
             # real feature distributions, not only synthetic ones.

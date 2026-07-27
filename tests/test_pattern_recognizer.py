@@ -61,6 +61,26 @@ def test_pattern_below_min_confidence_is_dropped():
     assert pr.analyze_flows(events) == []
 
 
+def test_looping_session_confidence_never_exceeds_one():
+    """A single session that loops between two screens repeats the subsequence
+    ('a','b') many times. Confidence must reflect the SHARE of sessions the
+    pattern appears in (bounded by 1.0), not the raw repeat count. Previously
+    confidence = repeats / num_sessions, so one looping session scored well
+    above 1.0."""
+    pr = PatternRecognizer(min_support=2, min_confidence=0.0)
+    # One session, a<->b ten times: ('a','b') occurs 10 times within 1 session.
+    events = _sessions({"s1": ["a", "b"] * 10})
+    patterns = pr.analyze_flows(events)
+
+    assert patterns, "expected the repeated a->b pattern to be mined"
+    ab = next(p for p in patterns if p.screens == ["a", "b"])
+    assert ab.frequency >= 10  # raw occurrences are still tracked
+    assert 0.0 <= ab.confidence <= 1.0
+    assert ab.confidence == 1.0  # appears in the only session -> full share
+    # Every mined pattern must be within [0, 1].
+    assert all(0.0 <= p.confidence <= 1.0 for p in patterns)
+
+
 def test_single_screen_sessions_yield_no_patterns():
     pr = PatternRecognizer(min_support=1, min_confidence=0.0)
     events = _sessions({"s1": ["only"], "s2": ["one"]})

@@ -4,6 +4,7 @@ Element matcher
 Uses ML model to match correct element from alternatives.
 """
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional, Dict
@@ -156,8 +157,25 @@ class ElementMatcher:
             "content_desc": attrs.get("content-desc", ""),
             "clickable": attrs.get("clickable", "false") == "true",
             "enabled": attrs.get("enabled", "true") == "true",
-            "bounds": attrs.get("bounds", ""),
+            # ElementClassifier.extract_features does bounds.get("width")/("height"),
+            # so bounds MUST be a dict. Passing the raw UIAutomator string here
+            # raised AttributeError (swallowed) and forced ML confidence to 0.
+            "bounds": self._parse_bounds(attrs.get("bounds", "")),
         }
+
+    @staticmethod
+    def _parse_bounds(bounds: Any) -> Dict[str, int]:
+        """Parse a UIAutomator bounds string ``[x1,y1][x2,y2]`` into
+        ``{"width", "height"}``. Returns zeros when the value is missing or
+        malformed (already a dict is passed through)."""
+        if isinstance(bounds, dict):
+            return bounds
+        if isinstance(bounds, str) and bounds:
+            match = re.fullmatch(r"\s*\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]\s*", bounds)
+            if match:
+                x1, y1, x2, y2 = (int(n) for n in match.groups())
+                return {"width": x2 - x1, "height": y2 - y1}
+        return {"width": 0, "height": 0}
 
     def _apply_context_boost(self, confidence: float, alternative: AlternativeSelector, context: Dict) -> float:
         """Apply context-based confidence boost"""

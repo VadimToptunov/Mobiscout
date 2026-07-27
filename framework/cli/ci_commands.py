@@ -16,6 +16,15 @@ from framework.ci.templates import get_template, get_filename
 console = Console()
 
 
+def _load_config(config_file: Path) -> str:
+    """Read a CI config file as UTF-8 text.
+
+    Centralises the read so every ``validate`` branch opens with an explicit
+    encoding instead of the platform default (cp1252 on Windows).
+    """
+    return config_file.read_text(encoding="utf-8")
+
+
 @click.group()
 def ci() -> None:
     """CI/CD integration commands."""
@@ -153,8 +162,7 @@ def validate(config_file: Path) -> None:
         # Determine CI system from filename
         if ".github" in str(config_file):
             ci_system = "GitHub Actions"
-            with open(config_file) as f:
-                config = yaml.safe_load(f)
+            config = yaml.safe_load(_load_config(config_file))
 
             # Check if YAML is empty or invalid
             if config is None:
@@ -175,8 +183,7 @@ def validate(config_file: Path) -> None:
 
         elif config_file.name == ".gitlab-ci.yml":
             ci_system = "GitLab CI"
-            with open(config_file) as f:
-                config = yaml.safe_load(f)
+            config = yaml.safe_load(_load_config(config_file))
 
             # Check if YAML is empty or invalid
             if config is None:
@@ -190,8 +197,7 @@ def validate(config_file: Path) -> None:
 
         elif config_file.name == "Jenkinsfile":
             ci_system = "Jenkins"
-            with open(config_file) as f:
-                content = f.read()
+            content = _load_config(config_file)
 
             issues = []
             if "pipeline" not in content:
@@ -201,8 +207,7 @@ def validate(config_file: Path) -> None:
 
         elif ".circleci" in str(config_file):
             ci_system = "CircleCI"
-            with open(config_file) as f:
-                config = yaml.safe_load(f)
+            config = yaml.safe_load(_load_config(config_file))
 
             # Check if YAML is empty or invalid
             if config is None:

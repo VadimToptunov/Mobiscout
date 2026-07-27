@@ -308,10 +308,10 @@ def compare(baseline: str, current: str) -> None:
     console.print(Panel.fit("🔄 Profile Comparison", style="bold cyan"))
 
     # Load profiles
-    with open(baseline) as f:
+    with open(baseline, encoding="utf-8") as f:
         baseline_data = json.load(f)
 
-    with open(current) as f:
+    with open(current, encoding="utf-8") as f:
         current_data = json.load(f)
 
     console.print(f"Baseline: {baseline}")

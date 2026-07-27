@@ -6,7 +6,6 @@ Commands: runtime, protections
 
 from pathlib import Path
 from typing import Optional
-import json
 
 import click
 from rich.panel import Panel
@@ -18,6 +17,8 @@ from framework.cli.security.base import (
     console,
     validate_path,
     create_progress_context,
+    exit_with_severity,
+    save_json_report,
 )
 
 
@@ -131,13 +132,12 @@ def runtime(
         if format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(result.to_dict(), f, indent=2, default=str)
+            save_json_report(result.to_dict(), output)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
-    if score < 40:
-        raise SystemExit(1)
-    raise SystemExit(0)
+    # A weak protection score (<40%) is the only failing condition here; map it
+    # onto the shared severity ladder as a single "high" so exit codes stay 0/1.
+    exit_with_severity(0, 1 if score < 40 else 0)
 
 
 @security.command()

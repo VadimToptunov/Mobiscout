@@ -4,6 +4,7 @@ Unified test reporter
 Aggregates test results from multiple sources and generates comprehensive reports.
 """
 
+import html
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -344,10 +345,10 @@ class UnifiedReporter:
 
         # Add each test suite
         for suite in self.suites:
-            html_content += """
+            html_content += f"""
             <div class="suite">
                 <div class="suite-header" onclick="toggleSuite(this)">
-                    <div class="suite-title">{suite.name}</div>
+                    <div class="suite-title">{html.escape(suite.name)}</div>
                     <div class="suite-stats">
                         <span class="passed">{suite.passed} passed</span>
                         <span class="failed">{suite.failed} failed</span>
@@ -360,16 +361,16 @@ class UnifiedReporter:
 
             # Add tests
             for test in suite.tests:
-                html_content += """
+                html_content += f"""
                     <div class="test">
-                        <div class="test-name">{test.name}</div>
+                        <div class="test-name">{html.escape(test.name)}</div>
                         <div class="test-duration">{test.duration:.2f}s</div>
-                        <div class="test-status {test.status}">{test.status}</div>
+                        <div class="test-status {html.escape(test.status)}">{html.escape(test.status)}</div>
                     </div>
 """
                 if test.error_message:
-                    html_content += """
-                    <div class="error-message">{test.error_message}</div>
+                    html_content += f"""
+                    <div class="error-message">{html.escape(test.error_message)}</div>
 """
 
             html_content += """
@@ -392,7 +393,7 @@ class UnifiedReporter:
 """
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html_content)
+        output_path.write_text(html_content, encoding="utf-8")
         print(f"✓ HTML report generated: {output_path}")
 
     def _generate_json_report(self, output_path: Path) -> None:
@@ -429,7 +430,7 @@ class UnifiedReporter:
         }
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report_data, indent=2))
+        output_path.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
         print(f"✓ JSON report generated: {output_path}")
 
     def _generate_allure_report(self, output_path: Path) -> None:

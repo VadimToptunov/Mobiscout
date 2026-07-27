@@ -64,7 +64,7 @@ class ChangeAnalyzer:
         try:
             # Get diff with base branch
             result = subprocess.run(
-                ["git", "dif", "--name-status", f"{base_branch}...{target_branch}"],
+                ["git", "diff", "--name-status", f"{base_branch}...{target_branch}"],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
@@ -142,7 +142,7 @@ class ChangeAnalyzer:
         """Get added/deleted line counts for a file"""
         try:
             result = subprocess.run(
-                ["git", "dif", "--numstat", f"{base_branch}...{target_branch}", "--", str(file_path)],
+                ["git", "diff", "--numstat", f"{base_branch}...{target_branch}", "--", str(file_path)],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,
@@ -166,7 +166,7 @@ class ChangeAnalyzer:
 
         try:
             result = subprocess.run(
-                ["git", "dif", "--cached", "--name-status"],
+                ["git", "diff", "--cached", "--name-status"],
                 cwd=self.repo_path,
                 capture_output=True,
                 text=True,

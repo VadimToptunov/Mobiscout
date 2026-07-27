@@ -263,7 +263,7 @@ test_pass_rate {avg_pass_rate}
             content = ""
 
         if output:
-            Path(output).write_text(content)
+            Path(output).write_text(content, encoding="utf-8")
             print_success(f"✅ Exported to: {output}")
         else:
             print(content)

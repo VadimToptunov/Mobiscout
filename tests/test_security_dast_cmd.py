@@ -108,11 +108,19 @@ def test_dast_critical_finding_exits_two(runner, patch_analyzer):
     assert result.exit_code == 2  # a critical finding maps to exit code 2
 
 
-def test_dast_noncritical_finding_exits_one(runner, patch_analyzer):
+def test_dast_high_finding_exits_one(runner, patch_analyzer):
+    patch_analyzer(result=DASTResult(findings=[_finding(Severity.HIGH)], target="h"))
+    result = runner.invoke(security, ["dast", "h"])
+    _no_crash(result)
+    assert result.exit_code == 1  # a high finding maps to exit code 1
+
+
+def test_dast_medium_finding_exits_zero(runner, patch_analyzer):
+    # Medium/low-only findings are informational: they must NOT fail the build.
     patch_analyzer(result=DASTResult(findings=[_finding(Severity.MEDIUM)], target="h"))
     result = runner.invoke(security, ["dast", "h"])
     _no_crash(result)
-    assert result.exit_code == 1
+    assert result.exit_code == 0
 
 
 def test_dast_writes_json_report(runner, patch_analyzer, tmp_path):

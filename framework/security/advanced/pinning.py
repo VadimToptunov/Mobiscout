@@ -63,14 +63,21 @@ class CertificatePinningAnalyzer:
         # Check for network security config
         network_config = source_dir / "res" / "xml" / "network_security_config.xml"
         if network_config.exists():
-            content = network_config.read_text(encoding="utf-8")
-            if any(p.search(content) for p in self.android_pinning_patterns[2:4]):
-                has_pinning = True
+            try:
+                content = network_config.read_text(encoding="utf-8", errors="ignore")
+                if any(p.search(content) for p in self.android_pinning_patterns[2:4]):
+                    has_pinning = True
+            except OSError as e:
+                logger.warning(f"Could not read {network_config}: {e}")
 
         # Scan Java/Kotlin files
         for ext in ["*.java", "*.kt"]:
             for file_path in source_dir.rglob(ext):
-                content = file_path.read_text(encoding="utf-8", errors="ignore")
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                except OSError as e:
+                    logger.warning(f"Could not read {file_path}: {e}")
+                    continue
 
                 # Check for pinning implementation
                 if any(p.search(content) for p in self.android_pinning_patterns):
@@ -136,7 +143,11 @@ class CertificatePinningAnalyzer:
         # Check Info.plist for ATS settings
         info_plist = source_dir / "Info.plist"
         if info_plist.exists():
-            content = info_plist.read_text(encoding="utf-8")
+            try:
+                content = info_plist.read_text(encoding="utf-8", errors="ignore")
+            except OSError as e:
+                logger.warning(f"Could not read {info_plist}: {e}")
+                content = ""
             if "NSAllowsArbitraryLoads" in content and "true" in content.lower():
                 vulnerabilities.append(
                     SecurityVulnerability(
@@ -161,7 +172,11 @@ class CertificatePinningAnalyzer:
         # Scan Swift/Objective-C files
         for ext in ["*.swift", "*.m", "*.mm"]:
             for file_path in source_dir.rglob(ext):
-                content = file_path.read_text(encoding="utf-8", errors="ignore")
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                except OSError as e:
+                    logger.warning(f"Could not read {file_path}: {e}")
+                    continue
 
                 if any(p.search(content) for p in self.ios_pinning_patterns):
                     has_pinning = True

@@ -275,6 +275,61 @@ class TestAPIMocker:
         sessions = mocker.list_sessions()
         assert any(s["session_id"] == "swagger-test" for s in sessions)
 
+    def test_generate_from_swagger_non_numeric_response_key(self, mocker):
+        """Bug 7: a non-numeric response key like "default" must not crash.
+
+        Previously status_code = int(list(responses.keys())[0]) raised ValueError
+        (or picked an arbitrary/wrong code). Now it falls back to 200.
+        """
+        swagger_spec = {
+            "paths": {
+                "/health": {
+                    "get": {
+                        "responses": {
+                            "default": {
+                                "content": {
+                                    "application/json": {"schema": {"type": "object"}},
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        count = mocker.generate_from_swagger(swagger_spec, "default-key")
+        assert count == 1
+
+        mocks = mocker.storage.load_session("default-key")
+        assert mocks[0].response.status_code == 200
+
+    def test_generate_from_swagger_prefers_success_code(self, mocker):
+        """Success codes (200/201) win over other numeric keys regardless of order."""
+        swagger_spec = {
+            "paths": {
+                "/create": {
+                    "post": {
+                        "responses": {
+                            "500": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                            "201": {"content": {"application/json": {"schema": {"type": "object"}}}},
+                        }
+                    }
+                }
+            }
+        }
+
+        mocker.generate_from_swagger(swagger_spec, "prefer-success")
+        mocks = mocker.storage.load_session("prefer-success")
+        assert mocks[0].response.status_code == 201
+
+    def test_select_status_code_helper(self):
+        """Direct unit coverage of the status-code selection helper."""
+        assert APIMocker._select_status_code({"200": {}, "404": {}}) == 200
+        assert APIMocker._select_status_code({"201": {}}) == 201
+        assert APIMocker._select_status_code({"404": {}, "500": {}}) == 404
+        assert APIMocker._select_status_code({"default": {}}) == 200
+        assert APIMocker._select_status_code({}) == 200
+
 
 class TestMockSession:
     """Test MockSession functionality"""

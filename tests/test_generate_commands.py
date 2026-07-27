@@ -155,6 +155,41 @@ def test_api_tests_requires_a_source(runner):
     assert "Provide --model or --openapi" in result.output
 
 
+_NON_ASCII_MODEL_YAML = """
+meta:
+  app_version: "1.0.0"
+  platform: android
+screens:
+  cafe:
+    name: Café Ünïcode Screen
+    elements: []
+flows:
+  - name: Café Anmeldung
+    description: Benutzer meldet sich an — mit Ümlauts
+    steps:
+      - action: tap
+        screen: Café Ünïcode Screen
+"""
+
+
+def test_generate_loads_non_ascii_model(runner, tmp_path):
+    # Regression: the model must be read via load_app_model (encoding="utf-8"),
+    # so non-ASCII content survives instead of being mangled by the platform
+    # default (cp1252 on Windows). We prove the round-trip end-to-end: the
+    # accented flow name reaches the generated BDD feature verbatim.
+    model = tmp_path / "app.yaml"
+    model.write_text(_NON_ASCII_MODEL_YAML, encoding="utf-8")
+    out = tmp_path / "features"
+    result = runner.invoke(generate, ["features", "--model", str(model), "--output", str(out)])
+    _no_crash(result)
+    assert result.exit_code == 0
+    features = list(out.rglob("*.feature"))
+    assert features, "no feature files written"
+    text = features[0].read_text(encoding="utf-8")
+    assert "Café Anmeldung" in text
+    assert "mit Ümlauts" in text
+
+
 def test_api_review_writes_context_sheet(runner, tmp_path):
     spec = tmp_path / "openapi.yaml"
     spec.write_text(_OPENAPI_YAML, encoding="utf-8")

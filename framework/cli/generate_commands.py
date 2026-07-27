@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 import click
 
+from framework.cli.generate_service import load_app_model
 from framework.cli.rich_output import print_header, print_success, print_error, print_info
 from framework.utils.logger import get_logger
 
@@ -33,14 +34,8 @@ def pages(model: str, output: str, platform: str) -> None:
 
     try:
         from framework.codegen.page_object import emit_page_objects
-        from framework.model.app_model import AppModel
-        import yaml
 
-        # Load model
-        with open(model) as f:
-            model_data = yaml.safe_load(f)
-
-        app_model = AppModel(**model_data)
+        app_model = load_app_model(Path(model))
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -71,13 +66,8 @@ def api(model: str, output: str) -> None:
 
     try:
         from framework.codegen.api_client import emit_api_client
-        from framework.model.app_model import AppModel
-        import yaml
 
-        with open(model) as f:
-            model_data = yaml.safe_load(f)
-
-        app_model = AppModel(**model_data)
+        app_model = load_app_model(Path(model))
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -108,13 +98,8 @@ def features(model: str, output: str) -> None:
 
     try:
         from framework.codegen.bdd_feature import emit_feature_files
-        from framework.model.app_model import AppModel
-        import yaml
 
-        with open(model) as f:
-            model_data = yaml.safe_load(f)
-
-        app_model = AppModel(**model_data)
+        app_model = load_app_model(Path(model))
         output_path = Path(output)
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -165,8 +150,6 @@ def tests(
     """
     from framework.codegen import available_targets, get_emitter
     from framework.codegen.app_model_adapter import build_smoke_model
-    from framework.model.app_model import AppModel
-    import yaml
 
     if list_targets:
         print_header("🎯 Available codegen targets")
@@ -182,8 +165,7 @@ def tests(
     print_header("🧪 Generating tests", f"Target: {target}")
 
     try:
-        with open(model) as f:
-            app_model = AppModel(**yaml.safe_load(f))
+        app_model = load_app_model(Path(model))
 
         test_model = build_smoke_model(
             app_model, app_package=app_package, suite_name=suite_name, app_activity=app_activity
@@ -230,7 +212,6 @@ def api_tests(model: str, openapi: str, output: str, base_url: str) -> None:
         mobiscout generate api-tests --openapi openapi.yaml --base-url https://api.example.com
     """
     from framework.codegen.api_test import emit_api_tests
-    import yaml
 
     if not model and not openapi:
         print_error("Provide --model or --openapi.")
@@ -245,10 +226,7 @@ def api_tests(model: str, openapi: str, output: str, base_url: str) -> None:
             calls = parse_openapi(load_spec(openapi))
             app_model: Any = SimpleNamespace(api_calls={c.name: c for c in calls})
         else:
-            from framework.model.app_model import AppModel
-
-            with open(model) as f:
-                app_model = AppModel(**yaml.safe_load(f))
+            app_model = load_app_model(Path(model))
 
         files = emit_api_tests(app_model, base_url=base_url)
         if not files:

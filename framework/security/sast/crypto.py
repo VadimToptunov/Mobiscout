@@ -25,6 +25,7 @@ class CryptoAnalyzer:
     WEAK_ALGORITHMS = {
         "MD5": ("CWE-327", "MD5 is cryptographically broken"),
         "SHA1": ("CWE-327", "SHA1 is considered weak for security purposes"),
+        # (SHA1 uses a custom match pattern below to also catch SHA-1 / SHA_1.)
         "DES": ("CWE-327", "DES has insufficient key length"),
         "3DES": ("CWE-327", "Triple DES is deprecated"),
         "RC4": ("CWE-327", "RC4 has multiple vulnerabilities"),
@@ -33,14 +34,21 @@ class CryptoAnalyzer:
         "ECB": ("CWE-327", "ECB mode doesn't provide semantic security"),
     }
 
-    # Insecure random
+    # Match-pattern overrides for algorithms whose written form varies. Without
+    # this, `\bSHA1\b` misses the common "SHA-1" / "SHA_1" / "SHA 1" spellings.
+    ALGO_PATTERN_OVERRIDES = {
+        "SHA1": r"\bSHA[-_ ]?1\b",
+    }
+
+    # Insecure random. NB: arc4random / arc4random_uniform are intentionally
+    # excluded — on Apple platforms they are backed by a CSPRNG, so flagging
+    # them produced false positives.
     INSECURE_RANDOM = [
         "random.random",
         "random.randint",
         "random.choice",
         "Math.random",
         "java.util.Random",
-        "arc4random",  # iOS - not for crypto
     ]
 
     # Hardcoded key patterns
@@ -66,7 +74,8 @@ class CryptoAnalyzer:
                 # substring: "DES" must not fire on "describe"/"nodes"/"used",
                 # nor "ECB"/"RC2" inside unrelated identifiers.
                 for algo, (cwe, desc) in self.WEAK_ALGORITHMS.items():
-                    if re.search(rf"\b{re.escape(algo)}\b", line, re.IGNORECASE):
+                    algo_pattern = self.ALGO_PATTERN_OVERRIDES.get(algo, rf"\b{re.escape(algo)}\b")
+                    if re.search(algo_pattern, line, re.IGNORECASE):
                         # Skip if it's a comment
                         stripped = line.strip()
                         if stripped.startswith(("#", "//", "/*", "*")):
