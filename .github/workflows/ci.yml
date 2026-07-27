@@ -297,20 +297,18 @@ jobs:
           java-version: '21'
 
       - name: Set up Gradle
-        # The repo doesn't commit the Gradle wrapper (no gradlew / wrapper jar),
-        # so ./gradlew fails with "No such file or directory". Provision Gradle
-        # 8.5 (the version in gradle-wrapper.properties) and invoke `gradle`.
+        # The committed Gradle wrapper (jetbrains-plugin/gradlew + wrapper jar)
+        # pins Gradle 9.6.1, which the IntelliJ Platform Gradle Plugin 2.18.1
+        # requires (it refuses anything below 9.0). Invoke it via ./gradlew.
         uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '8.5'
 
       - name: Build plugin
         working-directory: jetbrains-plugin
-        run: gradle buildPlugin
+        run: ./gradlew buildPlugin
 
       - name: Verify plugin
         working-directory: jetbrains-plugin
-        run: gradle verifyPlugin
+        run: ./gradlew verifyPlugin
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v7
