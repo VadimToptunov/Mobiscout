@@ -634,7 +634,7 @@ class FuzzingCampaign:
         """Export fuzzing campaign report"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(self.campaign_results, f, indent=2)
 
     def get_summary(self) -> Dict[str, Any]:

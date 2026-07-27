@@ -90,7 +90,7 @@ class DocGenerator:
         """Generate Markdown documentation"""
         # Generate index
         index_path = self.config.output_dir / "index.md"
-        with open(index_path, "w") as f:
+        with open(index_path, "w", encoding="utf-8") as f:
             f.write(f"# {self.config.title}\n\n")
 
             if self.config.include_toc:
@@ -107,7 +107,7 @@ class DocGenerator:
         """Generate Markdown for a module"""
         output_path = self.config.output_dir / f"{module.name}.md"
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             # Module header
             f.write(f"# {module.name}\n\n")
 
@@ -219,7 +219,7 @@ class DocGenerator:
 
         html += self._generate_html_footer()
 
-        with open(index_path, "w") as f:
+        with open(index_path, "w", encoding="utf-8") as f:
             f.write(html)
 
         # Generate module HTML files
@@ -269,7 +269,7 @@ class DocGenerator:
 
         html += self._generate_html_footer()
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
 
     def _generate_html_header(self) -> str:
@@ -363,14 +363,14 @@ class DocGenerator:
             }
             docs.append(module_data)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(docs, f, indent=2)
 
     def _generate_sphinx(self) -> None:
         """Generate Sphinx RST documentation"""
         # Generate conf.py
         conf_path = self.config.output_dir / "conf.py"
-        with open(conf_path, "w") as f:
+        with open(conf_path, "w", encoding="utf-8") as f:
             f.write(f"""
 project = '{self.config.title}'
 html_theme = '{self.config.theme}'
@@ -379,7 +379,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
         # Generate index.rst
         index_path = self.config.output_dir / "index.rst"
-        with open(index_path, "w") as f:
+        with open(index_path, "w", encoding="utf-8") as f:
             f.write(f"{self.config.title}\n")
             f.write("=" * len(self.config.title) + "\n\n")
 
@@ -397,7 +397,7 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.napoleon']
         """Generate Sphinx RST for a module"""
         output_path = self.config.output_dir / f"{module.name}.rst"
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(f"{module.name}\n")
             f.write("=" * len(module.name) + "\n\n")
 

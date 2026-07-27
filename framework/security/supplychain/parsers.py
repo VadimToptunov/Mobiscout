@@ -60,7 +60,7 @@ class PythonDependencyParser:
         dependencies: List[Dependency] = []
 
         try:
-            content = requirements_path.read_text()
+            content = requirements_path.read_text(encoding="utf-8")
             for line in content.splitlines():
                 line = line.strip()
 
@@ -186,7 +186,7 @@ class JavaScriptDependencyParser:
         dependencies: List[Dependency] = []
 
         try:
-            with open(package_path, "r") as f:
+            with open(package_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             # Production dependencies
@@ -241,7 +241,7 @@ class GradleDependencyParser:
         dependencies: List[Dependency] = []
 
         try:
-            content = gradle_path.read_text()
+            content = gradle_path.read_text(encoding="utf-8")
 
             # Match implementation/api/compile declarations
             patterns = [
@@ -284,7 +284,7 @@ class CocoaPodsDependencyParser:
         dependencies: List[Dependency] = []
 
         try:
-            content = podfile_lock_path.read_text()
+            content = podfile_lock_path.read_text(encoding="utf-8")
 
             # Parse PODS section
             in_pods_section = False

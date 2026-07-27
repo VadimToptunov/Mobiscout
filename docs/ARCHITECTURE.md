@@ -42,7 +42,7 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
 | **ML Classification Accuracy** | 94%                                                              |
 | **Supported Platforms**        | Android Native/Compose, iOS UIKit/SwiftUI, Flutter, React Native |
 | **Lines of Code**              | ~50,000 (Python + Rust)                                          |
-| **Test Coverage**              | 85%+                                                             |
+| **Test Coverage**              | ~80% (measured)                                                  |
 
 ---
 

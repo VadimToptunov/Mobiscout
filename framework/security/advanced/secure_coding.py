@@ -80,7 +80,7 @@ class SecureCodingAnalyzer:
         for ext in ["*.java", "*.kt", "*.swift", "*.m", "*.py", "*.js", "*.ts"]:
             for file_path in source_dir.rglob(ext):
                 try:
-                    content = file_path.read_text(errors="ignore")
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
 
                     for pattern, title, remediation, cwes in self.insecure_patterns:
                         for match in pattern.finditer(content):

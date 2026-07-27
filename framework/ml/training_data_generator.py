@@ -224,7 +224,7 @@ class TrainingDataGenerator:
 
         # Save to file
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(synthetic_data, f, indent=2)
 
         logger.info(f"Generated {num_samples} synthetic training samples at {output_path}")
@@ -257,7 +257,7 @@ class TrainingDataGenerator:
 
         # Save to file
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(training_data, f, indent=2)
 
         logger.info(f"Generated {len(training_data)} samples from app model at {path}")
@@ -267,7 +267,7 @@ class TrainingDataGenerator:
         """Save labeled training data to file."""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(labeled_events, f, indent=2)
 
         logger.info(f"Saved {len(labeled_events)} labeled events to {output_path}")
@@ -282,7 +282,7 @@ class TrainingDataGenerator:
         Returns:
             Training data dict with events
         """
-        with open(labeled_events_path, "r") as f:
+        with open(labeled_events_path, "r", encoding="utf-8") as f:
             labeled_events = json.load(f)
 
         return {"events": labeled_events, "total_samples": len(labeled_events)}

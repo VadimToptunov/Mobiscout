@@ -287,7 +287,7 @@ class FlowDiscovery:
     def export_to_json(self, output_path: Path) -> None:
         """Export flow graph to JSON"""
         graph = self.build_flow_graph()
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(graph.to_dict(), f, indent=2)
 
     def export_to_graphviz(self, output_path: Path) -> None:
@@ -314,7 +314,7 @@ class FlowDiscovery:
 
         dot.append("}")
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(dot))
 
     def _detect_edge_case(

@@ -118,7 +118,7 @@ def analyze(source: str, output: str, format: str) -> None:
     output_path = Path(output)
     export_data = analyzer.export_to_json()
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         if format == "json":
             json.dump(export_data, f, indent=2)
         else:
@@ -201,7 +201,7 @@ def scenarios(input_file: str, output: str) -> None:
 
     # Save
     output_path = Path(output)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump({"scenarios": scenarios_list}, f, default_flow_style=False)
 
     click.echo(f"\n💾 Scenarios saved to: {output_path}")
@@ -483,7 +483,7 @@ def negative(input_file: str, output: str) -> None:
 
     # Save to file
     output_path = Path(output)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         yaml.dump({"negative_test_cases": negative_tests}, f, default_flow_style=False)
 
     click.echo(f"\n💾 Negative tests saved to: {output_path}")
@@ -614,7 +614,7 @@ def complexity(source: str, output: str, format: str) -> None:
 
     # Save to file
     output_path = Path(output)
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         if format == "json":
             json.dump(result, f, indent=2)
         else:

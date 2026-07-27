@@ -185,7 +185,7 @@ def test_write_kit_writes_inventory_graph_and_tests(tmp_path, crawl_result):
     assert (tmp_path / "inventory.json").exists()
     assert (tmp_path / "graph.mmd").exists()
     assert (tmp_path / "graph.dot").exists()
-    assert json.loads((tmp_path / "graph.json").read_text())  # valid JSON graph
+    assert json.loads((tmp_path / "graph.json").read_text(encoding="utf-8"))  # valid JSON graph
     assert (tmp_path / "python_pytest").is_dir()
     assert not report.warnings
     assert any("Inventory" in line for line in report.info)

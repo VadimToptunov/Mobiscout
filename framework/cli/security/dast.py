@@ -93,7 +93,7 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
         if format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, "w") as f:
+            with open(output, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 

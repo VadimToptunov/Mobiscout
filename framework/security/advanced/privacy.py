@@ -54,7 +54,7 @@ class PrivacyComplianceChecker:
         for ext in ["*.java", "*.kt", "*.swift", "*.m", "*.py", "*.js", "*.ts"]:
             for file_path in source_dir.rglob(ext):
                 try:
-                    content = file_path.read_text(errors="ignore")
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
 
                     for log_pattern in log_patterns:
                         for match in log_pattern.finditer(content):
@@ -93,7 +93,7 @@ class PrivacyComplianceChecker:
         # Check Gradle files
         for gradle_file in source_dir.rglob("*.gradle*"):
             try:
-                content = gradle_file.read_text(errors="ignore")
+                content = gradle_file.read_text(encoding="utf-8", errors="ignore")
                 for pattern in self.tracking_patterns:
                     if pattern.search(content):
                         found_trackers.add(pattern.pattern)
@@ -104,7 +104,7 @@ class PrivacyComplianceChecker:
         podfile = source_dir / "Podfile"
         if podfile.exists():
             try:
-                content = podfile.read_text()
+                content = podfile.read_text(encoding="utf-8")
                 for pattern in self.tracking_patterns:
                     if pattern.search(content):
                         found_trackers.add(pattern.pattern)

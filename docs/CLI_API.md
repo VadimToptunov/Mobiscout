@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how to integrate the `mobiscout` CLI (from `mobile-mobiscout-test-framework`) with external tools (IDE plugins, CI/CD, etc.).
+This document describes how to integrate the `mobiscout` CLI (from the `mobiscout` package) with external tools (IDE plugins, CI/CD, etc.).
 
 ## Installation
 

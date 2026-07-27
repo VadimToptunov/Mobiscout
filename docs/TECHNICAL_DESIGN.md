@@ -953,7 +953,7 @@ def select_affected_tests(changed_files: List[str]) -> List[TestCase]:
 
 ### Unit Tests
 
-**Coverage:** 85%+
+**Coverage:** ~80% (measured)
 
 **Framework:** pytest
 

@@ -87,7 +87,7 @@ class FileUpdater:
     ) -> UpdateResult:
         """Update Python Page Object file"""
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
 
             # Create backup
             backup_path = None
@@ -154,7 +154,7 @@ class FileUpdater:
     ) -> UpdateResult:
         """Update Kotlin Page Object file"""
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
 
             # Create backup
             backup_path = None
@@ -226,7 +226,7 @@ class FileUpdater:
     ) -> UpdateResult:
         """Update Swift Page Object file"""
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
 
             # Create backup
             backup_path = None
@@ -328,7 +328,7 @@ class FileUpdater:
                 return False
 
             # Restore
-            content = backup_path.read_text()
+            content = backup_path.read_text(encoding="utf-8")
             original_path.write_text(content)
 
             # Delete backup

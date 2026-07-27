@@ -97,7 +97,7 @@ class MockStorage:
             "mocks": [mock.to_dict() for mock in mocks],
         }
 
-        with open(session_file, "w") as f:
+        with open(session_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
     def load_session(self, session_id: str) -> List[MockEntry]:
@@ -107,7 +107,7 @@ class MockStorage:
         if not session_file.exists():
             raise FileNotFoundError(f"Mock session '{session_id}' not found")
 
-        with open(session_file, "r") as f:
+        with open(session_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         return [MockEntry.from_dict(mock_data) for mock_data in data["mocks"]]
@@ -118,7 +118,7 @@ class MockStorage:
 
         for session_file in self.storage_dir.glob("*.json"):
             try:
-                with open(session_file, "r") as f:
+                with open(session_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     sessions.append(
                         {
@@ -155,7 +155,7 @@ class MockStorage:
 
     def import_session(self, input_path: Path) -> str:
         """Import a session from a file"""
-        with open(input_path, "r") as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         session_id = data["session_id"]

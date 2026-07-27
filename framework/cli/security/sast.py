@@ -124,7 +124,7 @@ def sast(
         elif format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, "w") as f:
+            with open(output, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
@@ -189,7 +189,7 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
 
     if output:
         data = [v.to_dict() for v in taint_vulns]
-        with open(output, "w") as f:
+        with open(output, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 

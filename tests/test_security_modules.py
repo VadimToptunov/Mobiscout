@@ -567,7 +567,7 @@ def process_user_input():
             analyzer.export_html(result, output_path)
 
             assert output_path.exists()
-            content = output_path.read_text()
+            content = output_path.read_text(encoding="utf-8")
             assert "SQL Injection" in content
             assert "CRITICAL" in content.upper() or "critical" in content
 

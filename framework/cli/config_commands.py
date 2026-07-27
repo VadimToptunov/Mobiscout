@@ -213,7 +213,7 @@ def show(config: Optional[Path]) -> None:
         console.print("Run [cyan]mobiscout config init[/cyan] to create one")
         raise SystemExit(1)
 
-    with open(manager.config_path, "r") as f:
+    with open(manager.config_path, "r", encoding="utf-8") as f:
         content = f.read()
 
     syntax = Syntax(content, manager.config_path.suffix[1:], theme="monokai", line_numbers=True)

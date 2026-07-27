@@ -132,7 +132,7 @@ def supply_chain(
             analyzer.export_html(result, output)
             console.print(f"\n[green]✓[/green] HTML report saved to {output}")
         else:
-            with open(output, "w") as f:
+            with open(output, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, indent=2, default=str)
             console.print(f"\n[green]✓[/green] Report saved to {output}")
 

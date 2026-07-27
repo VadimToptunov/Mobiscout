@@ -54,7 +54,7 @@ class BinarySecurityAnalyzer:
             # Check AndroidManifest.xml
             manifest_path = Path(out_dir) / "AndroidManifest.xml"
             if manifest_path.exists():
-                manifest = manifest_path.read_text()
+                manifest = manifest_path.read_text(encoding="utf-8")
 
                 # Check for debuggable flag
                 if 'android:debuggable="true"' in manifest:

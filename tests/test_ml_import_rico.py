@@ -47,7 +47,7 @@ def test_import_rico_writes_rows(runner, rico_dir, tmp_path):
     out = tmp_path / "rows.json"
     result = runner.invoke(ml, ["import-rico", "--rico-dir", str(rico_dir), "--output", str(out)])
     assert result.exit_code == 0, result.output
-    rows = json.loads(out.read_text())
+    rows = json.loads(out.read_text(encoding="utf-8"))
     labels = sorted(r["label"] for r in rows)
     assert labels == ["button", "text"]  # Toolbar (chrome) was skipped
 
@@ -61,12 +61,12 @@ def test_import_rico_merge_shipped(runner, rico_dir, tmp_path, monkeypatch):
     result = runner.invoke(ml, ["import-rico", "--rico-dir", str(rico_dir), "--merge-shipped"])
     assert result.exit_code == 0, result.output
     assert shipped.exists()
-    merged = json.loads(shipped.read_text())
+    merged = json.loads(shipped.read_text(encoding="utf-8"))
     assert {r["label"] for r in merged} == {"button", "text"}
 
     # Merging again is idempotent (exact-duplicate rows are dropped).
     runner.invoke(ml, ["import-rico", "--rico-dir", str(rico_dir), "--merge-shipped"])
-    assert len(json.loads(shipped.read_text())) == len(merged)
+    assert len(json.loads(shipped.read_text(encoding="utf-8"))) == len(merged)
 
 
 def test_import_rico_empty_dir_aborts(runner, tmp_path):

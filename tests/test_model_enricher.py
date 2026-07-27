@@ -422,7 +422,7 @@ def test_integrate_loads_existing_model_and_writes_default_output(tmp_path):
 
     out_path = config_dir / "app_model_enriched.yaml"
     assert out_path.exists()
-    written = yaml.safe_load(out_path.read_text())
+    written = yaml.safe_load(out_path.read_text(encoding="utf-8"))
     ids = {e["id"] for e in written["screens"][0]["elements"]}
     assert "user" in ids
 
@@ -437,7 +437,7 @@ def test_integrate_creates_model_from_page_objects_when_no_model_file(tmp_path):
 
     assert isinstance(result, EnrichmentResult)
     out_path = tmp_path / "config" / "app_model_enriched.yaml"
-    written = yaml.safe_load(out_path.read_text())
+    written = yaml.safe_load(out_path.read_text(encoding="utf-8"))
     names = {s["name"] for s in written["screens"]}
     assert "login" in names
     login = next(s for s in written["screens"] if s["name"] == "login")

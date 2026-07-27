@@ -90,7 +90,7 @@ def inspect(file: str) -> None:
     print_info(f"File: {file_path}")
 
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -137,7 +137,7 @@ def merge(files: tuple, output: str) -> None:
 
     for file in files:
         try:
-            with open(file, "r") as f:
+            with open(file, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, list):
                     all_data.extend(data)
@@ -151,7 +151,7 @@ def merge(files: tuple, output: str) -> None:
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(all_data, f, indent=2)
 
     print_success(f"\n✅ Merged {len(all_data)} records")
@@ -171,7 +171,7 @@ def filter_data(file: str, field: str, value: str, output: str) -> None:
     print_info(f"Filter: {field} = {value}")
 
     try:
-        with open(file, "r") as f:
+        with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -185,7 +185,7 @@ def filter_data(file: str, field: str, value: str, output: str) -> None:
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(filtered, f, indent=2)
 
         print_success(f"\n✅ Filtered {len(filtered)} / {len(data)} records")
@@ -211,7 +211,7 @@ def sample(file: str, sample_size: int, output: str, seed: Optional[int]) -> Non
         random.seed(seed)
 
     try:
-        with open(file, "r") as f:
+        with open(file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if not isinstance(data, list):
@@ -229,7 +229,7 @@ def sample(file: str, sample_size: int, output: str, seed: Optional[int]) -> Non
         output_path = Path(output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(sampled, f, indent=2)
 
         print_success(f"\n✅ Sampled {len(sampled)} / {len(data)} records")
@@ -250,7 +250,7 @@ def validate(file: str) -> None:
     print_info(f"File: {file_path}")
 
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if not isinstance(data, list):

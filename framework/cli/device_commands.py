@@ -73,7 +73,9 @@ def list(platform: str, status: str) -> None:
                 device["id"],
                 device.get("name") or "Unknown",
                 device["platform"],
-                device.get("api_level") or device.get("ios_version") or "Unknown",
+                # api_level is an int for real Android devices; Rich requires a
+                # string cell, so coerce it (an int here used to crash the command).
+                str(device.get("api_level") or device.get("ios_version") or "Unknown"),
                 f"{status_emoji} {device['status']}",
             )
 

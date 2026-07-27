@@ -50,7 +50,7 @@ def init(ci_system: str, template_type: str, output: Path) -> None:
                 return
 
         # Write template
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             f.write(template.strip() + "\n")
 
         console.print(
@@ -166,7 +166,9 @@ def validate(config_file: Path) -> None:
             issues = []
             if "name" not in config:
                 issues.append("Missing 'name' field")
-            if "on" not in config:
+            # PyYAML parses the bare `on:` key as the boolean True (YAML 1.1),
+            # so accept either spelling before flagging the trigger as missing.
+            if "on" not in config and True not in config:
                 issues.append("Missing 'on' (triggers) field")
             if "jobs" not in config:
                 issues.append("Missing 'jobs' field")

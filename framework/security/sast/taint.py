@@ -232,7 +232,7 @@ class TaintAnalyzer:
         """Analyze a file for taint flows (AST for .py, substring otherwise)."""
         self.tainted_vars = {}
         try:
-            content = Path(file_path).read_text()
+            content = Path(file_path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return []
         if str(file_path).endswith(".py"):

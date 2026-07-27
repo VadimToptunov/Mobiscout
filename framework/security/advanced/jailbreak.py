@@ -46,7 +46,7 @@ class RootJailbreakAnalyzer:
         for ext in extensions:
             for file_path in source_dir.rglob(ext):
                 try:
-                    content = file_path.read_text(errors="ignore")
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
                     if any(p.search(content) for p in patterns):
                         has_detection = True
                         break

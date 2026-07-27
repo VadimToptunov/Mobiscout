@@ -28,7 +28,7 @@ def test_run_kit_writes_full_kit(tmp_path):
     assert (tmp_path / "graph.json").exists()
     assert list((tmp_path / "python_pytest").glob("test_*.py"))
     # graph json is well-formed
-    json.loads((tmp_path / "graph.json").read_text())
+    json.loads((tmp_path / "graph.json").read_text(encoding="utf-8"))
 
 
 def test_multiple_targets(tmp_path):

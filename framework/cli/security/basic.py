@@ -173,10 +173,10 @@ def compare(app_name: str, v1_report: Path, v2_report: Path) -> None:
         console.print("[red]✗[/red] Report file(s) not found")
         raise SystemExit(1)
 
-    with open(v1_report, "r") as f:
+    with open(v1_report, "r", encoding="utf-8") as f:
         v1_data = json.load(f)
 
-    with open(v2_report, "r") as f:
+    with open(v2_report, "r", encoding="utf-8") as f:
         v2_data = json.load(f)
 
     v1_summary = v1_data["summary"]

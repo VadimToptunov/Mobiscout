@@ -26,7 +26,7 @@ class ControlFlowAnalyzer:
         findings = []
 
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
             tree = ast.parse(content)
 
             for node in ast.walk(tree):

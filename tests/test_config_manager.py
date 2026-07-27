@@ -34,7 +34,7 @@ def test_json_round_trip(tmp_path):
     cfg = MobiscoutConfig()
     cfg.set("ml.model_version", "3.1")
     cfg.to_file(path)
-    assert json.loads(path.read_text())["ml"]["model_version"] == "3.1"
+    assert json.loads(path.read_text(encoding="utf-8"))["ml"]["model_version"] == "3.1"
     assert MobiscoutConfig.from_file(path).get("ml.model_version") == "3.1"
 
 

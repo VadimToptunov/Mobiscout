@@ -30,7 +30,7 @@ class RubyVerifier(LanguageVerifier):
         issues: List[VerificationIssue] = []
 
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
 
             # Check if it's a test file
             is_test_file = "_spec.rb" in file_path.name or "_test.rb" in file_path.name

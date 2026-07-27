@@ -75,7 +75,7 @@ def test_api_analyze_writes_reports(runner, har_file, tmp_path):
     result = runner.invoke(api, ["analyze", str(har_file), "--output", str(out)])
     assert result.exit_code == 0, result.output
     assert (out / "api_calls.har").exists()
-    assertions = json.loads((out / "assertions.json").read_text())
+    assertions = json.loads((out / "assertions.json").read_text(encoding="utf-8"))
     assert isinstance(assertions, list)
 
 

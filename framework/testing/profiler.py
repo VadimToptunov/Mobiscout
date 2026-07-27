@@ -233,7 +233,7 @@ class PerformanceProfiler:
         """Save profile to file"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2)
 
     def generate_report(self, result: ProfileResult, output_path: Path) -> None:
@@ -241,7 +241,7 @@ class PerformanceProfiler:
         html = self._generate_html_report(result)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)
 
     def _generate_html_report(self, result: ProfileResult) -> str:

@@ -288,7 +288,7 @@ class SupplyChainAnalyzer:
             "sbom": self.generate_sbom(dependencies),
         }
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
 
     def analyze(self, project_path: Path, check_vulnerabilities: bool = True) -> SupplyChainResult:
@@ -382,7 +382,7 @@ class SupplyChainAnalyzer:
                 ],
             }
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(sbom, f, indent=2)
 
     def export_html(self, result: SupplyChainResult, output_path: Path) -> None:
@@ -495,5 +495,5 @@ class SupplyChainAnalyzer:
 </html>
 """
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html)

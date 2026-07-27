@@ -266,7 +266,7 @@ class GitIntegration:
         metadata = []
         if output_path.exists():
             try:
-                metadata = json.loads(output_path.read_text())
+                metadata = json.loads(output_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 metadata = []
 

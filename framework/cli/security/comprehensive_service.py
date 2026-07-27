@@ -202,22 +202,22 @@ def save_reports(scan: ComprehensiveScan, output: Path, app_name: str, platform:
         app_name: Prefixes each report filename.
         platform: Recorded in the combined summary.
     """
-    with open(output / f"{app_name}_decompile.json", "w") as f:
+    with open(output / f"{app_name}_decompile.json", "w", encoding="utf-8") as f:
         json.dump(scan.decompile_result.to_dict(), f, indent=2, default=str)
 
     if scan.sast_result:
-        with open(output / f"{app_name}_sast.json", "w") as f:
+        with open(output / f"{app_name}_sast.json", "w", encoding="utf-8") as f:
             json.dump(scan.sast_result.to_dict(), f, indent=2, default=str)
 
-    with open(output / f"{app_name}_runtime.json", "w") as f:
+    with open(output / f"{app_name}_runtime.json", "w", encoding="utf-8") as f:
         json.dump(scan.runtime_result.to_dict(), f, indent=2, default=str)
 
     if scan.supply_result:
-        with open(output / f"{app_name}_supply_chain.json", "w") as f:
+        with open(output / f"{app_name}_supply_chain.json", "w", encoding="utf-8") as f:
             json.dump(scan.supply_result.to_dict(), f, indent=2, default=str)
 
     if scan.dast_result:
-        with open(output / f"{app_name}_dast.json", "w") as f:
+        with open(output / f"{app_name}_dast.json", "w", encoding="utf-8") as f:
             json.dump(scan.dast_result.to_dict(), f, indent=2, default=str)
 
     combined = {
@@ -228,5 +228,5 @@ def save_reports(scan: ComprehensiveScan, output: Path, app_name: str, platform:
         "runtime_score": scan.runtime_score,
         "analyses_completed": [a[0] for a in scan.analyses if a[1] == "Complete"],
     }
-    with open(output / f"{app_name}_summary.json", "w") as f:
+    with open(output / f"{app_name}_summary.json", "w", encoding="utf-8") as f:
         json.dump(combined, f, indent=2)
