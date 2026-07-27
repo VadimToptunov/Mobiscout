@@ -50,7 +50,7 @@ class ElementMatcher:
 
             self.ml_model = ElementClassifier()
             self.ml_model.load_model(self.ml_model_path)
-        except (ImportError, OSError, ValueError) as e:
+        except (ImportError, OSError, ValueError, KeyError, EOFError) as e:
             print(f"Warning: Could not load ML model: {e}")
             self.ml_model = None
 

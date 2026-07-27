@@ -1,8 +1,10 @@
 """The live recorder's pure core: getevent parsing (with touch→pixel scaling),
-touchscreen discovery, and resolving a tap to a located test step."""
+touchscreen discovery, and resolving a tap to a located test step — plus the
+SessionRecorder wrapper (adb argv building, screen-size probing, tap resolution,
+the live streaming loop and the codegen emit), with adb/subprocess stubbed."""
 
 from framework.codegen.ir import ActionType
-from framework.recorder import GeteventParser, find_touch_device, steps_to_model, tap_to_step
+from framework.recorder import GeteventParser, SessionRecorder, find_touch_device, steps_to_model, tap_to_step
 from framework.recorder.getevent import Tap
 
 # One tap: down at raw (0x1f4=500, 0x384=900), then up. Panel max 1000x2000,
@@ -81,3 +83,100 @@ def test_steps_to_model_prepends_launch_and_wraps_one_case():
     steps = model.cases[0].steps
     assert steps[0].action is ActionType.LAUNCH
     assert steps[1].action is ActionType.TAP
+
+
+# --- SessionRecorder ---------------------------------------------------------
+
+
+def test_cmd_inserts_serial_when_set():
+    rec = SessionRecorder("com.myapp", serial="ABC123")
+    assert rec._cmd("shell", "wm", "size") == ["adb", "-s", "ABC123", "shell", "wm", "size"]
+
+
+def test_cmd_omits_serial_when_none():
+    rec = SessionRecorder("com.myapp", adb="/opt/adb")
+    assert rec._cmd("shell", "foo") == ["/opt/adb", "shell", "foo"]
+
+
+def test_screen_size_parses_wm_output(monkeypatch):
+    rec = SessionRecorder("com.myapp")
+    monkeypatch.setattr(rec, "_run", lambda *a: "Physical size: 1080x2340\n")
+    assert rec._screen_size() == (1080, 2340)
+
+
+def test_screen_size_unparseable_returns_zero(monkeypatch):
+    rec = SessionRecorder("com.myapp")
+    monkeypatch.setattr(rec, "_run", lambda *a: "no size here\n")
+    assert rec._screen_size() == (0, 0)
+
+
+def test_record_tap_appends_resolved_step(monkeypatch):
+    rec = SessionRecorder("com.myapp")
+    monkeypatch.setattr(rec, "_page_source", lambda: _XML)
+    step = rec._record_tap(Tap(250, 440))
+    assert step is not None
+    assert rec.steps == [step]
+    assert rec.skipped == 0
+    assert step.selector.value == "com.myapp:id/login"
+
+
+def test_record_tap_counts_skips_when_unresolved(monkeypatch):
+    rec = SessionRecorder("com.myapp")
+    monkeypatch.setattr(rec, "_page_source", lambda: _XML)
+    step = rec._record_tap(Tap(10, 10))  # frame has no locator
+    assert step is None
+    assert rec.steps == []
+    assert rec.skipped == 1
+
+
+class _FakePopen:
+    """Minimal stand-in for the getevent subprocess: yields canned lines."""
+
+    def __init__(self, lines):
+        self.stdout = iter(lines)
+        self.terminated = False
+
+    def terminate(self):
+        self.terminated = True
+
+
+def test_record_streams_taps_to_steps(monkeypatch):
+    rec = SessionRecorder("com.myapp")
+    parser = GeteventParser(touch_max_x=1000, touch_max_y=2000, screen_w=500, screen_h=1000)
+    monkeypatch.setattr(rec, "_make_parser", lambda: (parser, "/dev/input/event1"))
+    monkeypatch.setattr(rec, "_page_source", lambda: _XML)
+
+    fake = _FakePopen(_TAP_LINES)
+    monkeypatch.setattr("framework.recorder.recorder.subprocess.Popen", lambda *a, **k: fake)
+
+    seen = []
+    rec.record(on_step=seen.append)
+
+    # The one tap (raw 500,900 -> scaled 250,450) resolves to the login button.
+    assert len(rec.steps) == 1
+    assert rec.steps[0].selector.value == "com.myapp:id/login"
+    assert seen == rec.steps
+    assert fake.terminated  # process torn down in finally
+
+
+def test_emit_no_steps_writes_nothing(tmp_path):
+    rec = SessionRecorder("com.myapp")
+    summary = rec.emit(str(tmp_path / "out"), target="python_pytest")
+    assert summary["steps"] == 0
+    assert summary["target"] == "python_pytest"
+    # No target subdirectory created when nothing was recorded.
+    assert not (tmp_path / "out" / "python_pytest").exists()
+
+
+def test_emit_writes_test_files_from_steps(tmp_path):
+    rec = SessionRecorder("com.myapp")
+    rec.steps = [tap_to_step(_XML, x=250, y=440)]
+    out = tmp_path / "out"
+    summary = rec.emit(str(out), target="python_pytest")
+    assert summary["steps"] == 1
+    target_dir = out / "python_pytest"
+    assert target_dir.exists()
+    written = list(target_dir.glob("*"))
+    assert written  # emitter produced at least one file
+    combined = "\n".join(p.read_text(encoding="utf-8") for p in written if p.is_file())
+    assert "com.myapp" in combined
