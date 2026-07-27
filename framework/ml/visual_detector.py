@@ -61,7 +61,10 @@ class VisualDetector:
             raise RuntimeError("pytesseract not available")
 
         # Load image with context manager to ensure proper cleanup
-        with Image.open(image_path) as image:
+        with Image.open(image_path) as opened:
+            # Image.open yields an ImageFile; crop() returns a base Image, so type
+            # the working handle as the base class to allow the reassignment.
+            image: Image.Image = opened
             # Crop to region if specified
             if region:
                 x, y, w, h = region

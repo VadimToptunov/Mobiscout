@@ -15,7 +15,7 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, cast
 
 
 class WCAGLevel(Enum):
@@ -388,9 +388,12 @@ class AccessibilityScanner:
                 if not counted:
                     return None
                 counted.sort(reverse=True)  # by pixel count, descending
-                bg = counted[0][1]
+                # The image is converted to RGB above, so every colour is an
+                # (r, g, b) tuple; getcolors' type is broader (int | tuple), so
+                # pin it for the numeric distance below.
+                bg = cast("tuple[int, ...]", counted[0][1])
                 fg = max(
-                    (color for _, color in counted),
+                    (cast("tuple[int, ...]", color) for _, color in counted),
                     key=lambda c: sum((a - b) ** 2 for a, b in zip(c, bg)),
                     default=bg,
                 )
