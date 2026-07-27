@@ -65,7 +65,7 @@ def test_scan_writes_report_and_encodes_severity_in_exit_code(runner, tmp_path):
     # Violations present -> non-zero exit (1 serious / 2 critical), never a crash.
     assert result.exit_code in (1, 2)
     assert report.exists()
-    data = json.loads(report.read_text())
+    data = json.loads(report.read_text(encoding="utf-8"))
     assert data["app_name"] == "MyApp" and data["screen_name"] == "Home"
     assert data["summary"]["violations"] == len(data["violations"]) > 0
 
@@ -82,7 +82,7 @@ def test_scan_html_format_writes_report(runner, tmp_path):
     result = runner.invoke(a11y, ["scan", _hier_file(tmp_path), "-a", "A", "-s", "S", "-o", str(report), "-f", "html"])
     _no_crash(result)
     assert report.exists()
-    assert "<html" in report.read_text().lower()
+    assert "<html" in report.read_text(encoding="utf-8").lower()
 
 
 def test_summary_reads_scan_report(runner, tmp_path):

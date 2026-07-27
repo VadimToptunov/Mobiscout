@@ -139,7 +139,7 @@ def test_generate_training_data_from_app_model(runner, tmp_path):
     _no_crash(result)
     assert result.exit_code == 0
     assert out.exists()
-    rows = json.loads(out.read_text())
+    rows = json.loads(out.read_text(encoding="utf-8"))
     assert len(rows) == 2
     # Each extracted element was labelled with an inferred element_type.
     assert all("element_type" in row for row in rows)
@@ -169,7 +169,7 @@ def test_import_rico_extracts_and_writes_rows(runner, tmp_path):
     _no_crash(result)
     assert result.exit_code == 0
     assert out.exists()
-    rows = json.loads(out.read_text())
+    rows = json.loads(out.read_text(encoding="utf-8"))
     labels = {r["label"] for r in rows}
     # Mapped leaf roles are extracted; the Toolbar container is not.
     assert labels == {"button", "input", "image"}

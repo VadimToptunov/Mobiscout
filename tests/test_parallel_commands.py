@@ -43,7 +43,7 @@ def test_create_shards_partitions_all_tests(runner, tmp_path):
     shard_files = sorted(out.glob("shard_*.txt"))
     assert len(shard_files) == 3
     # Every discovered test appears in exactly one shard file.
-    written = "\n".join(f.read_text() for f in shard_files)
+    written = "\n".join(f.read_text(encoding="utf-8") for f in shard_files)
     for i in range(6):
         assert f"test_{i}" in written
 

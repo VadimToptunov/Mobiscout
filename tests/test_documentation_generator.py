@@ -45,10 +45,10 @@ def _run(src, out, fmt=DocFormat.MARKDOWN, **kw):
 def test_markdown_index_and_module(src, tmp_path):
     out = tmp_path / "docs"
     _run(src, out, title="My API")
-    index = (out / "index.md").read_text()
+    index = (out / "index.md").read_text(encoding="utf-8")
     assert "# My API" in index
     assert "[sample](sample.md)" in index  # TOC entry
-    module = (out / "sample.md").read_text()
+    module = (out / "sample.md").read_text(encoding="utf-8")
     assert "Sample module docstring." in module
     assert "greet" in module and "Thing" in module
 
@@ -69,7 +69,7 @@ def test_include_private(src, tmp_path):
 def test_no_toc(src, tmp_path):
     out = tmp_path / "d"
     _run(src, out, include_toc=False)
-    assert "Table of Contents" not in (out / "index.md").read_text()
+    assert "Table of Contents" not in (out / "index.md").read_text(encoding="utf-8")
 
 
 def test_json_format(src, tmp_path):
@@ -77,7 +77,7 @@ def test_json_format(src, tmp_path):
     _run(src, out, fmt=DocFormat.JSON)
     files = list(out.glob("*.json"))
     assert files
-    data = json.loads(files[0].read_text())
+    data = json.loads(files[0].read_text(encoding="utf-8"))
     assert data  # some structured content emitted
 
 
@@ -86,7 +86,7 @@ def test_html_format(src, tmp_path):
     _run(src, out, fmt=DocFormat.HTML)
     html = list(out.glob("*.html"))
     assert html
-    assert "<html" in html[0].read_text().lower()
+    assert "<html" in html[0].read_text(encoding="utf-8").lower()
 
 
 def test_sphinx_format(src, tmp_path):

@@ -52,7 +52,7 @@ def test_runtime_writes_json_report(runner, tmp_path):
     _no_crash(result)
     # Exit is 1 (weak) but the report must still be written before exiting.
     assert out.exists()
-    assert out.read_text().strip().startswith("{")
+    assert out.read_text(encoding="utf-8").strip().startswith("{")
 
 
 def test_runtime_writes_html_report(runner, tmp_path):

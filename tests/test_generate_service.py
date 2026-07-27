@@ -102,7 +102,7 @@ def test_generate_suite_writes_page_objects_and_integration_tests(tmp_path, mode
     test_files = list((tmp_path / "tests" / "integration").glob("test_*.py"))
     assert test_files
     # The emitted integration test is valid Python for the Page Object it targets.
-    source = test_files[0].read_text()
+    source = test_files[0].read_text(encoding="utf-8")
     compile(source, str(test_files[0]), "exec")
     assert "class TestHomeScreen" in source
     assert not report.nothing_generated

@@ -65,7 +65,7 @@ def test_pass_rate_zero_when_empty():
 def test_html_report_reflects_suite(tmp_path):
     out = tmp_path / "nested" / "report.html"
     HTMLReportGenerator().generate(_suite(), out)
-    html = out.read_text()
+    html = out.read_text(encoding="utf-8")
     assert "Checkout Suite" in html
     # summary card values
     assert ">5</div>" in html  # total
@@ -80,7 +80,7 @@ def test_html_report_reflects_suite(tmp_path):
 def test_markdown_report_reflects_suite(tmp_path):
     out = tmp_path / "report.md"
     MarkdownReportGenerator().generate(_suite(), out)
-    md = out.read_text()
+    md = out.read_text(encoding="utf-8")
     assert "# Test Report: Checkout Suite" in md
     assert "**Pass Rate:** 40.0%" in md
     assert "## ❌ Failed Tests" in md
@@ -93,7 +93,7 @@ def test_markdown_report_reflects_suite(tmp_path):
 def test_json_report_is_accurate(tmp_path):
     out = tmp_path / "report.json"
     JSONReportGenerator().generate(_suite(), out)
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["name"] == "Checkout Suite"
     assert data["summary"]["total"] == 5
     assert data["summary"]["passed"] == 2
@@ -113,8 +113,8 @@ def test_report_generator_dispatches_by_format(tmp_path):
     json_out = tmp_path / "r.json"
     gen.generate(suite, html_out, ReportFormat.HTML)
     gen.generate(suite, json_out, ReportFormat.JSON)
-    assert html_out.exists() and "<html" in html_out.read_text()
-    assert json.loads(json_out.read_text())["name"] == "Checkout Suite"
+    assert html_out.exists() and "<html" in html_out.read_text(encoding="utf-8")
+    assert json.loads(json_out.read_text(encoding="utf-8"))["name"] == "Checkout Suite"
 
 
 def test_report_generator_rejects_unsupported_format(tmp_path):

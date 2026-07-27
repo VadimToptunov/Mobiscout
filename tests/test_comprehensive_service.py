@@ -117,7 +117,7 @@ def test_save_reports_writes_only_the_analyses_that_ran(stub_analyzers, tmp_path
     assert not (out / "MyApp_supply_chain.json").exists()
     assert not (out / "MyApp_dast.json").exists()
 
-    summary = json.loads((out / "MyApp_summary.json").read_text())
+    summary = json.loads((out / "MyApp_summary.json").read_text(encoding="utf-8"))
     assert summary["app_name"] == "MyApp"
     assert "Supply Chain" not in summary["analyses_completed"]
     assert "SAST" in summary["analyses_completed"]

@@ -160,7 +160,7 @@ def test_save_results_writes_json(tmp_path):
     )
     out = tmp_path / "nested" / "result.json"
     tester.save_results(result, out)
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["profile_name"] == "Smoke Test"
     assert data["total_tests"] == 1
     assert data["throughput"] == 0.2

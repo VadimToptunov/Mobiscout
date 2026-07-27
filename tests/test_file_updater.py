@@ -26,21 +26,21 @@ def test_update_python_selector_rewrites_file_and_backs_up(tmp_path):
         tmp_path / "login_page.py",
         "class LoginPage:\n" '    login_button = ("id", "login_btn")\n',
     )
-    original = po.read_text()
+    original = po.read_text(encoding="utf-8")
 
     result = FileUpdater(create_backup=True).update_selector(
         po, "login_button", ("id", "login_btn"), ("accessibility_id", "login"), 0.93
     )
 
     assert result.success is True
-    new_content = po.read_text()
+    new_content = po.read_text(encoding="utf-8")
     assert 'login_button = ("accessibility_id", "login")' in new_content
     assert "# Auto-healed:" in new_content
     assert "# Fallback: ('id', 'login_btn')" in new_content
     assert "confidence: 0.93" in new_content
     # backup exists and preserves the pre-heal file verbatim
     assert result.backup_path is not None and result.backup_path.exists()
-    assert result.backup_path.read_text() == original
+    assert result.backup_path.read_text(encoding="utf-8") == original
 
 
 def test_update_python_no_backup_when_disabled(tmp_path):
@@ -59,7 +59,7 @@ def test_selector_value_with_backslash_inserted_literally(tmp_path):
     tricky = 'new UiSelector().text("A\\1B")'
     result = FileUpdater(create_backup=False).update_selector(po, "el", ("id", "old"), ("uiautomator", tricky), 0.8)
     assert result.success is True
-    assert tricky in po.read_text()
+    assert tricky in po.read_text(encoding="utf-8")
 
 
 def test_missing_file_reports_failure(tmp_path):
@@ -77,11 +77,11 @@ def test_unsupported_extension_reports_failure(tmp_path):
 
 def test_pattern_not_found_reports_failure_and_leaves_file(tmp_path):
     po = _write(tmp_path / "p.py", "class X:\n    pass\n")
-    before = po.read_text()
+    before = po.read_text(encoding="utf-8")
     result = FileUpdater(create_backup=False).update_selector(po, "ghost", ("id", "missing"), ("id", "new"), 0.9)
     assert result.success is False
     assert "Selector pattern not found" in result.error_message
-    assert po.read_text() == before
+    assert po.read_text(encoding="utf-8") == before
 
 
 def test_update_kotlin_selector(tmp_path):
@@ -90,7 +90,7 @@ def test_update_kotlin_selector(tmp_path):
         po, "loginButton", ("id", "login_btn"), ("accessibility_id", "login"), 0.77
     )
     assert result.success is True
-    content = po.read_text()
+    content = po.read_text(encoding="utf-8")
     assert 'val loginButton = MobileBy.AccessibilityId("login")' in content
     assert "// Auto-healed:" in content
 
@@ -104,20 +104,20 @@ def test_update_swift_selector(tmp_path):
         po, "loginButton", ("accessibility_id", "login_btn"), ("accessibility_id", "login"), 0.6
     )
     assert result.success is True
-    content = po.read_text()
+    content = po.read_text(encoding="utf-8")
     assert 'matching(identifier: "login")' in content
     assert "// Auto-healed:" in content
 
 
 def test_restore_backup_round_trips(tmp_path):
     po = _write(tmp_path / "p.py", '    el = ("id", "old")\n')
-    original = po.read_text()
+    original = po.read_text(encoding="utf-8")
     updater = FileUpdater(create_backup=True)
     result = updater.update_selector(po, "el", ("id", "old"), ("id", "new"), 0.9)
-    assert result.success and po.read_text() != original
+    assert result.success and po.read_text(encoding="utf-8") != original
 
     assert updater.restore_backup(result.backup_path) is True
-    assert po.read_text() == original
+    assert po.read_text(encoding="utf-8") == original
     # backup consumed on successful restore
     assert not result.backup_path.exists()
 

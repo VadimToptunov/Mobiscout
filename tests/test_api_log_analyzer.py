@@ -96,7 +96,7 @@ def test_export_har(tmp_path):
     a = _analyzer([_call("/api/users", status=200, dur=120)])
     out = tmp_path / "out.har"
     a.export_har(out)
-    har = json.loads(out.read_text())
+    har = json.loads(out.read_text(encoding="utf-8"))
     assert har["log"]["creator"]["name"] == "Mobiscout"
     assert har["log"]["entries"][0]["request"]["url"] == "/api/users"
 

@@ -70,6 +70,6 @@ def test_auto_update_promotes_a_repeated_fallback_to_primary(tmp_path):
             fallback_index=0,
             platform="android",
         )
-    assert "id/new_login" in page.read_text()  # promoted to primary
+    assert "id/new_login" in page.read_text(encoding="utf-8")  # promoted to primary
     assert (tmp_path / "login_page.py.bak").exists()  # original backed up
     assert t.page_object_updates  # recorded

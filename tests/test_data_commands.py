@@ -42,7 +42,7 @@ def test_generate_writes_requested_count(runner, tmp_path, data_type):
     _no_crash(result)
     assert result.exit_code == 0, result.output
     assert out.exists()
-    records = json.loads(out.read_text())
+    records = json.loads(out.read_text(encoding="utf-8"))
     assert isinstance(records, list) and len(records) == 7
     # Every record is a non-empty dict (a real generated dataclass, not None).
     assert all(isinstance(r, dict) and r for r in records)
@@ -55,8 +55,8 @@ def test_generate_seed_is_reproducible(runner, tmp_path):
         runner.invoke(data, ["generate", "-t", "user", "-c", "5", "-o", str(out), "-s", "123"])
     # Same seed -> identical seed-derived fields (ids/names/emails). The only
     # non-deterministic field is metadata.created_at (wall clock), so drop it.
-    ids_a = [(r["id"], r["email"], r["date_of_birth"]) for r in json.loads(a.read_text())]
-    ids_b = [(r["id"], r["email"], r["date_of_birth"]) for r in json.loads(b.read_text())]
+    ids_a = [(r["id"], r["email"], r["date_of_birth"]) for r in json.loads(a.read_text(encoding="utf-8"))]
+    ids_b = [(r["id"], r["email"], r["date_of_birth"]) for r in json.loads(b.read_text(encoding="utf-8"))]
     assert ids_a == ids_b
 
 
@@ -90,7 +90,7 @@ def test_merge_concatenates_all_records(runner, tmp_path):
     result = runner.invoke(data, ["merge", f1, f2, "-o", str(out)])
     _no_crash(result)
     assert result.exit_code == 0
-    merged = json.loads(out.read_text())
+    merged = json.loads(out.read_text(encoding="utf-8"))
     assert [r["i"] for r in merged] == [1, 2, 3]
 
 
@@ -99,7 +99,7 @@ def test_merge_wraps_single_object_file(runner, tmp_path):
     out = tmp_path / "merged.json"
     result = runner.invoke(data, ["merge", f1, "-o", str(out)])
     _no_crash(result)
-    assert json.loads(out.read_text()) == [{"i": 1}]
+    assert json.loads(out.read_text(encoding="utf-8")) == [{"i": 1}]
 
 
 def test_filter_keeps_only_matching_records(runner, tmp_path):
@@ -111,7 +111,7 @@ def test_filter_keeps_only_matching_records(runner, tmp_path):
     result = runner.invoke(data, ["filter-data", src, "-f", "status", "-v", "active", "-o", str(out)])
     _no_crash(result)
     assert result.exit_code == 0
-    filtered = json.loads(out.read_text())
+    filtered = json.loads(out.read_text(encoding="utf-8"))
     assert len(filtered) == 2 and all(r["status"] == "active" for r in filtered)
 
 
@@ -121,7 +121,7 @@ def test_sample_returns_subset_of_requested_size(runner, tmp_path):
     result = runner.invoke(data, ["sample", src, "-n", "5", "-o", str(out), "-s", "1"])
     _no_crash(result)
     assert result.exit_code == 0
-    sampled = json.loads(out.read_text())
+    sampled = json.loads(out.read_text(encoding="utf-8"))
     assert len(sampled) == 5
     # Sampled records are a real subset of the source.
     source_indices = set(range(20))

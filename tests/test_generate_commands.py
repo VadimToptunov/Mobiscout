@@ -96,7 +96,7 @@ def test_pages_generates_page_objects(runner, tmp_path, model):
     assert result.exit_code == 0
     generated = list(out.rglob("*.py"))
     assert generated, "no page objects written"
-    assert "LoginScreen" in generated[0].read_text() or "login" in generated[0].name
+    assert "LoginScreen" in generated[0].read_text(encoding="utf-8") or "login" in generated[0].name
 
 
 def test_pages_bad_model_aborts(runner, tmp_path):
@@ -123,7 +123,7 @@ def test_features_generates_feature_files(runner, tmp_path, model):
     assert result.exit_code == 0
     features = list(out.rglob("*.feature"))
     assert features, "no feature files written"
-    assert "Feature" in features[0].read_text()
+    assert "Feature" in features[0].read_text(encoding="utf-8")
 
 
 def test_api_tests_from_model(runner, tmp_path, model):
@@ -163,6 +163,6 @@ def test_api_review_writes_context_sheet(runner, tmp_path):
     _no_crash(result)
     assert result.exit_code == 0
     assert out.exists()
-    text = out.read_text()
+    text = out.read_text(encoding="utf-8")
     # Both endpoints are inventoried in the markdown context sheet.
     assert "/pets" in text

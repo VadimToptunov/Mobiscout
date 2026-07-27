@@ -91,7 +91,7 @@ def test_save_profile_writes_json(profiler, tmp_path):
     result = ProfileResult("t.py", now, now, 0.5)
     out = tmp_path / "sub" / "profile.json"
     profiler.save_profile(result, out)
-    assert json.loads(out.read_text())["test_path"] == "t.py"
+    assert json.loads(out.read_text(encoding="utf-8"))["test_path"] == "t.py"
 
 
 def test_generate_report_writes_html(profiler, tmp_path):
@@ -99,6 +99,6 @@ def test_generate_report_writes_html(profiler, tmp_path):
     result = ProfileResult("cool_test.py", now, now, 0.5, time_profile={"success": True})
     out = tmp_path / "report.html"
     profiler.generate_report(result, out)
-    html = out.read_text()
+    html = out.read_text(encoding="utf-8")
     assert "<!DOCTYPE html>" in html
     assert "cool_test.py" in html

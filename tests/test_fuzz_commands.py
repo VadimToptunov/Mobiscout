@@ -36,7 +36,7 @@ def test_generate_writes_json_file(runner, tmp_path):
     assert result.exit_code == 0
     assert out.exists()
 
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert isinstance(data, list) and len(data) == 5
     # Every serialized input carries the fields the command promises.
     for entry in data:
@@ -68,7 +68,7 @@ def test_ui_fuzz_is_flagged_simulated_and_saves_results(runner, tmp_path):
     assert result.exit_code == 0
     assert "SIMULATED" in result.output
 
-    saved = json.loads(out.read_text())
+    saved = json.loads(out.read_text(encoding="utf-8"))
     assert saved["target"] == "username_field"
     assert saved["statistics"]["total_inputs"] == 5
     # Simulated run => no fabricated crashes.
@@ -86,7 +86,7 @@ def test_api_fuzz_reports_stats(runner, tmp_path, monkeypatch):
     _no_crash(result)
     assert result.exit_code == 0
 
-    saved = json.loads(out.read_text())
+    saved = json.loads(out.read_text(encoding="utf-8"))
     assert saved["total_requests"] == 5
     assert saved["errors"] == 0
     assert saved["crashes"] == 0
@@ -119,7 +119,7 @@ def test_campaign_from_config_writes_report(runner, tmp_path):
     assert result.exit_code == 0
     assert out.exists()
 
-    report = json.loads(out.read_text())
+    report = json.loads(out.read_text(encoding="utf-8"))
     assert "ui" in report
     assert report["ui"]["total_inputs"] == 50  # one text_field target * 50 inputs
 
@@ -136,7 +136,7 @@ def test_campaign_default_targets(runner, tmp_path, monkeypatch):
     _no_crash(result)
     assert result.exit_code == 0
     assert out.exists()
-    report = json.loads(out.read_text())
+    report = json.loads(out.read_text(encoding="utf-8"))
     assert "ui" in report and "api" in report
 
 

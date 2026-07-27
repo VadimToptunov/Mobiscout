@@ -56,7 +56,7 @@ def test_configure_slack_persists(runner, config_file):
     _no_crash(result)
     assert result.exit_code == 0
     assert "Slack webhook configured" in result.output
-    saved = json.loads(config_file.read_text())
+    saved = json.loads(config_file.read_text(encoding="utf-8"))
     assert saved["notification_slack_webhook"] == "https://hooks.slack.test/xyz"
 
 

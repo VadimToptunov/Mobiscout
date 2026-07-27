@@ -79,7 +79,7 @@ def test_run_renders_results_and_saves_json(runner, tmp_path, monkeypatch):
     assert "Total Tests" in result.output
     saved = out / "load_test_results.json"
     assert saved.exists()
-    assert json.loads(saved.read_text())["total_tests"] == 10
+    assert json.loads(saved.read_text(encoding="utf-8"))["total_tests"] == 10
 
 
 def test_run_with_zero_tests_does_not_crash(runner, tmp_path, monkeypatch):
@@ -122,7 +122,7 @@ def test_profile_runs_real_profiler(runner, tmp_path):
     assert result.exit_code == 0
     assert "Profile Results" in result.output
     assert out.exists()
-    saved = json.loads(out.read_text())
+    saved = json.loads(out.read_text(encoding="utf-8"))
     assert "duration_seconds" in saved
 
 

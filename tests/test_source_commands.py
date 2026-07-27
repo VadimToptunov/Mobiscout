@@ -46,7 +46,7 @@ def test_source_analyze_finds_composable_and_endpoint(runner, project, tmp_path)
     result = runner.invoke(source, ["analyze", str(project), "--output", str(out)])
     assert result.exit_code == 0, result.output
 
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["files_analyzed"] == 1
     composables = {s.get("composable_name") for s in data["screens"]}
     assert "LoginScreen" in composables

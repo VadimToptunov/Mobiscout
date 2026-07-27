@@ -94,7 +94,7 @@ def test_strings_writes_output_file(runner, tmp_path):
     # Only written when strings were found; the URL guarantees at least one.
     if "Strings saved" in result.output:
         assert out.exists()
-        assert out.read_text()
+        assert out.read_text(encoding="utf-8")
 
 
 def test_strings_missing_file_exits_one(runner, tmp_path):
