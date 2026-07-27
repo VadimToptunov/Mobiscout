@@ -13,9 +13,9 @@ with no extra crawling.
 
 from __future__ import annotations
 
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass
-from typing import List
+from typing import Dict, List
 
 from framework.crawler.graph import InteractionGraph
 
@@ -30,22 +30,25 @@ class Invariant:
     message: str
 
 
-def _can_reach(graph: InteractionGraph, src: int, dst: int) -> bool:
-    """Is ``dst`` reachable from ``src`` following directed transitions?"""
-    if src == dst:
-        return True
-    adj = graph._adj()
-    seen = {src}
-    q = deque([src])
+def _can_reach_entry(graph: InteractionGraph) -> set:
+    """The set of node ids that have a path back to the entry. Computed with a
+    single reverse-BFS: reverse every edge once and BFS outward from the entry, so
+    a node can reach the entry iff it is reverse-reachable from it. This replaces a
+    per-node forward BFS (O(V·(V+E))) with one O(V+E) traversal."""
+    if graph.entry is None:
+        return set()
+    reverse: Dict[int, List[int]] = defaultdict(list)
+    for e in graph.edges:
+        reverse[e.dst].append(e.src)
+    reachable = {graph.entry}
+    q = deque([graph.entry])
     while q:
         cur = q.popleft()
-        for edge in adj.get(cur, []):
-            if edge.dst == dst:
-                return True
-            if edge.dst not in seen:
-                seen.add(edge.dst)
-                q.append(edge.dst)
-    return False
+        for src in reverse.get(cur, []):
+            if src not in reachable:
+                reachable.add(src)
+                q.append(src)
+    return reachable
 
 
 def check_invariants(graph: InteractionGraph) -> List[Invariant]:
@@ -76,10 +79,10 @@ def check_invariants(graph: InteractionGraph) -> List[Invariant]:
             )
         )
 
-    # Screens from which the entry (login/home) can't be reached again.
-    no_return = [
-        n.id for n in graph.nodes if n.depth >= 0 and not n.is_entry and not _can_reach(graph, n.id, graph.entry)
-    ]
+    # Screens from which the entry (login/home) can't be reached again — computed
+    # from a single reverse-BFS rather than a forward BFS per node.
+    can_return = _can_reach_entry(graph)
+    no_return = [n.id for n in graph.nodes if n.depth >= 0 and not n.is_entry and n.id not in can_return]
     if no_return:
         out.append(
             Invariant(

@@ -4,6 +4,7 @@ Selector Optimizer
 Optimizes and improves existing selectors.
 """
 
+import re
 from typing import Any, Dict, List, Tuple
 
 from framework.model.app_model import Selector, SelectorStability as ModelStability
@@ -38,24 +39,26 @@ class SelectorOptimizer:
         return selector
 
     def _optimize_xpath(self, xpath: str) -> str:
-        """Optimize XPath expression"""
+        """Optimize an XPath expression — conservatively, without changing which
+        element it matches.
+
+        The only safe simplification is dropping a *trailing* positional ``[1]``:
+        the default "first match" that Appium/Selenium already return, so
+        ``//a/b/c/d/e[1]`` -> ``//a/b/c/d/e`` and ``//a/b[@x='y'][1]`` ->
+        ``//a/b[@x='y']`` locate the same node. We deliberately do NOT:
+
+        * truncate a deep path to its last couple of segments (``//a/b/c/d`` ->
+          ``//c/d``) — that broadens the locator to a different, usually larger
+          node-set and silently matches the wrong element; and
+        * blanket-``replace("[1]", "")`` — that corrupts multi-digit indices
+          (``[10]`` -> ``0]``) and strips meaningful mid-path predicates.
+
+        The ``\\[1\\]$`` pattern matches only a standalone ``[1]`` that is the whole
+        final predicate: it never touches ``[10]``/``[12]`` or a ``[1]`` that sits
+        mid-path (``//div[1]/span`` is left untouched)."""
         if not xpath:
             return xpath
-
-        # Try to simplify XPath
-        optimized_xpath = xpath
-
-        # Remove leading // if followed by specific path
-        if xpath.startswith("//") and xpath.count("/") > 3:
-            # Keep just the last 2 levels
-            parts = xpath.split("/")
-            if len(parts) > 3:
-                optimized_xpath = "//" + "/".join(parts[-2:])
-
-        # Remove index if it's [1] (first element, default)
-        optimized_xpath = optimized_xpath.replace("[1]", "")
-
-        return optimized_xpath
+        return re.sub(r"\[1\]$", "", xpath)
 
     def analyze_selectors(self, selectors: List[Selector]) -> Dict[str, Any]:
         """

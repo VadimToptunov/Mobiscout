@@ -23,47 +23,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Deque, List, Optional, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
+from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen
 from framework.crawler.parse import parse_screen
 from framework.utils.logger import get_logger
 
 logger = get_logger(__name__)
-
-
-def _sample_value(element: CrawlElement) -> str:
-    """A realistic value for a form field, inferred from its label/id/class — so the
-    crawl can *fill and submit* forms, not stall at the first text field."""
-    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
-    if "email" in hint or "e-mail" in hint:
-        return "test@example.com"
-    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
-        return "Password123!"
-    if any(k in hint for k in ("phone", "tel", "mobile")):
-        return "1234567890"
-    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
-        return "10"
-    if "search" in hint or "query" in hint:
-        return "test"
-    if "name" in hint:
-        return "Test User"
-    return "Test"
-
-
-def _invalid_value(element: CrawlElement) -> str:
-    """A deliberately-invalid value for a form field, to exercise the *negative*
-    (validation-error) branch. An empty string means "no strongly-typed rule
-    matched, so there's no meaningful invalid value to type" — the caller skips
-    the field rather than typing nothing."""
-    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
-    if "email" in hint or "e-mail" in hint:
-        return "not-an-email"
-    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
-        return "1"  # too short to satisfy any real password policy
-    if any(k in hint for k in ("phone", "tel", "mobile")):
-        return "abc"  # letters where digits are required
-    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
-        return "-1"  # negative where a positive quantity is required
-    return ""
 
 
 if TYPE_CHECKING:
@@ -129,30 +94,6 @@ _ROLE_PRIORITY_DEFAULT = 3
 # Beyond this many structurally-identical siblings (a list of rows), tapping more
 # just re-opens the same detail template with different data — so cap the queue.
 _SIBLING_CAP = 3
-
-# Button labels that submit a form — the control whose tap commits typed input.
-# Used to find the submit control so a form can be probed with invalid data (the
-# negative branch), not only filled and left. "pay"/"buy" are deliberately absent
-# (blocklisted — a negative probe must never complete a real purchase).
-_SUBMIT_LABELS = (
-    "submit",
-    "login",
-    "log in",
-    "sign in",
-    "signin",
-    "sign up",
-    "signup",
-    "register",
-    "continue",
-    "next",
-    "confirm",
-    "send",
-    "save",
-    "apply",
-    "exchange",
-    "transfer",
-    "done",
-)
 
 
 @dataclass

@@ -27,6 +27,7 @@ from typing import Dict, List, Optional, Tuple
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
+from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
 from framework.crawler.to_codegen import _owned, selector_for
 
 
@@ -81,13 +82,22 @@ class InteractionGraph:
     nodes: List[GraphNode] = field(default_factory=list)
     edges: List[GraphEdge] = field(default_factory=list)
     entry: Optional[int] = None
+    # Adjacency is derived from ``edges`` (immutable once the graph is built) and
+    # read by nearly every analysis (dead_ends, cycles, shortest paths, edge
+    # coverage, depth, metrics, invariants), so it is built once and cached rather
+    # than rebuilt on each call. Excluded from init/repr/eq — it's pure derived state.
+    _adj_cache: Optional[Dict[int, List[GraphEdge]]] = field(default=None, init=False, repr=False, compare=False)
 
     # ---- adjacency helpers -------------------------------------------------
     def _adj(self) -> Dict[int, List[GraphEdge]]:
-        adj: Dict[int, List[GraphEdge]] = defaultdict(list)
-        for e in self.edges:
-            adj[e.src].append(e)
-        return adj
+        """Source-indexed adjacency, computed once and reused. Callers only read
+        via ``.get(...)`` (never index-assign), so the shared dict is safe."""
+        if self._adj_cache is None:
+            adj: Dict[int, List[GraphEdge]] = defaultdict(list)
+            for e in self.edges:
+                adj[e.src].append(e)
+            self._adj_cache = adj
+        return self._adj_cache
 
     def _node(self, node_id: int) -> Optional[GraphNode]:
         return next((n for n in self.nodes if n.id == node_id), None)
@@ -110,29 +120,65 @@ class InteractionGraph:
         return deg.most_common(k)
 
     def cycles(self) -> List[List[int]]:
-        """Simple cycles via DFS back-edges (deduplicated by rotation)."""
+        """Cyclic strongly-connected components, each returned as its member node
+        ids. Computed with an iterative Tarjan SCC pass, which (unlike the old
+        recursive DFS back-edge walk with a single global ``visited`` set) finds
+        *every* cycle — including ones reachable only through an already-visited
+        node — and never overflows the recursion stack on a deep graph. A component
+        is cyclic iff it has more than one node, or a single node with a self-loop.
+        """
         adj = self._adj()
-        found: List[List[int]] = []
-        seen = set()
+        index_of: Dict[int, int] = {}
+        lowlink: Dict[int, int] = {}
+        on_stack: set = set()
+        scc_stack: List[int] = []
+        sccs: List[List[int]] = []
+        counter = 0
 
-        def dfs(node: int, stack: List[int], onstack: set) -> None:
-            for e in adj.get(node, []):
-                if e.dst in onstack:
-                    cyc = stack[stack.index(e.dst) :]
-                    key = frozenset(cyc)
-                    if key not in seen:
-                        seen.add(key)
-                        found.append(cyc + [e.dst])
-                elif e.dst not in visited:
-                    visited.add(e.dst)
-                    dfs(e.dst, stack + [e.dst], onstack | {e.dst})
+        # Iterative Tarjan: each work-stack frame is (node, next-edge-index). The
+        # index lets us resume a node's edge scan after descending into a child,
+        # exactly as the recursive call would — but on the heap, so depth is free.
+        for root in (n.id for n in self.nodes):
+            if root in index_of:
+                continue
+            work: List[Tuple[int, int]] = [(root, 0)]
+            while work:
+                node, i = work[-1]
+                if i == 0:  # first visit to this node
+                    index_of[node] = lowlink[node] = counter
+                    counter += 1
+                    scc_stack.append(node)
+                    on_stack.add(node)
+                edges = adj.get(node, [])
+                recursed = False
+                while i < len(edges):
+                    dst = edges[i].dst
+                    i += 1
+                    if dst not in index_of:
+                        work[-1] = (node, i)  # resume here after the child returns
+                        work.append((dst, 0))
+                        recursed = True
+                        break
+                    if dst in on_stack:
+                        lowlink[node] = min(lowlink[node], index_of[dst])
+                if recursed:
+                    continue
+                if lowlink[node] == index_of[node]:  # root of an SCC
+                    comp: List[int] = []
+                    while True:
+                        w = scc_stack.pop()
+                        on_stack.discard(w)
+                        comp.append(w)
+                        if w == node:
+                            break
+                    sccs.append(comp)
+                work.pop()
+                if work:  # propagate lowlink up to the parent (post-recursion update)
+                    parent = work[-1][0]
+                    lowlink[parent] = min(lowlink[parent], lowlink[node])
 
-        visited: set = set()
-        for n in self.nodes:
-            if n.id not in visited:
-                visited.add(n.id)
-                dfs(n.id, [n.id], {n.id})
-        return found
+        self_looped = {e.src for e in self.edges if e.src == e.dst}
+        return [c for c in sccs if len(c) > 1 or (c and c[0] in self_looped)]
 
     def shortest_paths_from_entry(self) -> Dict[int, List[int]]:
         """BFS shortest path (as node ids) from the entry to every reachable node."""
@@ -227,15 +273,21 @@ def _classify_screen(screen: CrawlScreen) -> Optional[str]:
     return None
 
 
-def navigation_steps(result: CrawlResult, app_package: str = "") -> Dict[str, List[Step]]:
+def navigation_steps(
+    result: CrawlResult, app_package: str = "", graph: Optional[InteractionGraph] = None
+) -> Dict[str, List[Step]]:
     """The TAP steps that reach each screen from the entry (empty list for the
     entry itself). A per-screen state check uses this to *navigate to* the screen
     before asserting its controls — otherwise it would assert a deeper screen's
     elements right after launch (which only shows the entry screen) and fail on a
     real device. Screens with no path from the entry are omitted (unreachable ⇒
     not state-testable), so the dict's keys are exactly the screens worth checking.
+
+    ``graph`` may be a pre-built interaction graph for this same crawl; when given
+    it is reused instead of rebuilt (the graph is deterministic for a given
+    result/package, so the output is identical).
     """
-    graph = build_graph(result, app_package)
+    graph = graph if graph is not None else build_graph(result, app_package)
     fps = list(result.screens)
     if not fps:
         return {}
@@ -332,22 +384,6 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     return graph
 
 
-def _sample_value(element: CrawlElement) -> str:
-    """A realistic sample for a form field, inferred from its label/id/class."""
-    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
-    if "email" in hint or "e-mail" in hint:
-        return "test@example.com"
-    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
-        return "Password123!"
-    if any(k in hint for k in ("phone", "tel", "mobile")):
-        return "1234567890"
-    if "search" in hint or "query" in hint:
-        return "test"
-    if "name" in hint:
-        return "Test User"
-    return "Test"
-
-
 def _form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
     """Type-aware interactions on one screen: fill inputs with sample data and
     toggle checkboxes/switches — so a path exercises forms, not just navigation."""
@@ -373,15 +409,20 @@ def _form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
     return steps
 
 
-def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int = 12) -> List[TestCase]:
+def multi_step_cases(
+    result: CrawlResult, app_package: str = "", max_cases: int = 12, graph: Optional[InteractionGraph] = None
+) -> List[TestCase]:
     """Model-based test cases: walk real paths through the interaction graph.
 
     Beyond navigating (login -> catalog -> cart -> pay), each screen along the way
     has its form filled — inputs get sample data, checkboxes/switches get toggled —
     so the paths exercise forms too. Paths are prioritised deepest/most-critical
     first, then capped, so the most valuable ones survive max_cases.
+
+    ``graph`` may be a pre-built interaction graph for this same crawl; reused when
+    given (deterministic, so output is identical) instead of rebuilt.
     """
-    graph = build_graph(result, app_package)
+    graph = graph if graph is not None else build_graph(result, app_package)
     fps = list(result.screens)
     fp_of = {i + 1: fp for i, fp in enumerate(fps)}
     degree = {n.id: 0 for n in graph.nodes}
@@ -489,46 +530,6 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
     return [case for _, case in scored[:max_cases]]
 
 
-# Button labels that submit a form — the control whose tap commits typed input.
-# "pay"/"buy"/"delete" are deliberately absent: a negative test must never risk
-# completing a real destructive/purchase action.
-_SUBMIT_LABELS = (
-    "submit",
-    "login",
-    "log in",
-    "sign in",
-    "signin",
-    "sign up",
-    "signup",
-    "register",
-    "continue",
-    "next",
-    "confirm",
-    "send",
-    "save",
-    "apply",
-    "exchange",
-    "transfer",
-    "done",
-)
-
-
-def _invalid_value(element: CrawlElement) -> str:
-    """A deliberately-invalid value for a form field, mirroring the crawler's
-    ``_invalid_value`` so a generated *negative* test types the same kind of bad
-    data. Empty string = no strongly-typed rule matched (skip the field)."""
-    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
-    if "email" in hint or "e-mail" in hint:
-        return "not-an-email"
-    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
-        return "1"  # too short for any real password policy
-    if any(k in hint for k in ("phone", "tel", "mobile")):
-        return "abc"  # letters where digits are required
-    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
-        return "-1"  # negative where a positive quantity is required
-    return ""
-
-
 def _submit_element(screen: CrawlScreen, app_package: str) -> Optional[CrawlElement]:
     """The button on this screen that commits a form (login/continue/…), or None."""
     for e in _owned(screen, app_package):
@@ -562,7 +563,9 @@ def _invalid_form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
     return steps
 
 
-def negative_form_cases(result: CrawlResult, app_package: str = "", max_cases: int = 12) -> List[TestCase]:
+def negative_form_cases(
+    result: CrawlResult, app_package: str = "", max_cases: int = 12, graph: Optional[InteractionGraph] = None
+) -> List[TestCase]:
     """Negative-path tests: for each screen with a submittable form (input +
     submit control), navigate to it, type *invalid* data, submit, and assert the
     app *rejects* it — the submit control is still visible, i.e. the form did not
@@ -571,8 +574,11 @@ def negative_form_cases(result: CrawlResult, app_package: str = "", max_cases: i
 
     This is the negative counterpart to the positive form-filling already done by
     :func:`multi_step_cases`; together they cover both branches of every form.
+
+    ``graph`` may be a pre-built interaction graph for this same crawl; reused when
+    given (deterministic, so output is identical) instead of rebuilt.
     """
-    graph = build_graph(result, app_package)
+    graph = graph if graph is not None else build_graph(result, app_package)
     paths = graph.shortest_paths_from_entry()
     if not paths:
         return []

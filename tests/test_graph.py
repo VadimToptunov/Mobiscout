@@ -161,6 +161,45 @@ def test_paths_fill_forms_with_typed_samples():
     assert any(s.action.value == "tap" and "Toggle" in s.description for s in case.steps)
 
 
+def test_cycles_found_when_reachable_only_through_shared_node():
+    """A cycle whose nodes are first reached via another branch must still be
+    found. The old DFS marked nodes visited globally, so a cycle reachable only
+    through an already-visited node (here C<->D, reached via B) was missed; the
+    Tarjan SCC pass finds it."""
+    res = CrawlResult(
+        screens={
+            "A": _screen("A", [_btn("toB", "id/b"), _btn("toC", "id/c")]),
+            "B": _screen("B", [_btn("toC", "id/c2")]),
+            "C": _screen("C", [_btn("toD", "id/d")]),
+            "D": _screen("D", [_btn("toC", "id/c3")]),
+        }
+    )
+    # A->B->C, A->C (so C is visited via the A->C branch first), then C<->D.
+    res.transitions = [
+        ("A", _btn("toB", "id/b"), "B"),
+        ("A", _btn("toC", "id/c"), "C"),
+        ("B", _btn("toC", "id/c2"), "C"),
+        ("C", _btn("toD", "id/d"), "D"),
+        ("D", _btn("toC", "id/c3"), "C"),
+    ]
+    g = G.build_graph(res, "com.x")
+    cyclic_nodes = {n for comp in g.cycles() for n in comp}
+    id_of = {n.fingerprint: n.id for n in g.nodes}
+    assert {id_of["C"], id_of["D"]} <= cyclic_nodes  # C<->D cycle detected
+    assert g.metrics()["cycles"] == 1
+
+
+def test_cycles_deep_chain_does_not_recursionerror():
+    """A long chain must not overflow the stack — the old recursive DFS did."""
+    n = 3000
+    screens = {str(i): _screen(str(i), [_btn("next", f"id/{i}")]) for i in range(n)}
+    res = CrawlResult(screens=screens)
+    res.transitions = [(str(i), _btn("next", f"id/{i}"), str(i + 1)) for i in range(n - 1)]
+    res.transitions.append((str(n - 1), _btn("next", f"id/{n - 1}"), "0"))  # close the loop
+    g = G.build_graph(res, "com.x")
+    assert g.metrics()["cycles"] == 1  # the whole chain is one big SCC
+
+
 def test_paths_prioritised_deepest_first():
     """With a shallow and a deep path, the deep one ranks first (survives the cap)."""
     res = CrawlResult(
