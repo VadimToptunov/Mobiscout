@@ -108,19 +108,20 @@ class SystemDoctor:
 
     def _check_packages(self, verbose: bool) -> HealthCheck:
         """Check required packages"""
-        required = [
-            "click",
-            "rich",
-            "pydantic",
-            "pytest",
-            "requests",
-            "pyyaml",
-        ]
+        # Map pip distribution name -> importable module name (they differ, e.g. pyyaml -> yaml).
+        required = {
+            "click": "click",
+            "rich": "rich",
+            "pydantic": "pydantic",
+            "pytest": "pytest",
+            "requests": "requests",
+            "pyyaml": "yaml",
+        }
 
         missing = []
-        for package in required:
+        for package, import_name in required.items():
             try:
-                __import__(package)
+                __import__(import_name)
             except ImportError:
                 missing.append(package)
 

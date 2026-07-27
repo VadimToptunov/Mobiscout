@@ -22,6 +22,16 @@ from framework.testing.profiler import (
 console = Console()
 
 
+def _pct(part: int, whole: int) -> float:
+    """Percentage of ``part`` out of ``whole``, safe when ``whole`` is 0.
+
+    A load run that executed no tests (e.g. duration/iterations too small to run a
+    single iteration) leaves total_tests == 0; the results table divided by it and
+    crashed the command with ZeroDivisionError. Treat 0/0 as 0%.
+    """
+    return (part / whole * 100) if whole else 0.0
+
+
 @click.group()
 def load() -> None:
     """Load testing and performance profiling"""
@@ -110,8 +120,8 @@ def run(
 
     results_table.add_row("Duration", f"{result.duration_seconds:.2f}s")
     results_table.add_row("Total Tests", str(result.total_tests))
-    results_table.add_row("✅ Passed", f"{result.passed_tests} ({result.passed_tests / result.total_tests * 100:.1f}%)")
-    results_table.add_row("❌ Failed", f"{result.failed_tests} ({result.failed_tests / result.total_tests * 100:.1f}%)")
+    results_table.add_row("✅ Passed", f"{result.passed_tests} ({_pct(result.passed_tests, result.total_tests):.1f}%)")
+    results_table.add_row("❌ Failed", f"{result.failed_tests} ({_pct(result.failed_tests, result.total_tests):.1f}%)")
     results_table.add_row("Throughput", f"{result.throughput:.2f} tests/sec")
     results_table.add_row("Avg Response Time", f"{result.avg_response_time:.3f}s")
     results_table.add_row("Min Response Time", f"{result.min_response_time:.3f}s")

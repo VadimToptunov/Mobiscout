@@ -140,7 +140,11 @@ class VisualDetector:
 
         if method == "mse":
             # Mean Squared Error (lower is better)
-            mse = float(np.mean((img1 - img2) ** 2))  # type: ignore[arg-type]
+            # Widen to int32 before subtracting: uint8 arithmetic overflows and
+            # makes wholly-different images (e.g. white vs black) score as near-
+            # identical, defeating the metric.
+            diff = img1.astype(np.int32) - img2.astype(np.int32)
+            mse = float(np.mean(diff**2))
             # Normalize to 0-1 (1 = identical)
             max_mse = 255.0**2
             similarity = 1.0 - (mse / max_mse)

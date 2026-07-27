@@ -6,7 +6,7 @@ import json
 import statistics
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Callable
@@ -371,7 +371,10 @@ class LoadTester:
         """Get predefined load profile"""
         if profile_name not in cls.PROFILES:
             raise ValueError(f"Unknown profile: {profile_name}")
-        return cls.PROFILES[profile_name]
+        # Return a copy, not the shared registry instance: callers (e.g. `load run
+        # --users N`) override fields in place, which would otherwise corrupt the
+        # predefined profile process-wide for every later lookup.
+        return replace(cls.PROFILES[profile_name])
 
     @classmethod
     def list_profiles(cls) -> List[LoadProfile]:
