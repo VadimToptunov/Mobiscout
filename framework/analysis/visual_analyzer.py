@@ -281,7 +281,15 @@ class VisualAnalyzer:
         </div>
 """
 
-        html = html_content.format(total=len(self.diffs), passed=passed, failed=failed, diff_items=diff_items)
+        # NB: use targeted replacement rather than str.format — the template's
+        # embedded CSS contains literal `{ ... }` braces that would make
+        # str.format raise KeyError (e.g. on "{ font-family").
+        html = (
+            html_content.replace("{total}", str(len(self.diffs)))
+            .replace("{passed}", str(passed))
+            .replace("{failed}", str(failed))
+            .replace("{diff_items}", diff_items)
+        )
 
         output_path.write_text(html)
         print(f"HTML report generated: {output_path}")

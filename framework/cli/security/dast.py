@@ -82,7 +82,7 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
     console.print("\n[bold]Detailed Findings:[/bold]\n")
 
     for finding in result.findings[:10]:
-        severity_style = "red" if finding.severity in ["critical", "high"] else "yellow"
+        severity_style = "red" if finding.severity.value in ["critical", "high"] else "yellow"
         console.print(f"[{severity_style}]•[/{severity_style}] [{severity_style}]{finding.title}[/{severity_style}]")
         console.print(f"  [dim]Category:[/dim] {finding.category}")
         console.print(f"  {finding.description}")
@@ -97,7 +97,7 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
                 json.dump(result.to_dict(), f, indent=2, default=str)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
-    critical = len([f for f in result.findings if f.severity == "critical"])
+    critical = len([f for f in result.findings if f.severity.value == "critical"])
     if critical:
         raise SystemExit(2)
     raise SystemExit(1)
@@ -196,7 +196,7 @@ def api(base_url: str, auth_header: Optional[str], endpoints: Optional[Path]) ->
     console.print(f"\n[red]Found {len(result.findings)} API vulnerability(ies)[/red]\n")
 
     for finding in result.findings:
-        severity_style = "red" if finding.severity in ["critical", "high"] else "yellow"
+        severity_style = "red" if finding.severity.value in ["critical", "high"] else "yellow"
 
         panel = Panel(
             f"[bold]{finding.title}[/bold]\n\n"

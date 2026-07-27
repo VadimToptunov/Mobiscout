@@ -102,7 +102,7 @@ class SlackNotifier(Notifier):
                 ]
 
             # Send to Slack
-            response = requests.post(self.webhook_url, headers={"Content-Type": "application/json"})
+            response = requests.post(self.webhook_url, json=message, headers={"Content-Type": "application/json"})
             response.raise_for_status()
 
             return True
@@ -186,7 +186,7 @@ class TeamsNotifier(Notifier):
                     )
 
             # Send to Teams
-            response = requests.post(self.webhook_url, headers={"Content-Type": "application/json"})
+            response = requests.post(self.webhook_url, json=message, headers={"Content-Type": "application/json"})
             response.raise_for_status()
 
             return True
