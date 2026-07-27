@@ -56,6 +56,13 @@ logger = get_logger(__name__)
 @click.option("--max-steps", default=40, show_default=True, help="Crawl step budget")
 @click.option("--max-depth", default=8, show_default=True, help="Crawl depth budget")
 @click.option(
+    "--allow-destructive",
+    is_flag=True,
+    help="Let the crawler tap destructive/financial actions (Pay/Buy/Delete/Confirm) to reach the screens "
+    "behind them. Only for throwaway sandbox/test apps — never a real app with real data. Session-enders "
+    "(Logout) stay blocked regardless.",
+)
+@click.option(
     "--launch-arg",
     "launch_args",
     multiple=True,
@@ -86,6 +93,7 @@ def crawl(
     scaffold: bool,
     max_steps: int,
     max_depth: int,
+    allow_destructive: bool,
     launch_args: Tuple[str, ...],
     record_events: Optional[str],
 ) -> None:
@@ -143,8 +151,13 @@ def crawl(
             appium_session.quit()
         raise click.Abort()
 
+    if allow_destructive:
+        print_info("Sandbox mode: destructive/financial actions are tappable (Logout stays blocked).")
+
     try:
-        result = AppCrawler(crawl_driver, package, max_steps=max_steps, max_depth=max_depth).crawl()
+        result = AppCrawler(
+            crawl_driver, package, max_steps=max_steps, max_depth=max_depth, allow_destructive=allow_destructive
+        ).crawl()
     finally:
         if appium_session:
             appium_session.quit()
