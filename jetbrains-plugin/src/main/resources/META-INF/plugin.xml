@@ -59,6 +59,9 @@
         <!-- Application Services -->
         <applicationService serviceImplementation="com.mobiletest.recorder.services.MTRDaemonService"/>
         <applicationService serviceImplementation="com.mobiletest.recorder.settings.MTRSettings"/>
+
+        <!-- Project Services -->
+        <projectService serviceImplementation="com.mobiletest.recorder.services.MTRToolWindowService"/>
     </extensions>
 
     <!-- Notification Group -->

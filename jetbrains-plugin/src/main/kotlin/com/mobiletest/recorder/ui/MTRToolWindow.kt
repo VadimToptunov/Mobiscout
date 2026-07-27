@@ -4,6 +4,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBTabbedPane
 import com.mobiletest.recorder.services.MTRDaemonService
+import com.mobiletest.recorder.services.MTRToolWindowService
 import com.mobiletest.recorder.ui.panels.DevicesPanel
 import com.mobiletest.recorder.ui.panels.InspectorPanel
 import com.mobiletest.recorder.ui.panels.LogsPanel
@@ -24,6 +25,12 @@ class MTRToolWindow(private val project: Project) {
     private val mainPanel = JPanel(BorderLayout())
     
     init {
+        // Publish the panels so toolbar/menu actions (which the platform creates
+        // without a panel reference) can drive them — e.g. RefreshDevicesAction.
+        project.getService(MTRToolWindowService::class.java).let {
+            it.devicesPanel = devicesPanel
+            it.screenPanel = screenPanel
+        }
         createToolbar()
         createTabs()
     }
