@@ -61,6 +61,45 @@ def test_unreachable_screen_flagged():
     assert unreachable.severity == "error"
 
 
+def test_no_return_matches_brute_force_forward_reachability():
+    """The single reverse-BFS must flag exactly the screens a naive per-node
+    forward reachability check would. Graph: A<->B (can return), A->C->D (C, D
+    cannot get back to A)."""
+    screens = {fp: _screen(fp, [_btn(fp, f"id/{fp}")]) for fp in ("A", "B", "C", "D")}
+    transitions = [
+        ("A", _btn("A", "id/A"), "B"),
+        ("B", _btn("B", "id/B"), "A"),  # A<->B
+        ("A", _btn("A", "id/A"), "C"),
+        ("C", _btn("C", "id/C"), "D"),  # C->D, no way back
+    ]
+    g = _graph(screens, transitions)
+
+    # Brute-force oracle: from each node, forward-BFS and see if it reaches entry.
+    adj = {}
+    for e in g.edges:
+        adj.setdefault(e.src, []).append(e.dst)
+
+    def reaches(src, dst):
+        seen, stack = {src}, [src]
+        while stack:
+            cur = stack.pop()
+            if cur == dst:
+                return True
+            for nxt in adj.get(cur, []):
+                if nxt not in seen:
+                    seen.add(nxt)
+                    stack.append(nxt)
+        return dst in seen
+
+    expected = {n.id for n in g.nodes if n.depth >= 0 and not n.is_entry and not reaches(n.id, g.entry)}
+    no_return = next((v for v in check_invariants(g) if v.name == "no_return_path"), None)
+    got = set(no_return.screens) if no_return else set()
+    assert got == expected
+    # Sanity: C and D are the no-return screens (ids 3 and 4), A and B are not.
+    id_of = {n.fingerprint: n.id for n in g.nodes}
+    assert got == {id_of["C"], id_of["D"]}
+
+
 def test_pipeline_writes_invariants(tmp_path, monkeypatch):
     monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
     monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")

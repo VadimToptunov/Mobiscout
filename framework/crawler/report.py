@@ -11,12 +11,15 @@ tests in any language just by reading them.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
 from framework.crawler.graph import build_graph, to_mermaid
 from framework.crawler.to_codegen import audit_accessibility, selector_for
+
+if TYPE_CHECKING:
+    from framework.crawler.graph import InteractionGraph
 
 
 def _locator(element: CrawlElement, siblings: List[CrawlElement], platform: str = "android") -> Dict[str, str]:
@@ -71,8 +74,11 @@ def inventory_json(result: CrawlResult, app_package: str = "") -> Dict[str, Any]
     return {"app_package": app_package, "screen_count": len(screens), "screens": screens, "flows": flows}
 
 
-def inventory_markdown(result: CrawlResult, app_package: str = "") -> str:
-    """Human-readable element inventory (per screen) + flow map + a11y summary."""
+def inventory_markdown(result: CrawlResult, app_package: str = "", graph: Optional["InteractionGraph"] = None) -> str:
+    """Human-readable element inventory (per screen) + flow map + a11y summary.
+
+    ``graph`` may be a pre-built interaction graph for this same crawl; reused when
+    given instead of rebuilt (deterministic, so the report is identical)."""
     data = inventory_json(result, app_package)
     out: List[str] = [f"# Screen inventory — `{app_package or 'app'}`", ""]
     out.append(f"{data['screen_count']} screen(s) discovered by autonomous crawl.\n")
@@ -96,7 +102,7 @@ def inventory_markdown(result: CrawlResult, app_package: str = "") -> str:
             out.append(f"| Screen {f['from']} | {f['tap'][:30]} | Screen {f['to']} |")
         out.append("")
 
-    graph = build_graph(result, app_package)
+    graph = graph if graph is not None else build_graph(result, app_package)
     if graph.nodes:
         m = graph.metrics()
         out.append("## Interaction graph")

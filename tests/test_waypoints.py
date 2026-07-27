@@ -74,6 +74,27 @@ def test_fill_waypoint_types_credentials_and_taps_submit():
     assert ("tap", 50, 20) in driver.calls  # submit tapped (element center)
 
 
+def test_fill_unmatched_fields_go_to_different_inputs():
+    # Two fields whose hints match NEITHER input must be consumed positionally into
+    # two DISTINCT inputs — not both overwriting inputs[0] (the old fallback bug).
+    screen = CrawlScreen(
+        "form",
+        [
+            CrawlElement("f1", "", "", "android.widget.EditText", True, (0, 0, 100, 40), package="com.x"),
+            CrawlElement("f2", "", "", "android.widget.EditText", True, (0, 60, 100, 100), package="com.x"),
+        ],
+        platform="android",
+    )
+    driver = RecordingDriver(["<hierarchy/>"])
+    wp = Waypoint(when={"has_input": True}, action="fill", data={"fields": {"alpha": "A", "beta": "B"}})
+    assert apply_first_match([wp], driver, screen)
+    taps = [(c[1], c[2]) for c in driver.calls if c[0] == "tap"]
+    typed = [c[1] for c in driver.calls if c[0] == "type"]
+    assert typed == ["A", "B"]
+    assert taps == [(50, 20), (50, 80)]  # two different input centers, not the same one twice
+    assert len(set(taps)) == 2
+
+
 def test_totp_waypoint_enters_current_code():
     otp_screen = CrawlScreen(
         "otp",

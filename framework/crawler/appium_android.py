@@ -83,6 +83,45 @@ class AndroidAppiumDriver:
         self._driver.execute_script("mobile: clickGesture", {"x": x, "y": y})
         time.sleep(self._settle)
 
+    def type_text(self, text: str) -> None:
+        # Type into the field the previous tap focused (waypoint form-filling /
+        # input coverage). UiAutomator2 has no `mobile: type`; the reliable path is
+        # send_keys to the focused element, mirroring the iOS Appium driver.
+        try:
+            self._driver.switch_to.active_element.send_keys(text)
+        except Exception:
+            pass
+        time.sleep(self._settle)
+
+    def scroll(self, direction: str = "down") -> None:
+        # Reveal off-screen content so the crawl reaches below-the-fold rows/links.
+        # `mobile: scrollGesture` scrolls the largest scrollable within the given
+        # rect in ``direction``; a screen that already fits doesn't move (harmless).
+        try:
+            size = self._driver.get_window_size()
+            w, h = int(size["width"]), int(size["height"])
+            self._driver.execute_script(
+                "mobile: scrollGesture",
+                {
+                    "left": int(w * 0.1),
+                    "top": int(h * 0.2),
+                    "width": int(w * 0.8),
+                    "height": int(h * 0.6),
+                    "direction": direction,
+                    "percent": 1.0,
+                },
+            )
+        except Exception:
+            pass
+        time.sleep(self._settle)
+
+    def refresh(self, wait: float = 1.0) -> str:
+        # A second, longer look for screens whose content loads asynchronously
+        # (RecyclerView population, network fetch). Those read "stable but empty" on
+        # the first dump; waiting a beat and re-reading catches the real content.
+        time.sleep(wait)
+        return self.page_source()
+
     def back(self) -> None:
         self._driver.back()  # Android has a real system Back
         time.sleep(self._settle)

@@ -138,17 +138,31 @@ def optimizer():
     return SelectorOptimizer()
 
 
-def test_optimize_xpath_shortens_and_drops_default_index(optimizer):
-    assert optimizer._optimize_xpath("//a/b/c/d/e[1]") == "//d/e"
+def test_optimize_xpath_drops_only_trailing_default_index(optimizer):
+    # A trailing standalone [1] (the default "first match") is dropped without
+    # changing which node is matched.
+    assert optimizer._optimize_xpath("//a/b/c/d/e[1]") == "//a/b/c/d/e"
     assert optimizer._optimize_xpath("") == ""
-    # A shallow path is left alone (only the [1] default index is dropped).
     assert optimizer._optimize_xpath("//a/b[1]") == "//a/b"
+
+
+def test_optimize_xpath_never_broadens_a_deep_path(optimizer):
+    """A >3-slash xpath must NOT be truncated to its last couple of segments —
+    that broadens it to a different node-set and silently breaks the locator."""
+    assert optimizer._optimize_xpath("//a/b/c/d") == "//a/b/c/d"
+    # A mid-path [1] is meaningful (first b, not every b) — never stripped.
+    assert optimizer._optimize_xpath("//div[1]/span") == "//div[1]/span"
+    # A multi-digit index must not be corrupted (the old blanket replace made
+    # "[10]" -> "0]").
+    assert optimizer._optimize_xpath("//a/b[10]") == "//a/b[10]"
+    # A meaningful predicate is kept; only the trailing positional [1] goes.
+    assert optimizer._optimize_xpath("//a/b[@x='y'][1]") == "//a/b[@x='y']"
 
 
 def test_optimize_selector_rewrites_xpath(optimizer):
     sel = Selector(xpath="//a/b/c/d/e[1]")
     out = optimizer.optimize_selector(sel)
-    assert out.xpath == "//d/e"
+    assert out.xpath == "//a/b/c/d/e"
 
 
 def test_analyze_selectors_empty_and_populated(optimizer):

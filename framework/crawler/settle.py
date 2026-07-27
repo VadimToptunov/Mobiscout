@@ -25,14 +25,30 @@ from typing import Callable, Optional
 # as its layout is stable instead of never matching and paying the full max_wait.
 _VOLATILE = re.compile(r"\d+|[$€£¥]")
 
+# ...but only *inside displayed text*, never in geometry. Stripping digits from the
+# whole dump also erased `bounds`/x/y/width/height coordinates, so a screen still
+# mid-slide (only its bounds changing) hashed identical to the settled frame and
+# settle could return a mid-animation snapshot. Scrub volatile values only within
+# text-bearing attributes and element text nodes; positional attributes
+# (bounds/x/y/width/height) keep their digits so a slide reads as not-yet-settled.
+_TEXTUAL_ATTR = re.compile(r'((?:text|value|label|content-desc|name)=")([^"]*)(")')
+_TEXT_NODE = re.compile(r"(>)([^<>]+)(<)")
+
 
 def _digest(source: str) -> str:
     """A structural fingerprint of a UI dump: hash it with volatile numeric /
-    currency content removed, so two frames that differ only in ticking values
-    count as the same (settled) screen."""
+    currency content removed *from displayed text only* (text/value/label
+    attributes and element text nodes), so two frames that differ solely in ticking
+    values count as the same (settled) screen — while a change in element geometry
+    (bounds/coordinates) still reads as not-yet-settled."""
     if not source:
         return ""
-    structural = _VOLATILE.sub("", source)
+
+    def _scrub(m: "re.Match[str]") -> str:
+        return m.group(1) + _VOLATILE.sub("", m.group(2)) + m.group(3)
+
+    structural = _TEXTUAL_ATTR.sub(_scrub, source)
+    structural = _TEXT_NODE.sub(_scrub, structural)
     return hashlib.md5(structural.encode("utf-8", "ignore")).hexdigest()
 
 

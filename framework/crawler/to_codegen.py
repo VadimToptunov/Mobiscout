@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from framework.codegen.ir import (
     ActionType,
@@ -26,6 +26,9 @@ from framework.codegen.ir import (
     TestModel,
 )
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
+
+if TYPE_CHECKING:
+    from framework.crawler.graph import InteractionGraph
 
 
 def _looks_dynamic(text: str) -> bool:
@@ -293,20 +296,28 @@ def build_test_model(
     suite_name: str = "CrawlFlow",
     app_activity: Optional[str] = None,
     launch_args: Optional[List[str]] = None,
+    graph: Optional["InteractionGraph"] = None,
 ) -> TestModel:
     """Comprehensive TestModel from a crawl: per-screen state checks (visible +
     enabled) plus navigation flows from the recorded transitions.
 
     ``launch_args`` are the app launch arguments the crawl used (e.g. to skip a
     login gate); they're carried into the generated driver setup so the tests
-    start in the same state."""
+    start in the same state.
+
+    ``graph`` may be a pre-built interaction graph for this same crawl. The graph
+    is otherwise rebuilt several times over (once each by navigation_steps,
+    multi_step_cases and negative_form_cases); passing it in builds it once and
+    threads it through. It is deterministic for a given result/package, so the
+    generated model is byte-for-byte identical whether or not it is supplied."""
     # Navigation prefixes per screen (lazy import: graph.py imports this module).
     # Screens with no path from the entry are omitted — unreachable, so not
     # state-testable; this also fixes state checks asserting a deeper screen's
     # controls right after a bare launch.
-    from framework.crawler.graph import multi_step_cases, navigation_steps
+    from framework.crawler.graph import build_graph, multi_step_cases, navigation_steps
 
-    nav = navigation_steps(result, app_package)
+    graph = graph if graph is not None else build_graph(result, app_package)
+    nav = navigation_steps(result, app_package, graph=graph)
 
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
@@ -318,7 +329,7 @@ def build_test_model(
     cases.extend(_navigation_cases(result, app_package))
 
     # Multi-step, model-based paths through the interaction graph.
-    cases.extend(multi_step_cases(result, app_package))
+    cases.extend(multi_step_cases(result, app_package, graph=graph))
 
     # Negative-path coverage needs graph.negative_form_cases (lazy import:
     # graph.py imports this module, so importing here avoids a cycle).
@@ -327,7 +338,7 @@ def build_test_model(
     # Negative-path coverage: submit each form with invalid data and assert it is
     # rejected — the counterpart to the valid-data filling multi_step_cases does,
     # so both branches of every form are exercised.
-    cases.extend(negative_form_cases(result, app_package))
+    cases.extend(negative_form_cases(result, app_package, graph=graph))
 
     # Human-readable names can collide (two screens titled the same, two taps on
     # the same control) — keep every test method name unique.

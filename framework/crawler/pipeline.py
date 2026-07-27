@@ -47,10 +47,15 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     out = Path(config.get("output", "crawl-kit"))
     out.mkdir(parents=True, exist_ok=True)
 
-    _write(out / "inventory.md", inventory_markdown(result, package))
+    # Build the interaction graph once and thread it through every consumer
+    # (inventory, graph writers, and the test model, which would otherwise rebuild
+    # it several more times). The graph is deterministic for a given result, so the
+    # artifacts are byte-identical — this is purely fewer rebuilds.
+    graph = build_graph(result, package)
+
+    _write(out / "inventory.md", inventory_markdown(result, package, graph=graph))
     _write(out / "inventory.json", inventory_json_str(result, package))
 
-    graph = build_graph(result, package)
     _write(out / "graph.mmd", to_mermaid(graph))
     _write(out / "graph.dot", to_dot(graph))
     _write(out / "graph.json", to_json(graph))
@@ -66,6 +71,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         app_package=package,
         app_activity=config.get("app_activity"),
         launch_args=config.get("process_args"),
+        graph=graph,
     )
 
     # Only-new mode: drop cases already covered by the team's existing tests, so a

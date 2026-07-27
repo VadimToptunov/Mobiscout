@@ -214,13 +214,17 @@ def write_kit(
     out = Path(output)
     out.mkdir(parents=True, exist_ok=True)
 
+    # Build the interaction graph once and thread it through inventory, the graph
+    # writers, and the test model (which would otherwise rebuild it several times).
+    # Deterministic for a given result, so every artifact is byte-identical.
+    graph = build_graph(result, package)
+
     # 1) Element inventory (Markdown + JSON) — the tester-facing map.
-    (out / "inventory.md").write_text(inventory_markdown(result, package), encoding="utf-8", newline="\n")
+    (out / "inventory.md").write_text(inventory_markdown(result, package, graph=graph), encoding="utf-8", newline="\n")
     (out / "inventory.json").write_text(inventory_json_str(result, package), encoding="utf-8", newline="\n")
     report.info.append(f"Inventory: {out / 'inventory.md'}")
 
     # 2) Interaction graph — Mermaid (renders on GitHub), Graphviz DOT, JSON.
-    graph = build_graph(result, package)
     (out / "graph.mmd").write_text(to_mermaid(graph), encoding="utf-8", newline="\n")
     (out / "graph.dot").write_text(to_dot(graph), encoding="utf-8", newline="\n")
     (out / "graph.json").write_text(to_json(graph), encoding="utf-8", newline="\n")
@@ -233,7 +237,7 @@ def write_kit(
     # (Page Objects + conftest + POM-style tests) for the Python targets.
     target_ids = {t.id for t in available_targets()}
     model = build_test_model(
-        result, app_package=package, app_activity=app_activity, launch_args=list(launch_args) or None
+        result, app_package=package, app_activity=app_activity, launch_args=list(launch_args) or None, graph=graph
     )
     if not model.cases:
         report.no_tests = True

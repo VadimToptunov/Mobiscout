@@ -128,3 +128,17 @@ def test_sample_value_infers_type_from_hints():
     assert _sample_value(_input("id/amount", text="Amount")) == "10"
     assert _sample_value(_input("id/search", text="Search")) == "test"
     assert _sample_value(_input("id/generic", text="Note")) == "Test"
+
+
+def test_graph_and_crawler_share_one_form_value_vocabulary():
+    """The live crawl (app_crawler) and codegen (graph) must fill forms with the
+    exact same values — they import the single definition, so no desync is
+    possible (previously graph had a copy missing the amount branch, so a positive
+    test typed 'Test' into an amount field the crawl filled with '10')."""
+    from framework.crawler import app_crawler, graph
+
+    assert app_crawler._sample_value is graph._sample_value
+    assert app_crawler._invalid_value is graph._invalid_value
+    assert app_crawler._SUBMIT_LABELS is graph._SUBMIT_LABELS
+    # An amount field gets a numeric sample through the shared definition.
+    assert graph._sample_value(_input("id/amount", text="Amount")) == "10"
