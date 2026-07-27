@@ -288,4 +288,5 @@ class ConfigManager:
 
     def list_all(self) -> dict[str, Any]:
         """List all configuration values"""
-        return self.config.model_dump()
+        values: dict[str, Any] = self.config.model_dump()
+        return values

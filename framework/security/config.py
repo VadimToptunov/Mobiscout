@@ -124,7 +124,8 @@ class SecurityConfig:
             SecurityError: If argon2-cffi is not installed
         """
         hasher = cls._get_password_hasher()
-        return hasher.hash(password)
+        hash_str: str = hasher.hash(password)
+        return hash_str
 
     @classmethod
     def verify_password(cls, password: str, hashed: str) -> bool:
@@ -170,7 +171,8 @@ class SecurityConfig:
             return False
 
         hasher = cls._get_password_hasher()
-        return hasher.check_needs_rehash(hashed)
+        needs_rehash: bool = hasher.check_needs_rehash(hashed)
+        return needs_rehash
 
     @staticmethod
     def sanitize_for_logging(data: dict) -> dict:
