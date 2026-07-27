@@ -14,8 +14,10 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
+from framework.cli import project_commands
 from framework.cli.project_commands import (
     project,
+    _analyze_platform,
     _find_app_model,
     transform_analysis_to_integration_format,
 )
@@ -233,3 +235,203 @@ def test_find_app_model_glob_fallback(tmp_path):
 
 def test_find_app_model_returns_none_without_config(tmp_path):
     assert _find_app_model(tmp_path) is None
+
+
+# --------------------------------------------------------------------------- #
+# analyze — iOS platform, per-platform failure, and the no-results aggregation
+# --------------------------------------------------------------------------- #
+
+
+def _swift_source(tmp_path: Path) -> Path:
+    src = tmp_path / "ios"
+    src.mkdir()
+    (src / "LoginView.swift").write_text(
+        "import SwiftUI\nstruct LoginView {\n    func submit() { }\n    if count > 5 { }\n}\n",
+        encoding="utf-8",
+    )
+    return src
+
+
+def test_analyze_ios_source(runner, tmp_path):
+    out = tmp_path / "analysis"
+    result = runner.invoke(project, ["analyze", "--ios-source", str(_swift_source(tmp_path)), "--output-dir", str(out)])
+    _no_crash(result)
+    assert result.exit_code == 0
+    # The iOS branch of `analyze` ran and wrote its own artifact.
+    assert (out / "ios_analysis.yaml").exists()
+
+
+def test_analyze_platform_returns_none_when_output_unwritable(tmp_path):
+    # _analyze_platform swallows failures and returns None; make the output dir a
+    # regular file so writing the result raises inside the analyzer's try block.
+    src = _source_tree(tmp_path)
+    not_a_dir = tmp_path / "afile"
+    not_a_dir.write_text("x", encoding="utf-8")
+    assert _analyze_platform("Android", src, not_a_dir, "yaml") is None
+
+
+def test_analyze_reports_no_results(runner, tmp_path, monkeypatch):
+    # When every per-platform analysis fails (returns None), the command reports
+    # the aggregate failure rather than success.
+    monkeypatch.setattr(project_commands, "_analyze_platform", lambda *a, **k: None)
+    out = tmp_path / "analysis"
+    result = runner.invoke(
+        project, ["analyze", "--android-source", str(_source_tree(tmp_path)), "--output-dir", str(out)]
+    )
+    _no_crash(result)
+    assert "Analysis failed - no results generated" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# integrate — read-error, transform-failure fallback, integration failure
+# --------------------------------------------------------------------------- #
+
+
+def test_integrate_reports_read_error(runner, tmp_path):
+    # A directory passes click's exists=True but open() raises IsADirectoryError,
+    # exercising the generic read-error branch.
+    proj = tmp_path / "proj"
+    (proj / "config").mkdir(parents=True)
+    a_dir = tmp_path / "analysis_dir"
+    a_dir.mkdir()
+    result = runner.invoke(project, ["integrate", "--analysis", str(a_dir), "--project", str(proj)])
+    _no_crash(result)
+    assert "Failed to read analysis file" in result.output
+
+
+def test_integrate_falls_back_to_raw_on_transform_error(runner, tmp_path):
+    # A top-level YAML list makes transform_analysis_to_integration_format raise
+    # (list has no .get); the command warns and continues with the raw data.
+    proj = tmp_path / "proj"
+    (proj / "config").mkdir(parents=True)
+    analysis = tmp_path / "an.yaml"
+    analysis.write_text(yaml.dump(["not", "a", "dict"]), encoding="utf-8")
+    result = runner.invoke(project, ["integrate", "--analysis", str(analysis), "--project", str(proj)])
+    _no_crash(result)
+    assert "Could not transform analysis data" in result.output
+
+
+def test_integrate_reports_integration_failure(runner, tmp_path):
+    # A valid analysis but a *file* as the project makes ProjectIntegrator fail
+    # (cannot create config/ under a file), hitting the integration-error branch.
+    proj_file = tmp_path / "proj_file"
+    proj_file.write_text("x", encoding="utf-8")
+    analysis = tmp_path / "an.yaml"
+    analysis.write_text(yaml.dump({"user_flows": [], "api_contracts": []}), encoding="utf-8")
+    result = runner.invoke(project, ["integrate", "--analysis", str(analysis), "--project", str(proj_file)])
+    _no_crash(result)
+    assert "Integration failed" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# generate — full artifact set, and the nothing-generated case
+# --------------------------------------------------------------------------- #
+
+
+def _project_with_full_model(tmp_path: Path) -> Path:
+    """A model whose screens, api_calls and flows all yield generated artifacts."""
+    proj = tmp_path / "proj"
+    (proj / "config").mkdir(parents=True)
+    model = {
+        "meta": {
+            "schema_version": "1.0.0",
+            "app_version": "1.0.0",
+            "platform": "android",
+            "recorded_at": "2025-01-01T00:00:00Z",
+        },
+        "screens": {
+            "LoginScreen": {
+                "name": "LoginScreen",
+                "elements": [
+                    {
+                        "id": "login_btn",
+                        "type": "button",
+                        "selector": {"android": "id:login"},
+                        "capabilities": ["tappable"],
+                    }
+                ],
+                "actions": [
+                    {"name": "do_login", "ui_action": "tap", "element_id": "login_btn"},
+                ],
+            }
+        },
+        "api_calls": {"auth_login": {"name": "auth_login", "endpoint": "/login", "method": "POST"}},
+        "flows": [{"name": "LoginFlow", "steps": [{"screen": "LoginScreen", "action": "tap"}]}],
+    }
+    (proj / "config" / "app_model.yaml").write_text(yaml.dump(model), encoding="utf-8")
+    return proj
+
+
+def test_generate_emits_all_artifact_kinds(runner, tmp_path):
+    proj = _project_with_full_model(tmp_path)
+    result = runner.invoke(project, ["generate", "--project", str(proj)])
+    _no_crash(result)
+    assert result.exit_code == 0
+    out = result.output
+    # Each stats>0 summary line and the BDD "pytest --bdd" next-step must appear.
+    assert "Page Objects" in out
+    assert "Integration Tests" in out
+    assert "API Endpoints" in out
+    assert "BDD Features" in out
+    assert "pytest --bdd" in out
+    # Artifacts really landed on disk.
+    assert (proj / "page_objects").exists()
+    assert (proj / "features").exists()
+
+
+def test_generate_reports_nothing_generated(runner, tmp_path):
+    # A model with only a meta block (no screens/api/flows) produces no artifacts.
+    proj = tmp_path / "proj"
+    (proj / "config").mkdir(parents=True)
+    model = {
+        "meta": {
+            "schema_version": "1.0.0",
+            "app_version": "1.0.0",
+            "platform": "android",
+            "recorded_at": "2025-01-01T00:00:00Z",
+        }
+    }
+    (proj / "config" / "app_model.yaml").write_text(yaml.dump(model), encoding="utf-8")
+    result = runner.invoke(project, ["generate", "--project", str(proj)])
+    _no_crash(result)
+    assert result.exit_code == 0
+    assert "No code was generated" in result.output
+
+
+# --------------------------------------------------------------------------- #
+# fullcycle — iOS phase, and the all-analyses-failed short-circuit
+# --------------------------------------------------------------------------- #
+
+
+def test_fullcycle_ios_source(runner, tmp_path):
+    proj = tmp_path / "auto"
+    result = runner.invoke(project, ["fullcycle", "--ios-path", str(_swift_source(tmp_path)), "--project", str(proj)])
+    _no_crash(result)
+    assert result.exit_code == 0
+    assert "Phase 1b: Analyzing iOS Source" in result.output
+    assert (proj / "analysis" / "ios_analysis.yaml").exists()
+
+
+def test_fullcycle_all_analyses_fail(runner, tmp_path):
+    # Pre-create the android output name as a *directory* so the phase-1 write
+    # raises; with no other source, fullcycle short-circuits before integration.
+    proj = tmp_path / "auto"
+    (proj / "analysis").mkdir(parents=True)
+    (proj / "analysis" / "android_analysis.yaml").mkdir()
+    result = runner.invoke(
+        project, ["fullcycle", "--android-path", str(_source_tree(tmp_path)), "--project", str(proj)]
+    )
+    _no_crash(result)
+    assert "Android analysis failed" in result.output
+    assert "All analyses failed" in result.output
+
+
+def test_fullcycle_ios_analysis_fails(runner, tmp_path):
+    # Same failure injection for the iOS phase: its output name is a directory.
+    proj = tmp_path / "auto"
+    (proj / "analysis").mkdir(parents=True)
+    (proj / "analysis" / "ios_analysis.yaml").mkdir()
+    result = runner.invoke(project, ["fullcycle", "--ios-path", str(_swift_source(tmp_path)), "--project", str(proj)])
+    _no_crash(result)
+    assert "iOS analysis failed" in result.output
+    assert "All analyses failed" in result.output
