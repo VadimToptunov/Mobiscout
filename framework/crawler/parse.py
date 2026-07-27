@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 import xml.etree.ElementTree as ET
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from framework.crawler.models import CrawlElement, CrawlScreen
 
@@ -72,43 +72,75 @@ def _parse_android(root: ET.Element) -> List[CrawlElement]:
     return elements
 
 
+# iOS applications that own system UI (permission alerts, the springboard / home
+# screen) rather than the app under test. XCUITest reports these as a *separate*
+# XCUIElementTypeApplication (e.g. name="SpringBoard") alongside the app; their
+# elements must never be tapped — the same "don't tap a foreign app / system
+# dialog" guard the Android crawler gets for free from each node's `package`.
+_IOS_SYSTEM_APPS = {"springboard"}
+
+
+def _ios_element(node: ET.Element, package: str) -> Optional[CrawlElement]:
+    """Build a CrawlElement for one XCUITest node (owned by ``package``), or None
+    if it isn't a real, on-screen, positioned element."""
+    try:
+        x, y = int(float(node.get("x", ""))), int(float(node.get("y", "")))
+        w, h = int(float(node.get("width", ""))), int(float(node.get("height", "")))
+    except (TypeError, ValueError):
+        return None
+    if w <= 0 or h <= 0:
+        return None
+    # XCUITest reports off-screen / covered elements (e.g. everything behind a
+    # modal auth gate) with visible="false". Including them floods the inventory
+    # with phantom elements and makes the crawler waste steps tapping controls that
+    # aren't hittable — keep only what's actually on screen.
+    if node.get("visible") == "false":
+        return None
+    itype = (node.get("type") or node.tag).replace("XCUIElementType", "")
+    # XCUITest has no scrollable/checkable/focusable attributes, so infer them from
+    # the element type — the same signal a human reads off the class.
+    enabled = node.get("enabled") != "false"
+    # iOS `name` is the accessibility identifier -> map to content_desc so it
+    # becomes an ACCESSIBILITY_ID selector (correct cross-platform in Appium).
+    return CrawlElement(
+        resource_id="",
+        text=(node.get("label") or node.get("value") or ""),
+        content_desc=node.get("name", ""),
+        class_name=itype,
+        clickable=itype in _IOS_INTERACTIVE and enabled,
+        bounds=(x, y, x + w, y + h),
+        package=package,
+        scrollable=itype in ("ScrollView", "Table", "CollectionView"),
+        focusable=itype in ("TextField", "SecureTextField", "SearchField"),
+        checkable=itype in ("Switch",),
+        password=itype == "SecureTextField",
+        enabled=enabled,
+    )
+
+
 def _parse_ios(root: ET.Element) -> List[CrawlElement]:
     elements: List[CrawlElement] = []
-    for node in root.iter():
-        try:
-            x, y = int(float(node.get("x", ""))), int(float(node.get("y", "")))
-            w, h = int(float(node.get("width", ""))), int(float(node.get("height", "")))
-        except (TypeError, ValueError):
-            continue
-        if w <= 0 or h <= 0:
-            continue
-        # XCUITest reports off-screen / covered elements (e.g. everything behind a
-        # modal auth gate) with visible="false". Including them floods the
-        # inventory with phantom elements and makes the crawler waste steps tapping
-        # controls that aren't hittable — keep only what's actually on screen.
-        if node.get("visible") == "false":
-            continue
-        itype = (node.get("type") or node.tag).replace("XCUIElementType", "")
-        # XCUITest has no scrollable/checkable/focusable attributes, so infer them
-        # from the element type — the same signal a human reads off the class.
-        enabled = node.get("enabled") != "false"
-        # iOS `name` is the accessibility identifier -> map to content_desc so it
-        # becomes an ACCESSIBILITY_ID selector (correct cross-platform in Appium).
-        elements.append(
-            CrawlElement(
-                resource_id="",
-                text=(node.get("label") or node.get("value") or ""),
-                content_desc=node.get("name", ""),
-                class_name=itype,
-                clickable=itype in _IOS_INTERACTIVE and enabled,
-                bounds=(x, y, x + w, y + h),
-                scrollable=itype in ("ScrollView", "Table", "CollectionView"),
-                focusable=itype in ("TextField", "SecureTextField", "SearchField"),
-                checkable=itype in ("Switch",),
-                password=itype == "SecureTextField",
-                enabled=enabled,
-            )
-        )
+    # The app under test is the first XCUIElementTypeApplication in the tree; its
+    # subtree carries package="" (owned). Any *other* application (SpringBoard, a
+    # system permission alert) tags its subtree with that app's name, so _own
+    # excludes it — giving iOS the foreign-app guard Android has via `package`.
+    primary: Dict[str, Optional[str]] = {"name": None}
+
+    def _walk(node: ET.Element, package: str) -> None:
+        itype = node.get("type") or node.tag
+        if itype.endswith("Application"):
+            name = node.get("name", "")
+            if primary["name"] is None:
+                primary["name"] = name
+            is_own = name == primary["name"] and name.lower() not in _IOS_SYSTEM_APPS
+            package = "" if is_own else (name or "system")
+        element = _ios_element(node, package)
+        if element is not None:
+            elements.append(element)
+        for child in node:
+            _walk(child, package)
+
+    _walk(root, "")
     return elements
 
 

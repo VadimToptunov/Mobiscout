@@ -64,10 +64,12 @@ def _is_input(element: CrawlElement) -> bool:
     return any(k in cls for k in ("edittext", "textfield", "securetextfield", "searchfield"))
 
 
-def _find(els: List[CrawlElement], hint: str) -> Optional[CrawlElement]:
-    """First element whose text/desc/id mentions ``hint`` (case-insensitive)."""
+def _find(els: List[CrawlElement], hint: str, exclude_ids: Optional[set] = None) -> Optional[CrawlElement]:
+    """First element whose text/desc/id mentions ``hint`` (case-insensitive),
+    skipping any element whose ``id()`` is in ``exclude_ids`` (already consumed)."""
     h = hint.lower()
-    return next((e for e in els if h in _haystack(e)), None)
+    skip = exclude_ids or set()
+    return next((e for e in els if id(e) not in skip and h in _haystack(e)), None)
 
 
 def _tap(driver: Any, element: CrawlElement) -> None:
@@ -110,11 +112,16 @@ def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     """Fill inputs by field hint, then tap the submit control."""
     fields: Dict[str, str] = data.get("fields", {})
     inputs = [e for e in els if _is_input(e)]
+    used_ids: set = set()  # inputs already filled — never reuse (so two unmatched
+    # fields land in two different inputs instead of both overwriting inputs[0]).
     did = False
     for hint, value in fields.items():
-        target = _find(inputs, hint) or (inputs[0] if inputs else None)
+        target = _find(inputs, hint, used_ids)
+        if target is None:  # no hint match -> consume the next unused input positionally
+            target = next((e for e in inputs if id(e) not in used_ids), None)
         if target is None:
             continue
+        used_ids.add(id(target))
         _tap(driver, target)
         if hasattr(driver, "type_text"):
             driver.type_text(value)

@@ -28,6 +28,50 @@ def test_app_crawler_reexports_the_same_objects():
     assert ac_mod.parse_screen is parse_mod.parse_screen
 
 
+def test_ios_springboard_element_is_marked_foreign_and_excluded():
+    # A permission alert / springboard control is owned by a *different* iOS app
+    # (SpringBoard). Before the fix every iOS element had package="" so _own was
+    # True for all of them and the crawler would tap the system dialog. Now the AUT
+    # keeps package="" (own) while the springboard subtree is tagged foreign.
+    xml = (
+        "<AppiumAUT>"
+        '<XCUIElementTypeApplication type="XCUIElementTypeApplication" name="MyApp" '
+        'x="0" y="0" width="390" height="844">'
+        '<XCUIElementTypeButton type="XCUIElementTypeButton" name="app_ok" label="Continue" '
+        'x="20" y="100" width="200" height="44"/>'
+        "</XCUIElementTypeApplication>"
+        '<XCUIElementTypeApplication type="XCUIElementTypeApplication" name="SpringBoard" '
+        'x="0" y="0" width="390" height="844">'
+        '<XCUIElementTypeButton type="XCUIElementTypeButton" name="Allow" label="Allow" '
+        'x="20" y="400" width="200" height="44"/>'
+        "</XCUIElementTypeApplication>"
+        "</AppiumAUT>"
+    )
+    screen = parse_mod.parse_screen(xml)
+    assert screen.platform == "ios"
+    by_name = {e.content_desc: e for e in screen.elements}
+    assert by_name["app_ok"].package == ""  # app under test -> owned
+    assert by_name["Allow"].package.lower() == "springboard"  # system dialog -> foreign
+
+    crawler = ac_mod.AppCrawler(_NullDriver(), "com.example.myapp")
+    assert crawler._own(by_name["app_ok"]) is True
+    assert crawler._own(by_name["Allow"]) is False  # never tap the system dialog
+
+
+class _NullDriver:
+    def page_source(self):
+        return ""
+
+    def tap(self, x, y):
+        pass
+
+    def back(self):
+        pass
+
+    def current_package(self):
+        return "com.example.myapp"
+
+
 def test_parse_is_self_contained_and_produces_a_screen():
     xml = (
         '<?xml version="1.0"?><hierarchy rotation="0">'
