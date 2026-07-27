@@ -58,11 +58,18 @@ class IOSCrawlerDriver:
         # Launch arguments passed to the app on start — how many apps reach a
         # testable state (skip onboarding/auth, deep-link a screen, enable a test
         # mode). Without them the crawl is stuck on a gate.
-        if process_args:
-            options.set_capability("processArguments", {"args": list(process_args)})
         # A booted simulator is reused instead of shutting it down each run.
         options.set_capability("noReset", True)
-        options.set_capability("shouldTerminateApp", False)
+        if process_args:
+            options.set_capability("processArguments", {"args": list(process_args)})
+            # processArguments only apply to a FRESH launch. With shouldTerminateApp
+            # False (the reuse default), Appium attaches to an already-running app
+            # and silently ignores the args — so a crawl with -SkipAuth/-DeepLink
+            # stays stuck on the gate. Force a relaunch when args are supplied.
+            options.set_capability("forceAppLaunch", True)
+            options.set_capability("shouldTerminateApp", True)
+        else:
+            options.set_capability("shouldTerminateApp", False)
         # Don't block session creation waiting for the app to go quiescent — a
         # live-updating app (streaming prices) never does, so this otherwise
         # stalls every launch to its timeout.
