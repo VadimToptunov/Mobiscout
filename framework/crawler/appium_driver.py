@@ -99,7 +99,8 @@ class IOSCrawlerDriver:
             source = self._cache[1]
             self._cache = None
             return source
-        return self._driver.page_source
+        page_source: str = self._driver.page_source
+        return page_source
 
     def _remember(self, source: str) -> None:
         self._cache = (time.monotonic(), source)
@@ -166,7 +167,8 @@ class IOSCrawlerDriver:
         # on the first read; waiting a beat and re-reading catches the real content.
         time.sleep(wait)
         self._cache = None
-        return self._driver.page_source
+        page_source: str = self._driver.page_source
+        return page_source
 
     def current_package(self) -> str:
         try:

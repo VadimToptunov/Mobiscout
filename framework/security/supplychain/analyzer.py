@@ -208,7 +208,7 @@ class SupplyChainAnalyzer:
             return current == spec  # no operator -> exact-match spec
 
         try:
-            from packaging import version as pkg_version
+            import packaging.version as pkg_version
 
             cur: Any = pkg_version.parse(current)
             thr: Any = pkg_version.parse(threshold_str)
