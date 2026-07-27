@@ -3,6 +3,7 @@ package com.mobiletest.recorder.ui.panels
 import com.google.gson.JsonObject
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextField
 import com.mobiletest.recorder.services.MTRDaemonService
 import java.awt.*
 import java.awt.event.MouseAdapter
@@ -21,7 +22,15 @@ class ScreenPanel(
     private var currentSessionId: String? = null
     private var currentImage: BufferedImage? = null
     private var currentDeviceId: String? = null
-    
+
+    // App under test + Appium server for the session — iOS needs a bundle id to
+    // open an Appium session; both are harmless on Android.
+    private val appField = JBTextField(16)
+    private val serverField = JBTextField("http://localhost:4723", 16)
+    private val launchArgsField = JBTextField(14)
+    // "name (id)" combo string -> platform, so a session starts on the right backend.
+    private val devicePlatform = mutableMapOf<String, String>()
+
     private val imagePanel = object : JPanel() {
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
@@ -119,6 +128,15 @@ class ScreenPanel(
         toolbar.add(deviceCombo)
         toolbar.add(Box.createHorizontalStrut(5))
         toolbar.add(loadDevicesButton)
+        toolbar.add(Box.createHorizontalStrut(8))
+        toolbar.add(JLabel("App:"))
+        toolbar.add(appField)
+        toolbar.add(Box.createHorizontalStrut(5))
+        toolbar.add(JLabel("Server:"))
+        toolbar.add(serverField)
+        toolbar.add(Box.createHorizontalStrut(5))
+        toolbar.add(JLabel("Launch args:"))
+        toolbar.add(launchArgsField)
         toolbar.add(Box.createHorizontalStrut(10))
         toolbar.add(startButton)
         toolbar.add(Box.createHorizontalStrut(5))
@@ -139,9 +157,12 @@ class ScreenPanel(
                 try {
                     val result = daemonService.listDevices("all")
                     val devices = result?.getAsJsonArray("devices") ?: return emptyList()
-                    return devices.map { 
+                    return devices.map {
                         val dev = it.asJsonObject
-                        "${dev.get("name")?.asString} (${dev.get("id")?.asString})"
+                        val label = "${dev.get("name")?.asString} (${dev.get("id")?.asString})"
+                        // Remember the platform so the session starts on the right backend.
+                        devicePlatform[label] = dev.get("platform")?.asString ?: "android"
+                        label
                     }
                 } catch (e: Exception) {
                     return emptyList()
@@ -163,11 +184,19 @@ class ScreenPanel(
                     // Extract device ID from string
                     val deviceId = deviceStr.substringAfter("(").substringBefore(")")
                     currentDeviceId = deviceId
-                    
-                    val params = mapOf(
-                        "device_id" to deviceId,
-                        "backend" to "appium"
-                    )
+
+                    // Give the daemon what it needs to open the right driver: the
+                    // platform (adb vs Appium), and for iOS the app bundle id, the
+                    // Appium server, and any launch args to start past a gate.
+                    val launchArgs = launchArgsField.text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    val params = buildMap {
+                        put("device_id", deviceId)
+                        put("backend", "appium")
+                        put("platform", devicePlatform[deviceStr] ?: "android")
+                        if (appField.text.isNotBlank()) put("bundle_id", appField.text.trim())
+                        if (serverField.text.isNotBlank()) put("server", serverField.text.trim())
+                        if (launchArgs.isNotEmpty()) put("launch_args", launchArgs)
+                    }
                     val client = daemonService.getClient()
                     val response = client?.call("session/start", params)
                     return response?.getResultOrThrow()?.get("session_id")?.asString
