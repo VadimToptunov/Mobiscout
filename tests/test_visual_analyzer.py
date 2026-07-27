@@ -124,7 +124,7 @@ def test_generate_html_report_writes_file(tmp_path):
 
     out = tmp_path / "out" / "report.html"
     va.generate_html_report(out)
-    html = out.read_text()
+    html = out.read_text(encoding="utf-8")
     assert "<title>Visual Regression Report</title>" in html
     assert "home" in html
     assert "Total screens: 1" in html

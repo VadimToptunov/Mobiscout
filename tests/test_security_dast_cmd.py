@@ -123,7 +123,7 @@ def test_dast_writes_json_report(runner, patch_analyzer, tmp_path):
     assert out.exists()
     import json
 
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["findings"] and data["findings"][0]["severity"] == "high"
 
 
@@ -133,7 +133,7 @@ def test_dast_writes_html_report(runner, patch_analyzer, tmp_path):
     result = runner.invoke(security, ["dast", "h", "-o", str(out), "-f", "html"])
     _no_crash(result)
     assert out.exists()
-    assert "<html>" in out.read_text().lower()
+    assert "<html>" in out.read_text(encoding="utf-8").lower()
 
 
 # ---------------------------------------------------------------------------- ssl

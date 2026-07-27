@@ -105,7 +105,7 @@ def test_heal_failure_confidence_too_low(tmp_path):
 def test_heal_failure_dry_run_succeeds_without_writing(tmp_path):
     po = tmp_path / "login_page.py"
     po.write_text('login_button = ("id", "old_login")\n')
-    before = po.read_text()
+    before = po.read_text(encoding="utf-8")
 
     orch = HealingOrchestrator(tmp_path)
     result = orch.heal_failure(_failure(tmp_path, page_source=PAGE_SOURCE_WITH_ID, page_object=po), dry_run=True)
@@ -116,7 +116,7 @@ def test_heal_failure_dry_run_succeeds_without_writing(tmp_path):
     assert result.best_match.selector.selector_tuple == ("id", "com.app:id/login")
     assert result.update_result is None
     # dry run left the file untouched
-    assert po.read_text() == before
+    assert po.read_text(encoding="utf-8") == before
 
 
 def test_heal_failure_real_run_rewrites_page_object(tmp_path):
@@ -128,7 +128,7 @@ def test_heal_failure_real_run_rewrites_page_object(tmp_path):
 
     assert result.success is True
     assert result.update_result is not None and result.update_result.success is True
-    content = po.read_text()
+    content = po.read_text(encoding="utf-8")
     assert 'login_button = ("id", "com.app:id/login")' in content
     assert "# Auto-healed:" in content
 

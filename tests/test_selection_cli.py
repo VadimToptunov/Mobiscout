@@ -115,7 +115,7 @@ def test_auto_selects_and_saves_when_changes(runner, monkeypatch):
         _no_crash(result)
         assert result.exit_code == 0
         assert "Selected" in result.output
-        saved = Path("selected.txt").read_text()
+        saved = Path("selected.txt").read_text(encoding="utf-8")
         assert "test_foo.py::" in saved
 
 

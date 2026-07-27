@@ -206,7 +206,7 @@ def test_save_healing_metadata_creates_and_appends(repo):
     git.save_healing_metadata(_details(page))
     meta_path = repo / ".healing_metadata.json"
     assert meta_path.exists()
-    data = json.loads(meta_path.read_text())
+    data = json.loads(meta_path.read_text(encoding="utf-8"))
     assert len(data) == 1
     entry = data[0]
     assert entry["element"] == "login_button"
@@ -217,7 +217,7 @@ def test_save_healing_metadata_creates_and_appends(repo):
 
     # a second save appends rather than overwrites
     git.save_healing_metadata(_details(page))
-    data = json.loads(meta_path.read_text())
+    data = json.loads(meta_path.read_text(encoding="utf-8"))
     assert len(data) == 2
 
 
@@ -229,7 +229,7 @@ def test_save_healing_metadata_custom_path_and_corrupt_recovery(repo, tmp_path):
     page = repo / "p.py"
     git.save_healing_metadata(_details(page), output_path=out)
 
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     # corrupt content is discarded, new entry written cleanly
     assert len(data) == 1
     assert data[0]["element"] == "login_button"

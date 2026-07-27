@@ -59,7 +59,7 @@ def test_scan_writes_report_file(runner, tmp_path):
     result = runner.invoke(security, ["scan", str(apk), "-p", "android", "-n", "App", "-o", str(out), "-f", "json"])
     _no_crash(result)
     assert out.exists()
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["app_name"] == "App" and "summary" in data
 
 

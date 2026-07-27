@@ -178,5 +178,5 @@ def test_emit_writes_test_files_from_steps(tmp_path):
     assert target_dir.exists()
     written = list(target_dir.glob("*"))
     assert written  # emitter produced at least one file
-    combined = "\n".join(p.read_text() for p in written if p.is_file())
+    combined = "\n".join(p.read_text(encoding="utf-8") for p in written if p.is_file())
     assert "com.myapp" in combined

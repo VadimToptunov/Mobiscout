@@ -52,7 +52,7 @@ def test_generate_html(runner, junit, tmp_path):
     _no_crash(result)
     assert result.exit_code == 0
     assert out.exists()
-    body = out.read_text()
+    body = out.read_text(encoding="utf-8")
     assert "<html" in body.lower() and "Regression" in body
 
 
@@ -61,14 +61,14 @@ def test_generate_markdown(runner, junit, tmp_path):
     result = runner.invoke(report, ["generate", "-j", str(junit), "-o", str(out), "-f", "markdown"])
     _no_crash(result)
     assert out.exists()
-    assert "# Test Report: Regression" in out.read_text()
+    assert "# Test Report: Regression" in out.read_text(encoding="utf-8")
 
 
 def test_generate_json(runner, junit, tmp_path):
     out = tmp_path / "report.json"
     result = runner.invoke(report, ["generate", "-j", str(junit), "-o", str(out), "-f", "json"])
     _no_crash(result)
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["summary"]["total"] == 3
     assert data["summary"]["failed"] == 1
     assert data["summary"]["skipped"] == 1

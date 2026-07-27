@@ -131,7 +131,7 @@ def test_export_json_to_file(runner, tmp_path):
     assert result.exit_code == 0, result.output
     import json
 
-    data = json.loads(out.read_text())
+    data = json.loads(out.read_text(encoding="utf-8"))
     assert data["total_tests"] >= 1
     assert "avg_pass_rate" in data
 

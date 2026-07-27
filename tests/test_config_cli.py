@@ -33,7 +33,7 @@ def test_init_creates_config(runner, tmp_path):
     result = runner.invoke(config, ["init", "--path", str(cfg)])
     _no_crash(result)
     assert cfg.exists()
-    data = yaml.safe_load(cfg.read_text())
+    data = yaml.safe_load(cfg.read_text(encoding="utf-8"))
     assert data["framework"]["timeout"] == 30  # a default value landed on disk
 
 
@@ -52,7 +52,7 @@ def test_init_force_overwrites(runner, tmp_path):
     result = runner.invoke(config, ["init", "--path", str(cfg), "--force"])
     _no_crash(result)
     assert result.exit_code == 0
-    data = yaml.safe_load(cfg.read_text())
+    data = yaml.safe_load(cfg.read_text(encoding="utf-8"))
     assert "framework" in data
 
 
@@ -67,7 +67,7 @@ def test_set_persists_and_get_reads_back(runner, tmp_path):
     _no_crash(set_res)
     assert "framework.timeout = 60" in set_res.output
     # Value must be persisted to disk as an int.
-    assert yaml.safe_load(cfg.read_text())["framework"]["timeout"] == 60
+    assert yaml.safe_load(cfg.read_text(encoding="utf-8"))["framework"]["timeout"] == 60
 
     get_res = runner.invoke(config, ["get", "framework.timeout", "-c", str(cfg)])
     _no_crash(get_res)
@@ -78,7 +78,7 @@ def test_set_coerces_bool(runner, tmp_path):
     cfg = tmp_path / "c.yaml"
     runner.invoke(config, ["init", "--path", str(cfg)])
     runner.invoke(config, ["set", "framework.screenshot_on_failure", "false", "-c", str(cfg)])
-    assert yaml.safe_load(cfg.read_text())["framework"]["screenshot_on_failure"] is False
+    assert yaml.safe_load(cfg.read_text(encoding="utf-8"))["framework"]["screenshot_on_failure"] is False
 
 
 def test_set_invalid_key_exits_one(runner, tmp_path):
@@ -180,7 +180,7 @@ def test_reset_restores_default(runner, tmp_path):
     result = runner.invoke(config, ["reset", "framework.timeout", "-c", str(cfg)])
     _no_crash(result)
     assert result.exit_code == 0
-    assert yaml.safe_load(cfg.read_text())["framework"]["timeout"] == 30
+    assert yaml.safe_load(cfg.read_text(encoding="utf-8"))["framework"]["timeout"] == 30
 
 
 def test_reset_invalid_key_exits_one(runner, tmp_path):
@@ -197,4 +197,4 @@ def test_list_json_is_valid_json_payload(runner, tmp_path):
     cfg = tmp_path / "c.json"
     runner.invoke(config, ["init", "--path", str(cfg)])
     # ConfigManager writes JSON when the suffix is .json; re-read directly.
-    assert json.loads(cfg.read_text())["framework"]["retry_count"] == 3
+    assert json.loads(cfg.read_text(encoding="utf-8"))["framework"]["retry_count"] == 3

@@ -226,7 +226,7 @@ def test_code_findings_grouped_and_report_written(runner, tmp_path):
     assert out.exists()
     import json
 
-    assert len(json.loads(out.read_text())) >= 1
+    assert len(json.loads(out.read_text(encoding="utf-8"))) >= 1
 
 
 def test_privacy_clean_tree_exits_zero(runner, tmp_path):
@@ -247,4 +247,4 @@ def test_privacy_writes_report_when_findings(runner, tmp_path):
     assert out.exists()
     import json
 
-    assert isinstance(json.loads(out.read_text()), list)
+    assert isinstance(json.loads(out.read_text(encoding="utf-8")), list)
