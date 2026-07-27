@@ -1,6 +1,7 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.models.ProductRelease
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
 // Migrated to the IntelliJ Platform Gradle Plugin 2.x (the 1.x line is frozen and
 // can't target 2024.2+ IDEs). Requires JDK 21 and Gradle 9.6+.
@@ -54,6 +55,18 @@ intellijPlatform {
     }
 
     pluginVerification {
+        // Fail the build only on genuine breakage — an invalid plugin, real
+        // binary-compatibility problems, or missing dependencies. Implementing
+        // ToolWindowFactory unavoidably trips INTERNAL / EXPERIMENTAL / DEPRECATED
+        // usages for methods the platform recently annotated (getIcon, getAnchor,
+        // manage, isApplicable); those are evolution warnings, not breakage, so
+        // they must not fail CI.
+        failureLevel = listOf(
+            FailureLevel.COMPATIBILITY_PROBLEMS,
+            FailureLevel.INVALID_PLUGIN,
+            FailureLevel.MISSING_DEPENDENCIES,
+        )
+
         ides {
             // Verify against RELEASED IDEs only — `recommended()` pulls unreleased
             // EAP versions that aren't in the repository yet, failing CI. Platform
