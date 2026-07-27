@@ -49,3 +49,48 @@ def test_on_snapshot_receives_every_dump():
     seen = []
     settle_until_stable(lambda: next(seq), on_snapshot=seen.append, min_wait=0, poll=0, max_wait=1.0)
     assert seen == ["x", "x"]
+
+
+def test_settles_despite_ticking_numbers():
+    # A live-updating screen whose only change is a ticking price/clock must count
+    # as *settled* — the structure is identical, only volatile values differ. This
+    # is the fast-crawl win: it no longer waits out max_wait on such screens.
+    prices = iter(
+        [
+            '<Cell name="balance">€17,379.28</Cell>',
+            '<Cell name="balance">€17,380.11</Cell>',  # only the number changed
+            '<Cell name="balance">€17,381.02</Cell>',
+        ]
+    )
+    calls = []
+
+    def snap():
+        v = next(prices)
+        calls.append(v)
+        return v
+
+    result = settle_until_stable(snap, min_wait=0, poll=0, max_wait=1.0)
+    # Settled on the second dump (same structure), not polled to exhaustion.
+    assert len(calls) == 2
+    assert result.startswith("<Cell")
+
+
+def test_real_structural_change_is_not_settled():
+    # A genuine layout change (new element) must NOT be seen as stable.
+    seq = iter(
+        [
+            "<A/>",
+            "<A/><B/>",  # structure changed -> keep polling
+            "<A/><B/>",  # now stable
+        ]
+    )
+    calls = []
+
+    def snap():
+        v = next(seq)
+        calls.append(v)
+        return v
+
+    result = settle_until_stable(snap, min_wait=0, poll=0, max_wait=1.0)
+    assert calls == ["<A/>", "<A/><B/>", "<A/><B/>"]
+    assert result == "<A/><B/>"
