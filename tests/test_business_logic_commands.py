@@ -171,6 +171,32 @@ def test_testdata_empty_when_no_mock_data(runner, tmp_path):
     assert "No mock data found" in result.output
 
 
+@pytest.mark.parametrize("suffix", ["yaml", "json"])
+def test_load_analysis_roundtrips_non_ascii(runner, tmp_path, suffix):
+    # Regression: every subcommand loads the analysis via the shared
+    # _load_analysis helper (encoding="utf-8"), so non-ASCII survives instead
+    # of being corrupted by the platform default (cp1252 on Windows). Both the
+    # JSON and YAML dispatch branches are exercised.
+    contract = {
+        "method": "POST",
+        "endpoint": "/anmeldung",
+        "description": "Benutzer meldet sich an — Café Ünïcode",
+        "source_file": "café.kt",
+    }
+    data = {"api_contracts": [contract]}
+    path = tmp_path / f"bl.{suffix}"
+    if suffix == "json":
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    else:
+        path.write_text(yaml.dump(data, allow_unicode=True), encoding="utf-8")
+
+    result = runner.invoke(business, ["contracts", "--input", str(path)])
+    _no_crash(result)
+    assert result.exit_code == 0
+    assert "Café Ünïcode" in result.output
+    assert "café.kt" in result.output
+
+
 def test_complexity_analyzes_python(runner, tmp_path):
     out = tmp_path / "cc.yaml"
     result = runner.invoke(business, ["complexity", "--source", str(_source_tree(tmp_path)), "--output", str(out)])

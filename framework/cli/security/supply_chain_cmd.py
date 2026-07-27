@@ -6,7 +6,6 @@ Commands: supply-chain, sbom
 
 from pathlib import Path
 from typing import Optional, Dict
-import json
 
 import click
 from rich.panel import Panel
@@ -18,6 +17,8 @@ from framework.cli.security.base import (
     console,
     validate_path,
     create_progress_context,
+    exit_with_severity,
+    save_json_report,
 )
 
 
@@ -132,16 +133,12 @@ def supply_chain(
             analyzer.export_html(result, output)
             console.print(f"\n[green]✓[/green] HTML report saved to {output}")
         else:
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(result.to_dict(), f, indent=2, default=str)
+            save_json_report(result.to_dict(), output)
             console.print(f"\n[green]✓[/green] Report saved to {output}")
 
+    # critical → exit 2; any remaining vulnerability → exit 1; otherwise 0.
     critical_vulns = len([v for v in result.vulnerabilities if v.severity == "critical"])
-    if critical_vulns:
-        raise SystemExit(2)
-    elif result.vulnerabilities:
-        raise SystemExit(1)
-    raise SystemExit(0)
+    exit_with_severity(critical_vulns, len(result.vulnerabilities))
 
 
 @security.command()

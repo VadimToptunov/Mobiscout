@@ -19,6 +19,7 @@ from framework.cli.security.base import (
     validate_path,
     print_scan_summary,
     get_severity_style,
+    exit_with_severity,
 )
 
 
@@ -64,12 +65,7 @@ def scan(
         scanner.generate_report(result, output, format)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
-    if result.critical_count > 0:
-        raise SystemExit(2)
-    elif result.high_count > 0:
-        raise SystemExit(1)
-    else:
-        raise SystemExit(0)
+    exit_with_severity(result.critical_count, result.high_count)
 
 
 @security.command()

@@ -17,6 +17,8 @@ from framework.cli.security.base import (
     security,
     console,
     create_progress_context,
+    exit_with_severity,
+    save_json_report,
 )
 
 
@@ -93,14 +95,13 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
         if format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(result.to_dict(), f, indent=2, default=str)
+            save_json_report(result.to_dict(), output)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
+    # Only critical/high findings are treated as failing; medium/low exit 0.
     critical = len([f for f in result.findings if f.severity.value == "critical"])
-    if critical:
-        raise SystemExit(2)
-    raise SystemExit(1)
+    high = len([f for f in result.findings if f.severity.value == "high"])
+    exit_with_severity(critical, high)
 
 
 @security.command()
@@ -181,7 +182,7 @@ def api(base_url: str, auth_header: Optional[str], endpoints: Optional[Path]) ->
 
     endpoint_list = None
     if endpoints and endpoints.exists():
-        with open(endpoints) as f:
+        with open(endpoints, encoding="utf-8") as f:
             endpoint_list = json.load(f)
 
     with create_progress_context() as progress:

@@ -10,6 +10,18 @@ import click
 import yaml
 
 
+def _load_analysis(input_file: str) -> Dict:
+    """Load a business-logic analysis file (JSON or YAML) as UTF-8.
+
+    The format is selected by suffix: ``.json`` is parsed as JSON, anything
+    else as YAML. Opening with an explicit encoding avoids the platform
+    default (e.g. cp1252 on Windows) corrupting non-ASCII content.
+    """
+    with open(input_file, "r", encoding="utf-8") as f:
+        data: Dict = json.load(f) if input_file.endswith(".json") else (yaml.safe_load(f) or {})
+    return data
+
+
 @click.group()
 def business() -> None:
     """
@@ -159,12 +171,7 @@ def scenarios(input_file: str, output: str) -> None:
 
     click.echo("\n🎯 Generating test scenarios...")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     # Reconstruct analyzer (simplified)
     analyzer = BusinessLogicAnalyzer(Path("."))
@@ -236,12 +243,7 @@ def features(input_file: str, output: str) -> None:
 
     click.echo("\n📝 Generating BDD features...")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     # Reconstruct analyzer
     analyzer = BusinessLogicAnalyzer(Path("."))
@@ -296,12 +298,7 @@ def testdata(input_file: str) -> None:
     """
     click.echo("\n🎭 Available Mock Test Data:")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     mock_data = data.get("mock_data", {})
 
@@ -351,12 +348,7 @@ def edgecases(input_file: str) -> None:
     """
     click.echo("\n⚠️ Detected Edge Cases:")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     edge_cases = data.get("edge_cases", [])
 
@@ -400,12 +392,7 @@ def statemachines(input_file: str) -> None:
     """
     click.echo("\n🔄 Extracted State Machines:")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     state_machines = data.get("state_machines", [])
 
@@ -448,12 +435,7 @@ def negative(input_file: str, output: str) -> None:
     """
     click.echo("\n❌ Generated Negative Test Cases:")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     negative_tests = data.get("negative_test_cases", [])
 
@@ -506,12 +488,7 @@ def contracts(input_file: str) -> None:
     """
     click.echo("\n📡 Extracted API Contracts:")
 
-    # Load analysis
-    with open(input_file) as f:
-        if input_file.endswith(".json"):
-            data = json.load(f)
-        else:
-            data = yaml.safe_load(f)
+    data = _load_analysis(input_file)
 
     api_contracts = data.get("api_contracts", [])
 

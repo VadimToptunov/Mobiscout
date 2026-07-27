@@ -6,7 +6,6 @@ Commands: sast, taint
 
 from pathlib import Path
 from typing import Optional, Dict, List
-import json
 
 import click
 from rich.panel import Panel
@@ -19,6 +18,8 @@ from framework.cli.security.base import (
     console,
     validate_path,
     create_progress_context,
+    exit_with_severity,
+    save_json_report,
 )
 
 
@@ -124,15 +125,10 @@ def sast(
         elif format == "html":
             analyzer.export_html(result, output)
         else:
-            with open(output, "w", encoding="utf-8") as f:
-                json.dump(result.to_dict(), f, indent=2, default=str)
+            save_json_report(result.to_dict(), output)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
-    if critical_vulns:
-        raise SystemExit(2)
-    elif high_vulns:
-        raise SystemExit(1)
-    raise SystemExit(0)
+    exit_with_severity(len(critical_vulns), len(high_vulns))
 
 
 @security.command()
@@ -189,8 +185,7 @@ def taint(source_path: Path, output: Optional[Path]) -> None:
 
     if output:
         data = [v.to_dict() for v in taint_vulns]
-        with open(output, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, default=str)
+        save_json_report(data, output)
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
     raise SystemExit(1)
