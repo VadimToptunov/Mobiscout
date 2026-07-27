@@ -79,13 +79,21 @@ __all__ = [
     "AppCrawler",
 ]
 
-# Element labels containing any of these are never tapped — they are
-# destructive or would leave the app / session.
-DEFAULT_BLOCKLIST = (
+# Labels that end the session / leave the app. Tapping these never deepens a
+# crawl — it just strands it on a login screen or another app — so they stay
+# blocked even in sandbox mode.
+SESSION_BLOCKLIST = (
     "logout",
     "log out",
     "sign out",
     "signout",
+)
+
+# Labels for destructive or financial actions. Blocked by default so a crawl of a
+# real app never deletes data or completes a purchase — but a deliberately
+# throwaway app (a sandbox/test build) can opt to let the crawler through these
+# to reach the screens behind them (see AppCrawler(..., allow_destructive=True)).
+DESTRUCTIVE_BLOCKLIST = (
     "delete",
     "remove account",
     "deactivate",
@@ -95,6 +103,10 @@ DEFAULT_BLOCKLIST = (
     "checkout",
     "confirm order",
 )
+
+# Element labels containing any of these are never tapped by default — they are
+# destructive or would leave the app / session.
+DEFAULT_BLOCKLIST = SESSION_BLOCKLIST + DESTRUCTIVE_BLOCKLIST
 
 # Tap-order priority by semantic role (lower = tapped sooner). High-leverage
 # controls first so a bounded crawl spends its budget on navigation and primary
@@ -170,13 +182,20 @@ class AppCrawler:
         app_package: str,
         max_steps: int = 100,
         max_depth: int = 20,
-        blocklist: Tuple[str, ...] = DEFAULT_BLOCKLIST,
+        blocklist: Optional[Tuple[str, ...]] = None,
         waypoints: Optional[List["Waypoint"]] = None,
+        allow_destructive: bool = False,
     ) -> None:
         self.driver = driver
         self.app_package = app_package
         self.max_steps = max_steps
         self.max_depth = max_depth
+        # By default block both session-enders and destructive/financial actions.
+        # ``allow_destructive`` (for throwaway sandbox/test apps) keeps only the
+        # session-enders blocked, so the crawl can tap Pay/Buy/Delete/Confirm and
+        # reach the screens behind them. An explicit ``blocklist`` overrides both.
+        if blocklist is None:
+            blocklist = SESSION_BLOCKLIST if allow_destructive else DEFAULT_BLOCKLIST
         self.blocklist = tuple(b.lower() for b in blocklist)
         # Gate-passing instructions (login, TOTP, biometric, permission dialogs)
         # applied on first sight of a matching screen so the crawl goes deeper.
