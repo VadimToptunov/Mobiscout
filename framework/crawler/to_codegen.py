@@ -318,8 +318,16 @@ def build_test_model(
     cases.extend(_navigation_cases(result, app_package))
 
     # Multi-step, model-based paths through the interaction graph.
-
     cases.extend(multi_step_cases(result, app_package))
+
+    # Negative-path coverage needs graph.negative_form_cases (lazy import:
+    # graph.py imports this module, so importing here avoids a cycle).
+    from framework.crawler.graph import negative_form_cases
+
+    # Negative-path coverage: submit each form with invalid data and assert it is
+    # rejected — the counterpart to the valid-data filling multi_step_cases does,
+    # so both branches of every form are exercised.
+    cases.extend(negative_form_cases(result, app_package))
 
     # Human-readable names can collide (two screens titled the same, two taps on
     # the same control) — keep every test method name unique.
