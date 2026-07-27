@@ -55,7 +55,7 @@ def metrics(format: str, output: Optional[Path]) -> None:
         summary = manager.metrics.get_summary()
 
         if output:
-            with open(output, "w") as f:
+            with open(output, "w", encoding="utf-8") as f:
                 json.dump(summary, f, indent=2)
             console.print(f"[green]✓[/green] Metrics exported to {output}")
         else:
@@ -90,7 +90,7 @@ def logs(log_file: Path, level: Optional[str], follow: bool, lines: int) -> None
 
     def read_logs() -> list:
         """Read and filter logs"""
-        with open(log_file, "r") as f:
+        with open(log_file, "r", encoding="utf-8") as f:
             all_lines = f.readlines()
 
         # Take last N lines
@@ -173,7 +173,7 @@ def trace(trace_file: Path) -> None:
 
     import json
 
-    with open(trace_file, "r") as f:
+    with open(trace_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     trace_id = data.get("trace_id")

@@ -258,7 +258,7 @@ def from_swagger(swagger_file: Path, session_id: str) -> None:
     import yaml
 
     try:
-        with open(swagger_file, "r") as f:
+        with open(swagger_file, "r", encoding="utf-8") as f:
             if swagger_file.suffix in [".yaml", ".yml"]:
                 spec = yaml.safe_load(f)
             else:

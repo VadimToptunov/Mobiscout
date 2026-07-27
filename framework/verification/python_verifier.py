@@ -32,7 +32,7 @@ class PythonVerifier(LanguageVerifier):
         issues: List[VerificationIssue] = []
 
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
 
             # Syntax check
             try:

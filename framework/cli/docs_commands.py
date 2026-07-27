@@ -293,7 +293,7 @@ def coverage(source_dir: str, output: str | None) -> None:
             "files": coverage_by_file,
         }
 
-        with open(output, "w") as f:
+        with open(output, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
 
         console.print(f"\n💾 Report saved to: {output}")

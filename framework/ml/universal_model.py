@@ -351,7 +351,7 @@ class UniversalModelBuilder:
 
         # Save to file
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(dataset, f, indent=2)
 
         total_samples = len(dataset)
@@ -459,7 +459,7 @@ class UniversalModelBuilder:
         logger.info("Training universal ML model...")
 
         # Load dataset
-        with open(dataset_path, "r") as f:
+        with open(dataset_path, "r", encoding="utf-8") as f:
             dataset = json.load(f)
 
         logger.info(f"Loaded {len(dataset)} training samples")

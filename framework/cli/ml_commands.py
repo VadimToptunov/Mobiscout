@@ -51,7 +51,7 @@ def train(training_data_path: str, output_path: str, test_split: float) -> None:
 
     try:
         # Load training data
-        with open(training_file, "r") as f:
+        with open(training_file, "r", encoding="utf-8") as f:
             training_data = json.load(f)
 
         print_info("Loaded " + str(len(training_data)) + " training examples")
@@ -102,7 +102,7 @@ def evaluate(model_path: str, test_data_path: str) -> None:
             raise click.Abort()
 
         # Load test data
-        with open(test_file, "r") as f:
+        with open(test_file, "r", encoding="utf-8") as f:
             test_data = json.load(f)
 
         print_info("Loaded " + str(len(test_data)) + " test examples")
@@ -180,7 +180,7 @@ def predict(model_path: str, element_data: str) -> None:
 
         # Parse element data
         if Path(element_data).exists():
-            with open(element_data, "r") as f:
+            with open(element_data, "r", encoding="utf-8") as f:
                 element = json.load(f)
         else:
             element = json.loads(element_data)
@@ -230,7 +230,7 @@ def create_universal_model(output_path: str, samples_per_type: int) -> None:
         # Load the training data from the generated file
         import json
 
-        with open(training_data_path, "r") as f:
+        with open(training_data_path, "r", encoding="utf-8") as f:
             training_data = json.load(f)
 
         print_info(f"Generated {len(training_data)} training samples")
@@ -279,7 +279,7 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
 
     try:
         # Load app model
-        with open(model_file, "r") as f:
+        with open(model_file, "r", encoding="utf-8") as f:
             app_model_data = json.load(f)
 
         # Generate training data
@@ -287,7 +287,7 @@ def generate_training_data(app_model_path: str, output_path: str) -> None:
         training_data_path = generator.generate_from_app_model(app_model_data, output_path=output_file)
 
         # Load to get count for display
-        with open(training_data_path, "r") as f:
+        with open(training_data_path, "r", encoding="utf-8") as f:
             training_data = json.load(f)
 
         print_info(f"\nGenerated {len(training_data)} training examples")

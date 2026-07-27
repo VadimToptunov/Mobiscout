@@ -230,7 +230,7 @@ class APKDecompiler:
         if res_dir.exists():
             for xml_file in res_dir.rglob("*.xml"):
                 try:
-                    content = xml_file.read_text(errors="ignore")
+                    content = xml_file.read_text(encoding="utf-8", errors="ignore")
                     for category, pattern in self.SENSITIVE_PATTERNS.items():
                         for match in re.finditer(pattern, content, re.IGNORECASE):
                             strings.append(
@@ -286,7 +286,9 @@ class APKDecompiler:
         lib_dir = extract_dir / "lib"
         if lib_dir.exists():
             for so_file in lib_dir.rglob("*.so"):
-                libs.append(str(so_file.relative_to(extract_dir)))
+                # APK entry paths are always '/'-separated; use as_posix() so the
+                # result is identical on Windows (where relative_to would yield '\\').
+                libs.append(so_file.relative_to(extract_dir).as_posix())
 
         return libs
 

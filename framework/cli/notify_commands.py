@@ -29,7 +29,7 @@ def load_config() -> Dict[str, Any]:
     if not CONFIG_FILE.exists():
         return {}
     try:
-        with open(CONFIG_FILE, "r") as f:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             return cast(Dict[str, Any], json.load(f))
     except (json.JSONDecodeError, IOError):
         return {}
@@ -38,7 +38,7 @@ def load_config() -> Dict[str, Any]:
 def save_config(config: Dict[str, Any]) -> None:
     """Save configuration to file."""
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(CONFIG_FILE, "w") as f:
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
 
@@ -290,7 +290,7 @@ def on_healing(healing_results: str, channel: str) -> None:
     print_header("Send Healing Notification")
 
     # Load healing results
-    with open(healing_results, "r") as f:
+    with open(healing_results, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     healed_count = data.get("healed_count", 0)

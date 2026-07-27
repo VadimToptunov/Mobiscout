@@ -303,7 +303,7 @@ class SystemDoctor:
         try:
             for _ in range(100):
                 test_file.write_text("benchmark")
-                test_file.read_text()
+                test_file.read_text(encoding="utf-8")
 
             test_file.unlink()
             duration = time.time() - start

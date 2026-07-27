@@ -98,7 +98,7 @@ def generate(type: str, count: int, output: Optional[str]) -> None:
             for inp in inputs
         ]
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Saved to {output_path}")
@@ -238,7 +238,7 @@ def ui(target_id: str, input_type: str, count: int, output: Optional[str]) -> No
             "crash_inputs": [{"value": str(inp.value), "pattern": inp.metadata.get("pattern")} for inp in crash_inputs],
         }
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Results saved to {output_path}")
@@ -343,7 +343,7 @@ def api(endpoint: str, method: str, param_type: str, count: int, output: Optiona
             "vulnerable_endpoints": vulnerable,
         }
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Results saved to {output_path}")
@@ -368,7 +368,7 @@ def campaign(config: Optional[str], output: str) -> None:
     if config:
         import json
 
-        with open(config, "r") as f:
+        with open(config, "r", encoding="utf-8") as f:
             config_data = json.load(f)
         ui_targets = config_data.get("ui_targets", [])
         api_endpoints = config_data.get("api_endpoints", [])
@@ -484,7 +484,7 @@ def analyze(report_path: str) -> None:
     """
     import json
 
-    with open(report_path, "r") as f:
+    with open(report_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     console.print(Panel.fit("🔍 Fuzzing Analysis", style="bold cyan"))

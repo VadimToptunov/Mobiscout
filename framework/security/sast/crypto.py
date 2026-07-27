@@ -56,7 +56,7 @@ class CryptoAnalyzer:
         findings = []
 
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
             lines = content.splitlines()
 
             for i, line in enumerate(lines, 1):

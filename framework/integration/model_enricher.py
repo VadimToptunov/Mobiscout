@@ -252,7 +252,7 @@ class ProjectIntegrator:
             screen_name = po_file.stem.replace("_page", "").replace("_po", "")
 
             # Basic parsing - can be enhanced
-            content = po_file.read_text()
+            content = po_file.read_text(encoding="utf-8")
 
             # Look for locator patterns
             import re
@@ -338,7 +338,7 @@ class ProjectIntegrator:
             output_path = Path(output_path)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             yaml.dump(enriched_model, f, default_flow_style=False, sort_keys=False)
 
         print(f"Enriched model saved: {output_path}")

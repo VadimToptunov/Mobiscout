@@ -363,7 +363,7 @@ class LoadTester:
         """Save results to file"""
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result.to_dict(), f, indent=2)
 
     @classmethod

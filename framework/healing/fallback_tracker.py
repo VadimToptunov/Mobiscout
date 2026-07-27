@@ -120,7 +120,7 @@ class FallbackTracker:
 
         try:
             # Read current Page Object
-            content = page_path.read_text()
+            content = page_path.read_text(encoding="utf-8")
 
             # Find selector dictionary for this element
             selector_name = f"{element_name.upper()}_SELECTOR"

@@ -185,7 +185,7 @@ class SASTAnalyzer:
         sarif["runs"][0]["results"] = results
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(sarif, f, indent=2)
 
     def analyze(
@@ -359,5 +359,5 @@ class SASTAnalyzer:
 """
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)

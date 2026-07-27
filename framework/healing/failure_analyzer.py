@@ -61,7 +61,7 @@ class SelectorFailure:
     def page_source(self) -> Optional[str]:
         """Return page source content if available"""
         if self.page_source_path and self.page_source_path.exists():
-            return self.page_source_path.read_text()
+            return self.page_source_path.read_text(encoding="utf-8")
         return None
 
 
@@ -133,7 +133,7 @@ class FailureAnalyzer:
             return self.analyze_junit_results(results_path)
         else:
             # Assume text output
-            content = results_path.read_text()
+            content = results_path.read_text(encoding="utf-8")
             return self.analyze_pytest_output(content)
 
     def _analyze_suite(self, suite: ET.Element) -> None:
@@ -297,7 +297,7 @@ class FailureAnalyzer:
             # Search for selector in Page Object files
             for po_file in page_objects_dir.rglob("*.py"):
                 try:
-                    content = po_file.read_text()
+                    content = po_file.read_text(encoding="utf-8")
                     # Look for selector definition
                     if failure.selector_value in content:
                         failure.page_object_file = po_file

@@ -218,7 +218,7 @@ def create_shards_cmd(test_dir: Path, num_shards: int, strategy: str, output: Op
 
         for shard in shards:
             shard_file = output / f"shard_{shard.shard_id}.txt"
-            with open(shard_file, "w") as f:
+            with open(shard_file, "w", encoding="utf-8") as f:
                 for test in shard.tests:
                     f.write(f"{test.full_name}\n")
 

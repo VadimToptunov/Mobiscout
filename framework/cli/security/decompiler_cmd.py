@@ -220,7 +220,7 @@ def strings(
         console.print()
 
     if output:
-        with open(output, "w") as f:
+        with open(output, "w", encoding="utf-8") as f:
             for s in strings_list:
                 f.write(f"[{s.category}] {s.value}\n")
         console.print(f"\n[green]✓[/green] Strings saved to {output}")

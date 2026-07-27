@@ -72,7 +72,7 @@ def scan(
     console.print(f"[cyan]→[/cyan] Scanning {hierarchy_file}...\n")
 
     # Load hierarchy
-    with open(hierarchy_file, "r") as f:
+    with open(hierarchy_file, "r", encoding="utf-8") as f:
         hierarchy = json.load(f)
 
     # Create scanner
@@ -131,7 +131,7 @@ def audit(
         raise SystemExit(1)
 
     # Load hierarchy
-    with open(hierarchy_file, "r") as f:
+    with open(hierarchy_file, "r", encoding="utf-8") as f:
         hierarchy = json.load(f)
 
     # Create scanner
@@ -220,10 +220,10 @@ def compare(report1: Path, report2: Path) -> None:
         console.print("[red]✗[/red] Report file(s) not found")
         raise SystemExit(1)
 
-    with open(report1, "r") as f:
+    with open(report1, "r", encoding="utf-8") as f:
         data1 = json.load(f)
 
-    with open(report2, "r") as f:
+    with open(report2, "r", encoding="utf-8") as f:
         data2 = json.load(f)
 
     summary1 = data1["summary"]
@@ -287,7 +287,7 @@ def summary(report_file: Path) -> None:
         console.print(f"[red]✗[/red] File not found: {report_file}")
         raise SystemExit(1)
 
-    with open(report_file, "r") as f:
+    with open(report_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     # Create result object for display

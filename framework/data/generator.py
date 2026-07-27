@@ -338,7 +338,7 @@ class TestDataGenerator:
 
     def export_json(self, data: List[Any], output_path: str) -> None:
         """Export data to JSON file"""
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json_data = [self._to_dict(item) for item in data]
             json.dump(json_data, f, indent=2)
 

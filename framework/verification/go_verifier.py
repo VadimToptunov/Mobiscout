@@ -31,7 +31,7 @@ class GoVerifier(LanguageVerifier):
         issues: List[VerificationIssue] = []
 
         try:
-            content = file_path.read_text()
+            content = file_path.read_text(encoding="utf-8")
 
             # Check if it's a test file
             is_test_file = file_path.name.endswith("_test.go")

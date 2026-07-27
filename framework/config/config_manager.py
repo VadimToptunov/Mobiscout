@@ -100,7 +100,7 @@ class MobiscoutConfig(BaseModel):
         if not path.exists():
             raise FileNotFoundError(f"Config file not found: {path}")
 
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             if path.suffix in [".yaml", ".yml"]:
                 data = yaml.safe_load(f)
             elif path.suffix == ".json":
@@ -125,7 +125,7 @@ class MobiscoutConfig(BaseModel):
 
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             if path.suffix in [".yaml", ".yml"]:
                 yaml.dump(data, f, Dumper=Dumper, default_flow_style=False)
             elif path.suffix == ".json":

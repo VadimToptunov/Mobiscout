@@ -217,7 +217,7 @@ class HardcodedSecretsScanner:
     def scan_file(self, file_path: Path) -> List[SecurityVulnerability]:
         """Scan a file for hardcoded secrets"""
         try:
-            content = file_path.read_text(errors="ignore")
+            content = file_path.read_text(encoding="utf-8", errors="ignore")
             return self.scan_content(content, str(file_path))
         except Exception as e:
             logger.warning(f"Could not scan {file_path}: {e}")

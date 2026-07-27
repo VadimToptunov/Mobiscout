@@ -269,7 +269,7 @@ class APIAnalyzer:
             }
             har["log"]["entries"].append(entry)
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(har, f, indent=2)
 
 
@@ -442,7 +442,7 @@ class LogAnalyzer:
             ],
         }
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
 
 
@@ -634,5 +634,5 @@ class APILogModule:
 
         # Export correlations
         correlations = self.correlator.correlate_all()
-        with open(output_dir / "correlations.json", "w") as f:
+        with open(output_dir / "correlations.json", "w", encoding="utf-8") as f:
             json.dump(correlations, f, indent=2)

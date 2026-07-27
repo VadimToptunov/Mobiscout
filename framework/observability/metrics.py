@@ -159,7 +159,7 @@ class MetricsCollector:
         # Save to file if requested
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, "w") as f:
+            with open(output_path, "w", encoding="utf-8") as f:
                 f.write(output)
 
         return output
@@ -232,7 +232,7 @@ class StructuredLogger:
 
         # Write to file
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.log_path, "a") as f:
+        with open(self.log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
 
     def debug(self, message: str, **kwargs: Any) -> None:
@@ -317,7 +317,7 @@ class TracingContext:
         }
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
 

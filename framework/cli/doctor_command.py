@@ -63,7 +63,7 @@ def doctor(verbose: bool, export: Optional[Path], fix: bool) -> None:
             },
         }
 
-        with open(export, "w") as f:
+        with open(export, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
 
         console.print(f"\n[green]✓[/green] Report exported to {export}")

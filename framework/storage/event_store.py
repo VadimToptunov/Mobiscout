@@ -198,7 +198,7 @@ class EventStore:
 
         Returns number of imported events
         """
-        with open(json_path, "r") as f:
+        with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         events = data.get("events", [])

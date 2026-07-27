@@ -213,7 +213,7 @@ class AndroidProtectionAnalyzer:
         for ext in extensions:
             for file_path in source_dir.rglob(f"*{ext}"):
                 try:
-                    content = file_path.read_text(errors="ignore")
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
                     lines = content.splitlines()
 
                     for pattern, (desc, difficulty) in patterns.items():
