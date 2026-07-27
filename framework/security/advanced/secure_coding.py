@@ -22,9 +22,12 @@ class SecureCodingAnalyzer:
 
     def __init__(self) -> None:
         self.insecure_patterns = [
-            # Insecure random
+            # Insecure random. Require a word boundary and reject the secure
+            # variants: "SecureRandom()" / "MockRandom()" must NOT match, while
+            # "new Random()" must. The negative lookbehind stops the "Random"
+            # alternative from firing when preceded by "Secure"/"Mock".
             (
-                re.compile(r"Random\s*\(\s*\)|Math\.random|rand\(\)", re.I),
+                re.compile(r"(?<!Secure)(?<!Mock)\bRandom\s*\(|Math\.random|\brand\(\)", re.I),
                 "Insecure Random Number Generator",
                 "Use SecureRandom/arc4random for security-sensitive operations",
                 [330],

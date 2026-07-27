@@ -26,8 +26,16 @@ class HardcodedSecretsScanner:
 
     def __init__(self) -> None:
         self.patterns = self._initialize_patterns()
-        self._false_positive_patterns = [
-            re.compile(r"example|test|sample|placeholder|xxx|your[_-]?", re.I),
+        # Token indicators for obvious non-secrets (test fixtures, placeholders).
+        # Matched on WORD BOUNDARIES so a genuine secret sitting next to words
+        # like "latest"/"manifest"/"greatest" is not silently dropped (the old
+        # substring match treated those as containing "test").
+        self._token_fp_pattern = re.compile(
+            r"\b(?:example|test|sample|demo|fake|mock|placeholder|dummy)\b|\bx{3,}|\byour[_-]?",
+            re.I,
+        )
+        # Structural placeholders (never a real secret regardless of context).
+        self._structural_fp_patterns = [
             re.compile(r"<[^>]+>"),  # XML/HTML placeholders
             re.compile(r"\$\{[^}]+\}"),  # Variable substitution
             re.compile(r"%[sd]"),  # Format strings
@@ -142,17 +150,19 @@ class HardcodedSecretsScanner:
         return entropy
 
     def is_false_positive(self, match: str, context: str) -> bool:
-        """Check if match is likely a false positive"""
-        # Check against false positive patterns
-        for fp_pattern in self._false_positive_patterns:
+        """Check if match is likely a false positive.
+
+        Token indicators ("test", "demo", ...) are matched on word boundaries so
+        an unrelated longer word ("latest", "manifest", "greatest") near a real
+        secret does not suppress it. ``context`` is expected to be a narrow
+        window around the match (see ``scan_content``), not a wide 200-char span.
+        """
+        if self._token_fp_pattern.search(match) or self._token_fp_pattern.search(context):
+            return True
+
+        for fp_pattern in self._structural_fp_patterns:
             if fp_pattern.search(match) or fp_pattern.search(context):
                 return True
-
-        # Check for common test values
-        test_indicators = ["test", "example", "sample", "demo", "fake", "mock"]
-        context_lower = context.lower()
-        if any(indicator in context_lower for indicator in test_indicators):
-            return True
 
         return False
 
@@ -164,9 +174,11 @@ class HardcodedSecretsScanner:
             for match in pattern.pattern.finditer(content):
                 matched_text = match.group(0)
 
-                # Get surrounding context (100 chars before and after)
-                start = max(0, match.start() - 100)
-                end = min(len(content), match.end() + 100)
+                # Get a narrow surrounding context (a placeholder/test marker
+                # only suppresses a secret when it is immediately adjacent, not
+                # anywhere within a wide 200-char span).
+                start = max(0, match.start() - 20)
+                end = min(len(content), match.end() + 20)
                 context = content[start:end]
 
                 # Check for false positives
