@@ -34,7 +34,7 @@ class IOSCrawlerDriver:
         platform_version: Optional[str] = None,
         device_name: str = "iPhone 17",
         server: str = "http://localhost:4723",
-        settle: float = 1.2,
+        settle: float = 0.4,
         process_args: Optional[List[str]] = None,
     ) -> None:
         # Imported lazily so the package works without Appium installed (adb-only
@@ -63,8 +63,34 @@ class IOSCrawlerDriver:
         # A booted simulator is reused instead of shutting it down each run.
         options.set_capability("noReset", True)
         options.set_capability("shouldTerminateApp", False)
+        # Don't block session creation waiting for the app to go quiescent — a
+        # live-updating app (streaming prices) never does, so this otherwise
+        # stalls every launch to its timeout.
+        options.set_capability("waitForQuiescence", False)
 
         self._driver = webdriver.Remote(server, options=options)
+        self._tune_for_speed()
+
+    def _tune_for_speed(self) -> None:
+        """Push WDA into its fast path. The dominant iOS cost is that XCUITest
+        waits for the app to be *idle* before every command and returns a verbose,
+        full-depth element snapshot — brutal on a live-updating app. These settings
+        stop the idle wait, bound the snapshot, and compact the response, cutting
+        per-step latency dramatically. Best-effort: an older server simply ignores
+        keys it doesn't know."""
+        try:
+            self._driver.update_settings(
+                {
+                    "waitForIdleTimeout": 0,  # #1 win: never wait for "idle" (never happens on live apps)
+                    "animationCoolOffTimeout": 0,
+                    "shouldUseCompactResponses": True,  # smaller WDA payloads
+                    "snapshotMaxDepth": 40,  # bound deep trees (ChaosBank screens are ~100+ elements)
+                    "customSnapshotTimeout": 5,  # fail fast instead of hanging on a snapshot
+                    "maxTypingFrequency": 60,  # type faster
+                }
+            )
+        except Exception:
+            pass
 
     def page_source(self) -> str:
         # Serve the page source captured while settling (fresh) to avoid a second
@@ -79,6 +105,12 @@ class IOSCrawlerDriver:
         self._cache = (time.monotonic(), source)
 
     def _settle_wait(self) -> None:
+        # max_wait is deliberately below the iOS source-dump latency (~0.6s): a
+        # single dump already exceeds it, so settle confirms the new screen with
+        # ONE dump instead of two — halving per-gesture cost, which dominates the
+        # crawl. On a fast-dump backend (adb, ~50ms) the same cap still fits two
+        # dumps, so it keeps its full two-snapshot stability check there. A rare
+        # mid-animation frame is recovered by _read_content_screen / _await_content.
         settle_until_stable(lambda: self._driver.page_source, self._remember, max_wait=self._settle_max)
 
     def tap(self, x: int, y: int) -> None:
@@ -128,7 +160,7 @@ class IOSCrawlerDriver:
                 pass
         self._settle_wait()
 
-    def refresh(self, wait: float = 0.6) -> str:
+    def refresh(self, wait: float = 0.35) -> str:
         # A second, longer look for screens whose content loads asynchronously
         # (SwiftUI `.task` / `onAppear` fetches). Those settle "stable but empty"
         # on the first read; waiting a beat and re-reading catches the real content.
@@ -162,7 +194,7 @@ class IOSCrawlerDriver:
             if self.current_package() == bundle:
                 self._settle_wait()
                 return True
-            time.sleep(0.5)  # let a launch animation / splash settle
+            time.sleep(0.3)  # let a launch animation / splash settle
         return self.current_package() == bundle
 
     def quit(self) -> None:

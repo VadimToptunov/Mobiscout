@@ -227,6 +227,59 @@ def _classify_screen(screen: CrawlScreen) -> Optional[str]:
     return None
 
 
+def navigation_steps(result: CrawlResult, app_package: str = "") -> Dict[str, List[Step]]:
+    """The TAP steps that reach each screen from the entry (empty list for the
+    entry itself). A per-screen state check uses this to *navigate to* the screen
+    before asserting its controls — otherwise it would assert a deeper screen's
+    elements right after launch (which only shows the entry screen) and fail on a
+    real device. Screens with no path from the entry are omitted (unreachable ⇒
+    not state-testable), so the dict's keys are exactly the screens worth checking.
+    """
+    graph = build_graph(result, app_package)
+    fps = list(result.screens)
+    if not fps:
+        return {}
+    fp_of = {i + 1: fp for i, fp in enumerate(fps)}  # node id (1-based) -> fingerprint
+    entry_fp = fp_of.get(graph.entry if graph.entry is not None else 1, fps[0])
+
+    by_pair: Dict[Tuple[str, str], List[CrawlElement]] = defaultdict(list)
+    for from_fp, elem, to_fp in result.transitions:
+        by_pair[(from_fp, to_fp)].append(elem)
+
+    reachable: Dict[str, List[Step]] = {entry_fp: []}
+    if graph.entry is None:
+        return reachable  # no navigation model — only the entry screen is testable
+
+    for node_id, path in graph.shortest_paths_from_entry().items():
+        target_fp = fp_of.get(node_id)
+        if target_fp is None or target_fp == entry_fp:
+            continue
+        steps: List[Step] = []
+        ok = True
+        for a, b in zip(path, path[1:]):
+            src_fp = fp_of.get(a)
+            dst_fp = fp_of.get(b)
+            if src_fp is None or dst_fp is None:
+                ok = False
+                break
+            elems = by_pair.get((src_fp, dst_fp), [])
+            screen = result.screens.get(src_fp)
+            selector = None
+            for elem in elems:
+                owned = _owned(screen, app_package) if screen else None
+                selector = selector_for(elem, owned, screen.platform if screen else "android")
+                if selector:
+                    break
+            if selector is None:
+                ok = False  # can't build a locator for a hop — drop this screen
+                break
+            label = (elems[0].label or elems[0].class_name) if elems else "element"
+            steps.append(Step(ActionType.TAP, selector=selector, description=f"Navigate: tap {label}"))
+        if ok:
+            reachable[target_fp] = steps
+    return reachable
+
+
 def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     """Build the interaction graph from a crawl, with typed, locatable edges."""
     fps = list(result.screens)
@@ -434,6 +487,159 @@ def multi_step_cases(result: CrawlResult, app_package: str = "", max_cases: int 
 
     scored.sort(key=lambda sc: sc[0], reverse=True)
     return [case for _, case in scored[:max_cases]]
+
+
+# Button labels that submit a form — the control whose tap commits typed input.
+# "pay"/"buy"/"delete" are deliberately absent: a negative test must never risk
+# completing a real destructive/purchase action.
+_SUBMIT_LABELS = (
+    "submit",
+    "login",
+    "log in",
+    "sign in",
+    "signin",
+    "sign up",
+    "signup",
+    "register",
+    "continue",
+    "next",
+    "confirm",
+    "send",
+    "save",
+    "apply",
+    "exchange",
+    "transfer",
+    "done",
+)
+
+
+def _invalid_value(element: CrawlElement) -> str:
+    """A deliberately-invalid value for a form field, mirroring the crawler's
+    ``_invalid_value`` so a generated *negative* test types the same kind of bad
+    data. Empty string = no strongly-typed rule matched (skip the field)."""
+    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
+    if "email" in hint or "e-mail" in hint:
+        return "not-an-email"
+    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
+        return "1"  # too short for any real password policy
+    if any(k in hint for k in ("phone", "tel", "mobile")):
+        return "abc"  # letters where digits are required
+    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
+        return "-1"  # negative where a positive quantity is required
+    return ""
+
+
+def _submit_element(screen: CrawlScreen, app_package: str) -> Optional[CrawlElement]:
+    """The button on this screen that commits a form (login/continue/…), or None."""
+    for e in _owned(screen, app_package):
+        if not e.clickable or classify(e)[0] != "button":
+            continue
+        label = (e.text or e.content_desc or e.resource_id or "").strip().lower()
+        if any(k in label for k in _SUBMIT_LABELS):
+            return e
+    return None
+
+
+def _invalid_form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
+    """TYPE steps that fill a screen's inputs with *invalid* data. Empty if no
+    field has a meaningful invalid value (so the caller can skip the case)."""
+    steps: List[Step] = []
+    owned = _owned(screen, app_package)
+    seen = set()
+    for e in owned:
+        if classify(e)[0] != "input":
+            continue
+        value = _invalid_value(e)
+        if not value:
+            continue
+        sel = selector_for(e, owned, screen.platform)
+        if sel is None or sel.value in seen:
+            continue
+        seen.add(sel.value)
+        steps.append(
+            Step(ActionType.TYPE, selector=sel, text=value, description=f"Type invalid data into {e.label or 'input'}")
+        )
+    return steps
+
+
+def negative_form_cases(result: CrawlResult, app_package: str = "", max_cases: int = 12) -> List[TestCase]:
+    """Negative-path tests: for each screen with a submittable form (input +
+    submit control), navigate to it, type *invalid* data, submit, and assert the
+    app *rejects* it — the submit control is still visible, i.e. the form did not
+    advance. A correct app stays put; a buggy one advances and fails the test,
+    which is exactly the validation defect we want caught.
+
+    This is the negative counterpart to the positive form-filling already done by
+    :func:`multi_step_cases`; together they cover both branches of every form.
+    """
+    graph = build_graph(result, app_package)
+    paths = graph.shortest_paths_from_entry()
+    if not paths:
+        return []
+    fps = list(result.screens)
+    fp_of = {i + 1: fp for i, fp in enumerate(fps)}
+    id_of = {fp: i + 1 for i, fp in enumerate(fps)}
+
+    by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
+    for from_fp, elem, to_fp in result.transitions:
+        by_pair[(from_fp, to_fp)].append(elem)
+
+    from framework.crawler.to_codegen import _screen_title, _slug
+
+    cases: List[TestCase] = []
+    for target_fp, screen in result.screens.items():
+        submit = _submit_element(screen, app_package)
+        if submit is None:
+            continue
+        invalid_steps = _invalid_form_steps(screen, app_package)
+        if not invalid_steps:
+            continue  # no strongly-typed field to make invalid — skip
+        submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
+        if submit_sel is None:
+            continue
+        node_path = paths.get(id_of.get(target_fp, -1))
+        if node_path is None:
+            continue  # form screen unreachable from entry
+
+        # Reconstruct the navigation taps to reach the form screen.
+        steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+        ok = True
+        for src_id, dst_id in zip(node_path, node_path[1:]):
+            from_fp, to_fp = fp_of[src_id], fp_of[dst_id]
+            candidates = by_pair.get((from_fp, to_fp), [])
+            if not candidates:
+                ok = False
+                break
+            from_screen = result.screens[from_fp]
+            tap = selector_for(candidates[0], _owned(from_screen, app_package), from_screen.platform)
+            if tap is None:
+                ok = False
+                break
+            steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {candidates[0].label}"))
+        if not ok:
+            continue
+
+        steps.extend(invalid_steps)
+        steps.append(Step(ActionType.TAP, selector=submit_sel, description=f"Submit {submit.label or 'form'}"))
+        steps.append(
+            Step(
+                ActionType.ASSERT,
+                selector=submit_sel,
+                assertion=AssertionType.VISIBLE,
+                description="Invalid input is rejected — the form did not advance",
+            )
+        )
+        title = _slug(_screen_title(_owned(screen, app_package))) or _slug(submit.label or "") or "form"
+        cases.append(
+            TestCase(
+                name=f"rejects_invalid_input_on_{title}",
+                steps=steps,
+                description=f"Submitting invalid data on the {title.replace('_', ' ')} form is rejected",
+            )
+        )
+        if len(cases) >= max_cases:
+            break
+    return cases
 
 
 def _annotate_depth(graph: InteractionGraph) -> None:

@@ -171,8 +171,10 @@ class AppCrawler:
     """Depth-first autonomous crawler over an app's screens."""
 
     # How many times to scroll one screen looking for more content before moving
-    # on — enough to walk a long list, bounded so a screen can't loop forever.
-    _MAX_SCROLLS = 8
+    # on. The loop already stops early the moment a scroll reveals nothing new, so
+    # this only caps genuinely long lists — where each extra scroll costs a full
+    # settle (the crawl's dominant cost), so we keep the cap tight.
+    _MAX_SCROLLS = 4
 
     def __init__(
         self,
