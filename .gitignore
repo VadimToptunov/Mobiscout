@@ -70,6 +70,8 @@ out/
 local.properties
 .cxx/
 .externalNativeBuild/
+# IntelliJ Platform Gradle Plugin 2.x local cache (coordinates/self-update state)
+.intellijPlatform/
 captures/
 *.jks
 *.keystore
