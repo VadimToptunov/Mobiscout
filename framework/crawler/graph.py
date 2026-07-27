@@ -227,6 +227,59 @@ def _classify_screen(screen: CrawlScreen) -> Optional[str]:
     return None
 
 
+def navigation_steps(result: CrawlResult, app_package: str = "") -> Dict[str, List[Step]]:
+    """The TAP steps that reach each screen from the entry (empty list for the
+    entry itself). A per-screen state check uses this to *navigate to* the screen
+    before asserting its controls — otherwise it would assert a deeper screen's
+    elements right after launch (which only shows the entry screen) and fail on a
+    real device. Screens with no path from the entry are omitted (unreachable ⇒
+    not state-testable), so the dict's keys are exactly the screens worth checking.
+    """
+    graph = build_graph(result, app_package)
+    fps = list(result.screens)
+    if not fps:
+        return {}
+    fp_of = {i + 1: fp for i, fp in enumerate(fps)}  # node id (1-based) -> fingerprint
+    entry_fp = fp_of.get(graph.entry if graph.entry is not None else 1, fps[0])
+
+    by_pair: Dict[Tuple[str, str], List[CrawlElement]] = defaultdict(list)
+    for from_fp, elem, to_fp in result.transitions:
+        by_pair[(from_fp, to_fp)].append(elem)
+
+    reachable: Dict[str, List[Step]] = {entry_fp: []}
+    if graph.entry is None:
+        return reachable  # no navigation model — only the entry screen is testable
+
+    for node_id, path in graph.shortest_paths_from_entry().items():
+        target_fp = fp_of.get(node_id)
+        if target_fp is None or target_fp == entry_fp:
+            continue
+        steps: List[Step] = []
+        ok = True
+        for a, b in zip(path, path[1:]):
+            src_fp = fp_of.get(a)
+            dst_fp = fp_of.get(b)
+            if src_fp is None or dst_fp is None:
+                ok = False
+                break
+            elems = by_pair.get((src_fp, dst_fp), [])
+            screen = result.screens.get(src_fp)
+            selector = None
+            for elem in elems:
+                owned = _owned(screen, app_package) if screen else None
+                selector = selector_for(elem, owned, screen.platform if screen else "android")
+                if selector:
+                    break
+            if selector is None:
+                ok = False  # can't build a locator for a hop — drop this screen
+                break
+            label = (elems[0].label or elems[0].class_name) if elems else "element"
+            steps.append(Step(ActionType.TAP, selector=selector, description=f"Navigate: tap {label}"))
+        if ok:
+            reachable[target_fp] = steps
+    return reachable
+
+
 def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     """Build the interaction graph from a crawl, with typed, locatable edges."""
     fps = list(result.screens)

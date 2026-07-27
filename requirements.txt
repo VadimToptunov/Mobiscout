@@ -6,7 +6,7 @@ jinja2>=3.1.0
 requests>=2.31.0
 jsonschema>=4.20.0
 rich>=15.0.0
-types-PyYAML>=6.0.12.20260518
+types-PyYAML>=6.0.12.20260724
 types-requests>=2.33.0.20260712
 argon2-cffi>=23.1.0  # Secure password hashing
 
@@ -30,8 +30,8 @@ flask==3.1.3  # For ML mock server
 
 # ML & AI (Phase 4)
 scikit-learn>=1.9.0
-numpy>=1.24.0
-pandas>=3.0.3
+numpy>=2.5.1
+pandas>=3.0.5
 joblib>=1.5.3
 
 # Image processing & OCR
@@ -60,7 +60,7 @@ allure-pytest>=2.16.0        # Allure reporting
 pytest-html>=4.2.0           # HTML reports
 pytest-json-report>=1.5.0    # JSON reports
 slack-sdk>=3.43.0            # Slack notifications
-gitpython>=3.1.52             # Git integration
+gitpython>=3.1.57             # Git integration
 junitparser>=5.0.1           # JUnit XML manipulation
 
 interrogate>=1.7.0            # docstring-coverage gate

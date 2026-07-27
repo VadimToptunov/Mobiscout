@@ -179,15 +179,28 @@ def _significant(owned: List[CrawlElement]) -> List[CrawlElement]:
     return ([landmark] if landmark else []) + actionable[:_MAX_SCREEN_ELEMENTS]
 
 
-def _screen_cases(index: int, screen: CrawlScreen, app_package: str) -> Optional[TestCase]:
+def _screen_cases(
+    index: int, screen: CrawlScreen, app_package: str, nav_prefix: Optional[List[Step]] = None
+) -> Optional[TestCase]:
     """A per-screen state case — meaningful, not exhaustive: assert the screen's
-    landmark and its actionable elements (buttons/inputs/…), not every label."""
+    landmark and its actionable elements (buttons/inputs/…), not every label.
+
+    ``nav_prefix`` are the TAP steps that reach this screen from the entry (empty
+    for the entry screen). They run after launch so the assertions are made on the
+    right screen, not a bare launch."""
     steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+    if nav_prefix:
+        steps.extend(nav_prefix)
     seen = set()
     owned = _owned(screen, app_package)
     for element in _significant(owned):
         selector = selector_for(element, owned, screen.platform)
         if selector is None or selector.value in seen:
+            continue
+        # Don't assert on an element whose only locator is a fragile dynamic/short
+        # text (score < 0.5, e.g. a bare "0"/"1" value): it flakes and isn't a
+        # dependable state check. Such elements are still tappable for navigation.
+        if selector.score < 0.5:
             continue
         seen.add(selector.value)
         label = element.label or element.class_name
@@ -205,7 +218,7 @@ def _screen_cases(index: int, screen: CrawlScreen, app_package: str) -> Optional
                     description=f"{label} is enabled",
                 )
             )
-    if len(steps) == 1:
+    if not any(step.action == ActionType.ASSERT for step in steps):
         return None
     title = _slug(_screen_title(owned))
     name = f"{title}_screen_shows_expected_controls" if title else f"screen_{index + 1}_shows_expected_controls"
@@ -287,18 +300,29 @@ def build_test_model(
     ``launch_args`` are the app launch arguments the crawl used (e.g. to skip a
     login gate); they're carried into the generated driver setup so the tests
     start in the same state."""
+    # Navigation prefixes per screen (lazy import: graph.py imports this module).
+    # Screens with no path from the entry are omitted — unreachable, so not
+    # state-testable; this also fixes state checks asserting a deeper screen's
+    # controls right after a bare launch.
+    from framework.crawler.graph import multi_step_cases, navigation_steps
+
+    nav = navigation_steps(result, app_package)
+
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
-        case = _screen_cases(index, screen, app_package)
+        if screen.fingerprint not in nav:
+            continue
+        case = _screen_cases(index, screen, app_package, nav_prefix=nav[screen.fingerprint])
         if case is not None:
             cases.append(case)
     cases.extend(_navigation_cases(result, app_package))
 
-    # Multi-step, model-based paths through the interaction graph (lazy import:
-    # graph.py imports this module, so importing it here avoids a cycle).
-    from framework.crawler.graph import multi_step_cases, negative_form_cases
-
+    # Multi-step, model-based paths through the interaction graph.
     cases.extend(multi_step_cases(result, app_package))
+
+    # Negative-path coverage needs graph.negative_form_cases (lazy import:
+    # graph.py imports this module, so importing here avoids a cycle).
+    from framework.crawler.graph import negative_form_cases
 
     # Negative-path coverage: submit each form with invalid data and assert it is
     # rejected — the counterpart to the valid-data filling multi_step_cases does,
