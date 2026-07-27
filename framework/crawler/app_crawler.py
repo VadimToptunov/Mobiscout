@@ -29,6 +29,43 @@ from framework.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+def _sample_value(element: CrawlElement) -> str:
+    """A realistic value for a form field, inferred from its label/id/class — so the
+    crawl can *fill and submit* forms, not stall at the first text field."""
+    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
+    if "email" in hint or "e-mail" in hint:
+        return "test@example.com"
+    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
+        return "Password123!"
+    if any(k in hint for k in ("phone", "tel", "mobile")):
+        return "1234567890"
+    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
+        return "10"
+    if "search" in hint or "query" in hint:
+        return "test"
+    if "name" in hint:
+        return "Test User"
+    return "Test"
+
+
+def _invalid_value(element: CrawlElement) -> str:
+    """A deliberately-invalid value for a form field, to exercise the *negative*
+    (validation-error) branch. An empty string means "no strongly-typed rule
+    matched, so there's no meaningful invalid value to type" — the caller skips
+    the field rather than typing nothing."""
+    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
+    if "email" in hint or "e-mail" in hint:
+        return "not-an-email"
+    if "secure" in hint or any(k in hint for k in ("password", "passwd", "pwd", "pass")):
+        return "1"  # too short to satisfy any real password policy
+    if any(k in hint for k in ("phone", "tel", "mobile")):
+        return "abc"  # letters where digits are required
+    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
+        return "-1"  # negative where a positive quantity is required
+    return ""
+
+
 if TYPE_CHECKING:
     from framework.crawler.waypoints import Waypoint
 
@@ -57,6 +94,52 @@ DEFAULT_BLOCKLIST = (
     "purchase",
     "checkout",
     "confirm order",
+)
+
+# Tap-order priority by semantic role (lower = tapped sooner). High-leverage
+# controls first so a bounded crawl spends its budget on navigation and primary
+# actions, not decoration. Inputs sit low — focusing them rarely navigates and
+# _fill_inputs already types into them; images/plain text sit lowest (often no-op).
+_ROLE_PRIORITY = {
+    "button": 1,
+    "link": 1,
+    "switch": 2,
+    "checkbox": 2,
+    "radio": 2,
+    "list": 3,
+    "generic": 3,
+    "input": 4,
+    "image": 5,
+    "text": 5,
+}
+_ROLE_PRIORITY_DEFAULT = 3
+
+# Beyond this many structurally-identical siblings (a list of rows), tapping more
+# just re-opens the same detail template with different data — so cap the queue.
+_SIBLING_CAP = 3
+
+# Button labels that submit a form — the control whose tap commits typed input.
+# Used to find the submit control so a form can be probed with invalid data (the
+# negative branch), not only filled and left. "pay"/"buy" are deliberately absent
+# (blocklisted — a negative probe must never complete a real purchase).
+_SUBMIT_LABELS = (
+    "submit",
+    "login",
+    "log in",
+    "sign in",
+    "signin",
+    "sign up",
+    "signup",
+    "register",
+    "continue",
+    "next",
+    "confirm",
+    "send",
+    "save",
+    "apply",
+    "exchange",
+    "transfer",
+    "done",
 )
 
 
@@ -97,6 +180,8 @@ class AppCrawler:
         # applied on first sight of a matching screen so the crawl goes deeper.
         self.waypoints = list(waypoints or [])
         self._waypointed: set = set()
+        # Form fingerprints already probed with invalid input — probe each once.
+        self._neg_probed: set = set()
 
     def _pass_gates(self, screen: CrawlScreen) -> bool:
         """Apply a matching waypoint once per screen; True if one fired (the
@@ -243,7 +328,7 @@ class AppCrawler:
         return row >= 3
 
     def _own_interactive(self, screen: CrawlScreen, exclude_nav: bool = False) -> Deque[CrawlElement]:
-        """App-owned tappable elements, primary navigation first.
+        """App-owned tappable elements, ordered by how much they're worth tapping.
 
         ``exclude_nav`` drops the primary-nav bar entirely — used while exploring
         inside one section so the crawl doesn't hop into a *sibling* tab (those are
@@ -252,9 +337,43 @@ class AppCrawler:
         own = [e for e in screen.interactive() if self._own(e)]
         if exclude_nav:
             own = [e for e in own if not self._is_primary_nav(e, screen)]
-        # Stable sort: nav bar first, everything else in tree order.
-        own.sort(key=lambda e: 0 if self._is_primary_nav(e, screen) else 1)
-        return deque(own)
+        return self._prioritize(own, screen)
+
+    @staticmethod
+    def _size_bucket(bounds: Tuple[int, int, int, int]) -> Tuple[int, int, int]:
+        """A coarse (column, width, height) signature, so a column of identically
+        shaped list rows shares one bucket regardless of vertical position."""
+        x1, _y1, x2, y2 = bounds
+        return (x1 // 25, (x2 - x1) // 25, (y2 - _y1) // 25)
+
+    def _prioritize(self, elements: List[CrawlElement], screen: CrawlScreen) -> Deque[CrawlElement]:
+        """Order tappable elements by semantic value and drop redundant list
+        siblings — so a bounded crawl explores the app's *structure* (navigation,
+        primary actions) instead of poking every decorative icon and every one of
+        twenty identical rows. Primary nav is never dropped; structurally-identical
+        siblings beyond :data:`_SIBLING_CAP` are (they re-open the same detail
+        template with different data)."""
+        # Lazy import: classify imports CrawlElement from this module.
+        from framework.crawler.classify import classify
+
+        roles = ["nav" if self._is_primary_nav(e, screen) else classify(e)[0] for e in elements]
+        # Stable sort keeps tree order within a rank; nav (0) leads, decoration trails.
+        order = sorted(
+            range(len(elements)),
+            key=lambda i: 0 if roles[i] == "nav" else _ROLE_PRIORITY.get(roles[i], _ROLE_PRIORITY_DEFAULT),
+        )
+        kept: List[CrawlElement] = []
+        counts: dict = {}
+        for i in order:
+            element, role = elements[i], roles[i]
+            if role == "nav":
+                kept.append(element)  # every section entry matters — never capped
+                continue
+            sig = (role, self._size_bucket(element.bounds))
+            counts[sig] = counts.get(sig, 0) + 1
+            if counts[sig] <= _SIBLING_CAP:
+                kept.append(element)
+        return deque(kept)
 
     def crawl(self) -> CrawlResult:
         """Explore the app and return the screen/flow map.
@@ -303,6 +422,10 @@ class AppCrawler:
             if passed.fingerprint:
                 screen = passed
                 result.screens.setdefault(screen.fingerprint, screen)
+
+        # Exercise this screen's form both ways (invalid→error, then valid) so
+        # form-gated flows are reachable and validation states get discovered.
+        self._handle_form(result, screen)
 
         # Tab-based apps (a persistent bottom bar with several entries) are the
         # common case a plain depth-first crawl gets wrong: it burns its step
@@ -361,6 +484,7 @@ class AppCrawler:
                 continue  # two tabs landing on the same screen (e.g. the current one)
             seen_fps.add(section.fingerprint)
             result.screens.setdefault(section.fingerprint, section)
+            self._handle_form(result, section)  # exercise a section root's form both ways
             roots.append((tab, section))
 
         for tab, section in roots:
@@ -427,6 +551,100 @@ class AppCrawler:
             return reloaded
         return screen
 
+    def _fill_inputs(self, screen: CrawlScreen, valid: bool = True) -> bool:
+        """Type into each text field on the screen, then dismiss the keyboard.
+
+        With ``valid`` (the default) it types realistic data so form-gated flows
+        become reachable — a tap-only crawl stalls at any screen that gates
+        progress behind text entry (login, exchange amount, search). With
+        ``valid=False`` it types deliberately-invalid data to exercise the
+        validation-error branch; fields with no meaningful invalid value are left
+        blank. Returns whether it typed into at least one field.
+        """
+        # Imported lazily: classify imports CrawlElement from this module, so a
+        # top-level import would be a circular import at load time.
+        from framework.crawler.classify import classify
+
+        typed = False
+        for element in screen.elements:
+            if not self._own(element) or classify(element)[0] != "input":
+                continue
+            value = _sample_value(element) if valid else _invalid_value(element)
+            if not value:
+                continue  # nothing meaningful to type (invalid-mode, untyped field)
+            try:
+                self.driver.tap(*element.center)
+                self.driver.type_text(value)
+                typed = True
+            except Exception:  # a field that won't accept input must not abort the crawl
+                continue
+        if typed:
+            hide = getattr(self.driver, "hide_keyboard", None)
+            if callable(hide):
+                try:
+                    hide()
+                except Exception:
+                    pass
+        return typed
+
+    def _submit_control(self, screen: CrawlScreen) -> Optional[CrawlElement]:
+        """The button on this screen that commits a form (login/continue/…), or
+        None. Skips blocked controls so a probe never taps Pay/Buy/Delete."""
+        from framework.crawler.classify import classify
+
+        for element in screen.interactive():
+            if not self._own(element) or self._blocked(element):
+                continue
+            if classify(element)[0] != "button":
+                continue
+            label = element.label.strip().lower()
+            if any(k in label for k in _SUBMIT_LABELS):
+                return element
+        return None
+
+    def _has_input(self, screen: CrawlScreen) -> bool:
+        from framework.crawler.classify import classify
+
+        return any(self._own(e) and classify(e)[0] == "input" for e in screen.elements)
+
+    def _handle_form(self, result: CrawlResult, screen: CrawlScreen) -> None:
+        """Exercise a form both ways. First probe the *negative* branch (invalid
+        input → submit → the app should reject it), so the validation-error state
+        is discovered; then fill *valid* data so the depth-first walk drives the
+        *positive* branch. Covering both is how the generated suite catches
+        validation defects instead of only happy paths."""
+        self._probe_negative_form(result, screen)
+        self._fill_inputs(screen, valid=True)
+
+    def _probe_negative_form(self, result: CrawlResult, screen: CrawlScreen) -> None:
+        """Fill a form with invalid data and submit once, recording the outcome as
+        a real discovered state — the error screen if the app rejects it, or the
+        next screen if it wrongly advances (that *is* the validation bug). Bounded
+        to once per form and always returns to the form for the positive branch."""
+        if screen.fingerprint in self._neg_probed:
+            return
+        submit = self._submit_control(screen)
+        if submit is None or not self._has_input(screen):
+            return  # not a submittable form
+        self._neg_probed.add(screen.fingerprint)
+        if not self._fill_inputs(screen, valid=False):
+            return  # no strongly-typed field to make invalid — nothing to probe
+        try:
+            self.driver.tap(*submit.center)
+        except Exception:
+            return
+        result.steps += 1
+        if not self._on_app():  # a probe must never strand the crawl off the app
+            self._recover()
+            return
+        outcome = self._read_content_screen()
+        if not outcome.fingerprint:
+            return
+        result.transitions.append((screen.fingerprint, submit, outcome.fingerprint))
+        if outcome.fingerprint != screen.fingerprint:
+            result.screens.setdefault(outcome.fingerprint, outcome)  # error / next state
+            self._go_back(screen.fingerprint)  # back to the form for the positive branch
+
     def _dfs(
         self, result: CrawlResult, root_fp: str, root_todo: Deque[CrawlElement], exclude_nav: bool = False
     ) -> None:
@@ -486,6 +704,7 @@ class AppCrawler:
 
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
                 result.screens[new_screen.fingerprint] = new_screen
+                self._handle_form(result, new_screen)  # exercise its form both ways (invalid→error, valid)
                 # Pass a gate on this new screen too (OTP/biometric behind a step).
                 if self._pass_gates(new_screen):
                     behind = parse_screen(self.driver.page_source())
