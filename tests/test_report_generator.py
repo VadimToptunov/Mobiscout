@@ -124,8 +124,7 @@ def test_report_generator_rejects_unsupported_format(tmp_path):
 
 def test_from_junit_xml_maps_statuses(tmp_path):
     xml = tmp_path / "junit.xml"
-    xml.write_text(
-        """<?xml version="1.0"?>
+    xml.write_text("""<?xml version="1.0"?>
         <testsuite name="MySuite">
           <testcase name="t_pass" classname="pkg.A" time="1.0"/>
           <testcase name="t_fail" classname="pkg.B" time="2.0">
@@ -138,8 +137,7 @@ def test_from_junit_xml_maps_statuses(tmp_path):
             <skipped/>
           </testcase>
         </testsuite>
-        """
-    )
+        """)
     suite = ReportGenerator.from_junit_xml(xml)
     assert suite.name == "MySuite"
     by_name = {t.name: t for t in suite.tests}
