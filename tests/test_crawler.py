@@ -170,10 +170,42 @@ def test_parse_ios_screen():
     screen = parse_screen(IOS_XML)
     assert screen.platform == "ios"
     btn = [e for e in screen.elements if e.class_name == "Button"][0]
-    assert btn.content_desc == "login_btn"  # iOS name -> accessibility id
-    assert btn.text == "Log In"  # iOS label -> text
+    assert btn.resource_id == "login_btn"  # iOS name (accessibility identifier) -> locator
+    assert btn.content_desc == "Log In"  # iOS label (accessibility label) -> screen-reader desc
+    assert btn.text == ""  # iOS value -> text (absent here)
     assert btn.clickable and btn.bounds == (20, 100, 220, 144)
     assert btn.center == (120, 122)
+
+
+def test_ios_identifier_without_label_flagged_as_missing_description():
+    """An iOS control with an accessibility IDENTIFIER but no human LABEL must be
+    flagged missing-content-description: the identifier is a locator, not something
+    a screen reader can announce. Before the parse fix the identifier landed in
+    ``content_desc`` and masked the defect (0/7 caught on ChaosBank)."""
+    from framework.analysis.accessibility_analyzer import ScreenReaderChecker
+
+    xml = (
+        '<XCUIElementTypeApplication type="XCUIElementTypeApplication" name="App" '
+        'x="0" y="0" width="390" height="844">'
+        '<XCUIElementTypeButton type="XCUIElementTypeButton" name="order.placeButton" '
+        'label="" enabled="true" x="20" y="100" width="200" height="44"/>'
+        "</XCUIElementTypeApplication>"
+    )
+    screen = parse_screen(xml)
+    btn = [e for e in screen.elements if e.class_name == "Button"][0]
+    assert btn.resource_id == "order.placeButton"  # identifier is a locator...
+    assert btn.content_desc == ""  # ...NOT a screen-reader label
+
+    element = {
+        "id": btn.resource_id,
+        "class": btn.class_name,
+        "clickable": btn.clickable,
+        "content_desc": btn.content_desc,
+        "text": btn.text,
+    }
+    violation = ScreenReaderChecker().check_content_description(element)
+    assert violation is not None
+    assert violation.rule_id == "missing-content-description"
 
 
 def test_detects_hybrid_webview():

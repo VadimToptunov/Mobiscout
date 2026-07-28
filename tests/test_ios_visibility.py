@@ -16,7 +16,9 @@ _IOS_XML = """<?xml version="1.0" encoding="UTF-8"?>
 
 def test_hidden_ios_elements_are_dropped():
     screen = parse_screen(_IOS_XML)
-    names = {e.content_desc for e in screen.elements}
+    # iOS `name` (the accessibility identifier) is the locator, so it lands in
+    # resource_id (see parse._ios_element); the covered tabs are dropped regardless.
+    names = {e.resource_id for e in screen.elements}
     # The visible auth gate + the visible title survive; the covered Home/Markets
     # tabs (visible="false") do not.
     assert "auth.gate" in names
@@ -26,7 +28,7 @@ def test_hidden_ios_elements_are_dropped():
 
 def test_visible_ios_button_is_interactive():
     screen = parse_screen(_IOS_XML)
-    gate = next(e for e in screen.elements if e.content_desc == "auth.gate")
+    gate = next(e for e in screen.elements if e.resource_id == "auth.gate")
     assert gate.clickable is True  # a visible, enabled Button is tappable
     assert screen.platform == "ios"
 

@@ -6,7 +6,7 @@ Commands for WCAG compliance checking and accessibility testing.
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import click
 from rich.console import Console
@@ -21,6 +21,34 @@ from framework.analysis.accessibility_analyzer import (
 )
 
 console = Console()
+
+
+def _is_inventory(data: Any) -> bool:
+    """Detect a ``mobiscout crawl`` inventory.json (a top-level ``screens`` list
+    whose entries each carry an ``elements`` list) as opposed to a hand-built UI
+    hierarchy (a single node with ``children``)."""
+    return (
+        isinstance(data, dict)
+        and isinstance(data.get("screens"), list)
+        and all(isinstance(s, dict) and "elements" in s for s in data["screens"])
+    )
+
+
+def _inventory_to_hierarchy(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Flatten every crawl screen's elements into the single ``{children: [...]}``
+    hierarchy the scanner expects, auditing across all screens at once. Each
+    element's bounds list ``[x1, y1, x2, y2]`` is converted to the
+    ``{x, y, width, height}`` rect the checks read."""
+    children: List[Dict[str, Any]] = []
+    for screen in data.get("screens", []):
+        for element in screen.get("elements", []):
+            node: Dict[str, Any] = dict(element)
+            bounds = node.get("bounds")
+            if isinstance(bounds, (list, tuple)) and len(bounds) == 4:
+                x1, y1, x2, y2 = bounds
+                node["bounds"] = {"x": x1, "y": y1, "width": x2 - x1, "height": y2 - y1}
+            children.append(node)
+    return {"type": "root", "children": children}
 
 
 @click.group()
@@ -71,9 +99,12 @@ def scan(
 
     console.print(f"[cyan]→[/cyan] Scanning {hierarchy_file}...\n")
 
-    # Load hierarchy
+    # Load hierarchy. Accept either a hand-built UI hierarchy or a `mobiscout
+    # crawl` inventory.json (auto-detected and flattened across all its screens).
     with open(hierarchy_file, "r", encoding="utf-8") as f:
         hierarchy = json.load(f)
+    if _is_inventory(hierarchy):
+        hierarchy = _inventory_to_hierarchy(hierarchy)
 
     # Create scanner
     level = {"A": WCAGLevel.A, "AA": WCAGLevel.AA, "AAA": WCAGLevel.AAA}[wcag_level]

@@ -6,7 +6,7 @@ violation. Previously each not-applicable result was counted as ``pass_count += 
 which inflated the compliance score (a screen of static text scored ~100%).
 """
 
-from framework.analysis.accessibility_analyzer import AccessibilityScanner, WCAGLevel
+from framework.analysis.accessibility_analyzer import AccessibilityScanner, TouchTargetValidator, WCAGLevel
 
 
 def _scan(node):
@@ -66,6 +66,29 @@ def test_na_siblings_do_not_inflate_a_failing_score():
 
     assert padded_result.total_checks == bare_result.total_checks == 2
     assert padded_result.compliance_score == bare_result.compliance_score == 0.0
+
+
+def test_touch_target_accepts_list_and_dict_bounds():
+    """``bounds`` arrives as a dict ({x,y,width,height}) OR a 4-list
+    [x1,y1,x2,y2] (a common crawl format). Both must be handled without raising
+    AttributeError, and both must yield the same too-small violation."""
+    validator = TouchTargetValidator()
+
+    dict_el = {"id": "d", "clickable": True, "bounds": {"x": 0, "y": 0, "width": 20, "height": 20}}
+    list_el = {"id": "l", "clickable": True, "bounds": [0, 0, 20, 20]}
+
+    dict_v = validator.check_touch_target(dict_el, "ios")
+    list_v = validator.check_touch_target(list_el, "ios")
+    assert dict_v is not None and dict_v.rule_id == "touch-target-size"
+    assert list_v is not None and list_v.rule_id == "touch-target-size"
+
+    # A big-enough 4-list target passes (no violation) — the width/height are
+    # computed as x2-x1 / y2-y1, not read off a non-existent .get.
+    big_list = {"id": "b", "clickable": True, "bounds": [0, 0, 100, 100]}
+    assert validator.check_touch_target(big_list, "ios") is None
+
+    # A malformed bounds shape is skipped gracefully, not crashed on.
+    assert validator.check_touch_target({"id": "x", "clickable": True, "bounds": "nope"}, "ios") is None
 
 
 def test_na_siblings_do_not_dilute_a_passing_score():

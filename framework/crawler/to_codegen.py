@@ -66,24 +66,35 @@ def _selector_for(element: CrawlElement, platform: str = "android") -> Optional[
     """
     candidates: List[Selector] = []
     label = element.label
-    cd = (element.content_desc or "").strip()
-    if cd:
-        candidates.append(Selector(SelectorStrategy.ACCESSIBILITY_ID, cd, score=0.95, description=label))
-    rid = (element.resource_id or "").strip()
-    if rid:
-        candidates.append(Selector(SelectorStrategy.ID, rid, score=0.90, description=label))
-    txt = (element.text or "").strip()
-    if txt:
-        # A text locator is already the least-stable tier; if the text itself
-        # looks dynamic (a count, price, timestamp) it is more fragile still, so
-        # score it lower. Order is unchanged — text stays last — this only makes
-        # the stability score honest for the inventory / model-path ranking.
-        text_score = 0.42 if _looks_dynamic(txt) else 0.60
-        if platform == "ios":
+    if platform == "ios":
+        # iOS field semantics (see parse._ios_element): the accessibility
+        # IDENTIFIER lives in `resource_id` and is what Appium's accessibility-id
+        # strategy matches (the element's `name`), so it is the primary locator.
+        # The human-visible accessibility LABEL (`content_desc`) / `value` (`text`)
+        # has no dedicated selector on iOS — it is matched by XPath on @label/@name.
+        ident = (element.resource_id or "").strip()
+        if ident:
+            candidates.append(Selector(SelectorStrategy.ACCESSIBILITY_ID, ident, score=0.95, description=label))
+        vis = (element.content_desc or element.text or "").strip()
+        if vis:
+            text_score = 0.42 if _looks_dynamic(vis) else 0.60
             candidates.append(
-                Selector(SelectorStrategy.XPATH, _xpath_by_label(txt), score=text_score, description=label)
+                Selector(SelectorStrategy.XPATH, _xpath_by_label(vis), score=text_score, description=label)
             )
-        else:
+    else:
+        cd = (element.content_desc or "").strip()
+        if cd:
+            candidates.append(Selector(SelectorStrategy.ACCESSIBILITY_ID, cd, score=0.95, description=label))
+        rid = (element.resource_id or "").strip()
+        if rid:
+            candidates.append(Selector(SelectorStrategy.ID, rid, score=0.90, description=label))
+        txt = (element.text or "").strip()
+        if txt:
+            # A text locator is already the least-stable tier; if the text itself
+            # looks dynamic (a count, price, timestamp) it is more fragile still, so
+            # score it lower. Order is unchanged — text stays last — this only makes
+            # the stability score honest for the inventory / model-path ranking.
+            text_score = 0.42 if _looks_dynamic(txt) else 0.60
             candidates.append(Selector(SelectorStrategy.TEXT, txt, score=text_score, description=label))
     if not candidates:
         return None
