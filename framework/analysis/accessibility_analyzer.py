@@ -202,9 +202,18 @@ class TouchTargetValidator:
         platform: str = "android",
     ) -> Optional[A11yViolation]:
         """Check if touch target meets size requirements"""
+        # ``bounds`` may be a dict ({x, y, width, height}) OR a 4-list
+        # [x1, y1, x2, y2] (a common crawl format). Support both; skip gracefully
+        # on anything else rather than raising AttributeError on ``.get``.
         bounds = element.get("bounds", {})
-        width = bounds.get("width", 0)
-        height = bounds.get("height", 0)
+        if isinstance(bounds, dict):
+            width = bounds.get("width", 0)
+            height = bounds.get("height", 0)
+        elif isinstance(bounds, (list, tuple)) and len(bounds) == 4:
+            x1, y1, x2, y2 = bounds
+            width, height = x2 - x1, y2 - y1
+        else:
+            return None
 
         min_size = self.MIN_SIZE.get(platform, 48)
 

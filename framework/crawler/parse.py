@@ -100,12 +100,16 @@ def _ios_element(node: ET.Element, package: str) -> Optional[CrawlElement]:
     # XCUITest has no scrollable/checkable/focusable attributes, so infer them from
     # the element type — the same signal a human reads off the class.
     enabled = node.get("enabled") != "false"
-    # iOS `name` is the accessibility identifier -> map to content_desc so it
-    # becomes an ACCESSIBILITY_ID selector (correct cross-platform in Appium).
+    # iOS field semantics (matching Android's): `name` is the accessibility
+    # IDENTIFIER — a locator like "order.placeButton", NOT a screen-reader label —
+    # so it belongs in `resource_id` (the locator field). The screen-reader
+    # description is the accessibility LABEL, so `label` -> `content_desc` (the same
+    # semantics as Android's contentDescription); `value` remains the element `text`.
+    # Conflating identifier with label previously hid every missing-label defect.
     return CrawlElement(
-        resource_id="",
-        text=(node.get("label") or node.get("value") or ""),
-        content_desc=node.get("name", ""),
+        resource_id=node.get("name", ""),
+        text=node.get("value", ""),
+        content_desc=node.get("label", ""),
         class_name=itype,
         clickable=itype in _IOS_INTERACTIVE and enabled,
         bounds=(x, y, x + w, y + h),

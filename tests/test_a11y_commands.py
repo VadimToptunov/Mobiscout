@@ -136,6 +136,70 @@ def test_compare_two_reports(runner, tmp_path):
     assert "No change" in result.output
 
 
+# A `mobiscout crawl` inventory.json (top-level "screens" list, each with
+# "elements"; bounds as [x1,y1,x2,y2]). The iOS button carries an accessibility
+# identifier in resource_id but NO label/text — a missing-content-description
+# defect — and its tiny bounds also trip the touch-target check.
+_INVENTORY = {
+    "app_package": "com.chaos.bank",
+    "screen_count": 1,
+    "screens": [
+        {
+            "index": 1,
+            "platform": "ios",
+            "toolkit": "native",
+            "fingerprint": "abc123",
+            "element_count": 1,
+            "elements": [
+                {
+                    "class": "Button",
+                    "resource_id": "order.placeButton",
+                    "text": "",
+                    "content_desc": "",
+                    "clickable": True,
+                    "bounds": [20, 100, 40, 120],
+                    "type": "button",
+                }
+            ],
+        }
+    ],
+    "flows": [],
+}
+
+
+def _inventory_file(tmp_path: Path) -> str:
+    p = tmp_path / "inventory.json"
+    p.write_text(json.dumps(_INVENTORY), encoding="utf-8")
+    return str(p)
+
+
+def test_scan_accepts_crawl_inventory_and_reports_violations(runner, tmp_path):
+    """`a11y scan` auto-detects a crawl inventory.json (not just a hand-built
+    hierarchy), flattens its screens, and audits across them without crashing —
+    surfacing the seeded missing-label + touch-target defects."""
+    report = tmp_path / "report.json"
+    result = runner.invoke(
+        a11y,
+        ["scan", _inventory_file(tmp_path), "-a", "ChaosBank", "-s", "Orders", "-p", "ios", "-o", str(report)],
+    )
+    _no_crash(result)
+    # A missing-content-description is critical -> exit 2; report is written.
+    assert result.exit_code == 2
+    assert report.exists()
+    data = json.loads(report.read_text(encoding="utf-8"))
+    rule_ids = {v["rule_id"] for v in data["violations"]}
+    assert "missing-content-description" in rule_ids
+    assert "touch-target-size" in rule_ids
+
+
+def test_scan_still_accepts_hand_built_hierarchy(runner, tmp_path):
+    """The existing hand-built-hierarchy path keeps working alongside the new
+    inventory path (the bridge only triggers on the inventory shape)."""
+    result = runner.invoke(a11y, ["scan", _hier_file(tmp_path), "-a", "MyApp", "-s", "Home"])
+    _no_crash(result)
+    assert result.exit_code in (1, 2)
+
+
 def test_compare_missing_report_exits_one(runner, tmp_path):
     r1 = tmp_path / "r1.json"
     runner.invoke(a11y, ["scan", _hier_file(tmp_path), "-a", "A", "-s", "S", "-o", str(r1)])

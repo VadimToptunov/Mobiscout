@@ -49,7 +49,7 @@ def test_ios_springboard_element_is_marked_foreign_and_excluded():
     )
     screen = parse_mod.parse_screen(xml)
     assert screen.platform == "ios"
-    by_name = {e.content_desc: e for e in screen.elements}
+    by_name = {e.resource_id: e for e in screen.elements}
     assert by_name["app_ok"].package == ""  # app under test -> owned
     assert by_name["Allow"].package.lower() == "springboard"  # system dialog -> foreign
 
