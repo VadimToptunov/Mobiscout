@@ -128,7 +128,7 @@ def build_crawl_driver(
             )
         return crawl_driver, crawl_driver
 
-    return AdbCrawlerDriver(serial=serial), None
+    return AdbCrawlerDriver(serial=serial, launch_args=list(launch_args) or None), None
 
 
 def ensure_foreground(crawl_driver: Any, package: str, platform: str) -> ForegroundCheck:
