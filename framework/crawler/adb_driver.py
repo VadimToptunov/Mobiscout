@@ -44,12 +44,17 @@ class AdbCrawlerDriver:
         settle: float = 0.8,
         timeout: float = 60.0,
         retries: int = 2,
+        launch_args: Optional[List[str]] = None,
     ) -> None:
         self._adb = adb
         self._serial = serial
         self._settle_max = settle
         self._timeout = timeout
         self._retries = max(0, retries)  # extra attempts after the first
+        # Extra `am start` tokens (intent extras) appended on every launch, e.g.
+        # ["--es", "APP_START_UNLOCKED", "true"] to skip an auth gate. Threaded so
+        # the crawler's own recovery relaunches keep the same start state.
+        self._launch_args = list(launch_args or [])
         self._cache: Optional[Tuple[float, str]] = None  # (monotonic ts, source)
 
     def _cmd(self, *args: str) -> List[str]:
@@ -209,8 +214,10 @@ class AdbCrawlerDriver:
             if "/" in line and package in line:
                 activity = line.strip()
         if activity:
-            self._run("shell", "am", "start", "-n", activity)
+            self._run("shell", "am", "start", "-n", activity, *self._launch_args)
         else:
+            # monkey can't carry intent extras; without a resolvable activity the
+            # launch args are lost, but this path is a rare fallback.
             self._run("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
         for _ in range(tries):
             if self.current_package() == package:

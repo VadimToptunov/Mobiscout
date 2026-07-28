@@ -60,7 +60,14 @@ class _FakeDriver:
 
 def test_build_crawl_driver_adb_is_the_default_and_needs_no_session(monkeypatch):
     sentinel = object()
-    monkeypatch.setattr("framework.crawler.AdbCrawlerDriver", lambda serial=None: sentinel)
+    captured = {}
+
+    def _fake_adb(serial=None, launch_args=None):
+        captured["serial"] = serial
+        captured["launch_args"] = launch_args
+        return sentinel
+
+    monkeypatch.setattr("framework.crawler.AdbCrawlerDriver", _fake_adb)
     crawl_driver, appium_session = build_crawl_driver(
         package=_PKG,
         platform="android",
@@ -70,11 +77,12 @@ def test_build_crawl_driver_adb_is_the_default_and_needs_no_session(monkeypatch)
         device_name=None,
         server="http://localhost:4723",
         extra_caps={},
-        launch_args=(),
+        launch_args=("--es", "K", "V"),
         app_activity=None,
     )
     assert crawl_driver is sentinel
     assert appium_session is None  # nothing to quit() for the adb path
+    assert captured["launch_args"] == ["--es", "K", "V"]  # forwarded to the adb driver
 
 
 def test_build_crawl_driver_ios_session_failure_raises_service_error(monkeypatch):
