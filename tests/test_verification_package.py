@@ -12,6 +12,7 @@ import pytest
 from framework.verification.verifier import (
     GoVerifier,
     JavaScriptVerifier,
+    JavaVerifier,
     KotlinVerifier,
     LanguageVerifier,
     MultiLanguageVerifier,
@@ -33,6 +34,7 @@ def test_public_import_surface_is_intact():
 
 ALL_VERIFIERS = [
     (PythonVerifier, "python", ".py"),
+    (JavaVerifier, "java", ".java"),
     (KotlinVerifier, "kotlin", ".kt"),
     (SwiftVerifier, "swift", ".swift"),
     (JavaScriptVerifier, "javascript", ".js"),
@@ -77,6 +79,69 @@ def test_python_verifier_accepts_valid_source(tmp_path):
     )
     result = PythonVerifier().verify(good)
     assert result.error_count == 0
+
+
+JAVA_VALID = """\
+package generated;
+
+import org.testng.annotations.Test;
+
+public class LoginFlowTest {
+
+    @Test
+    public void testLogin() {
+        int x = 1 + 1;
+    }
+}
+"""
+
+JAVA_BROKEN = """\
+package generated;
+
+import org.testng.annotations.Test;
+
+public class LoginFlowTest {
+
+    @Test
+    public void testLogin() {
+        int x = 1 + 1;
+    // missing closing braces
+"""
+
+
+def test_java_verifier_accepts_valid_source(tmp_path):
+    good = tmp_path / "LoginFlowTest.java"
+    good.write_text(JAVA_VALID, encoding="utf-8")
+    result = JavaVerifier().verify(good)
+    assert result.language == "java"
+    assert result.success
+    assert result.error_count == 0
+
+
+def test_java_verifier_flags_broken_source(tmp_path):
+    broken = tmp_path / "LoginFlowTest.java"
+    broken.write_text(JAVA_BROKEN, encoding="utf-8")
+    result = JavaVerifier().verify(broken)
+    assert not result.success
+    assert result.error_count >= 1
+    assert any(i.level == VerificationLevel.ERROR for i in result.issues)
+
+
+def test_java_verifier_warns_on_test_file_without_framework_or_annotations(tmp_path):
+    plain = tmp_path / "SomethingTest.java"
+    plain.write_text("public class SomethingTest {}\n", encoding="utf-8")
+    result = JavaVerifier().verify(plain)
+    # Braces balance, so no ERROR — but a test file with no framework import
+    # and no test annotations should produce warnings.
+    assert result.success
+    assert result.warning_count >= 2
+
+
+def test_orchestrator_dispatches_java(tmp_path):
+    (tmp_path / "LoginFlowTest.java").write_text(JAVA_VALID, encoding="utf-8")
+    result = MultiLanguageVerifier().verify_file(tmp_path / "LoginFlowTest.java")
+    assert result is not None
+    assert result.language == "java"
 
 
 def test_orchestrator_dispatches_by_extension_and_summarizes(tmp_path):

@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from framework.verification.base import LanguageVerifier, VerificationResult
 from framework.verification.go_verifier import GoVerifier
+from framework.verification.java_verifier import JavaVerifier
 from framework.verification.javascript_verifier import JavaScriptVerifier
 from framework.verification.kotlin_verifier import KotlinVerifier
 from framework.verification.python_verifier import PythonVerifier
@@ -27,6 +28,7 @@ class MultiLanguageVerifier:
     def __init__(self) -> None:
         self.verifiers: List[LanguageVerifier] = [
             PythonVerifier(),
+            JavaVerifier(),
             KotlinVerifier(),
             SwiftVerifier(),
             JavaScriptVerifier(),

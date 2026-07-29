@@ -3,14 +3,13 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set
+from typing import Any, Dict, List, Set
 
 from framework.verification.base import (
     LanguageVerifier,
     VerificationCategory,
     VerificationIssue,
     VerificationLevel,
-    VerificationResult,
 )
 
 
@@ -27,71 +26,53 @@ class PythonVerifier(LanguageVerifier):
         """File extensions this verifier claims (dispatch by suffix)."""
         return [".py"]
 
-    def verify(self, file_path: Path) -> VerificationResult:
+    def _run_checks(self, content: str, file_path: Path) -> List[VerificationIssue]:
         """Verify Python test file"""
         issues: List[VerificationIssue] = []
 
+        # Syntax check
         try:
-            content = file_path.read_text(encoding="utf-8")
-
-            # Syntax check
-            try:
-                tree = ast.parse(content)
-            except SyntaxError as e:
-                issues.append(
-                    VerificationIssue(
-                        level=VerificationLevel.ERROR,
-                        category=VerificationCategory.SYNTAX,
-                        message=f"Syntax error: {e.msg}",
-                        file_path=str(file_path),
-                        line_number=e.lineno or 0,
-                        column=e.offset or 0,
-                    )
-                )
-                return VerificationResult(
-                    language=self.language,
-                    file_path=str(file_path),
-                    success=False,
-                    issues=issues,
-                )
-
-            # Check imports
-            issues.extend(self._check_imports(tree, file_path))
-
-            # Check test structure
-            issues.extend(self._check_test_structure(tree, file_path))
-
-            # Check selectors
-            issues.extend(self._check_selectors(content, file_path))
-
-            # Check best practices
-            issues.extend(self._check_best_practices(tree, content, file_path))
-
-            success = not any(i.level == VerificationLevel.ERROR for i in issues)
-
-            return VerificationResult(
-                language=self.language,
-                file_path=str(file_path),
-                success=success,
-                issues=issues,
-                metadata={"line_count": len(content.splitlines())},
-            )
-
-        except (OSError, UnicodeDecodeError) as e:
+            tree = ast.parse(content)
+        except SyntaxError as e:
             issues.append(
                 VerificationIssue(
                     level=VerificationLevel.ERROR,
                     category=VerificationCategory.SYNTAX,
-                    message=f"Failed to read file: {e}",
+                    message=f"Syntax error: {e.msg}",
                     file_path=str(file_path),
+                    line_number=e.lineno or 0,
+                    column=e.offset or 0,
                 )
             )
-            return VerificationResult(
-                language=self.language,
-                file_path=str(file_path),
-                success=False,
-                issues=issues,
-            )
+            # A file that does not parse cannot be inspected further.
+            return issues
+
+        # Check imports
+        issues.extend(self._check_imports(tree, file_path))
+
+        # Check test structure
+        issues.extend(self._check_test_structure(tree, file_path))
+
+        # Check selectors
+        issues.extend(self._check_selectors(content, file_path))
+
+        # Check best practices
+        issues.extend(self._check_best_practices(tree, content, file_path))
+
+        return issues
+
+    def _collect_metadata(self, content: str, issues: List[VerificationIssue]) -> Dict[str, Any]:
+        """Attach a line count, except when the file failed to parse.
+
+        Preserves the historical behaviour where the syntax-error early return
+        produced a result with no metadata.
+        """
+        has_syntax_error = any(
+            i.level == VerificationLevel.ERROR and i.category == VerificationCategory.SYNTAX for i in issues
+        )
+        if has_syntax_error:
+            return {}
+        return {"line_count": len(content.splitlines())}
 
     def _check_imports(self, tree: ast.AST, file_path: Path) -> List[VerificationIssue]:
         """Check import statements"""
