@@ -181,6 +181,7 @@ def write_kit(
     server: str,
     app_activity: Optional[str],
     launch_args: Tuple[str, ...],
+    assert_values: bool = False,
 ) -> KitReport:
     """Write every artifact of a crawl kit to ``output`` and report what was written.
 
@@ -199,6 +200,8 @@ def write_kit(
         server: Appium server URL baked into a scaffolded project's config.
         app_activity: Android entry activity for the generated test setup.
         launch_args: iOS launch arguments recorded into the generated test setup.
+        assert_values: Also pin observed static text values (TEXT_EQUALS) in the
+            generated state tests. Opt-in; off keeps output VISIBLE-only.
 
     Returns:
         A :class:`KitReport` with info lines, non-fatal warnings, and whether tests
@@ -237,7 +240,12 @@ def write_kit(
     # (Page Objects + conftest + POM-style tests) for the Python targets.
     target_ids = {t.id for t in available_targets()}
     model = build_test_model(
-        result, app_package=package, app_activity=app_activity, launch_args=list(launch_args) or None, graph=graph
+        result,
+        app_package=package,
+        app_activity=app_activity,
+        launch_args=list(launch_args) or None,
+        graph=graph,
+        assert_values=assert_values,
     )
     if not model.cases:
         report.no_tests = True
