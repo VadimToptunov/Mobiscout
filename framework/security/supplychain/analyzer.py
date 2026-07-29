@@ -72,19 +72,29 @@ class SupplyChainAnalyzer:
         for podfile_lock in directory.rglob("Podfile.lock"):
             deps = self.cocoapods_parser.parse_podfile_lock(podfile_lock)
             dependencies.extend(deps)
+            findings.extend(self._check_cocoapods_vulnerabilities(deps))
 
         # Check licenses
         findings.extend(self._check_licenses(dependencies))
 
         return dependencies, findings
 
-    def _check_python_vulnerabilities(self, dependencies: List[Dependency]) -> List[SupplyChainFinding]:
-        """Check Python dependencies for vulnerabilities"""
+    def _check(
+        self,
+        dependencies: List[Dependency],
+        table: Dict[str, List[Tuple[str, str, VulnerabilitySeverity, str]]],
+    ) -> List[SupplyChainFinding]:
+        """Flag dependencies whose version matches an advisory in ``table``.
+
+        The Python/JS/Gradle/CocoaPods checks are identical apart from which
+        parser's ``KNOWN_VULNERABILITIES`` table they consult, so they all route
+        through here.
+        """
         findings = []
 
         for dep in dependencies:
-            if dep.name in PythonDependencyParser.KNOWN_VULNERABILITIES:
-                for vuln_spec, cve, severity, desc in PythonDependencyParser.KNOWN_VULNERABILITIES[dep.name]:
+            if dep.name in table:
+                for vuln_spec, cve, severity, desc in table[dep.name]:
                     if self._version_matches(dep.version, vuln_spec):
                         findings.append(
                             SupplyChainFinding(
@@ -108,68 +118,22 @@ class SupplyChainAnalyzer:
                         )
 
         return findings
+
+    def _check_python_vulnerabilities(self, dependencies: List[Dependency]) -> List[SupplyChainFinding]:
+        """Check Python dependencies for vulnerabilities"""
+        return self._check(dependencies, PythonDependencyParser.KNOWN_VULNERABILITIES)
 
     def _check_js_vulnerabilities(self, dependencies: List[Dependency]) -> List[SupplyChainFinding]:
         """Check JavaScript dependencies for vulnerabilities"""
-        findings = []
-
-        for dep in dependencies:
-            if dep.name in JavaScriptDependencyParser.KNOWN_VULNERABILITIES:
-                for vuln_spec, cve, severity, desc in JavaScriptDependencyParser.KNOWN_VULNERABILITIES[dep.name]:
-                    if self._version_matches(dep.version, vuln_spec):
-                        findings.append(
-                            SupplyChainFinding(
-                                finding_type="vulnerability",
-                                severity=severity,
-                                title=f"Vulnerable dependency: {dep.name}",
-                                description=desc,
-                                dependency=dep,
-                                vulnerability=Vulnerability(
-                                    cve_id=cve,
-                                    severity=severity,
-                                    title=desc,
-                                    description=desc,
-                                    affected_package=dep.name,
-                                    affected_versions=vuln_spec,
-                                    fixed_version=None,
-                                    cvss_score=None,
-                                ),
-                                recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
-                            )
-                        )
-
-        return findings
+        return self._check(dependencies, JavaScriptDependencyParser.KNOWN_VULNERABILITIES)
 
     def _check_gradle_vulnerabilities(self, dependencies: List[Dependency]) -> List[SupplyChainFinding]:
         """Check Gradle/Java dependencies for vulnerabilities"""
-        findings = []
+        return self._check(dependencies, GradleDependencyParser.KNOWN_VULNERABILITIES)
 
-        for dep in dependencies:
-            if dep.name in GradleDependencyParser.KNOWN_VULNERABILITIES:
-                for vuln_spec, cve, severity, desc in GradleDependencyParser.KNOWN_VULNERABILITIES[dep.name]:
-                    if self._version_matches(dep.version, vuln_spec):
-                        findings.append(
-                            SupplyChainFinding(
-                                finding_type="vulnerability",
-                                severity=severity,
-                                title=f"Vulnerable dependency: {dep.name}",
-                                description=desc,
-                                dependency=dep,
-                                vulnerability=Vulnerability(
-                                    cve_id=cve,
-                                    severity=severity,
-                                    title=desc,
-                                    description=desc,
-                                    affected_package=dep.name,
-                                    affected_versions=vuln_spec,
-                                    fixed_version=None,
-                                    cvss_score=None,
-                                ),
-                                recommendation=f"Upgrade {dep.name} to a version that fixes {cve}",
-                            )
-                        )
-
-        return findings
+    def _check_cocoapods_vulnerabilities(self, dependencies: List[Dependency]) -> List[SupplyChainFinding]:
+        """Check CocoaPods dependencies for vulnerabilities"""
+        return self._check(dependencies, CocoaPodsDependencyParser.KNOWN_VULNERABILITIES)
 
     def _check_licenses(self, dependencies: List[Dependency]) -> List[SupplyChainFinding]:
         """Check license compliance"""

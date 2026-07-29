@@ -14,9 +14,11 @@ Features:
 - Frida/Xposed detection analysis
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import ClassVar, Dict, Any, List, Tuple
 
 
 class ProtectionCategory(Enum):
@@ -169,3 +171,87 @@ class QuickCheckResult:
             "has_ssl_pinning": self.has_ssl_pinning,
             "has_obfuscation": self.has_obfuscation,
         }
+
+
+class BaseProtectionAnalyzer:
+    """Shared source-scanning logic for the platform protection analyzers.
+
+    ``_find_patterns`` and ``_analyze_category`` were byte-identical in the
+    Android and iOS analyzers; they live here now. Subclasses only declare the
+    source file ``EXTENSIONS`` they scan plus their own pattern dicts and
+    recommendations, and implement ``analyze_source``.
+    """
+
+    # File extensions a subclass scans; overridden per platform.
+    EXTENSIONS: ClassVar[List[str]] = []
+
+    def _find_patterns(
+        self, source_dir: Path, patterns: Dict[str, Tuple[str, str]], category: ProtectionCategory
+    ) -> List[ProtectionIndicator]:
+        """Find protection patterns in source code."""
+        indicators = []
+
+        for ext in self.EXTENSIONS:
+            for file_path in source_dir.rglob(f"*{ext}"):
+                try:
+                    content = file_path.read_text(encoding="utf-8", errors="ignore")
+                    lines = content.splitlines()
+
+                    for pattern, (desc, difficulty) in patterns.items():
+                        for i, line in enumerate(lines, 1):
+                            if re.search(pattern, line, re.IGNORECASE):
+                                indicators.append(
+                                    ProtectionIndicator(
+                                        category=category,
+                                        indicator=pattern,
+                                        location=str(file_path),
+                                        line_number=i,
+                                        description=desc,
+                                        bypass_difficulty=difficulty,
+                                    )
+                                )
+                except (OSError, UnicodeDecodeError):
+                    pass
+
+        return indicators
+
+    def _analyze_category(
+        self, category: ProtectionCategory, indicators: List[ProtectionIndicator], recommendations: List[str]
+    ) -> ProtectionAnalysis:
+        """Analyze a protection category."""
+        if not indicators:
+            return ProtectionAnalysis(
+                category=category,
+                implemented=False,
+                quality=ImplementationQuality.NONE,
+                indicators=[],
+                recommendations=recommendations,
+                score=0.0,
+            )
+
+        # Calculate quality based on bypass difficulty
+        hard_count = len([i for i in indicators if i.bypass_difficulty == "hard"])
+        moderate_count = len([i for i in indicators if i.bypass_difficulty == "moderate"])
+        easy_count = len([i for i in indicators if i.bypass_difficulty == "easy"])
+
+        total = len(indicators)
+        weighted_score = (hard_count * 3 + moderate_count * 2 + easy_count) / (total * 3) * 100
+
+        if weighted_score >= 70:
+            quality = ImplementationQuality.STRONG
+        elif weighted_score >= 40:
+            quality = ImplementationQuality.MODERATE
+        else:
+            quality = ImplementationQuality.WEAK
+
+        # Filter recommendations to what's not implemented
+        remaining_recommendations = recommendations[:3] if quality == ImplementationQuality.WEAK else []
+
+        return ProtectionAnalysis(
+            category=category,
+            implemented=True,
+            quality=quality,
+            indicators=indicators,
+            recommendations=remaining_recommendations,
+            score=weighted_score,
+        )

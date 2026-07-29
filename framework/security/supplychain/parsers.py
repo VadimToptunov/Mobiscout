@@ -279,6 +279,14 @@ class CocoaPodsDependencyParser:
     Parses Podfile and Podfile.lock
     """
 
+    # Known CocoaPods vulnerabilities (simplified). CocoaPods deps were parsed
+    # but never vulnerability-checked before; this table gives them coverage.
+    KNOWN_VULNERABILITIES = {
+        "libwebp": [
+            ("< 1.3.2", "CVE-2023-4863", VulnerabilitySeverity.CRITICAL, "Heap buffer overflow in WebP (0-click RCE)"),
+        ],
+    }
+
     def parse_podfile_lock(self, podfile_lock_path: Path) -> List[Dependency]:
         """Parse Podfile.lock"""
         dependencies: List[Dependency] = []

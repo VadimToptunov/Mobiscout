@@ -128,6 +128,29 @@ class TestVulnerabilityChecks:
         assert findings[0].vulnerability.cve_id == "CVE-2021-44228"
         assert findings[0].severity is VulnerabilitySeverity.CRITICAL
 
+    def test_cocoapods_vulnerable_dependency_flagged(self, analyzer):
+        # CocoaPods deps were parsed but never vuln-checked before this change.
+        deps = [
+            Dependency(name="libwebp", version="1.3.1", dep_type=DependencyType.COCOAPODS),
+            Dependency(name="Alamofire", version="5.4.3", dep_type=DependencyType.COCOAPODS),  # clean
+        ]
+        findings = analyzer._check_cocoapods_vulnerabilities(deps)
+
+        assert len(findings) == 1
+        finding = findings[0]
+        assert finding.dependency.name == "libwebp"
+        assert finding.vulnerability.cve_id == "CVE-2023-4863"
+        assert finding.severity is VulnerabilitySeverity.CRITICAL
+
+    def test_all_ecosystem_checks_share_one_implementation(self, analyzer):
+        # The four public checks route through the single _check helper; a
+        # standalone table exercised through it must flag on version match.
+        table = {"widget": [("< 2.0", "CVE-0000-0001", VulnerabilitySeverity.HIGH, "demo")]}
+        deps = [Dependency(name="widget", version="1.5", dep_type=DependencyType.PYTHON)]
+        findings = analyzer._check(deps, table)
+        assert len(findings) == 1
+        assert findings[0].vulnerability.cve_id == "CVE-0000-0001"
+
 
 # --------------------------------------------------------------------------- #
 # License compliance
@@ -206,6 +229,17 @@ class TestScanAndAnalyze:
             DependencyType.GRADLE,
             DependencyType.COCOAPODS,
         } <= ecosystems
+
+    def test_scan_directory_flags_vulnerable_cocoapod(self, analyzer, tmp_path):
+        # A Podfile.lock pinning a vulnerable pod now surfaces a vuln finding.
+        (tmp_path / "Podfile.lock").write_text("PODS:\n  - libwebp (1.3.1)\n", encoding="utf-8")
+
+        dependencies, findings = analyzer.scan_directory(tmp_path)
+
+        assert any(d.name == "libwebp" for d in dependencies)
+        vuln = [f for f in findings if f.finding_type == "vulnerability" and f.dependency.name == "libwebp"]
+        assert len(vuln) == 1
+        assert vuln[0].vulnerability.cve_id == "CVE-2023-4863"
 
     def test_scan_directory_skips_node_modules_package_json(self, analyzer, tmp_path):
         # Vendored deps under node_modules must not be treated as project deps.

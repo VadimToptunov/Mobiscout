@@ -4,6 +4,7 @@ import re
 from typing import List
 from urllib.parse import urlparse
 
+from framework.security import patterns
 from framework.security.dast.base import (
     DASTTestType,
     DASTSeverity,
@@ -19,16 +20,9 @@ class NetworkTrafficAnalyzer:
     Intercepts and analyzes network traffic for security issues.
     """
 
-    # Sensitive data patterns
-    SENSITIVE_PATTERNS = {
-        "credit_card": r"\b(?:\d{4}[-\s]?){3}\d{4}\b",
-        "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
-        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-        "api_key": r'\b(?:api[_-]?key|apikey|api_secret)["\s:=]+["\']?[\w\-]{20,}["\']?',
-        "jwt": r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+",
-        "password_in_url": r"[?&](?:password|passwd|pwd|pass)=([^&\s]+)",
-        "bearer_token": r"Bearer\s+[\w\-\.]+",
-    }
+    # Sensitive data patterns (canonical set; the historical local copy carried
+    # the buggy ``[A-Z|a-z]`` email class, now fixed in patterns.py).
+    SENSITIVE_PATTERNS = patterns.DAST_SENSITIVE_PATTERNS
 
     def __init__(self) -> None:
         self.captured_requests: List[NetworkRequest] = []

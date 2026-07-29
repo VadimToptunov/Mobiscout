@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 import xml.etree.ElementTree as ET
 
+from framework.security import patterns
 from framework.security.decompile.base import (
     ProtectionType,
     BinaryType,
@@ -24,19 +25,8 @@ class APKDecompiler:
     Decompiles Android APK files and extracts security-relevant information.
     """
 
-    # Sensitive string patterns
-    SENSITIVE_PATTERNS = {
-        "url": r'https?://[^\s"\'<>]+',
-        "ip_address": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
-        "api_key": r'(?:api[_-]?key|apikey|api_secret)["\s:=]+["\']?([\w\-]{20,})["\']?',
-        "aws_key": r"AKIA[0-9A-Z]{16}",
-        "google_api": r"AIza[0-9A-Za-z\-_]{35}",
-        "firebase": r"[a-z0-9-]+\.firebaseio\.com",
-        "password": r'(?:password|passwd|pwd)["\s:=]+["\']?([^\s"\']{4,})["\']?',
-        "private_key": r"-----BEGIN (?:RSA |EC )?PRIVATE KEY-----",
-        "jwt": r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+",
-        "sql_query": r"(?:SELECT|INSERT|UPDATE|DELETE)\s+.+\s+(?:FROM|INTO|SET)",
-    }
+    # Sensitive string patterns (canonical set; see framework/security/patterns.py)
+    SENSITIVE_PATTERNS = patterns.DECOMPILE_SENSITIVE_PATTERNS
 
     # Root detection indicators
     ROOT_INDICATORS = [
