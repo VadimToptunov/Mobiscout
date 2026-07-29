@@ -45,6 +45,11 @@ describe('LoginFlow', () => {
         // Wait for home
         // Condition-based: wait for the screen to render rather than a fixed pause.
         await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: 3000, interval: 300 });
+        // Swipe up to reveal content
+        {
+            const swipeSize = await driver.getWindowSize();
+            await driver.execute('mobile: swipeGesture', { left: Math.round(swipeSize.width * 0.1), top: Math.round(swipeSize.height * 0.1), width: Math.round(swipeSize.width * 0.8), height: Math.round(swipeSize.height * 0.8), direction: 'up', percent: 0.75 });
+        }
         // Dismiss a dialog
         await driver.back();
         // Welcome message shown

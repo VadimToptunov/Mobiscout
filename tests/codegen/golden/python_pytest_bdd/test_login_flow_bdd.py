@@ -79,6 +79,22 @@ def _tap(driver, target):
     _find(driver, target).click()
 
 
+@when(parsers.parse("I swipe {direction}"))
+def _swipe(driver, direction):
+    size = driver.get_window_size()
+    driver.execute_script(
+        "mobile: swipeGesture",
+        {
+            "left": int(size["width"] * 0.1),
+            "top": int(size["height"] * 0.1),
+            "width": int(size["width"] * 0.8),
+            "height": int(size["height"] * 0.8),
+            "direction": direction,
+            "percent": 0.75,
+        },
+    )
+
+
 @when(parsers.parse("I wait {seconds:d} seconds"))
 def _wait(driver, seconds):
     # Condition-based: wait for the screen to render rather than a global implicit wait.

@@ -9,8 +9,13 @@
 package generated
 
 import io.appium.java_client.AppiumBy
+{% if model.platform.value == "ios" %}
+import io.appium.java_client.ios.IOSDriver
+import io.appium.java_client.ios.options.XCUITestOptions
+{% else %}
 import io.appium.java_client.android.AndroidDriver
 import io.appium.java_client.android.options.UiAutomator2Options
+{% endif %}
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeEach
@@ -25,7 +30,11 @@ import java.time.Duration
 
 class {{ class_name }} {
 
+{% if model.platform.value == "ios" %}
+    private lateinit var driver: IOSDriver
+{% else %}
     private lateinit var driver: AndroidDriver
+{% endif %}
 
     // Condition-based wait budget — poll for elements instead of a fixed sleep or
     // a global implicit wait, so tests stay in sync with async UI.
@@ -33,13 +42,21 @@ class {{ class_name }} {
 
     @BeforeEach
     fun setUp() {
+{% if model.platform.value == "ios" %}
+        val options = XCUITestOptions()
+        options.setPlatformName("iOS")
+        options.setAutomationName("XCUITest")
+        options.setBundleId({{ model.app_package | kotlin_str }})
+        driver = IOSDriver(URL("http://localhost:4723"), options)
+{% else %}
         val options = UiAutomator2Options()
-        options.setPlatformName("{{ model.platform.value | capitalize }}")
+        options.setPlatformName("Android")
         options.setAppPackage({{ model.app_package | kotlin_str }})
 {% if model.app_activity %}
         options.setAppActivity({{ model.app_activity | kotlin_str }})
 {% endif %}
         driver = AndroidDriver(URL("http://localhost:4723"), options)
+{% endif %}
     }
 
     @AfterEach
@@ -84,12 +101,25 @@ class {{ class_name }} {
         find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).click()
 {% elif step.action.value == "type" %}
         find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).sendKeys({{ step.text | kotlin_str }})
+{% elif step.action.value == "swipe" %}
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: swipe", mapOf<String, Any>("direction" to {{ (step.direction or "up") | kotlin_str }}))
+{% else %}
+        run {
+            val swipeSize = driver.manage().window().size
+            driver.executeScript("mobile: swipeGesture", mapOf<String, Any>("left" to (swipeSize.width * 0.1).toInt(), "top" to (swipeSize.height * 0.1).toInt(), "width" to (swipeSize.width * 0.8).toInt(), "height" to (swipeSize.height * 0.8).toInt(), "direction" to {{ (step.direction or "up") | kotlin_str }}, "percent" to 0.75))
+        }
+{% endif %}
 {% elif step.action.value == "back" %}
         driver.navigate().back()
 {% elif step.action.value == "long_press" %}
         org.openqa.selenium.interactions.Actions(driver).clickAndHold(find({{ step.selector | by_expr }}, {{ step.selector | by_array }})).pause(java.time.Duration.ofSeconds(1)).release().perform()
 {% elif step.action.value == "scroll_to" %}
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: scroll", mapOf<String, Any>("predicateString" to {{ ('name == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '" OR label == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"') | kotlin_str }}, "toVisible" to true))
+{% else %}
         driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator({{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"))') | kotlin_str }}))
+{% endif %}
 {% elif step.action.value == "deep_link" %}
 {% if model.platform.value == "ios" %}
         driver.get({{ step.text | kotlin_str }})
@@ -97,7 +127,11 @@ class {{ class_name }} {
         driver.executeScript("mobile: deepLink", mapOf("url" to {{ step.text | kotlin_str }}, "package" to {{ model.app_package | kotlin_str }}))
 {% endif %}
 {% elif step.action.value == "press_key" %}
+{% if model.platform.value == "ios" %}
+        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+{% else %}
         (driver as io.appium.java_client.android.AndroidDriver).pressKey(io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | kotlin_str }})))
+{% endif %}
 {% elif step.action.value == "wait" %}
         // Condition-based: wait for the screen to render rather than a global implicit wait.
         WebDriverWait(driver, Duration.ofSeconds({{ step.timeout | int or 5 }})).until { d -> d.findElements(By.xpath("//*")).isNotEmpty() }

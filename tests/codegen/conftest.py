@@ -49,6 +49,7 @@ def login_model() -> TestModel:
                         description="Tap login",
                     ),
                     Step(ActionType.WAIT, timeout=3, description="Wait for home"),
+                    Step(ActionType.SWIPE, direction="up", description="Swipe up to reveal content"),
                     Step(ActionType.BACK, description="Dismiss a dialog"),
                     Step(
                         ActionType.ASSERT,

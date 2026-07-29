@@ -54,12 +54,29 @@ describe({{ model.name | js_str }}, () => {
         await (await find({{ step.selector | selector_array }})).click();
 {% elif step.action.value == "type" %}
         await (await find({{ step.selector | selector_array }})).setValue({{ step.text | js_str }});
+{% elif step.action.value == "swipe" %}
+{% if model.platform.value == "ios" %}
+        await driver.execute('mobile: swipe', { direction: {{ (step.direction or "up") | js_str }} });
+{% else %}
+        {
+            const swipeSize = await driver.getWindowSize();
+            await driver.execute('mobile: swipeGesture', { left: Math.round(swipeSize.width * 0.1), top: Math.round(swipeSize.height * 0.1), width: Math.round(swipeSize.width * 0.8), height: Math.round(swipeSize.height * 0.8), direction: {{ (step.direction or "up") | js_str }}, percent: 0.75 });
+        }
+{% endif %}
 {% elif step.action.value == "back" %}
         await driver.back();
 {% elif step.action.value == "long_press" %}
+{% if model.platform.value == "ios" %}
+        await driver.execute('mobile: touchAndHold', { elementId: (await find({{ step.selector | selector_array }})).elementId, duration: 1.0 });
+{% else %}
         await driver.execute('mobile: longClickGesture', { elementId: (await find({{ step.selector | selector_array }})).elementId, duration: 1000 });
+{% endif %}
 {% elif step.action.value == "scroll_to" %}
+{% if model.platform.value == "ios" %}
+        await driver.execute('mobile: scroll', { predicateString: {{ ('name == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '" OR label == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"') | js_str }}, toVisible: true });
+{% else %}
         await $({{ ('android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"))') | js_str }});
+{% endif %}
 {% elif step.action.value == "deep_link" %}
 {% if model.platform.value == "ios" %}
         await driver.url({{ step.text | js_str }});
@@ -67,7 +84,11 @@ describe({{ model.name | js_str }}, () => {
         await driver.execute('mobile: deepLink', { url: {{ step.text | js_str }}, package: APP_PACKAGE });
 {% endif %}
 {% elif step.action.value == "press_key" %}
+{% if model.platform.value == "ios" %}
+        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+{% else %}
         await driver.pressKeyCode({{ step.text | keycode }});
+{% endif %}
 {% elif step.action.value == "wait" %}
         // Condition-based: wait for the screen to render rather than a fixed pause.
         await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: {{ (step.timeout | int or 5) * 1000 }}, interval: 300 });

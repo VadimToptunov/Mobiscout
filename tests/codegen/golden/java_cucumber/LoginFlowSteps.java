@@ -95,6 +95,19 @@ public class LoginFlowSteps {
         find(target).click();
     }
 
+    @When("I swipe {word}")
+    public void iSwipe(String direction) {
+        org.openqa.selenium.Dimension size = driver.manage().window().getSize();
+        Map<String, Object> swipeArgs = new HashMap<>();
+        swipeArgs.put("left", (int) (size.getWidth() * 0.1));
+        swipeArgs.put("top", (int) (size.getHeight() * 0.1));
+        swipeArgs.put("width", (int) (size.getWidth() * 0.8));
+        swipeArgs.put("height", (int) (size.getHeight() * 0.8));
+        swipeArgs.put("direction", direction);
+        swipeArgs.put("percent", 0.75);
+        driver.executeScript("mobile: swipeGesture", swipeArgs);
+    }
+
     @When("I wait {int} seconds")
     public void iWaitSeconds(Integer seconds) {
         // Condition-based: wait for the screen to render rather than a global implicit wait.

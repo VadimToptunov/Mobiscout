@@ -52,9 +52,13 @@ def test_python_pytest_renders_and_compiles(platform):
     _compiles(code)
     if platform is Platform.ANDROID:
         assert "mobile: deepLink" in code
+        # Android emits the UiAutomator2-only gestures.
+        assert "longClickGesture" in code and "scrollIntoView" in code and "press_keycode(4)" in code
     else:
         assert 'driver.get("myapp://profile")' in code
-    assert "longClickGesture" in code and "scrollIntoView" in code and "press_keycode(4)" in code
+        # iOS emits XCUITest gestures, never the Android-only calls (which throw on a real iOS run).
+        assert "touchAndHold" in code and "mobile: scroll" in code
+        assert "longClickGesture" not in code and "scrollIntoView" not in code and "press_keycode" not in code
 
 
 def test_bdd_steps_compile_and_feature_has_phrases():

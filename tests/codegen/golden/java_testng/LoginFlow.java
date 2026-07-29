@@ -86,6 +86,18 @@ public class LoginFlow {
         // Wait for home
         // Condition-based: wait for the screen to render rather than a global implicit wait.
         new WebDriverWait(driver, Duration.ofSeconds(3)).until(d -> !d.findElements(By.xpath("//*")).isEmpty());
+        // Swipe up to reveal content
+        {
+            org.openqa.selenium.Dimension swipeSize = driver.manage().window().getSize();
+            java.util.Map<String, Object> swipeArgs = new java.util.HashMap<>();
+            swipeArgs.put("left", (int) (swipeSize.getWidth() * 0.1));
+            swipeArgs.put("top", (int) (swipeSize.getHeight() * 0.1));
+            swipeArgs.put("width", (int) (swipeSize.getWidth() * 0.8));
+            swipeArgs.put("height", (int) (swipeSize.getHeight() * 0.8));
+            swipeArgs.put("direction", "up");
+            swipeArgs.put("percent", 0.75);
+            driver.executeScript("mobile: swipeGesture", swipeArgs);
+        }
         // Dismiss a dialog
         driver.navigate().back();
         // Welcome message shown

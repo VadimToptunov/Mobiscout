@@ -55,6 +55,15 @@ When('I tap {string}', async (target) => {
     await (await find(target)).click();
 });
 
+When('I swipe {word}', async (direction) => {
+{% if model.platform.value == "ios" %}
+    await driver.execute('mobile: swipe', { direction });
+{% else %}
+    const size = await driver.getWindowSize();
+    await driver.execute('mobile: swipeGesture', { left: Math.round(size.width * 0.1), top: Math.round(size.height * 0.1), width: Math.round(size.width * 0.8), height: Math.round(size.height * 0.8), direction, percent: 0.75 });
+{% endif %}
+});
+
 When('I wait {int} seconds', async (seconds) => {
     // Condition-based: wait for the screen to render rather than a fixed pause.
     await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: seconds * 1000, interval: 300 });
@@ -65,11 +74,19 @@ When('I press back', async () => {
 });
 
 When('I long-press {string}', async (target) => {
+{% if model.platform.value == "ios" %}
+    await driver.execute('mobile: touchAndHold', { elementId: (await find(target)).elementId, duration: 1.0 });
+{% else %}
     await driver.execute('mobile: longClickGesture', { elementId: (await find(target)).elementId, duration: 1000 });
+{% endif %}
 });
 
 When('I scroll to {string}', async (target) => {
+{% if model.platform.value == "ios" %}
+    await driver.execute('mobile: scroll', { predicateString: `name == "${target}" OR label == "${target}"`, toVisible: true });
+{% else %}
     await $(`android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("${target}"))`);
+{% endif %}
 });
 
 When('I open the deep link {string}', async (url) => {
@@ -77,8 +94,12 @@ When('I open the deep link {string}', async (url) => {
 });
 
 When('I press the {string} key', async (key) => {
+{% if model.platform.value == "ios" %}
+    // UNSUPPORTED on iOS: no hardware keycode equivalent; press the key via the on-screen keyboard instead.
+{% else %}
     const codes = { BACK: 4, HOME: 3, ENTER: 66, TAB: 61, SEARCH: 84, APP_SWITCH: 187, DEL: 67 };
     await driver.pressKeyCode(codes[key.toUpperCase()] || 0);
+{% endif %}
 });
 
 Then('{string} is visible', async (target) => {

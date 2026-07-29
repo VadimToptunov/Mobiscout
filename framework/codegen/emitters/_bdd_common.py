@@ -76,6 +76,8 @@ def phrase(step: Step, type_param: Optional[str] = None) -> str:
         return f'I enter "{value}" into "{gherkin_quote(target_key(step.selector))}"'
     if a is ActionType.TAP:
         return f'I tap "{gherkin_quote(target_key(step.selector))}"'
+    if a is ActionType.SWIPE:
+        return f"I swipe {step.direction or 'up'}"
     if a is ActionType.LONG_PRESS:
         return f'I long-press "{gherkin_quote(target_key(step.selector))}"'
     if a is ActionType.SCROLL_TO:

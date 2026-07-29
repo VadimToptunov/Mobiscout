@@ -115,12 +115,27 @@ def test_{{ case.name }}(driver):
     _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).click()
 {% elif step.action.value == "type" %}
     _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys(TEST_DATA[{{ step.selector | data_key | py_str }}])
+{% elif step.action.value == "swipe" %}
+{% if model.platform.value == "ios" %}
+    driver.execute_script("mobile: swipe", {"direction": {{ (step.direction or "up") | py_str }}})
+{% else %}
+    _size = driver.get_window_size()
+    driver.execute_script("mobile: swipeGesture", {"left": int(_size["width"] * 0.1), "top": int(_size["height"] * 0.1), "width": int(_size["width"] * 0.8), "height": int(_size["height"] * 0.8), "direction": {{ (step.direction or "up") | py_str }}, "percent": 0.75})
+{% endif %}
 {% elif step.action.value == "back" %}
     driver.back()
 {% elif step.action.value == "long_press" %}
+{% if model.platform.value == "ios" %}
+    driver.execute_script("mobile: touchAndHold", {"elementId": _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).id, "duration": 1.0})
+{% else %}
     driver.execute_script("mobile: longClickGesture", {"elementId": _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).id, "duration": 1000})
+{% endif %}
 {% elif step.action.value == "scroll_to" %}
+{% if model.platform.value == "ios" %}
+    driver.execute_script("mobile: scroll", {"predicateString": {{ ('name == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '" OR label == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"') | py_str }}, "toVisible": True})
+{% else %}
     driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR, {{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"))') | py_str }})
+{% endif %}
 {% elif step.action.value == "deep_link" %}
 {% if model.platform.value == "ios" %}
     driver.get({{ step.text | py_str }})
@@ -128,7 +143,12 @@ def test_{{ case.name }}(driver):
     driver.execute_script("mobile: deepLink", {"url": {{ step.text | py_str }}, "package": {{ model.app_package | py_str }}})
 {% endif %}
 {% elif step.action.value == "press_key" %}
+{% if model.platform.value == "ios" %}
+    # UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+    pass
+{% else %}
     driver.press_keycode({{ step.text | keycode }})
+{% endif %}
 {% elif step.action.value == "wait" %}
     # Condition-based: wait for the screen to render rather than sleeping a fixed time.
     WebDriverWait(driver, {{ step.timeout or 5 }}).until(lambda d: d.find_elements(AppiumBy.XPATH, "//*"))

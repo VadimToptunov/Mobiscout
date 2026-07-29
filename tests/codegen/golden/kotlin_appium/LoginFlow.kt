@@ -78,6 +78,11 @@ class LoginFlow {
         // Wait for home
         // Condition-based: wait for the screen to render rather than a global implicit wait.
         WebDriverWait(driver, Duration.ofSeconds(3)).until { d -> d.findElements(By.xpath("//*")).isNotEmpty() }
+        // Swipe up to reveal content
+        run {
+            val swipeSize = driver.manage().window().size
+            driver.executeScript("mobile: swipeGesture", mapOf<String, Any>("left" to (swipeSize.width * 0.1).toInt(), "top" to (swipeSize.height * 0.1).toInt(), "width" to (swipeSize.width * 0.8).toInt(), "height" to (swipeSize.height * 0.8).toInt(), "direction" to "up", "percent" to 0.75))
+        }
         // Dismiss a dialog
         driver.navigate().back()
         // Welcome message shown
