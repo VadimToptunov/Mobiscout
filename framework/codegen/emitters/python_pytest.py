@@ -29,14 +29,21 @@ def _data_key(selector: Selector) -> str:
 class PythonPytestEmitter(Emitter):
     target_id = "python_pytest"
 
+    #: platform of the model being emitted; read by the platform-aware locator
+    #: filter. Set per-emit so a TEXT selector renders correctly for iOS.
+    _platform: str = "android"
+
     def _register_filters(self) -> None:
-        self.env.filters["by_value"] = by_value
+        # by_value is platform-aware (TEXT -> UiAutomator on Android, XPath-by-label
+        # on iOS); bind the current model's platform captured at emit time.
+        self.env.filters["by_value"] = lambda sel: by_value(sel, self._platform)
         self.env.filters["ua_escape"] = ua_escape
         self.env.filters["py_str"] = py_str
         self.env.filters["keycode"] = keycode
         self.env.filters["data_key"] = _data_key
 
     def emit(self, model: TestModel) -> Dict[str, str]:
+        self._platform = model.platform.value
         template = self.env.get_template("test_file.py.j2")
         content = template.render(model=model)
         return {f"test_{snake(model.name)}.py": content}

@@ -290,6 +290,54 @@ def test_ios_bdd_step_defs_avoid_android_only_calls(target_id: str):
         assert android_only not in src, f"{target_id} still emits Android-only {android_only!r} for iOS"
 
 
+def _text_only_model(platform: Platform) -> TestModel:
+    """A model whose sole locator is a TEXT selector — the case where TEXT is the
+    *chosen* primary locator, not merely a fallback."""
+    from framework.codegen.ir import ActionType, Selector, SelectorStrategy, Step, TestCase
+
+    return TestModel(
+        name="TextFlow",
+        app_package="com.example.app",
+        platform=platform,
+        cases=[
+            TestCase(
+                name="text",
+                steps=[Step(ActionType.TAP, selector=Selector(SelectorStrategy.TEXT, "Welcome"))],
+            )
+        ],
+    )
+
+
+_ALL_APPIUM_TARGETS = _IMPERATIVE_TARGETS + _BDD_TARGETS
+
+
+@pytest.mark.parametrize("target_id", _ALL_APPIUM_TARGETS)
+def test_ios_text_selector_emits_xcuitest_locator(target_id: str):
+    """Fix: a TEXT selector on an iOS model was rendered as the Android-only
+    UiAutomator strategy (androidUIAutomator / new UiSelector().text), which
+    fails on a real device. iOS must locate visible text by @label/@name XPath."""
+    src = "\n".join(get_emitter(target_id).emit(_text_only_model(Platform.IOS)).values())
+    # No Android-only text strategy leaks into iOS output.
+    for android_only in ("ANDROID_UIAUTOMATOR", "androidUIAutomator", "UiSelector().text"):
+        assert (
+            android_only not in src
+        ), f"{target_id} still emits Android-only {android_only!r} for an iOS TEXT selector"
+    # The platform-correct XCUITest locator: an XPath matching @label / @name.
+    assert "//*[@label=" in src and "@name=" in src, f"{target_id} did not emit the iOS label/name XPath"
+
+
+@pytest.mark.parametrize("target_id", _ALL_APPIUM_TARGETS)
+def test_android_text_selector_still_uses_uiautomator(target_id: str):
+    """Guard the other half of the fix: an Android model must keep emitting the
+    UiAutomator text() selector — the iOS branch must not regress Android."""
+    src = "\n".join(get_emitter(target_id).emit(_text_only_model(Platform.ANDROID)).values())
+    # "Welcome" is embedded in a host-language literal, so its quotes may be
+    # backslash-escaped; assert on the UiAutomator expression, not exact quoting.
+    assert "UiSelector().text(" in src, f"{target_id} dropped the Android UiAutomator text selector"
+    assert "Welcome" in src
+    assert "@label=" not in src, f"{target_id} wrongly emitted an iOS label XPath for an Android model"
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())

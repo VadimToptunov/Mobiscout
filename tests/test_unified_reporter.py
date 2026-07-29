@@ -19,6 +19,16 @@ def _suite(name="suite", statuses=("passed", "passed", "failed", "skipped")):
     return TestSuite(name=name, tests=tests, timestamp="2026-01-01T00:00:00", duration=1.0, platform="ios")
 
 
+def test_report_format_is_the_canonical_domain_enum():
+    # The unified reporter's ReportFormat is no longer a local copy; it is the
+    # one canonical domain enum shared with the other reporting modules.
+    from framework.domain import ReportFormat as DomainReportFormat
+
+    assert ReportFormat is DomainReportFormat
+    # JUNIT is still a member (it stays "unsupported" in generate_report below).
+    assert ReportFormat.JUNIT.value == "junit"
+
+
 def test_suite_counts_by_status():
     s = _suite()
     assert s.passed == 2 and s.failed == 1 and s.skipped == 1 and s.total == 4

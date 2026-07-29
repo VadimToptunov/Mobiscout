@@ -8,18 +8,18 @@ import html
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from framework.domain import ReportFormat
 from pathlib import Path
 from typing import List, Optional
 
-
-class ReportFormat(Enum):
-    """Supported report formats"""
-
-    HTML = "html"
-    ALLURE = "allure"
-    JUNIT = "junit"
-    JSON = "json"
+# ``ReportFormat`` is the canonical domain enum, re-exported so existing imports
+# (``from framework.reporting.unified_reporter import ReportFormat``) keep
+# resolving to the one shared definition.
+#
+# NOTE: the ``TestResult`` / ``TestSuite`` below are intentionally *not* the
+# canonical domain results. They carry a raw string ``status`` because they are
+# the JUnit-parse intermediate emitted by ``JUnitParser`` straight from XML;
+# ``cli.dashboard_commands`` adapts them to the canonical dashboard result.
 
 
 @dataclass

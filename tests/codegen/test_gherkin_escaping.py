@@ -96,6 +96,52 @@ def test_no_step_line_carries_a_raw_control_char():
         assert "\t" not in line  # tabs would also fracture a step line
 
 
+def _pipe_outline_model() -> TestModel:
+    """A form-filling case (so it renders as a Scenario Outline with an Examples
+    table) whose typed value contains a ``|`` and a newline — the characters that
+    corrupt a pipe-delimited table row if unescaped."""
+    return TestModel(
+        name="PipeFlow",
+        app_package="com.example.app",
+        cases=[
+            TestCase(
+                name="pipe",
+                description="typed values with pipes do not corrupt the Examples table",
+                steps=[
+                    Step(ActionType.LAUNCH),
+                    Step(
+                        ActionType.TYPE,
+                        selector=Selector(SelectorStrategy.ID, "query", description="Query"),
+                        text="a|b\nc",
+                    ),
+                    Step(
+                        ActionType.TYPE,
+                        selector=Selector(SelectorStrategy.ID, "email", description="Email"),
+                        text="user@example.com",
+                    ),
+                ],
+            )
+        ],
+    )
+
+
+def test_examples_pipe_and_newline_do_not_corrupt_the_table():
+    feature = render_feature(_pipe_outline_model())
+    # Must be a Scenario Outline with an Examples table.
+    assert "Scenario Outline:" in feature and "Examples:" in feature
+    # gherkin-official parses the table and unescapes cells; a raw pipe/newline
+    # would either fail to parse or split the row into the wrong column count.
+    parsed = Parser().parse(TokenScanner(feature))
+    examples = parsed["feature"]["children"][0]["scenario"]["examples"][0]
+    header = examples["tableHeader"]["cells"]
+    rows = examples["tableBody"]
+    for row in rows:
+        assert len(row["cells"]) == len(header), "Examples row column count drifted from the header"
+    # The escaped pipe round-trips to a literal pipe; the newline is neutralised.
+    first_col_values = [row["cells"][0]["value"] for row in rows]
+    assert "a|b c" in first_col_values, f"pipe/newline value did not survive: {first_col_values}"
+
+
 @pytest.mark.parametrize("bad", ['x"y', "a\nb", "c\r\nd", "back\\slash"])
 def test_quoted_embedding_never_leaves_an_unbalanced_line(bad):
     model = TestModel(

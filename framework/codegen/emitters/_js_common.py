@@ -15,14 +15,14 @@ from __future__ import annotations
 
 from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy
-from framework.codegen.emitters._naming import ua_escape
+from framework.codegen.emitters._naming import ios_text_xpath, ua_escape
 
 # Single-quoted JS string literal, safely escaped. Single quotes keep the common
 # double-quoted uiAutomator expressions readable.
 js_str = make_escaper("'")
 
 
-def _wdio_selector(sel: Selector) -> str:
+def _wdio_selector(sel: Selector, platform: str = "android") -> str:
     """The raw WebdriverIO selector string for one selector (pre-escaping)."""
     s = sel.strategy
     if s is SelectorStrategy.ACCESSIBILITY_ID:
@@ -34,11 +34,15 @@ def _wdio_selector(sel: Selector) -> str:
     if s is SelectorStrategy.CLASS_NAME:
         return f'android=new UiSelector().className("{ua_escape(sel.value)}")'
     if s is SelectorStrategy.TEXT:
+        # iOS has no UiAutomator text() strategy — match @label/@name by XPath
+        # (a leading "/" is WebdriverIO's native xpath selector form).
+        if platform == "ios":
+            return ios_text_xpath(sel.value)
         return f'android=new UiSelector().text("{ua_escape(sel.value)}")'
     raise ValueError(f"Unsupported selector strategy for WebdriverIO: {s}")
 
 
-def selector_array(sel: Selector) -> str:
+def selector_array(sel: Selector, platform: str = "android") -> str:
     """Render ``['primary', 'fallback', ...]`` as a JS array literal."""
-    items = [js_str(_wdio_selector(sel))] + [js_str(_wdio_selector(fb)) for fb in sel.fallbacks]
+    items = [js_str(_wdio_selector(sel, platform))] + [js_str(_wdio_selector(fb, platform)) for fb in sel.fallbacks]
     return "[" + ", ".join(items) + "]"

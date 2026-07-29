@@ -14,7 +14,7 @@ from typing import List, Tuple
 from framework.codegen.emitters._bdd_common import collect_targets, target_key  # noqa: F401
 from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy, TestModel
-from framework.codegen.emitters._naming import ua_escape
+from framework.codegen.emitters._naming import ios_text_xpath, ua_escape
 
 # Abstract strategy -> AppiumBy member used in generated Python code.
 APPIUM_BY = {
@@ -23,6 +23,8 @@ APPIUM_BY = {
     SelectorStrategy.XPATH: "AppiumBy.XPATH",
     SelectorStrategy.CLASS_NAME: "AppiumBy.CLASS_NAME",
     # Android text -> uiautomator selector; readable and stable enough for v1.
+    # iOS has no UiAutomator; a TEXT selector is rendered as an XPath-by-label
+    # instead (see by_value / locator_value), so this entry is Android-only.
     SelectorStrategy.TEXT: "AppiumBy.ANDROID_UIAUTOMATOR",
 }
 
@@ -43,24 +45,28 @@ def keycode(name: str) -> int:
 py_str = make_escaper('"')
 
 
-def locator_value(sel: Selector) -> str:
+def locator_value(sel: Selector, platform: str = "android") -> str:
     """Produce the locator value string as it should appear in Python."""
     if sel.strategy is SelectorStrategy.TEXT:
+        if platform == "ios":
+            # iOS has no UiAutomator text() strategy — match @label/@name by XPath.
+            return py_str(ios_text_xpath(sel.value))
         # ua_escape handles the inner UiAutomator string layer; py_str the outer
         # Python literal (two nested string contexts).
         return py_str(f'new UiSelector().text("{ua_escape(sel.value)}")')
     return py_str(sel.value)
 
 
-def by_value(sel: Selector) -> str:
+def by_value(sel: Selector, platform: str = "android") -> str:
     """Render a ``(AppiumBy.X, "value")`` tuple for the _find helper."""
-    return f"({APPIUM_BY[sel.strategy]}, {locator_value(sel)})"
+    strategy = SelectorStrategy.XPATH if (sel.strategy is SelectorStrategy.TEXT and platform == "ios") else sel.strategy
+    return f"({APPIUM_BY[strategy]}, {locator_value(sel, platform)})"
 
 
-def locator_chain(sel: Selector) -> str:
+def locator_chain(sel: Selector, platform: str = "android") -> str:
     """Render ``primary, [fallback, ...]`` flattened to a single list literal:
     ``[(AppiumBy.ID, "x"), (AppiumBy.XPATH, "//y")]`` — primary first."""
-    items: List[str] = [by_value(sel)] + [by_value(fb) for fb in sel.fallbacks]
+    items: List[str] = [by_value(sel, platform)] + [by_value(fb, platform) for fb in sel.fallbacks]
     return "[" + ", ".join(items) + "]"
 
 
@@ -68,4 +74,5 @@ def collect_locators(model: TestModel) -> List[Tuple[str, str]]:
     """(target_key, python locator_chain) for every selector in the model.
     Targets/ordering come from the shared BDD helper; only the rendering of the
     chain is Python-specific."""
-    return [(key, locator_chain(sel)) for key, sel in collect_targets(model)]
+    platform = model.platform.value
+    return [(key, locator_chain(sel, platform)) for key, sel in collect_targets(model)]

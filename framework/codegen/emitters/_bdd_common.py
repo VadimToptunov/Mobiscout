@@ -42,6 +42,20 @@ def gherkin_quote(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"').replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
 
 
+def examples_cell(value: str) -> str:
+    """Escape a value for a cell of a Gherkin ``Examples:`` table.
+
+    Table cells are pipe-delimited, so a raw ``|`` in the value splits the row
+    into extra columns (misaligning it against the header and corrupting the
+    outline for every parser); a raw newline splits the single-line row in two.
+    Gherkin escapes a literal pipe as ``\\|`` (and a literal backslash as
+    ``\\\\``); newlines have no in-cell representation, so they are neutralised
+    to a space — a cell must stay on one line.
+    """
+    escaped = value.replace("\\", "\\\\").replace("|", "\\|")
+    return escaped.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
 # Which Gherkin clause an action belongs to. Consecutive steps in the same
 # clause render as "And" for readability.
 _CLAUSE = {
@@ -170,8 +184,12 @@ def _type_outline(case: TestCase) -> Optional[List[str]]:
     lines.append("")
     lines.append("    Examples:")
     lines.append("      | " + " | ".join(names) + " |")
-    lines.append("      | " + " | ".join((s.text or "").strip() for s in type_steps) + " |")
-    lines.append("      | " + " | ".join(_variant(params[id(s)], (s.text or "").strip()) for s in type_steps) + " |")
+    lines.append("      | " + " | ".join(examples_cell((s.text or "").strip()) for s in type_steps) + " |")
+    lines.append(
+        "      | "
+        + " | ".join(examples_cell(_variant(params[id(s)], (s.text or "").strip())) for s in type_steps)
+        + " |"
+    )
     return lines
 
 
@@ -201,7 +219,7 @@ def _visible_outline(case: TestCase) -> Optional[List[str]]:
         "    Examples:",
         "      | element |",
     ]
-    lines += [f"      | {t} |" for t in targets]
+    lines += [f"      | {examples_cell(t)} |" for t in targets]
     return lines
 
 

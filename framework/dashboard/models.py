@@ -2,11 +2,22 @@
 Dashboard data models
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from framework.domain import TestStatus
+from framework.domain import TestResult as CanonicalTestResult, TestStatus
 from typing import Optional, Dict, Any
+
+# ``TestStatus`` is re-exported (``from .models import TestStatus`` is used by the
+# dashboard DB, server and CLI) — keep it resolvable here.
+__all__ = [
+    "TestStatus",
+    "HealingStatus",
+    "TestResult",
+    "TestHealth",
+    "HealedSelector",
+    "DashboardStats",
+]
 
 
 class HealingStatus(Enum):
@@ -18,16 +29,19 @@ class HealingStatus(Enum):
 
 
 @dataclass
-class TestResult:
-    """Single test execution result"""
+class TestResult(CanonicalTestResult):
+    """Single persisted test execution result.
 
-    id: str
-    name: str
-    status: TestStatus
-    duration: float  # seconds
-    timestamp: datetime
-    file_path: str
-    error_message: Optional[str] = None
+    A thin subclass of the canonical :class:`framework.domain.TestResult` that
+    adds the dashboard's storage-only fields (``id``/``timestamp``/``file_path``,
+    all required) and a ``to_dict`` for the DB/API layer — rather than pushing
+    those persistence concerns onto the shared reporting type. Declared
+    keyword-only so they may follow the canonical type's defaulted fields.
+    """
+
+    id: str = field(kw_only=True)
+    timestamp: datetime = field(kw_only=True)
+    file_path: str = field(kw_only=True)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
