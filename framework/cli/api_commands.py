@@ -11,12 +11,9 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.table import Table
 
-from framework.cli.rich_output import print_error, print_header, print_info, print_success
-
-console = Console()
+from framework.cli.rich_output import print_error, print_header, print_info, print_success, console
 
 
 @click.group(name="api")

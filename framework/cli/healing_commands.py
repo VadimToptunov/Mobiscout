@@ -8,16 +8,13 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.table import Table
 
-from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress, console
 from framework.dashboard.database import DashboardDB
 from framework.dashboard.models import HealingStatus
 from framework.healing.failure_analyzer import FailureAnalyzer
 from framework.healing.orchestrator import HealingOrchestrator
-
-console = Console()
 
 
 @click.group(name="heal")

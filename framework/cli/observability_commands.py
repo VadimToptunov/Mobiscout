@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -18,8 +17,7 @@ from rich.table import Table
 from framework.observability import (
     ObservabilityManager,
 )
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.group()

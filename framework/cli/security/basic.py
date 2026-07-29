@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from framework.security.scanner import SecurityScanner, SeverityLevel
+from framework.cli.rich_output import ComparisonMetric, render_comparison
 from framework.cli.security.base import (
     security,
     console,
@@ -175,44 +176,20 @@ def compare(app_name: str, v1_report: Path, v2_report: Path) -> None:
     with open(v2_report, "r", encoding="utf-8") as f:
         v2_data = json.load(f)
 
-    v1_summary = v1_data["summary"]
-    v2_summary = v2_data["summary"]
-
-    console.print(f"[bold cyan]Security Comparison: {app_name}[/bold cyan]\n")
-
-    table = Table()
-    table.add_column("Severity", style="cyan")
-    table.add_column("Version 1", justify="right")
-    table.add_column("Version 2", justify="right")
-    table.add_column("Change", justify="right")
-
-    for severity in ["critical", "high", "medium", "low"]:
-        v1_count = v1_summary[severity]
-        v2_count = v2_summary[severity]
-        change = v2_count - v1_count
-
-        if change > 0:
-            change_str = f"[red]+{change}[/red]"
-        elif change < 0:
-            change_str = f"[green]{change}[/green]"
-        else:
-            change_str = "[dim]0[/dim]"
-
-        table.add_row(
-            severity.title(),
-            str(v1_count),
-            str(v2_count),
-            change_str,
-        )
-
-    console.print(table)
-
-    total_v1 = v1_summary["total_findings"]
-    total_v2 = v2_summary["total_findings"]
-
-    if total_v2 < total_v1:
-        console.print("\n[green]✓[/green] Security improved!")
-    elif total_v2 > total_v1:
-        console.print("\n[red]✗[/red] Security degraded!")
-    else:
-        console.print("\n[dim]No change in security posture[/dim]")
+    render_comparison(
+        v1_data["summary"],
+        v2_data["summary"],
+        [
+            ComparisonMetric("critical"),
+            ComparisonMetric("high"),
+            ComparisonMetric("medium"),
+            ComparisonMetric("low"),
+        ],
+        title=f"[bold cyan]Security Comparison: {app_name}[/bold cyan]\n",
+        columns=("Severity", "Version 1", "Version 2"),
+        verdict_key="total_findings",
+        verdict_higher_is_better=False,
+        verdict_improved="\n[green]✓[/green] Security improved!",
+        verdict_degraded="\n[red]✗[/red] Security degraded!",
+        verdict_unchanged="\n[dim]No change in security posture[/dim]",
+    )

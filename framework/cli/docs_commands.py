@@ -6,13 +6,11 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from framework.documentation import DocGenerator, DocConfig, DocFormat
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.group()

@@ -9,13 +9,10 @@ session's timeline, or show aggregate statistics.
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.table import Table
 
-from framework.cli.rich_output import print_error, print_header, print_info
+from framework.cli.rich_output import print_error, print_header, print_info, console
 from framework.storage.event_store import EventStore
-
-console = Console()
 
 
 def _default_session(store: EventStore) -> Optional[str]:

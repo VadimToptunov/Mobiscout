@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -17,8 +16,7 @@ from framework.verification.verifier import (
     MultiLanguageVerifier,
     VerificationLevel,
 )
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.group()

@@ -6,14 +6,12 @@ from pathlib import Path
 
 import click
 import yaml
-from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
 from framework.ci.templates import get_template, get_filename
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 def _load_config(config_file: Path) -> str:

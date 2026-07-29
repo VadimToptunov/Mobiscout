@@ -9,15 +9,12 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import click
-from rich.console import Console
 from rich.table import Table
 
-from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, create_progress, console
 from framework.ml.element_classifier import ElementClassifier
 from framework.ml.training_data_generator import TrainingDataGenerator
 from framework.ml.universal_model import UniversalModelBuilder
-
-console = Console()
 
 
 @click.group(name="ml")

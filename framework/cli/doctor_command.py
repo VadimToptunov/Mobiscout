@@ -7,11 +7,9 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 
 from framework.health import SystemDoctor
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.command()

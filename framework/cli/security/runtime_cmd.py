@@ -12,13 +12,13 @@ from rich.panel import Panel
 from rich.table import Table
 
 from framework.security.runtime_protection import RuntimeProtectionAnalyzer
+from framework.cli.rich_output import output_format, write_report
 from framework.cli.security.base import (
     security,
     console,
     validate_path,
     create_progress_context,
     exit_with_severity,
-    save_json_report,
 )
 
 
@@ -26,7 +26,7 @@ from framework.cli.security.base import (
 @click.argument("app_path", type=Path)
 @click.option("--platform", "-p", type=click.Choice(["android", "ios"]), required=True)
 @click.option("--output", "-o", type=Path, help="Output report path")
-@click.option("--format", "-f", type=click.Choice(["json", "html"]), default="json")
+@output_format("json", "html")
 def runtime(
     app_path: Path,
     platform: str,
@@ -129,10 +129,12 @@ def runtime(
             console.print(f"  [red]•[/red] {bypass.method}: {bypass.description}")
 
     if output:
-        if format == "html":
-            analyzer.export_html(result, output)
-        else:
-            save_json_report(result.to_dict(), output)
+        write_report(
+            result.to_dict(),
+            output,
+            format,
+            {"html": lambda p: analyzer.export_html(result, p)},
+        )
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
     # A weak protection score (<40%) is the only failing condition here; map it

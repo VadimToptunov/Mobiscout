@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
@@ -19,8 +18,7 @@ from framework.analysis.accessibility_analyzer import (
     A11yViolationSeverity,
     A11yScanResult,
 )
-
-console = Console()
+from framework.cli.rich_output import ComparisonMetric, console, render_comparison
 
 
 def _is_inventory(data: Any) -> bool:
@@ -257,52 +255,23 @@ def compare(report1: Path, report2: Path) -> None:
     with open(report2, "r", encoding="utf-8") as f:
         data2 = json.load(f)
 
-    summary1 = data1["summary"]
-    summary2 = data2["summary"]
-
-    console.print("[bold cyan]Accessibility Comparison[/bold cyan]\n")
-
-    table = Table()
-    table.add_column("Metric", style="cyan")
-    table.add_column("Report 1", justify="right")
-    table.add_column("Report 2", justify="right")
-    table.add_column("Change", justify="right")
-
-    for metric in ["compliance_score", "violations", "critical", "serious"]:
-        val1 = summary1[metric]
-        val2 = summary2[metric]
-        change = val2 - val1
-
-        if metric == "compliance_score":
-            change_str = f"{change:+.1f}%"
-            if change > 0:
-                change_str = f"[green]{change_str}[/green]"
-            elif change < 0:
-                change_str = f"[red]{change_str}[/red]"
-        else:
-            change_str = f"{change:+d}"
-            if change < 0:
-                change_str = f"[green]{change_str}[/green]"
-            elif change > 0:
-                change_str = f"[red]{change_str}[/red]"
-            else:
-                change_str = "[dim]0[/dim]"
-
-        metric_name = metric.replace("_", " ").title()
-        table.add_row(metric_name, str(val1), str(val2), change_str)
-
-    console.print(table)
-
-    # Overall verdict
-    score1 = summary1["compliance_score"]
-    score2 = summary2["compliance_score"]
-
-    if score2 > score1:
-        console.print("\n[green]✓[/green] Accessibility improved!")
-    elif score2 < score1:
-        console.print("\n[red]✗[/red] Accessibility degraded!")
-    else:
-        console.print("\n[dim]No change in accessibility[/dim]")
+    render_comparison(
+        data1["summary"],
+        data2["summary"],
+        [
+            ComparisonMetric("compliance_score", higher_is_better=True, percent=True),
+            ComparisonMetric("violations"),
+            ComparisonMetric("critical"),
+            ComparisonMetric("serious"),
+        ],
+        title="[bold cyan]Accessibility Comparison[/bold cyan]\n",
+        columns=("Metric", "Report 1", "Report 2"),
+        verdict_key="compliance_score",
+        verdict_higher_is_better=True,
+        verdict_improved="\n[green]✓[/green] Accessibility improved!",
+        verdict_degraded="\n[red]✗[/red] Accessibility degraded!",
+        verdict_unchanged="\n[dim]No change in accessibility[/dim]",
+    )
 
 
 @a11y.command()

@@ -2,8 +2,12 @@
 Rich CLI helpers for beautiful terminal output.
 """
 
-from typing import Any, Dict, List, Optional
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
+import click
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -226,3 +230,139 @@ def confirm(message: str, default: bool = False) -> bool:
             return False
 
         print_error("Please answer 'yes' or 'no'")
+
+
+# ---------------------------------------------------------------------------
+# Report output dispatch
+# ---------------------------------------------------------------------------
+
+
+def output_format(*choices: str, default: str = "json", help: Optional[str] = None) -> Callable[..., Any]:
+    """Reusable ``--format`` / ``-f`` click option.
+
+    ``output_format("json", "html")`` is equivalent to the hand-written
+    ``click.option("--format", "-f", type=click.Choice(["json", "html"]), default="json")``.
+    Choice order is preserved for both validation and ``--help`` rendering.
+    """
+    return click.option(
+        "--format",
+        "-f",
+        type=click.Choice(list(choices)),
+        default=default,
+        help=help,
+    )
+
+
+def write_report(
+    data: Any,
+    output: Path,
+    fmt: str,
+    writers: Optional[Mapping[str, Callable[[Path], None]]] = None,
+) -> None:
+    """Dispatch report writing to a format-specific writer.
+
+    ``writers`` maps a format name to a callable that receives the output path
+    and performs the write (typically an analyzer's ``export_html`` / ``export_sarif``
+    / SBOM emitter). Any format not present in ``writers`` — in practice ``json`` —
+    falls back to serialising ``data`` as pretty JSON, matching the previous
+    ``save_json_report`` / inline ``json.dump(..., indent=2, default=str)`` behaviour.
+    """
+    writer = (writers or {}).get(fmt)
+    if writer is not None:
+        writer(output)
+    else:
+        with open(output, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, default=str)
+
+
+# ---------------------------------------------------------------------------
+# Report comparison rendering
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ComparisonMetric:
+    """One row of a :func:`render_comparison` diff table.
+
+    ``key`` is looked up in both report summaries. ``higher_is_better`` flips
+    which direction of change is coloured green (improvement) vs red (regression).
+    ``percent`` formats the change as ``+1.2%`` (a score) instead of ``+3`` (a count);
+    counts additionally render an unchanged value as a dimmed ``0``.
+    """
+
+    key: str
+    higher_is_better: bool = False
+    percent: bool = False
+
+
+def render_comparison(
+    report_a: Mapping[str, Any],
+    report_b: Mapping[str, Any],
+    metrics: List[ComparisonMetric],
+    *,
+    title: str,
+    columns: Tuple[str, str, str],
+    verdict_key: str,
+    verdict_higher_is_better: bool,
+    verdict_improved: str,
+    verdict_degraded: str,
+    verdict_unchanged: str,
+) -> None:
+    """Render a two-report diff table plus an improved/degraded verdict.
+
+    ``report_a`` / ``report_b`` are the two summary mappings. ``columns`` supplies
+    the first three column headers (the fourth is always ``Change``). The verdict
+    compares ``verdict_key`` across the two reports using ``verdict_higher_is_better``
+    and prints one of the three fully-formatted verdict strings (each including any
+    desired leading newline and Rich markup).
+    """
+    console.print(title)
+
+    table = Table()
+    table.add_column(columns[0], style="cyan")
+    table.add_column(columns[1], justify="right")
+    table.add_column(columns[2], justify="right")
+    table.add_column("Change", justify="right")
+
+    for metric in metrics:
+        val_a = report_a[metric.key]
+        val_b = report_b[metric.key]
+        change = val_b - val_a
+
+        if metric.higher_is_better:
+            good, bad = change > 0, change < 0
+        else:
+            good, bad = change < 0, change > 0
+
+        if metric.percent:
+            change_str = f"{change:+.1f}%"
+            if good:
+                change_str = f"[green]{change_str}[/green]"
+            elif bad:
+                change_str = f"[red]{change_str}[/red]"
+        else:
+            if good:
+                change_str = f"[green]{change:+d}[/green]"
+            elif bad:
+                change_str = f"[red]{change:+d}[/red]"
+            else:
+                change_str = "[dim]0[/dim]"
+
+        label = metric.key.replace("_", " ").title()
+        table.add_row(label, str(val_a), str(val_b), change_str)
+
+    console.print(table)
+
+    verdict_a = report_a[verdict_key]
+    verdict_b = report_b[verdict_key]
+    if verdict_higher_is_better:
+        improved, degraded = verdict_b > verdict_a, verdict_b < verdict_a
+    else:
+        improved, degraded = verdict_b < verdict_a, verdict_b > verdict_a
+
+    if improved:
+        console.print(verdict_improved)
+    elif degraded:
+        console.print(verdict_degraded)
+    else:
+        console.print(verdict_unchanged)

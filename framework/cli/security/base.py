@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 import click
-from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -17,9 +16,9 @@ from framework.security.scanner import (
     SecurityScanResult,
 )
 from framework.security.advanced_security import RiskLevel
+from framework.cli.rich_output import console
 
 # Shared console instance for all security commands
-console = Console()
 
 
 def get_severity_style(severity: SeverityLevel) -> str:

@@ -13,6 +13,7 @@ from rich.table import Table
 
 from framework.security.sast_analyzer import SASTAnalyzer
 from framework.security.sast.base import Severity
+from framework.cli.rich_output import output_format, write_report
 from framework.cli.security.base import (
     security,
     console,
@@ -29,7 +30,7 @@ from framework.cli.security.base import (
     "--language", "-l", type=click.Choice(["python", "java", "kotlin", "swift", "javascript", "all"]), default="all"
 )
 @click.option("--output", "-o", type=Path, help="Output report path")
-@click.option("--format", "-f", type=click.Choice(["json", "sarif", "html"]), default="json")
+@output_format("json", "sarif", "html")
 @click.option("--taint/--no-taint", default=True, help="Enable taint analysis")
 @click.option("--crypto/--no-crypto", default=True, help="Enable cryptography analysis")
 def sast(
@@ -120,12 +121,15 @@ def sast(
         console.print()
 
     if output:
-        if format == "sarif":
-            analyzer.export_sarif(result.findings, output)
-        elif format == "html":
-            analyzer.export_html(result, output)
-        else:
-            save_json_report(result.to_dict(), output)
+        write_report(
+            result.to_dict(),
+            output,
+            format,
+            {
+                "sarif": lambda p: analyzer.export_sarif(result.findings, p),
+                "html": lambda p: analyzer.export_html(result, p),
+            },
+        )
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
     exit_with_severity(len(critical_vulns), len(high_vulns))

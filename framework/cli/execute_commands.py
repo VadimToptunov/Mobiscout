@@ -11,14 +11,11 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 import click
-from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
-
-console = Console()
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, console
 
 
 class TestMonitor:
