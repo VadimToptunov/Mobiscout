@@ -9,13 +9,10 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.table import Table
 
 from framework.analysis.visual_analyzer import VisualAnalyzer
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
-
-console = Console()
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, console
 
 
 @click.group(name="visual")

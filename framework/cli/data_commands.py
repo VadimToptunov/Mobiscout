@@ -9,12 +9,9 @@ from pathlib import Path
 from typing import Optional, List, Any
 
 import click
-from rich.console import Console
 
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, console
 from framework.data.generator import TestDataGenerator
-
-console = Console()
 
 
 @click.group(name="data")

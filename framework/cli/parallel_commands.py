@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
@@ -14,8 +13,7 @@ from rich.table import Table
 from framework.devices.device_manager import DeviceManager
 from framework.execution.parallel_executor import ParallelExecutor, TestStatus
 from framework.execution.test_sharding import ShardStrategy, TestCase, TestSharding
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.group()

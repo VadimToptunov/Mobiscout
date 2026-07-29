@@ -3,7 +3,6 @@ CLI commands for Advanced Selectors
 """
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
@@ -18,8 +17,7 @@ from framework.selectors.advanced_selector import (
     by_text,
     by_class,
 )
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.group()

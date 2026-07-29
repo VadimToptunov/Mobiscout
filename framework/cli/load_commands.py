@@ -5,7 +5,6 @@ CLI Commands - Load testing and performance profiling
 from pathlib import Path
 
 import click
-from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -18,8 +17,7 @@ from framework.testing.profiler import (
     PerformanceProfiler,
     ProfilerConfig,
 )
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 def _pct(part: int, whole: int) -> float:

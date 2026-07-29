@@ -12,20 +12,20 @@ from rich.panel import Panel
 from rich.table import Table
 
 from framework.security.supply_chain import SupplyChainAnalyzer
+from framework.cli.rich_output import output_format, write_report
 from framework.cli.security.base import (
     security,
     console,
     validate_path,
     create_progress_context,
     exit_with_severity,
-    save_json_report,
 )
 
 
 @security.command(name="supply-chain")
 @click.argument("project_path", type=Path)
 @click.option("--output", "-o", type=Path, help="Output report path")
-@click.option("--format", "-f", type=click.Choice(["json", "sbom", "html"]), default="json")
+@output_format("json", "sbom", "html")
 @click.option("--check-vulns/--no-vulns", default=True, help="Check for known vulnerabilities")
 def supply_chain(
     project_path: Path,
@@ -126,15 +126,20 @@ def supply_chain(
             console.print(f"  [yellow]•[/yellow] {issue.package_name}: {issue.license} - {issue.issue}")
 
     if output:
-        if format == "sbom":
-            analyzer.generate_sbom_file(result, output)
-            console.print(f"\n[green]✓[/green] SBOM saved to {output}")
-        elif format == "html":
-            analyzer.export_html(result, output)
-            console.print(f"\n[green]✓[/green] HTML report saved to {output}")
-        else:
-            save_json_report(result.to_dict(), output)
-            console.print(f"\n[green]✓[/green] Report saved to {output}")
+        write_report(
+            result.to_dict(),
+            output,
+            format,
+            {
+                "sbom": lambda p: analyzer.generate_sbom_file(result, p),
+                "html": lambda p: analyzer.export_html(result, p),
+            },
+        )
+        saved_message = {
+            "sbom": f"\n[green]✓[/green] SBOM saved to {output}",
+            "html": f"\n[green]✓[/green] HTML report saved to {output}",
+        }.get(format, f"\n[green]✓[/green] Report saved to {output}")
+        console.print(saved_message)
 
     # critical → exit 2; any remaining vulnerability → exit 1; otherwise 0.
     critical_vulns = len([v for v in result.vulnerabilities if v.severity == "critical"])

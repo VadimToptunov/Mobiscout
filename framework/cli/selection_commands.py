@@ -7,14 +7,11 @@ Commands for intelligent test selection based on code changes.
 from pathlib import Path
 
 import click
-from rich.console import Console
 from rich.table import Table
 
-from framework.cli.rich_output import print_header, print_info, print_success, print_error
+from framework.cli.rich_output import print_header, print_info, print_success, print_error, console
 from framework.selection.change_analyzer import ChangeAnalyzer, FileChange
 from framework.selection.test_selector import TestSelector
-
-console = Console()
 
 
 @click.group(name="select")

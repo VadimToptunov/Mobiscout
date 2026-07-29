@@ -13,12 +13,12 @@ from rich.panel import Panel
 from rich.table import Table
 
 from framework.security.dast_analyzer import DASTAnalyzer
+from framework.cli.rich_output import output_format, write_report
 from framework.cli.security.base import (
     security,
     console,
     create_progress_context,
     exit_with_severity,
-    save_json_report,
 )
 
 
@@ -26,7 +26,7 @@ from framework.cli.security.base import (
 @click.argument("target", type=str)
 @click.option("--port", "-p", type=int, default=443, help="Target port")
 @click.option("--output", "-o", type=Path, help="Output report path")
-@click.option("--format", "-f", type=click.Choice(["json", "html"]), default="json")
+@output_format("json", "html")
 def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
     """
     Run Dynamic Application Security Testing (DAST).
@@ -92,10 +92,12 @@ def dast(target: str, port: int, output: Optional[Path], format: str) -> None:
         console.print()
 
     if output:
-        if format == "html":
-            analyzer.export_html(result, output)
-        else:
-            save_json_report(result.to_dict(), output)
+        write_report(
+            result.to_dict(),
+            output,
+            format,
+            {"html": lambda p: analyzer.export_html(result, p)},
+        )
         console.print(f"\n[green]✓[/green] Report saved to {output}")
 
     # Only critical/high findings are treated as failing; medium/low exit 0.

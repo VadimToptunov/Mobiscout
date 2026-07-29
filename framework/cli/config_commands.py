@@ -10,14 +10,12 @@ from typing import Optional, Union
 
 import click
 import yaml
-from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
 
 from framework.config import ConfigManager, MobiscoutConfig
-
-console = Console()
+from framework.cli.rich_output import console
 
 
 @click.group()
