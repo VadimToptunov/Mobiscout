@@ -13,17 +13,13 @@ share one definition of "how a locator looks in WebdriverIO".
 
 from __future__ import annotations
 
+from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy
 from framework.codegen.emitters._naming import ua_escape
 
-
-def js_str(value: str) -> str:
-    """Render a single-quoted JS string literal, safely escaped. Single quotes
-    keep the common double-quoted uiAutomator expressions readable."""
-    escaped = (
-        value.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    )
-    return "'" + escaped + "'"
+# Single-quoted JS string literal, safely escaped. Single quotes keep the common
+# double-quoted uiAutomator expressions readable.
+js_str = make_escaper("'")
 
 
 def _wdio_selector(sel: Selector) -> str:

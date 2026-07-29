@@ -9,6 +9,7 @@ Java" and can never drift.
 
 from __future__ import annotations
 
+from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy
 from framework.codegen.emitters._naming import ua_escape
 
@@ -22,14 +23,10 @@ _BY_FACTORY = {
 }
 
 
-def java_str(value: str) -> str:
-    """Render a Java double-quoted string literal, safely escaped. Control
-    characters (newline/tab/cr) are escaped too, or multi-line element text
-    would break the literal."""
-    escaped = (
-        value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    )
-    return '"' + escaped + '"'
+# Java double-quoted string literal, safely escaped. Control characters
+# (newline/tab/cr) are escaped too, or multi-line element text would break the
+# literal.
+java_str = make_escaper('"')
 
 
 def by_expr(sel: Selector) -> str:

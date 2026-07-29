@@ -28,6 +28,20 @@ def target_key(sel: Optional[Selector]) -> str:
     return sel.description or sel.value
 
 
+def gherkin_quote(value: str) -> str:
+    """Escape a value for safe embedding *between double quotes* in a Gherkin
+    step (a Cucumber ``{string}`` argument).
+
+    A raw ``"`` would close the argument early — unbalancing it so no step
+    definition matches — and a raw newline would split the step across lines,
+    corrupting the ``.feature`` for every Cucumber parser. So the backslash and
+    the double quote are backslash-escaped (Cucumber ``{string}`` understands
+    ``\\"``), and any newline/carriage-return is neutralised to a space, since a
+    single step must stay on one line.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+
+
 # Which Gherkin clause an action belongs to. Consecutive steps in the same
 # clause render as "And" for readability.
 _CLAUSE = {
@@ -56,28 +70,30 @@ def phrase(step: Step, type_param: Optional[str] = None) -> str:
     if a is ActionType.LAUNCH:
         return "the app is launched"
     if a is ActionType.TYPE:
-        value = f"<{type_param}>" if type_param else step.text
-        return f'I enter "{value}" into "{target_key(step.selector)}"'
+        # A <placeholder> is a Scenario-Outline column reference and must stay
+        # literal; only a concrete typed value needs escaping.
+        value = f"<{type_param}>" if type_param else gherkin_quote(step.text or "")
+        return f'I enter "{value}" into "{gherkin_quote(target_key(step.selector))}"'
     if a is ActionType.TAP:
-        return f'I tap "{target_key(step.selector)}"'
+        return f'I tap "{gherkin_quote(target_key(step.selector))}"'
     if a is ActionType.LONG_PRESS:
-        return f'I long-press "{target_key(step.selector)}"'
+        return f'I long-press "{gherkin_quote(target_key(step.selector))}"'
     if a is ActionType.SCROLL_TO:
-        return f'I scroll to "{target_key(step.selector)}"'
+        return f'I scroll to "{gherkin_quote(target_key(step.selector))}"'
     if a is ActionType.DEEP_LINK:
-        return f'I open the deep link "{step.text}"'
+        return f'I open the deep link "{gherkin_quote(step.text or "")}"'
     if a is ActionType.PRESS_KEY:
-        return f'I press the "{step.text}" key'
+        return f'I press the "{gherkin_quote(step.text or "")}" key'
     if a is ActionType.WAIT:
         return f"I wait {int(step.timeout or 5)} seconds"
     if a is ActionType.BACK:
         return "I press back"
     if a is ActionType.ASSERT:
-        key = target_key(step.selector)
+        key = gherkin_quote(target_key(step.selector))
         if step.assertion is AssertionType.VISIBLE:
             return f'"{key}" is visible'
         if step.assertion is AssertionType.TEXT_EQUALS:
-            return f'"{key}" text is "{step.expected}"'
+            return f'"{key}" text is "{gherkin_quote(step.expected or "")}"'
         if step.assertion is AssertionType.ENABLED:
             return f'"{key}" is enabled'
     raise ValueError(f"Unsupported step for BDD: {a} / {step.assertion}")
