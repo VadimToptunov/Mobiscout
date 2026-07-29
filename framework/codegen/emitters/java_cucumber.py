@@ -28,8 +28,9 @@ class JavaCucumberEmitter(Emitter):
 
     def emit(self, model: TestModel) -> Dict[str, str]:
         base = pascal(model.name)
+        platform = model.platform.value
         # (registry key, Java By[] literal of primary + fallbacks)
-        locators = [(key, by_list(sel)) for key, sel in collect_targets(model)]
+        locators = [(key, by_list(sel, platform)) for key, sel in collect_targets(model)]
         steps = self.env.get_template("steps.java.j2").render(model=model, class_name=f"{base}Steps", locators=locators)
         return {
             f"{base}.feature": render_feature(model),

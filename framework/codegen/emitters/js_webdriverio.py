@@ -21,15 +21,22 @@ from framework.core.engine import Language
 class JsWebdriverIOEmitter(Emitter):
     target_id = "js_webdriverio"
 
+    #: platform of the model being emitted; read by the platform-aware locator
+    #: filter. Set per-emit so a TEXT selector renders correctly for iOS.
+    _platform: str = "android"
+
     def _register_filters(self) -> None:
         from framework.codegen.emitters._python_common import keycode
 
-        self.env.filters["selector_array"] = selector_array
+        # selector_array is platform-aware (TEXT -> uiAutomator on Android,
+        # xpath-by-label on iOS); bind the model's platform at emit time.
+        self.env.filters["selector_array"] = lambda sel: selector_array(sel, self._platform)
         self.env.filters["ua_escape"] = ua_escape
         self.env.filters["js_str"] = js_str
         self.env.filters["keycode"] = keycode
 
     def emit(self, model: TestModel) -> Dict[str, str]:
+        self._platform = model.platform.value
         content = self.env.get_template("test_file.spec.js.j2").render(model=model)
         return {f"{kebab(model.name)}.spec.js": content}
 

@@ -56,3 +56,25 @@ def ua_escape(value: str) -> str:
     ``py_str``/``java_str``/``kotlin_str``/``js_str``.
     """
     return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def ios_text_xpath(value: str) -> str:
+    """An iOS-safe XPath that locates an element by its visible label / name.
+
+    iOS/XCUITest has no UiAutomator ``text()`` strategy, so a ``TEXT`` selector
+    must be rendered as an XPath matching the element's ``@label`` or ``@name``.
+    Mirrors ``framework.crawler.to_codegen._xpath_by_label`` (used for the iOS
+    text *fallback*) so the primary and fallback text locators agree.
+
+    Quote-safe: uses whichever quote the value lacks, or ``concat()`` if it has
+    both. The result is a plain XPath string; each language's own literal
+    escaper wraps it for its host syntax.
+    """
+    if '"' not in value:
+        lit = f'"{value}"'
+    elif "'" not in value:
+        lit = f"'{value}'"
+    else:  # contains both quote kinds — build a concat() literal
+        pieces = value.split('"')
+        lit = "concat(" + ", '\"', ".join(f'"{p}"' for p in pieces) + ")"
+    return f"//*[@label={lit} or @name={lit}]"

@@ -27,8 +27,9 @@ class JsCucumberEmitter(Emitter):
 
     def emit(self, model: TestModel) -> Dict[str, str]:
         slug = kebab(model.name)
+        platform = model.platform.value
         # (registry key, JS array literal of primary + fallbacks)
-        locators = [(key, selector_array(sel)) for key, sel in collect_targets(model)]
+        locators = [(key, selector_array(sel, platform)) for key, sel in collect_targets(model)]
         steps = self.env.get_template("steps.js.j2").render(model=model, locators=locators)
         return {
             f"{slug}.feature": render_feature(model),
