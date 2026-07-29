@@ -34,9 +34,12 @@ def test_write_report_json_fallback_uses_default_str(tmp_path):
     from pathlib import Path
 
     out = tmp_path / "report.json"
-    # A non-JSON-native value must be coerced via ``default=str``.
-    write_report({"path": Path("/tmp/x")}, out, "json")
-    assert json.loads(out.read_text(encoding="utf-8")) == {"path": "/tmp/x"}
+    # A non-JSON-native value must be coerced via ``default=str``. Compare against
+    # str(path) rather than a POSIX literal — a Path stringifies with backslashes
+    # on Windows, so hard-coding "/tmp/x" would make the test platform-dependent.
+    p = Path("/tmp/x")
+    write_report({"path": p}, out, "json")
+    assert json.loads(out.read_text(encoding="utf-8")) == {"path": str(p)}
 
 
 def test_write_report_dispatches_to_matching_writer(tmp_path):
