@@ -70,6 +70,14 @@ logger = get_logger(__name__)
     "--launch-arg -MyAppStartUnlocked --launch-arg 1 to skip a login gate",
 )
 @click.option(
+    "--assert-values",
+    "assert_values",
+    is_flag=True,
+    default=False,
+    help="Also pin observed text values (assert element.text == captured value) in the generated state "
+    "tests — for deterministic/seeded apps; off by default.",
+)
+@click.option(
     "--record-events",
     "record_events",
     default=None,
@@ -95,6 +103,7 @@ def crawl(
     max_depth: int,
     allow_destructive: bool,
     launch_args: Tuple[str, ...],
+    assert_values: bool,
     record_events: Optional[str],
 ) -> None:
     """
@@ -184,6 +193,7 @@ def crawl(
         server=server,
         app_activity=app_activity,
         launch_args=launch_args,
+        assert_values=assert_values,
     )
     for line in report.info:
         print_info(line)

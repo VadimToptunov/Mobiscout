@@ -193,15 +193,49 @@ def _significant(owned: List[CrawlElement]) -> List[CrawlElement]:
     return ([landmark] if landmark else []) + actionable[:_MAX_SCREEN_ELEMENTS]
 
 
+def _value_elements(owned: List[CrawlElement]) -> List[CrawlElement]:
+    """The static text *values* worth pinning with a TEXT_EQUALS assertion.
+
+    These are the displayed values a behavioural defect would corrupt — a money
+    amount that rounds wrong, a P&L that flips sign, a validation message with the
+    wrong text. They are precisely the static-text elements the VISIBLE-only path
+    leaves to the inventory (``_significant`` drops them as decoration).
+
+    Criteria: a text-type element (not an interactive control being tapped) whose
+    text carries at least two non-whitespace characters. Deliberately *not* gated
+    on :func:`_looks_dynamic`: money/counts look 'dynamic' but are exactly the
+    thing to pin. Only empty/whitespace/single-char values are skipped.
+    """
+    from framework.crawler.classify import classify
+
+    values: List[CrawlElement] = []
+    for e in owned:
+        text = (e.text or "").strip()
+        if len(text) < 2:
+            continue
+        if classify(e)[0] != "text":
+            continue  # not purely a control/interactive label being tapped
+        values.append(e)
+    return values
+
+
 def _screen_cases(
-    index: int, screen: CrawlScreen, app_package: str, nav_prefix: Optional[List[Step]] = None
+    index: int,
+    screen: CrawlScreen,
+    app_package: str,
+    nav_prefix: Optional[List[Step]] = None,
+    assert_values: bool = False,
 ) -> Optional[TestCase]:
     """A per-screen state case — meaningful, not exhaustive: assert the screen's
     landmark and its actionable elements (buttons/inputs/…), not every label.
 
     ``nav_prefix`` are the TAP steps that reach this screen from the entry (empty
     for the entry screen). They run after launch so the assertions are made on the
-    right screen, not a bare launch."""
+    right screen, not a bare launch.
+
+    When ``assert_values`` is True, ALSO pin the observed text of stable static
+    values (TEXT_EQUALS) on top of the VISIBLE checks, so a defect that changes a
+    displayed value makes the test fail. Off by default (byte-identical output)."""
     steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
     if nav_prefix:
         steps.extend(nav_prefix)
@@ -230,6 +264,27 @@ def _screen_cases(
                     selector=selector,
                     assertion=AssertionType.ENABLED,
                     description=f"{label} is enabled",
+                )
+            )
+    if assert_values:
+        # Opt-in: pin observed values. Independent of the VISIBLE pass above — a
+        # static value (a price, a P&L) is decoration to _significant but is the
+        # very thing a behavioural defect corrupts. Dedup on locator so we don't
+        # pin the same element twice (e.g. a value that is also the landmark).
+        pinned = set()
+        for element in _value_elements(owned):
+            selector = selector_for(element, owned, screen.platform)
+            if selector is None or selector.value in pinned:
+                continue
+            pinned.add(selector.value)
+            label = element.label or element.class_name
+            steps.append(
+                Step(
+                    ActionType.ASSERT,
+                    selector=selector,
+                    assertion=AssertionType.TEXT_EQUALS,
+                    expected=element.text,
+                    description=f"{label} shows {element.text.strip()!r}",
                 )
             )
     if not any(step.action == ActionType.ASSERT for step in steps):
@@ -308,6 +363,7 @@ def build_test_model(
     app_activity: Optional[str] = None,
     launch_args: Optional[List[str]] = None,
     graph: Optional["InteractionGraph"] = None,
+    assert_values: bool = False,
 ) -> TestModel:
     """Comprehensive TestModel from a crawl: per-screen state checks (visible +
     enabled) plus navigation flows from the recorded transitions.
@@ -320,7 +376,12 @@ def build_test_model(
     is otherwise rebuilt several times over (once each by navigation_steps,
     multi_step_cases and negative_form_cases); passing it in builds it once and
     threads it through. It is deterministic for a given result/package, so the
-    generated model is byte-for-byte identical whether or not it is supplied."""
+    generated model is byte-for-byte identical whether or not it is supplied.
+
+    ``assert_values`` (opt-in, default False) additionally pins observed static
+    text values in the per-screen state cases via TEXT_EQUALS, so a defect that
+    changes a displayed value fails the test. Default False keeps the generated
+    output byte-identical to the VISIBLE-only path."""
     # Navigation prefixes per screen (lazy import: graph.py imports this module).
     # Screens with no path from the entry are omitted — unreachable, so not
     # state-testable; this also fixes state checks asserting a deeper screen's
@@ -334,7 +395,9 @@ def build_test_model(
     for index, screen in enumerate(result.screens.values()):
         if screen.fingerprint not in nav:
             continue
-        case = _screen_cases(index, screen, app_package, nav_prefix=nav[screen.fingerprint])
+        case = _screen_cases(
+            index, screen, app_package, nav_prefix=nav[screen.fingerprint], assert_values=assert_values
+        )
         if case is not None:
             cases.append(case)
     cases.extend(_navigation_cases(result, app_package))
