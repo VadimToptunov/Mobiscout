@@ -19,6 +19,7 @@ from framework.verification.base import (
     VerificationResult,
 )
 from framework.verification.go_verifier import GoVerifier
+from framework.verification.java_verifier import JavaVerifier
 from framework.verification.javascript_verifier import JavaScriptVerifier
 from framework.verification.kotlin_verifier import KotlinVerifier
 from framework.verification.multi_verifier import MultiLanguageVerifier
@@ -34,6 +35,7 @@ __all__ = [
     "VerificationCategory",
     "LanguageVerifier",
     "PythonVerifier",
+    "JavaVerifier",
     "KotlinVerifier",
     "SwiftVerifier",
     "JavaScriptVerifier",

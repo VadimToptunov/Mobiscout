@@ -8,7 +8,6 @@ from framework.verification.base import (
     VerificationCategory,
     VerificationIssue,
     VerificationLevel,
-    VerificationResult,
 )
 
 
@@ -25,46 +24,20 @@ class KotlinVerifier(LanguageVerifier):
         """File extensions this verifier claims (dispatch by suffix)."""
         return [".kt", ".kts"]
 
-    def verify(self, file_path: Path) -> VerificationResult:
+    def _run_checks(self, content: str, file_path: Path) -> List[VerificationIssue]:
         """Verify Kotlin test file"""
         issues: List[VerificationIssue] = []
 
-        try:
-            content = file_path.read_text(encoding="utf-8")
+        # Check imports
+        issues.extend(self._check_imports(content, file_path))
 
-            # Check imports
-            issues.extend(self._check_imports(content, file_path))
+        # Check test structure
+        issues.extend(self._check_test_structure(content, file_path))
 
-            # Check test structure
-            issues.extend(self._check_test_structure(content, file_path))
+        # Check selectors
+        issues.extend(self._check_selectors(content, file_path))
 
-            # Check selectors
-            issues.extend(self._check_selectors(content, file_path))
-
-            success = not any(i.level == VerificationLevel.ERROR for i in issues)
-
-            return VerificationResult(
-                language=self.language,
-                file_path=str(file_path),
-                success=success,
-                issues=issues,
-            )
-
-        except (OSError, UnicodeDecodeError) as e:
-            issues.append(
-                VerificationIssue(
-                    level=VerificationLevel.ERROR,
-                    category=VerificationCategory.SYNTAX,
-                    message=f"Failed to read file: {e}",
-                    file_path=str(file_path),
-                )
-            )
-            return VerificationResult(
-                language=self.language,
-                file_path=str(file_path),
-                success=False,
-                issues=issues,
-            )
+        return issues
 
     def _check_imports(self, content: str, file_path: Path) -> List[VerificationIssue]:
         """Check Kotlin imports"""

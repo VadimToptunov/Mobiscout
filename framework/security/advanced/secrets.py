@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
+from framework.security import patterns
 from framework.security.advanced.base import (
     OWASPMobileTop10,
     RiskLevel,
@@ -26,114 +27,18 @@ class HardcodedSecretsScanner:
 
     def __init__(self) -> None:
         self.patterns = self._initialize_patterns()
-        # Token indicators for obvious non-secrets (test fixtures, placeholders).
-        # Matched on WORD BOUNDARIES so a genuine secret sitting next to words
-        # like "latest"/"manifest"/"greatest" is not silently dropped (the old
-        # substring match treated those as containing "test").
-        self._token_fp_pattern = re.compile(
-            r"\b(?:example|test|sample|demo|fake|mock|placeholder|dummy)\b|\bx{3,}|\byour[_-]?",
-            re.I,
-        )
-        # Structural placeholders (never a real secret regardless of context).
-        self._structural_fp_patterns = [
-            re.compile(r"<[^>]+>"),  # XML/HTML placeholders
-            re.compile(r"\$\{[^}]+\}"),  # Variable substitution
-            re.compile(r"%[sd]"),  # Format strings
-        ]
 
     def _initialize_patterns(self) -> List[SecretPattern]:
-        """Initialize comprehensive secret detection patterns"""
+        """Build the secret-detection patterns from the canonical spec list.
+
+        The regex/severity/entropy data lives in ``framework.security.patterns``
+        (``ADVANCED_SECRET_SPECS``); this maps the severity name onto the local
+        ``RiskLevel`` enum so the shared module stays dependency-free.
+        """
+        risk_by_name = {level.name: level for level in RiskLevel}
         return [
-            # AWS
-            SecretPattern(
-                "AWS Access Key ID",
-                r"(?:A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}",
-                RiskLevel.CRITICAL,
-                4.0,
-            ),
-            SecretPattern(
-                "AWS Secret Access Key",
-                r'(?:aws)?[_\-]?secret[_\-]?(?:access)?[_\-]?key["\'\s:=]+[A-Za-z0-9/+=]{40}',
-                RiskLevel.CRITICAL,
-                4.5,
-            ),
-            # Google
-            SecretPattern("Google API Key", r"AIza[0-9A-Za-z\-_]{35}", RiskLevel.HIGH, 4.0),
-            SecretPattern(
-                "Google OAuth Client ID", r"[0-9]+-[a-z0-9_]{32}\.apps\.googleusercontent\.com", RiskLevel.MEDIUM, 3.5
-            ),
-            SecretPattern(
-                "Firebase API Key",
-                r'(?:firebase|FIREBASE)[_\-]?(?:API)?[_\-]?KEY["\'\s:=]+[A-Za-z0-9\-_]{39}',
-                RiskLevel.HIGH,
-                4.0,
-            ),
-            # GitHub
-            SecretPattern("GitHub Token", r"(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,255}", RiskLevel.CRITICAL, 4.5),
-            SecretPattern(
-                "GitHub OAuth",
-                r'github[_\-]?(?:oauth)?[_\-]?(?:token|secret)["\'\s:=]+[A-Za-z0-9_]{40}',
-                RiskLevel.CRITICAL,
-                4.0,
-            ),
-            # Stripe
-            SecretPattern("Stripe API Key", r"(?:sk|pk)_(?:test|live)_[A-Za-z0-9]{24,}", RiskLevel.CRITICAL, 4.5),
-            # Twilio
-            SecretPattern("Twilio API Key", r"SK[a-f0-9]{32}", RiskLevel.HIGH, 4.0),
-            SecretPattern(
-                "Twilio Auth Token", r'twilio[_\-]?auth[_\-]?token["\'\s:=]+[a-f0-9]{32}', RiskLevel.HIGH, 4.0
-            ),
-            # Slack
-            SecretPattern("Slack Token", r"xox[baprs]-[0-9]{10,13}-[0-9]{10,13}[a-zA-Z0-9-]*", RiskLevel.HIGH, 4.0),
-            SecretPattern(
-                "Slack Webhook",
-                r"https://hooks\.slack\.com/services/T[A-Z0-9]{8,}/B[A-Z0-9]{8,}/[A-Za-z0-9]{24}",
-                RiskLevel.MEDIUM,
-                3.5,
-            ),
-            # Generic tokens and keys
-            SecretPattern(
-                "Generic API Key", r'(?:api[_\-]?key|apikey)["\'\s:=]+[A-Za-z0-9\-_]{20,}', RiskLevel.HIGH, 3.5
-            ),
-            SecretPattern(
-                "Generic Secret",
-                r'(?:secret|SECRET)[_\-]?(?:KEY|key)?["\'\s:=]+[A-Za-z0-9\-_/+=]{16,}',
-                RiskLevel.HIGH,
-                4.0,
-            ),
-            SecretPattern(
-                "Bearer Token", r"[Bb]earer\s+[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+", RiskLevel.HIGH, 4.0
-            ),
-            # Private Keys
-            SecretPattern(
-                "RSA Private Key",
-                r"-----BEGIN (?:RSA )?PRIVATE KEY-----",
-                RiskLevel.CRITICAL,
-                0.0,  # No entropy check needed
-            ),
-            SecretPattern("EC Private Key", r"-----BEGIN EC PRIVATE KEY-----", RiskLevel.CRITICAL, 0.0),
-            SecretPattern("PGP Private Key", r"-----BEGIN PGP PRIVATE KEY BLOCK-----", RiskLevel.CRITICAL, 0.0),
-            # Database
-            SecretPattern(
-                "Database Connection String",
-                r'(?:mongodb|mysql|postgres|redis)://[^"\'\s]+:[^"\'\s]+@[^"\'\s]+',
-                RiskLevel.CRITICAL,
-                3.0,
-            ),
-            # Passwords
-            SecretPattern(
-                "Password in Code", r'(?:password|passwd|pwd)["\'\s:=]+["\'][^"\']{8,}["\']', RiskLevel.HIGH, 3.0
-            ),
-            # JWT
-            SecretPattern("JWT Token", r"eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+", RiskLevel.MEDIUM, 4.0),
-            # Mobile-specific
-            SecretPattern("Google Maps API Key", r"AIza[0-9A-Za-z\\-_]{35}", RiskLevel.MEDIUM, 4.0),
-            SecretPattern(
-                "Facebook App Secret",
-                r'(?:facebook|fb)[_\-]?(?:app)?[_\-]?secret["\'\s:=]+[a-f0-9]{32}',
-                RiskLevel.HIGH,
-                4.0,
-            ),
+            SecretPattern(name, regex, risk_by_name[severity], entropy)
+            for name, regex, severity, entropy in patterns.ADVANCED_SECRET_SPECS
         ]
 
     def calculate_shannon_entropy(self, data: str) -> float:
@@ -152,19 +57,13 @@ class HardcodedSecretsScanner:
     def is_false_positive(self, match: str, context: str) -> bool:
         """Check if match is likely a false positive.
 
-        Token indicators ("test", "demo", ...) are matched on word boundaries so
+        Delegates to the canonical helper in ``framework.security.patterns``:
+        token indicators ("test", "demo", ...) are matched on word boundaries so
         an unrelated longer word ("latest", "manifest", "greatest") near a real
         secret does not suppress it. ``context`` is expected to be a narrow
         window around the match (see ``scan_content``), not a wide 200-char span.
         """
-        if self._token_fp_pattern.search(match) or self._token_fp_pattern.search(context):
-            return True
-
-        for fp_pattern in self._structural_fp_patterns:
-            if fp_pattern.search(match) or fp_pattern.search(context):
-                return True
-
-        return False
+        return patterns.is_false_positive(match, context)
 
     def scan_content(self, content: str, filename: str = "unknown") -> List[SecurityVulnerability]:
         """Scan content for hardcoded secrets"""

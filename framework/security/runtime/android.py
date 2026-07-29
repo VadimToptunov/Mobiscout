@@ -1,23 +1,23 @@
 """Analyzer extracted from runtime_protection (mechanical split; see runtime/base.py)."""
 
-import re
 from pathlib import Path
-from typing import Dict, List
+from typing import ClassVar, List
 
 from framework.security.runtime.base import (
+    BaseProtectionAnalyzer,
     ProtectionCategory,
-    ImplementationQuality,
-    ProtectionIndicator,
     ProtectionAnalysis,
 )
 
 
-class AndroidProtectionAnalyzer:
+class AndroidProtectionAnalyzer(BaseProtectionAnalyzer):
     """
     Android Runtime Protection Analyzer
 
     Analyzes Android apps for runtime protection mechanisms.
     """
+
+    EXTENSIONS: ClassVar[List[str]] = [".java", ".kt", ".xml", ".smali"]
 
     # Root detection patterns
     ROOT_DETECTION_PATTERNS = {
@@ -201,76 +201,3 @@ class AndroidProtectionAnalyzer:
         )
 
         return analyses
-
-    def _find_patterns(
-        self, source_dir: Path, patterns: Dict[str, tuple], category: ProtectionCategory
-    ) -> List[ProtectionIndicator]:
-        """Find protection patterns in source code"""
-        indicators = []
-
-        extensions = [".java", ".kt", ".xml", ".smali"]
-
-        for ext in extensions:
-            for file_path in source_dir.rglob(f"*{ext}"):
-                try:
-                    content = file_path.read_text(encoding="utf-8", errors="ignore")
-                    lines = content.splitlines()
-
-                    for pattern, (desc, difficulty) in patterns.items():
-                        for i, line in enumerate(lines, 1):
-                            if re.search(pattern, line, re.IGNORECASE):
-                                indicators.append(
-                                    ProtectionIndicator(
-                                        category=category,
-                                        indicator=pattern,
-                                        location=str(file_path),
-                                        line_number=i,
-                                        description=desc,
-                                        bypass_difficulty=difficulty,
-                                    )
-                                )
-                except (OSError, UnicodeDecodeError):
-                    pass
-
-        return indicators
-
-    def _analyze_category(
-        self, category: ProtectionCategory, indicators: List[ProtectionIndicator], recommendations: List[str]
-    ) -> ProtectionAnalysis:
-        """Analyze a protection category"""
-        if not indicators:
-            return ProtectionAnalysis(
-                category=category,
-                implemented=False,
-                quality=ImplementationQuality.NONE,
-                indicators=[],
-                recommendations=recommendations,
-                score=0.0,
-            )
-
-        # Calculate quality based on bypass difficulty
-        hard_count = len([i for i in indicators if i.bypass_difficulty == "hard"])
-        moderate_count = len([i for i in indicators if i.bypass_difficulty == "moderate"])
-        easy_count = len([i for i in indicators if i.bypass_difficulty == "easy"])
-
-        total = len(indicators)
-        weighted_score = (hard_count * 3 + moderate_count * 2 + easy_count) / (total * 3) * 100
-
-        if weighted_score >= 70:
-            quality = ImplementationQuality.STRONG
-        elif weighted_score >= 40:
-            quality = ImplementationQuality.MODERATE
-        else:
-            quality = ImplementationQuality.WEAK
-
-        # Filter recommendations to what's not implemented
-        remaining_recommendations = recommendations[:3] if quality == ImplementationQuality.WEAK else []
-
-        return ProtectionAnalysis(
-            category=category,
-            implemented=True,
-            quality=quality,
-            indicators=indicators,
-            recommendations=remaining_recommendations,
-            score=weighted_score,
-        )

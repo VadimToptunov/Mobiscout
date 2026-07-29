@@ -22,20 +22,10 @@ class HealthChecker:
         """
         from framework import __version__
 
-        # Check if Rust core is available
-        rust_core_available = False
-        try:
-            pass
-
-            rust_core_available = True
-        except ImportError:
-            pass
-
         uptime = int(time.time() - self.start_time)
 
         return {
             "status": "ok",
             "version": __version__ if hasattr(__version__, "__version__") else "0.5.0",
-            "rust_core": rust_core_available,
             "uptime_seconds": uptime,
         }

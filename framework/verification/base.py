@@ -91,7 +91,14 @@ class VerificationResult:
 
 
 class LanguageVerifier(ABC):
-    """Abstract base class for language-specific verifiers"""
+    """Abstract base class for language-specific verifiers.
+
+    ``verify()`` is a template method: it reads the file, guards the read with a
+    uniform ``(OSError, UnicodeDecodeError)`` handler, computes ``success`` from
+    the collected issues, and assembles the :class:`VerificationResult`.
+    Subclasses supply only the language-specific inspection via
+    :meth:`_run_checks` (and, optionally, :meth:`_collect_metadata`).
+    """
 
     @property
     @abstractmethod
@@ -103,9 +110,57 @@ class LanguageVerifier(ABC):
     def file_extensions(self) -> List[str]:
         """Supported file extensions"""
 
-    @abstractmethod
     def verify(self, file_path: Path) -> VerificationResult:
-        """Verify a file"""
+        """Read ``file_path`` and verify it via the language-specific checks.
+
+        Handles file IO and result assembly once for every language; subclasses
+        only implement :meth:`_run_checks`.
+        """
+        issues: List[VerificationIssue] = []
+
+        try:
+            content = file_path.read_text(encoding="utf-8")
+
+            issues = self._run_checks(content, file_path)
+
+            success = not any(i.level == VerificationLevel.ERROR for i in issues)
+
+            return VerificationResult(
+                language=self.language,
+                file_path=str(file_path),
+                success=success,
+                issues=issues,
+                metadata=self._collect_metadata(content, issues),
+            )
+
+        except (OSError, UnicodeDecodeError) as e:
+            issues.append(
+                VerificationIssue(
+                    level=VerificationLevel.ERROR,
+                    category=VerificationCategory.SYNTAX,
+                    message=f"Failed to read file: {e}",
+                    file_path=str(file_path),
+                )
+            )
+            return VerificationResult(
+                language=self.language,
+                file_path=str(file_path),
+                success=False,
+                issues=issues,
+            )
+
+    @abstractmethod
+    def _run_checks(self, content: str, file_path: Path) -> List[VerificationIssue]:
+        """Run the language-specific checks over already-read ``content``.
+
+        Called by :meth:`verify` with the file's text; must return the list of
+        issues found (empty list when clean). File IO and result assembly are
+        handled by the base class.
+        """
+
+    def _collect_metadata(self, content: str, issues: List[VerificationIssue]) -> Dict[str, Any]:
+        """Metadata to attach to the result. Defaults to none; override as needed."""
+        return {}
 
     def supports_file(self, file_path: Path) -> bool:
         """Check if this verifier supports the file"""

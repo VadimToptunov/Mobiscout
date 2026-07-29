@@ -23,6 +23,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable, List, Optional
 
+from framework.security import patterns
 from framework.security.types import Severity
 
 # Canonical severity vocabulary; kept under the historical name for callers.
@@ -228,18 +229,10 @@ class AndroidSecurityScanner:
         """Check for hardcoded secrets in code"""
         findings = []
 
-        # Patterns for common secrets
-        patterns = {
-            "API Key": r"api[_-]?key['\"]?\s*[:=]\s*['\"][a-zA-Z0-9]{20,}['\"]",
-            "AWS Key": r"AKIA[0-9A-Z]{16}",
-            "Private Key": r"-----BEGIN (RSA|DSA|EC) PRIVATE KEY-----",
-            "Password": r"password['\"]?\s*[:=]\s*['\"][^'\"]{8,}['\"]",
-        }
-
         # In production, extract and scan source files
         code_content = self._extract_source_code(apk_path)
 
-        for secret_type, pattern in patterns.items():
+        for secret_type, pattern in patterns.SCANNER_SECRET_PATTERNS.items():
             matches = re.findall(pattern, code_content, re.IGNORECASE)
             if matches:
                 findings.append(

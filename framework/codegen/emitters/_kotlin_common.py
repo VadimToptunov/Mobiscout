@@ -9,8 +9,7 @@ imperative and a future BDD Kotlin emitter share one locator definition.
 
 from __future__ import annotations
 
-from typing import Optional
-
+from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy
 from framework.codegen.emitters._naming import ua_escape
 
@@ -24,20 +23,9 @@ _BY_FACTORY = {
 }
 
 
-def kotlin_str(value: Optional[str]) -> str:
-    """Render a Kotlin double-quoted string literal, safely escaped. ``$`` is
-    escaped too, since it begins a string template in Kotlin."""
-    if value is None:
-        value = ""
-    escaped = (
-        value.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("$", "\\$")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
-    return '"' + escaped + '"'
+# Kotlin double-quoted string literal, safely escaped. ``$`` is escaped too,
+# since it begins a string template in Kotlin.
+kotlin_str = make_escaper('"', extra={"$": "\\$"})
 
 
 def by_expr(sel: Selector) -> str:

@@ -6,6 +6,7 @@ import zipfile
 from pathlib import Path
 from typing import List, Optional
 
+from framework.security import patterns
 from framework.security.decompile.base import (
     ProtectionType,
     StringFinding,
@@ -172,15 +173,9 @@ class Decompiler:
         """Extract strings from bytes"""
         strings = []
 
-        # Patterns for categorization
-        patterns = {
-            "url": r'https?://[^\s"\'<>]+',
-            "ip_address": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
-            "api_key": r'(?:api[_-]?key|apikey)["\s:=]+["\']?([\w\-]{16,})["\']?',
-            "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-            "password": r'(?:password|passwd|pwd)["\s:=]+["\']?([^\s"\']{4,})["\']?',
-            "token": r'(?:token|secret)["\s:=]+["\']?([\w\-]{16,})["\']?',
-        }
+        # Patterns for categorization (canonical set; the historical local copy
+        # carried the buggy ``[A-Z|a-z]`` email class, now fixed in patterns.py).
+        categorizers = patterns.EXTRACT_STRING_PATTERNS
 
         # Extract ASCII strings
         ascii_pattern = rb"[\x20-\x7e]{" + str(min_length).encode() + rb",}"
@@ -192,7 +187,7 @@ class Decompiler:
 
                 # Categorize string
                 category = "other"
-                for cat, pattern in patterns.items():
+                for cat, pattern in categorizers.items():
                     if re.search(pattern, decoded, re.IGNORECASE):
                         category = cat
                         break

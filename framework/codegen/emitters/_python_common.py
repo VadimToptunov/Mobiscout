@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import List, Tuple
 
 from framework.codegen.emitters._bdd_common import collect_targets, target_key  # noqa: F401
+from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy, TestModel
 from framework.codegen.emitters._naming import ua_escape
 
@@ -36,14 +37,10 @@ def keycode(name: str) -> int:
     return int(text) if text.isdigit() else _KEYCODES.get(text.upper(), 0)
 
 
-def py_str(value: str) -> str:
-    """Render a Python double-quoted string literal, safely escaped. Control
-    characters (newline/tab/cr) are escaped too, or an element's multi-line text
-    (common in Jetpack Compose paragraphs) would break the literal."""
-    escaped = (
-        value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
-    )
-    return '"' + escaped + '"'
+# Python double-quoted string literal, safely escaped. Control characters
+# (newline/tab/cr) are escaped too, or an element's multi-line text (common in
+# Jetpack Compose paragraphs) would break the literal.
+py_str = make_escaper('"')
 
 
 def locator_value(sel: Selector) -> str:

@@ -288,33 +288,11 @@ def validate_no_hardcoded_secrets(code: str, file_path: str = "unknown") -> list
     """
     import re
 
+    from framework.security import patterns
+
     issues = []
 
-    # Patterns for common secrets
-    patterns = {
-        "Potential API Key": r'["\']([A-Za-z0-9]{32,})["\']',
-        "Potential AWS Key": r"AKIA[0-9A-Z]{16}",
-        "Potential Private Key": r"-----BEGIN (?:RSA|DSA|EC) PRIVATE KEY-----",
-        "Hardcoded Password": r'password\s*=\s*["\'](?!.*env|.*config)[^"\']{8,}["\']',
-        "Potential Token": r'token\s*=\s*["\'][A-Za-z0-9_-]{20,}["\']',
-    }
-
-    # Obvious non-secret placeholder values (test data, fuzz labels, docs) that
-    # must not be reported as leaked credentials.
-    placeholder_values = {
-        "password",
-        "wrong_password",
-        "changeme",
-        "placeholder",
-        "your_password",
-        "test_password",
-        "dummy",
-        "example",
-        "sample",
-        "redacted",
-    }
-
-    for issue_type, pattern in patterns.items():
+    for issue_type, pattern in patterns.CONFIG_SECRET_PATTERNS.items():
         matches = re.finditer(pattern, code, re.IGNORECASE)
         for match in matches:
             # Skip common false positives
@@ -328,7 +306,7 @@ def validate_no_hardcoded_secrets(code: str, file_path: str = "unknown") -> list
             if code[max(0, match.start() - 2) : match.start()] in ('r"', "r'"):
                 continue
             quoted = re.search(r"""["']([^"']+)["']""", match.group(0))
-            if quoted and quoted.group(1).lower() in placeholder_values:
+            if quoted and patterns.is_placeholder_value(quoted.group(1)):
                 continue
 
             issues.append(
