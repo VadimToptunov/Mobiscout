@@ -77,6 +77,9 @@ def test_login(driver):
     # Wait for home
     # Condition-based: wait for the screen to render rather than sleeping a fixed time.
     WebDriverWait(driver, 3).until(lambda d: d.find_elements(AppiumBy.XPATH, "//*"))
+    # Swipe up to reveal content
+    _size = driver.get_window_size()
+    driver.execute_script("mobile: swipeGesture", {"left": int(_size["width"] * 0.1), "top": int(_size["height"] * 0.1), "width": int(_size["width"] * 0.8), "height": int(_size["height"] * 0.8), "direction": "up", "percent": 0.75})
     # Dismiss a dialog
     driver.back()
     # Welcome message shown

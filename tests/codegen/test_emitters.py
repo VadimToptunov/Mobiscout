@@ -206,6 +206,90 @@ def test_ios_launch_args_carried_into_generated_setup(login_model: TestModel):
     assert "processArguments" in src and '"-StartUnlocked", "1"' in src
 
 
+def test_kotlin_appium_ios_emits_ios_driver(login_model: TestModel):
+    """Fix 1: the kotlin_appium template was hardwired to Android. An iOS model
+    must import/use IOSDriver + XCUITestOptions, never the Android types."""
+    login_model.platform = Platform.IOS
+    src = "\n".join(get_emitter("kotlin_appium").emit(login_model).values())
+    assert "IOSDriver" in src and "XCUITestOptions" in src
+    assert "AndroidDriver" not in src
+    assert "UiAutomator2Options" not in src
+
+
+_IMPERATIVE_TARGETS = ["python_pytest", "java_testng", "kotlin_appium", "js_webdriverio"]
+_BDD_TARGETS = ["python_pytest_bdd", "java_cucumber", "js_cucumber"]
+
+
+@pytest.mark.parametrize("target_id", _IMPERATIVE_TARGETS)
+def test_swipe_rendered_in_every_imperative_target(target_id: str, login_model: TestModel):
+    """Fix 2: SWIPE used to silently vanish (no template branch). The fixture now
+    contains a swipe; every imperative target must actually render it."""
+    src = "\n".join(get_emitter(target_id).emit(login_model).values())
+    assert "swipeGesture" in src  # Android W3C-style swipe emitted, step not dropped
+
+
+@pytest.mark.parametrize("target_id", _BDD_TARGETS)
+def test_swipe_does_not_crash_bdd_emitters(target_id: str, login_model: TestModel):
+    """Fix 2: phrase() had no SWIPE case, so every BDD emitter raised ValueError on
+    a model containing a swipe. It must now render the step instead of crashing."""
+    out = get_emitter(target_id).emit(login_model)  # must not raise
+    src = "\n".join(out.values())
+    assert "I swipe" in src  # present in both the .feature and the step definition
+
+
+def _ios_gesture_model() -> TestModel:
+    from framework.codegen.ir import ActionType, Selector, SelectorStrategy, Step, TestCase
+
+    return TestModel(
+        name="Gestures",
+        app_package="com.example.app",
+        platform=Platform.IOS,
+        cases=[
+            TestCase(
+                name="gestures",
+                steps=[
+                    # Non-TEXT selectors: this test targets the gesture-emission fix,
+                    # not the separate TEXT->uiautomator locator mapping (out of scope).
+                    Step(ActionType.SCROLL_TO, selector=Selector(SelectorStrategy.ACCESSIBILITY_ID, "settings_row")),
+                    Step(ActionType.LONG_PRESS, selector=Selector(SelectorStrategy.ACCESSIBILITY_ID, "row")),
+                    Step(ActionType.PRESS_KEY, text="ENTER"),
+                    Step(ActionType.SWIPE, direction="left"),
+                ],
+            )
+        ],
+    )
+
+
+@pytest.mark.parametrize("target_id", _IMPERATIVE_TARGETS)
+def test_ios_gestures_avoid_android_only_calls(target_id: str):
+    """Fix 3: iOS models used to emit Android-only gestures (androidUIAutomator
+    scrollIntoView, mobile: longClickGesture, pressKeyCode / AndroidDriver casts),
+    which throw on a real iOS run. None of those may appear for an iOS model."""
+    src = "\n".join(get_emitter(target_id).emit(_ios_gesture_model()).values())
+    for android_only in (
+        "ANDROID_UIAUTOMATOR",
+        "androidUIAutomator",
+        "longClickGesture",
+        "pressKeyCode",
+        "press_keycode",
+        "AndroidKey",
+        "AndroidDriver",
+    ):
+        assert android_only not in src, f"{target_id} still emits Android-only {android_only!r} for iOS"
+    # And the iOS equivalents are present.
+    assert "mobile: scroll" in src
+    assert "mobile: swipe" in src
+
+
+@pytest.mark.parametrize("target_id", _BDD_TARGETS)
+def test_ios_bdd_step_defs_avoid_android_only_calls(target_id: str):
+    """Fix 3, BDD flavour: the generic step-definition libraries must also gate
+    their Android-only gestures behind the platform for an iOS model."""
+    src = "\n".join(get_emitter(target_id).emit(_ios_gesture_model()).values())
+    for android_only in ("ANDROID_UIAUTOMATOR", "androidUIAutomator", "longClickGesture", "pressKeyCode", "AndroidKey"):
+        assert android_only not in src, f"{target_id} still emits Android-only {android_only!r} for iOS"
+
+
 def test_ir_roundtrip(login_model: TestModel):
     """IR must survive a JSON round-trip so fixtures stay portable."""
     restored = TestModel.from_dict(login_model.to_dict())

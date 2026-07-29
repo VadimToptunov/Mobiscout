@@ -40,6 +40,14 @@ def _render_case(case: TestCase) -> List[str]:
             lines.append("// (app launched by ActivityScenarioRule above)")
         elif a is ActionType.BACK:
             lines.append("pressBack()")
+        elif a is ActionType.SWIPE:
+            swipe = {
+                "up": "swipeUp",
+                "down": "swipeDown",
+                "left": "swipeLeft",
+                "right": "swipeRight",
+            }.get((step.direction or "up").lower(), "swipeUp")
+            lines.append(f"onView(isRoot()).perform({swipe}())")
         elif a is ActionType.WAIT:
             lines.append("// (Espresso auto-synchronizes with the UI thread; explicit wait omitted)")
         elif a in (ActionType.TAP, ActionType.TYPE):

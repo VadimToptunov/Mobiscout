@@ -6,6 +6,7 @@ Feature: LoginFlow
     When I enter "<user_field>" into "user_field"
     And I tap "login_btn"
     And I wait 3 seconds
+    And I swipe up
     And I press back
     Then "Welcome" is visible
 

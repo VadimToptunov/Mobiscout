@@ -53,6 +53,11 @@ When('I tap {string}', async (target) => {
     await (await find(target)).click();
 });
 
+When('I swipe {word}', async (direction) => {
+    const size = await driver.getWindowSize();
+    await driver.execute('mobile: swipeGesture', { left: Math.round(size.width * 0.1), top: Math.round(size.height * 0.1), width: Math.round(size.width * 0.8), height: Math.round(size.height * 0.8), direction, percent: 0.75 });
+});
+
 When('I wait {int} seconds', async (seconds) => {
     // Condition-based: wait for the screen to render rather than a fixed pause.
     await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: seconds * 1000, interval: 300 });

@@ -105,12 +105,32 @@ public class {{ class_name }} {
         find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).click();
 {% elif step.action.value == "type" %}
         find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).sendKeys({{ step.text | java_str }});
+{% elif step.action.value == "swipe" %}
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: swipe", java.util.Map.of("direction", {{ (step.direction or "up") | java_str }}));
+{% else %}
+        {
+            org.openqa.selenium.Dimension swipeSize = driver.manage().window().getSize();
+            java.util.Map<String, Object> swipeArgs = new java.util.HashMap<>();
+            swipeArgs.put("left", (int) (swipeSize.getWidth() * 0.1));
+            swipeArgs.put("top", (int) (swipeSize.getHeight() * 0.1));
+            swipeArgs.put("width", (int) (swipeSize.getWidth() * 0.8));
+            swipeArgs.put("height", (int) (swipeSize.getHeight() * 0.8));
+            swipeArgs.put("direction", {{ (step.direction or "up") | java_str }});
+            swipeArgs.put("percent", 0.75);
+            driver.executeScript("mobile: swipeGesture", swipeArgs);
+        }
+{% endif %}
 {% elif step.action.value == "back" %}
         driver.navigate().back();
 {% elif step.action.value == "long_press" %}
         new org.openqa.selenium.interactions.Actions(driver).clickAndHold(find({{ step.selector | by_expr }}, {{ step.selector | by_array }})).pause(java.time.Duration.ofSeconds(1)).release().perform();
 {% elif step.action.value == "scroll_to" %}
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: scroll", java.util.Map.of("predicateString", (Object) {{ ('name == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '" OR label == "' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"') | java_str }}, "toVisible", (Object) true));
+{% else %}
         driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator({{ ('new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains("' ~ ((step.selector.description or step.selector.value) | ua_escape) ~ '"))') | java_str }}));
+{% endif %}
 {% elif step.action.value == "deep_link" %}
 {% if model.platform.value == "ios" %}
         driver.get({{ step.text | java_str }});
@@ -118,7 +138,11 @@ public class {{ class_name }} {
         driver.executeScript("mobile: deepLink", java.util.Map.of("url", {{ step.text | java_str }}, "package", {{ model.app_package | java_str }}));
 {% endif %}
 {% elif step.action.value == "press_key" %}
+{% if model.platform.value == "ios" %}
+        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+{% else %}
         ((io.appium.java_client.android.AndroidDriver) driver).pressKey(new io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | java_str }})));
+{% endif %}
 {% elif step.action.value == "wait" %}
         // Condition-based: wait for the screen to render rather than a global implicit wait.
         new WebDriverWait(driver, Duration.ofSeconds({{ step.timeout | int or 5 }})).until(d -> !d.findElements(By.xpath("//*")).isEmpty());

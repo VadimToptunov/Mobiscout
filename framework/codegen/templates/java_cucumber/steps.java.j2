@@ -112,6 +112,23 @@ public class {{ class_name }} {
         find(target).click();
     }
 
+    @When("I swipe {word}")
+    public void iSwipe(String direction) {
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: swipe", java.util.Map.of("direction", direction));
+{% else %}
+        org.openqa.selenium.Dimension size = driver.manage().window().getSize();
+        Map<String, Object> swipeArgs = new HashMap<>();
+        swipeArgs.put("left", (int) (size.getWidth() * 0.1));
+        swipeArgs.put("top", (int) (size.getHeight() * 0.1));
+        swipeArgs.put("width", (int) (size.getWidth() * 0.8));
+        swipeArgs.put("height", (int) (size.getHeight() * 0.8));
+        swipeArgs.put("direction", direction);
+        swipeArgs.put("percent", 0.75);
+        driver.executeScript("mobile: swipeGesture", swipeArgs);
+{% endif %}
+    }
+
     @When("I wait {int} seconds")
     public void iWaitSeconds(Integer seconds) {
         // Condition-based: wait for the screen to render rather than a global implicit wait.
@@ -130,8 +147,13 @@ public class {{ class_name }} {
 
     @When("I scroll to {string}")
     public void iScrollTo(String target) {
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: scroll", java.util.Map.of(
+            "predicateString", (Object) ("name == \"" + target + "\" OR label == \"" + target + "\""), "toVisible", (Object) true));
+{% else %}
         driver.findElement(io.appium.java_client.AppiumBy.androidUIAutomator(
             "new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().textContains(\"" + target + "\"))"));
+{% endif %}
     }
 
     @When("I open the deep link {string}")
@@ -141,9 +163,13 @@ public class {{ class_name }} {
 
     @When("I press the {string} key")
     public void iPressKey(String key) {
+{% if model.platform.value == "ios" %}
+        // UNSUPPORTED on iOS: no hardware keycode equivalent; press the key via the on-screen keyboard instead.
+{% else %}
         ((io.appium.java_client.android.AndroidDriver) driver).pressKey(
             new io.appium.java_client.android.nativekey.KeyEvent(
                 io.appium.java_client.android.nativekey.AndroidKey.valueOf(key.toUpperCase())));
+{% endif %}
     }
 
     @Then("{string} is visible")
