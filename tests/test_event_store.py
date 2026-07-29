@@ -96,3 +96,102 @@ def test_import_from_json_ingests_a_list_of_events(store, tmp_path):
 def test_unknown_shape_is_typed_unknown(store):
     store.add_event({"sessionId": "s1", "timestamp": 1})
     assert store.get_events("s1", event_type="unknown")
+
+
+# ------------------------------------------------------------------- bulk ingestion
+
+_BULK_EVENTS = [
+    {"sessionId": "s1", "actionType": "tap", "screen": "Home", "timestamp": 100},
+    {"sessionId": "s1", "navType": "push", "fromScreen": "Home", "toScreen": "Detail", "timestamp": 200},
+    {"sessionId": "s1", "navType": "push", "fromScreen": "Detail", "toScreen": "Home", "timestamp": 300},
+    {"sessionId": "s1", "navType": "push", "fromScreen": "Home", "toScreen": "Detail", "timestamp": 400},
+    {"sessionId": "s2", "method": "GET", "url": "https://api.x/y", "timestamp": 50},
+]
+
+
+def _screens_map(store, session_id):
+    return {s["screen_name"]: s["visit_count"] for s in store.get_screens(session_id)}
+
+
+def _flows_map(store, session_id):
+    return {(f["from_screen"], f["to_screen"]): f["count"] for f in store.get_flows(session_id)}
+
+
+def test_add_events_bulk_equals_repeated_single_adds(tmp_path):
+    """add_events(iterable) must leave the DB in the same state as N add_event calls."""
+    single = EventStore(str(tmp_path / "single.db"))
+    for event in _BULK_EVENTS:
+        single.add_event(event)
+
+    bulk = EventStore(str(tmp_path / "bulk.db"))
+    added = bulk.add_events(_BULK_EVENTS)
+
+    assert added == len(_BULK_EVENTS)
+
+    # Same events (compared on stable fields, ignoring autoincrement id / created_at).
+    def norm(store):
+        return sorted(
+            (e["session_id"], e["event_type"], e["timestamp"], e["screen"], json.dumps(e["data"], sort_keys=True))
+            for e in store.get_events(limit=10000)
+        )
+
+    assert norm(single) == norm(bulk)
+
+    # Same derived screen/flow aggregates and summary statistics.
+    for session_id in ("s1", "s2"):
+        assert _screens_map(single, session_id) == _screens_map(bulk, session_id)
+        assert _flows_map(single, session_id) == _flows_map(bulk, session_id)
+    assert single.get_statistics() == bulk.get_statistics()
+
+
+def test_add_events_opens_a_single_connection(tmp_path, monkeypatch):
+    """Bulk ingestion opens exactly one sqlite connection, vs one-per-event before."""
+    import framework.storage.event_store as es_mod
+
+    store = EventStore(str(tmp_path / "conn.db"))  # __init__ connections happen first
+
+    real_connect = es_mod.sqlite3.connect
+    calls = {"n": 0}
+
+    def counting_connect(*args, **kwargs):
+        calls["n"] += 1
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(es_mod.sqlite3, "connect", counting_connect)
+
+    store.add_events(_BULK_EVENTS)
+    assert calls["n"] == 1
+
+    # By contrast, the same events via single add_event open one connection each.
+    calls["n"] = 0
+    for event in _BULK_EVENTS:
+        store.add_event(event)
+    assert calls["n"] == len(_BULK_EVENTS)
+
+
+def test_import_from_json_uses_bulk_add(tmp_path, monkeypatch):
+    """import_from_json routes through add_events (single connection) and returns count."""
+    import framework.storage.event_store as es_mod
+
+    events = [
+        {"sessionId": "imp", "actionType": "tap", "timestamp": 1},
+        {"sessionId": "imp", "navType": "push", "toScreen": "Next", "timestamp": 2},
+        {"sessionId": "imp", "actionType": "tap", "timestamp": 3},
+    ]
+    path = tmp_path / "events.json"
+    path.write_text(json.dumps({"events": events}), encoding="utf-8")
+
+    store = EventStore(str(tmp_path / "imp.db"))
+
+    real_connect = es_mod.sqlite3.connect
+    calls = {"n": 0}
+    monkeypatch.setattr(
+        es_mod.sqlite3,
+        "connect",
+        lambda *a, **k: (calls.__setitem__("n", calls["n"] + 1), real_connect(*a, **k))[1],
+    )
+
+    n = store.import_from_json(str(path))
+    assert n == 3
+    assert calls["n"] == 1
+    assert len(store.get_events("imp")) == 3

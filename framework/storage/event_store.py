@@ -8,7 +8,7 @@ import json
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Generator
+from typing import List, Optional, Dict, Any, Generator, Iterable, Tuple
 
 
 class EventStore:
@@ -202,38 +202,67 @@ class EventStore:
             data = json.load(f)
 
         events = data.get("events", [])
-        count = 0
+        return self.add_events(events)
 
-        for event in events:
-            self.add_event(event)
-            count += 1
+    _INSERT_EVENT_SQL = """
+                         INSERT INTO events (session_id, event_type, timestamp, screen, data)
+                         VALUES (?, ?, ?, ?, ?)
+                         """
 
-        return count
-
-    def add_event(self, event: Dict[str, Any]) -> None:
-        """Add single event to store"""
-        # Extract common fields
+    def _event_row(self, event: Dict[str, Any]) -> Tuple[str, str, int, Optional[str], str]:
+        """Extract the ``events`` table row tuple from a raw event."""
         session_id = event.get("sessionId", "unknown")
         event_type = self._get_event_type(event)
         timestamp = event.get("timestamp", 0)
         screen = event.get("screen") or event.get("toScreen") or event.get("fromScreen")
+        return session_id, event_type, timestamp, screen, json.dumps(event)
+
+    def add_event(self, event: Dict[str, Any]) -> None:
+        """Add single event to store"""
+        session_id, event_type, timestamp, screen, data = self._event_row(event)
 
         with self._get_connection() as conn:
             # Ensure session exists
             self._ensure_session(conn, session_id, event)
 
             # Insert event
-            conn.execute(
-                """
-                         INSERT INTO events (session_id, event_type, timestamp, screen, data)
-                         VALUES (?, ?, ?, ?, ?)
-                         """,
-                (session_id, event_type, timestamp, screen, json.dumps(event)),
-            )
+            conn.execute(self._INSERT_EVENT_SQL, (session_id, event_type, timestamp, screen, data))
 
             # Update screens and flows
             if event_type == "navigation":
                 self._update_navigation_stats(conn, session_id, event)
+
+    def add_events(self, events: Iterable[Dict[str, Any]]) -> int:
+        """Bulk-add events using a single connection and transaction.
+
+        Equivalent in effect to calling :meth:`add_event` once per event, but opens
+        only one connection (instead of one per event) and commits once, with the
+        event rows inserted via ``executemany``. Returns the number of events added.
+
+        Note: because the whole batch shares one transaction it is atomic — if any
+        event raises, the entire batch is rolled back (the per-event ``add_event``
+        commits each event independently).
+        """
+        events = list(events)
+
+        with self._get_connection() as conn:
+            rows = []
+            for event in events:
+                row = self._event_row(event)
+                # Ensure session exists before the bulk insert (dedupes within the
+                # batch — later events reuse a session inserted by an earlier one).
+                self._ensure_session(conn, row[0], event)
+                rows.append(row)
+
+            conn.executemany(self._INSERT_EVENT_SQL, rows)
+
+            # Screen/flow stats are independent of the events table, so applying
+            # them after the bulk insert yields the same aggregates as interleaving.
+            for event, row in zip(events, rows):
+                if row[1] == "navigation":
+                    self._update_navigation_stats(conn, row[0], event)
+
+        return len(events)
 
     def _ensure_session(self, conn: sqlite3.Connection, session_id: str, event: Dict[str, Any]) -> None:
         """Ensure session record exists"""
