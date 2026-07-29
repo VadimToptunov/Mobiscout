@@ -13,80 +13,25 @@ Features:
 """
 
 import json
-from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
-from framework.domain import TestStatus
+from framework.domain import ReportFormat, TestResult, TestStatus, TestSuiteResult
 from pathlib import Path
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict
 
-
-class ReportFormat(Enum):
-    """Supported report formats"""
-
-    HTML = "html"
-    PDF = "pdf"
-    MARKDOWN = "markdown"
-    JSON = "json"
-
-
-@dataclass
-class TestResult:
-    """Individual test result"""
-
-    name: str
-    status: TestStatus
-    duration: float
-    error_message: Optional[str] = None
-    screenshot_path: Optional[Path] = None
-    stack_trace: Optional[str] = None
-    test_file: Optional[str] = None
-    test_class: Optional[str] = None
-
-
-@dataclass
-class TestSuiteResult:
-    """Test suite execution results"""
-
-    name: str
-    tests: List[TestResult] = field(default_factory=list)
-    start_time: datetime = field(default_factory=datetime.now)
-    end_time: Optional[datetime] = None
-    environment: Dict[str, str] = field(default_factory=dict)
-
-    @property
-    def duration(self) -> float:
-        """Total duration in seconds"""
-        if self.end_time:
-            return (self.end_time - self.start_time).total_seconds()
-        return 0.0
-
-    @property
-    def total_count(self) -> int:
-        return len(self.tests)
-
-    @property
-    def passed_count(self) -> int:
-        return sum(1 for t in self.tests if t.status == TestStatus.PASSED)
-
-    @property
-    def failed_count(self) -> int:
-        return sum(1 for t in self.tests if t.status == TestStatus.FAILED)
-
-    @property
-    def skipped_count(self) -> int:
-        return sum(1 for t in self.tests if t.status == TestStatus.SKIPPED)
-
-    @property
-    def error_count(self) -> int:
-        return sum(1 for t in self.tests if t.status == TestStatus.ERROR)
-
-    @property
-    def pass_rate(self) -> float:
-        """Pass rate as percentage"""
-        if self.total_count == 0:
-            return 0.0
-        return (self.passed_count / self.total_count) * 100
+# ``ReportFormat``, ``TestResult`` and ``TestSuiteResult`` are the canonical
+# domain types, re-exported here so existing imports
+# (``from framework.reporting.report_generator import TestResult`` etc.) keep
+# resolving to the shared, identity-equal definitions.
+__all__ = [
+    "ReportFormat",
+    "TestResult",
+    "TestSuiteResult",
+    "TestStatus",
+    "HTMLReportGenerator",
+    "MarkdownReportGenerator",
+    "JSONReportGenerator",
+    "ReportGenerator",
+]
 
 
 class HTMLReportGenerator:

@@ -9,19 +9,14 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from framework.domain import ReportFormat
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-
-class ReportFormat(Enum):
-    """Supported report output formats."""
-
-    JSON = "json"
-    HTML = "html"
-    TEXT = "text"
-    XML = "xml"
-    MARKDOWN = "markdown"
+# ``ReportFormat`` is the canonical domain enum, re-exported so existing imports
+# (including ``reporting.__init__``'s ``ReportFormat as BaseReportFormat``) keep
+# resolving to the one shared definition.
+__all__ = ["ReportFormat", "ReportMetadata", "BaseReporter"]
 
 
 @dataclass
