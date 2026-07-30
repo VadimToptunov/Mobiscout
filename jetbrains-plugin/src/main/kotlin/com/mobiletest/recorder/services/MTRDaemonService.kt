@@ -116,4 +116,13 @@ class MTRDaemonService {
         )
         return client?.call("ui/getScreenshot", params)?.getResultOrThrow()
     }
+
+    /**
+     * Detect the automation toolchain (Appium, adb/Android SDK, drivers, Xcode)
+     * so the setup wizard can tell the user what to fix before crawling — e.g.
+     * the ANDROID_HOME an UiAutomator2 Appium session needs. Runs no device.
+     */
+    fun detectEnvironment(): JsonObject? {
+        return client?.call("environment/detect")?.getResultOrThrow()
+    }
 }
