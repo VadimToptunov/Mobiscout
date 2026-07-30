@@ -80,7 +80,7 @@ def test_run_all_checks_and_report(tmp_path, monkeypatch):
 
     doctor = _doctor()
     checks = doctor.run_all_checks(verbose=False)
-    assert len(checks) == 9
+    assert len(checks) == 10
     assert all(isinstance(c, HealthCheck) for c in checks)
 
     passed, failed, warned, skipped = doctor.generate_report()
@@ -138,6 +138,41 @@ def test_appium_check_warns_when_a_driver_is_missing(monkeypatch):
     assert check.status == CheckStatus.WARN
     assert "xcuitest" in check.message
     assert check.fix_command == "appium driver install xcuitest"
+
+
+def test_driver_manager_check_warns_on_npm_11(monkeypatch):
+    """npm >= 11 breaks Appium's `--global-style` driver install: WARN (not FAIL)
+    with the Node-LTS remediation, since installed drivers still work."""
+    monkeypatch.setattr(
+        "framework.health.preflight.node_npm_versions",
+        lambda: ("v25.0.0", "11.0.0"),
+    )
+    check = _doctor()._check_driver_manager(verbose=False)
+    assert check.status == CheckStatus.WARN
+    assert "11.0.0" in check.message
+    assert check.fix_command is not None
+    assert "npm <= 10" in check.fix_command
+    assert "nvm install --lts" in check.fix_command
+
+
+def test_driver_manager_check_passes_on_npm_10(monkeypatch):
+    monkeypatch.setattr(
+        "framework.health.preflight.node_npm_versions",
+        lambda: ("v20.11.0", "10.2.4"),
+    )
+    check = _doctor()._check_driver_manager(verbose=False)
+    assert check.status == CheckStatus.PASS
+    assert check.fix_command is None
+
+
+def test_driver_manager_check_passes_when_node_absent(monkeypatch):
+    """No node/npm on the machine: nothing to diagnose, so PASS (not a false WARN)."""
+    monkeypatch.setattr(
+        "framework.health.preflight.node_npm_versions",
+        lambda: (None, None),
+    )
+    check = _doctor()._check_driver_manager(verbose=False)
+    assert check.status == CheckStatus.PASS
 
 
 def test_apply_fixes_self_heals_android_home_and_prints_persistent_line(monkeypatch):

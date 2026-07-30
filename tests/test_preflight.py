@@ -11,8 +11,11 @@ import framework.health.preflight as pf
 from framework.health.preflight import (
     PreflightResult,
     appium_status,
+    driver_manager_healthy,
+    driver_manager_remediation,
     ensure_android_home,
     installed_appium_drivers,
+    node_npm_versions,
     preflight,
     required_driver,
     resolve_android_home,
@@ -163,6 +166,77 @@ def test_driver_list_empty_on_failure(monkeypatch):
 
     monkeypatch.setattr(pf.subprocess, "run", _boom)
     assert installed_appium_drivers() == {}
+
+
+# --- node_npm_versions ------------------------------------------------------
+
+
+def test_node_npm_versions_reads_both(monkeypatch):
+    class _P:
+        returncode = 0
+
+        def __init__(self, out):
+            self.stdout = out
+            self.stderr = ""
+
+    def _run(cmd, **kwargs):
+        return _P("v20.11.0" if cmd[0] == "node" else "10.2.4")
+
+    monkeypatch.setattr(pf.subprocess, "run", _run)
+    assert node_npm_versions() == ("v20.11.0", "10.2.4")
+
+
+def test_node_npm_versions_none_when_absent(monkeypatch):
+    def _boom(cmd, **kwargs):
+        raise OSError("not found")
+
+    monkeypatch.setattr(pf.subprocess, "run", _boom)
+    assert node_npm_versions() == (None, None)
+
+
+def test_node_npm_versions_none_on_nonzero_exit(monkeypatch):
+    class _P:
+        returncode = 1
+        stdout = ""
+        stderr = "boom"
+
+    monkeypatch.setattr(pf.subprocess, "run", lambda *a, **k: _P())
+    assert node_npm_versions() == (None, None)
+
+
+# --- driver_manager_healthy -------------------------------------------------
+
+
+def test_driver_manager_healthy_for_npm_10_node_20():
+    ok, reason = driver_manager_healthy(lambda: ("v20.11.0", "10.2.4"))
+    assert ok is True and reason is None
+
+
+def test_driver_manager_unhealthy_for_npm_11_node_25():
+    ok, reason = driver_manager_healthy(lambda: ("v25.0.0", "11.0.0"))
+    assert ok is False
+    assert reason is not None
+    assert "11.0.0" in reason and "25.0.0" in reason
+
+
+def test_driver_manager_unhealthy_from_node_major_alone():
+    """Node >= 23 implies npm >= 11 even when npm itself can't be read."""
+    ok, reason = driver_manager_healthy(lambda: ("v23.1.0", None))
+    assert ok is False and reason is not None
+
+
+def test_driver_manager_none_versions_treated_healthy():
+    """Can't diagnose without versions — don't cry wolf."""
+    ok, reason = driver_manager_healthy(lambda: (None, None))
+    assert ok is True and reason is None
+
+
+def test_driver_manager_remediation_names_versions_and_fix():
+    text = driver_manager_remediation("v25.0.0", "11.0.0")
+    assert "npm <= 10" in text
+    assert "v25.0.0" in text and "11.0.0" in text
+    assert "nvm install --lts" in text
+    assert "appium driver install" in text
 
 
 # --- required_driver --------------------------------------------------------
