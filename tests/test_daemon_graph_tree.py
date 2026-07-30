@@ -174,7 +174,14 @@ def test_session_driver_is_cached_not_rebuilt():
     assert server._session_driver(session) is fake  # returns the cached one, builds nothing
 
 
-def test_session_start_stores_ios_connection_fields():
+def test_session_start_stores_ios_connection_fields(monkeypatch):
+    # session/start now runs a device-free preflight; stub it green so this
+    # storage test doesn't reach a real Appium server.
+    import framework.health.preflight as pf
+
+    monkeypatch.setattr(pf, "ensure_android_home", lambda: None)
+    monkeypatch.setattr(pf, "preflight", lambda platform, driver, server: [])
+
     server = JSONRPCServer()
     res = server.handle_session_start(
         {"device_id": "UDID-1", "platform": "ios", "bundle_id": "com.acme.app", "server": "http://h:4723"}
