@@ -12,11 +12,15 @@ ready-to-print message; the command catches it and aborts.
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 
 from framework.domain import MobiscoutError
+from framework.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class CrawlServiceError(MobiscoutError):
@@ -25,6 +29,76 @@ class CrawlServiceError(MobiscoutError):
     The message is already phrased for the tester (it names the likely cause and
     the fix); the command prints it verbatim and aborts.
     """
+
+
+def preflight_or_raise(platform: str, driver: str, server: str) -> List[str]:
+    """Run the environment preflight *before* opening a session and fail fast.
+
+    The Appium path (iOS, or Android over the ``appium`` driver) needs a server and
+    an SDK; a missing one otherwise surfaces only as an opaque session timeout deep
+    inside the driver. Running :func:`framework.health.preflight.preflight` up front
+    turns that into an immediate, actionable error.
+
+    Args:
+        platform: ``"android"`` or ``"ios"``.
+        driver: Android UI backend — ``"adb"`` or ``"appium"``.
+        server: Appium server URL to probe.
+
+    Returns:
+        The warn-level check details (non-fatal) for the caller to log.
+
+    Raises:
+        CrawlServiceError: If any check is a hard failure, with the combined
+            actionable messages (name, detail, and fix per failed check).
+    """
+    from framework.health.preflight import preflight
+
+    results = preflight(platform, driver, server)
+    failures = [r for r in results if r.level == "fail"]
+    if failures:
+        lines = []
+        for r in failures:
+            line = f"{r.name}: {r.detail}"
+            if r.fix:
+                line += f"\n    Fix: {r.fix}"
+            lines.append("  - " + line)
+        raise CrawlServiceError("Preflight failed before opening a session:\n" + "\n".join(lines))
+    return [r.detail + (f" (fix: {r.fix})" if r.fix else "") for r in results if r.level == "warn"]
+
+
+def uninstall_app(*, platform: str, package: str, serial: Optional[str], udid: Optional[str]) -> Tuple[bool, str]:
+    """Remove the app under test from the device after a crawl (opt-in cleanup).
+
+    Uses ``adb -s <serial> uninstall <pkg>`` for Android and
+    ``xcrun simctl uninstall <udid> <bundleid>`` for iOS. Never raises for an
+    uninstall failure — the caller logs the message as a warning; a failed cleanup
+    must not fail the crawl.
+
+    Args:
+        platform: ``"android"`` or ``"ios"``.
+        package: Android package or iOS bundle id to remove.
+        serial: adb device serial (Android); omitted from the command when None.
+        udid: Simulator/device UDID (iOS); defaults to ``booted`` when None.
+
+    Returns:
+        ``(ok, message)`` — ``ok`` True on a clean removal, else a phrased reason.
+    """
+    if platform == "ios":
+        cmd = ["xcrun", "simctl", "uninstall", udid or "booted", package]
+    else:
+        cmd = ["adb"]
+        if serial:
+            cmd += ["-s", serial]
+        cmd += ["uninstall", package]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError) as e:
+        return False, f"Could not uninstall {package}: {e}"
+    # adb prints "Failure ..." to stdout while still exiting 0, so check both.
+    if proc.returncode == 0 and "Failure" not in (proc.stdout or ""):
+        return True, f"Uninstalled {package} from the device."
+    detail = (proc.stderr or "").strip() or (proc.stdout or "").strip() or f"exit code {proc.returncode}"
+    return False, f"Could not uninstall {package}: {detail}"
 
 
 @dataclass
@@ -96,6 +170,13 @@ def build_crawl_driver(
         CrawlServiceError: If an Appium session could not be opened.
     """
     from framework.crawler import AdbCrawlerDriver, AndroidAppiumDriver, IOSCrawlerDriver
+
+    # Fail-fast: when the chosen path needs a server (iOS, or Android over Appium),
+    # run the environment preflight FIRST so a missing SDK/server/driver is reported
+    # immediately instead of as an opaque session timeout. The adb path skips this.
+    if platform == "ios" or driver == "appium":
+        for warning in preflight_or_raise(platform, driver, server):
+            logger.warning("Preflight warning: %s", warning)
 
     if platform == "ios":
         try:

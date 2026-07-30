@@ -140,6 +140,76 @@ def test_appium_check_warns_when_a_driver_is_missing(monkeypatch):
     assert check.fix_command == "appium driver install xcuitest"
 
 
+def test_apply_fixes_self_heals_android_home_and_prints_persistent_line(monkeypatch):
+    """--fix calls ensure_android_home and reports both the process heal and the
+    exact export line to persist it across shells (never editing shell files)."""
+    import framework.cli.doctor_command as dc
+
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", lambda: "/opt/android/sdk")
+    checks = [
+        HealthCheck("Android SDK", CheckStatus.WARN, "detected but unset", "export ANDROID_HOME=/opt/android/sdk")
+    ]
+    lines = dc.apply_fixes(checks, Console(file=io.StringIO()))
+    assert any("self-healed" in ln and "/opt/android/sdk" in ln for ln in lines)
+    assert any("export ANDROID_HOME=/opt/android/sdk" in ln for ln in lines)
+
+
+def test_apply_fixes_reports_when_android_home_cannot_be_healed(monkeypatch):
+    import framework.cli.doctor_command as dc
+
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", lambda: None)
+    checks = [HealthCheck("Android SDK", CheckStatus.FAIL, "no sdk", "Install the Android SDK")]
+    lines = dc.apply_fixes(checks, Console(file=io.StringIO()))
+    assert any("Could not self-heal ANDROID_HOME" in ln for ln in lines)
+
+
+def test_apply_fixes_attempts_driver_install_and_survives_failure(monkeypatch):
+    """A missing-driver WARN triggers `appium driver install`; an npm failure is
+    caught and reported, not raised."""
+    import framework.cli.doctor_command as dc
+
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", lambda: "/sdk")
+
+    captured = {}
+
+    def _run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        raise OSError("npm exploded")
+
+    monkeypatch.setattr(dc.subprocess, "run", _run)
+    checks = [HealthCheck("Appium", CheckStatus.WARN, "missing xcuitest", "appium driver install xcuitest")]
+    lines = dc.apply_fixes(checks, Console(file=io.StringIO()))
+    assert captured["cmd"] == ["appium", "driver", "install", "xcuitest"]
+    assert any("Failed" in ln or "Could not install" in ln for ln in lines)
+
+
+def test_apply_fixes_reports_successful_driver_install(monkeypatch):
+    import framework.cli.doctor_command as dc
+
+    class _P:
+        returncode = 0
+        stdout = "ok"
+        stderr = ""
+
+    monkeypatch.setattr(dc.subprocess, "run", lambda cmd, **k: _P())
+    checks = [HealthCheck("Appium", CheckStatus.WARN, "missing xcuitest", "appium driver install xcuitest")]
+    lines = dc.apply_fixes(checks, Console(file=io.StringIO()))
+    assert any("Installed Appium driver 'xcuitest'" in ln for ln in lines)
+
+
+def test_apply_fixes_only_acts_on_failed_or_warned_checks(monkeypatch):
+    """Passing checks are left alone — a passing Android SDK triggers no heal."""
+    import framework.cli.doctor_command as dc
+
+    def _must_not_run():
+        raise AssertionError("ensure_android_home must not run for a passing check")
+
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", _must_not_run)
+    checks = [HealthCheck("Android SDK", CheckStatus.PASS, "ANDROID_HOME=/sdk")]
+    lines = dc.apply_fixes(checks, Console(file=io.StringIO()))
+    assert lines == ["No safe automatic fixes to apply."]
+
+
 def test_generate_report_counts_each_status():
     doctor = _doctor()
     doctor.checks = [
