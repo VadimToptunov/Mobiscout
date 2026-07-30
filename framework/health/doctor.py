@@ -63,6 +63,7 @@ class SystemDoctor:
             ("Git Configuration", self._check_git),
             ("File Permissions", self._check_permissions),
             ("Appium Server", self._check_appium),
+            ("Appium Driver Manager", self._check_driver_manager),
             ("Android SDK", self._check_android_sdk),
             ("Connected Devices", self._check_devices),
             ("Configuration Files", self._check_config),
@@ -248,6 +249,47 @@ class SystemDoctor:
             name="Appium",
             status=CheckStatus.WARN,
             message="Could not verify Appium",
+        )
+
+    def _check_driver_manager(self, verbose: bool) -> HealthCheck:
+        """Diagnose the npm >= 11 breakage of ``appium driver install/update``.
+
+        Appium shells out to ``npm install ... --global-style ...``; npm >= 11
+        (bundled with Node >= 23) removed that flag, so driver install/update
+        dies with a raw ``Cannot read properties of null (reading 'package')``.
+        We diagnose purely from ``node``/``npm --version`` — never running the
+        failing ``driver update`` ourselves.
+
+        PASS when node/npm are absent (can't diagnose, and drivers may already be
+        installed) or healthy (npm <= 10). WARN — not FAIL, since already-installed
+        drivers keep working — when npm >= 11, with the remediation as fix_command.
+        """
+        from framework.health.preflight import (
+            driver_manager_healthy,
+            driver_manager_remediation,
+            node_npm_versions,
+        )
+
+        node, npm = node_npm_versions()
+        ok, reason = driver_manager_healthy(lambda: (node, npm))
+        if ok:
+            if node is None and npm is None:
+                return HealthCheck(
+                    name="Appium Driver Manager",
+                    status=CheckStatus.PASS,
+                    message="node/npm not found; nothing to diagnose",
+                )
+            return HealthCheck(
+                name="Appium Driver Manager",
+                status=CheckStatus.PASS,
+                message=f"npm {npm or '?'} (Node {node or '?'}) supports Appium driver install",
+            )
+
+        return HealthCheck(
+            name="Appium Driver Manager",
+            status=CheckStatus.WARN,
+            message=reason or driver_manager_remediation(node, npm),
+            fix_command=driver_manager_remediation(node, npm),
         )
 
     def _check_android_sdk(self, verbose: bool) -> HealthCheck:

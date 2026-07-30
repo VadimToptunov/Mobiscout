@@ -144,3 +144,52 @@ def test_to_dict_keeps_existing_keys(monkeypatch):
         assert key in d
     for key in ("android_home", "android_home_set", "appium_android_ready"):
         assert key in d
+
+
+# ---- driver manager (npm >= 11 breaks `appium driver install/update`) ----
+
+
+def _node_npm_runner(node, npm):
+    """Runner that answers only node/npm version probes with the given outputs."""
+
+    def run(cmd):
+        if cmd[0] == "node":
+            return (0, node) if node is not None else (127, "")
+        if cmd[0] == "npm":
+            return (0, npm) if npm is not None else (127, "")
+        return (127, "")
+
+    return run
+
+
+def test_to_dict_flags_broken_driver_manager(monkeypatch):
+    """npm >= 11 (Node >= 23): driver_manager_ok is False and to_dict carries the
+    remediation, so the plugin can surface it."""
+    monkeypatch.setattr(envmod, "resolve_android_home", lambda: None)
+    env = detect_environment(run=_node_npm_runner("v25.0.0", "11.0.0"))
+    assert env.driver_manager_ok is False
+    assert env.driver_manager_fix is not None and "npm <= 10" in env.driver_manager_fix
+    d = env.to_dict()
+    assert d["driver_manager_ok"] is False
+    assert "nvm install --lts" in d["driver_manager_fix"]
+
+
+def test_to_dict_driver_manager_ok_on_npm_10(monkeypatch):
+    monkeypatch.setattr(envmod, "resolve_android_home", lambda: None)
+    d = detect_environment(run=_node_npm_runner("v20.11.0", "10.2.4")).to_dict()
+    assert d["driver_manager_ok"] is True
+    assert d["driver_manager_fix"] is None
+
+
+def test_to_dict_driver_manager_ok_when_node_absent(monkeypatch):
+    """No node/npm: can't diagnose, so ok=True (drivers may already be installed)."""
+    monkeypatch.setattr(envmod, "resolve_android_home", lambda: None)
+    d = detect_environment(run=_node_npm_runner(None, None)).to_dict()
+    assert d["driver_manager_ok"] is True and d["driver_manager_fix"] is None
+
+
+def test_to_dict_keeps_driver_manager_keys(monkeypatch):
+    """Backward-compat: new keys are always present for the plugin to parse."""
+    monkeypatch.setattr(envmod, "resolve_android_home", lambda: None)
+    d = detect_environment(run=_node_npm_runner(None, None)).to_dict()
+    assert "driver_manager_ok" in d and "driver_manager_fix" in d

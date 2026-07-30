@@ -20,7 +20,11 @@ import sys
 from dataclasses import asdict, dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
-from framework.health.preflight import resolve_android_home
+from framework.health.preflight import (
+    driver_manager_healthy,
+    driver_manager_remediation,
+    resolve_android_home,
+)
 
 Runner = Callable[[List[str]], Tuple[int, str]]
 
@@ -46,6 +50,19 @@ class Tool:
     hint: str = ""
 
 
+def _tool_version(cmd: List[str], run: Runner) -> Optional[str]:
+    """Return the raw ``--version`` output via the injected runner, or ``None``.
+
+    Non-zero exit (incl. 127 not-found) or empty output yields ``None``. Used to
+    probe node/npm for the driver-manager diagnosis through the same testable seam.
+    """
+    code, out = run(cmd)
+    if code != 0:
+        return None
+    out = (out or "").strip()
+    return out or None
+
+
 def _probe(name: str, cmd: List[str], hint: str, run: Runner) -> Tool:
     code, out = run(cmd)
     if code == 127 and not out:
@@ -69,6 +86,12 @@ class Environment:
     # The Appium/UiAutomator2 path needs an SDK path *and* the driver, not just adb
     # on PATH — this is the readiness the plugin should gate an Appium session on.
     appium_android_ready: bool = False
+    # True when Appium's `driver install/update` can run here — False when npm >= 11
+    # (Node >= 23) removed the `--global-style` flag Appium relies on. Installed
+    # drivers still work; only updates break, so this is a warning, not a blocker.
+    driver_manager_ok: bool = True
+    # Copy-paste remediation when driver_manager_ok is False, else None.
+    driver_manager_fix: Optional[str] = None
 
     def to_dict(self) -> Dict:
         data = asdict(self)
@@ -101,6 +124,14 @@ def detect_environment(run: Runner = _run) -> Environment:
     android_home = resolve_android_home()
     android_home_set = bool(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
 
+    # Diagnose the npm >= 11 breakage of `appium driver install/update` from the
+    # node/npm versions (probed through the injected runner) — never run the
+    # failing update itself.
+    node = _tool_version(["node", "--version"], run)
+    npm = _tool_version(["npm", "--version"], run)
+    driver_manager_ok, _ = driver_manager_healthy(lambda: (node, npm))
+    driver_manager_fix = None if driver_manager_ok else driver_manager_remediation(node, npm)
+
     return Environment(
         tools=[py, adb, appium, java, xcode],
         appium_drivers=drivers,
@@ -112,4 +143,6 @@ def detect_environment(run: Runner = _run) -> Environment:
         android_home_set=android_home_set,
         # The Appium Android path additionally needs the SDK path and the driver.
         appium_android_ready=adb.found and android_home is not None and "uiautomator2" in drivers,
+        driver_manager_ok=driver_manager_ok,
+        driver_manager_fix=driver_manager_fix,
     )

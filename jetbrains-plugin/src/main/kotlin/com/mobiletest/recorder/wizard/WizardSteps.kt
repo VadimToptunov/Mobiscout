@@ -633,12 +633,20 @@ class EnvironmentCheckStep(model: SetupWizardModel) : SetupWizardStep(model) {
             }
         )
         row("Appium Android ready (adb + ANDROID_HOME + uiautomator2)", bool("appium_android_ready"), "")
+        // driver_manager_ok defaults to true when the daemon can't tell.
+        row("Appium driver manager (npm compatible)", env.get("driver_manager_ok")?.asBoolean ?: true, "")
 
         val fix = str("android_home_fix")
         if (fix != null) {
             rows.append(
                 "<tr><td colspan='2'><br><font color='#c47f00'>Fix:</font> " +
                     "<code>${escape(fix)}</code> (add it to your shell profile so Appium sees it).</td></tr>"
+            )
+        }
+        val driverFix = str("driver_manager_fix")
+        if (driverFix != null) {
+            rows.append(
+                "<tr><td colspan='2'><br><font color='#c47f00'>Fix:</font> ${escape(driverFix)}</td></tr>"
             )
         }
         rows.append("</table></html>")

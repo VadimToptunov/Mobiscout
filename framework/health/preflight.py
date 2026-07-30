@@ -22,7 +22,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import requests
 
@@ -30,9 +30,23 @@ import requests
 # preflight never stalls the CLI when the server is unreachable.
 _STATUS_TIMEOUT = 3.0
 _DRIVER_LIST_TIMEOUT = 20.0
+_VERSION_TIMEOUT = 5.0
 
 # name@version, e.g. "uiautomator2@2.34.1" in the text form of `driver list`.
 _DRIVER_LINE = re.compile(r"([A-Za-z0-9_-]+)@(\d+\.\d+(?:\.\d+)?)")
+
+# First dotted-number group in a `node`/`npm --version` line (e.g. "v20.11.0").
+_VERSION_NUM = re.compile(r"(\d+)(?:\.\d+)*")
+
+# npm bundled with Node >= 23 is >= 11, where the deprecated `--global-style`
+# flag Appium's driver manager relies on was removed — driver install/update
+# then dies with a raw "Cannot read properties of null (reading 'package')".
+_NPM_BREAKING_MAJOR = 11
+_NODE_BREAKING_MAJOR = 23
+
+# Injectable getter of ``(node_version, npm_version)`` so the health check is
+# testable without a real node/npm on the machine.
+VersionGetter = Callable[[], Tuple[Optional[str], Optional[str]]]
 
 
 @dataclass
@@ -190,6 +204,99 @@ def installed_appium_drivers() -> Dict[str, str]:
         return {}
     # Appium prints the list to stderr; merge both streams before parsing.
     return _parse_driver_list((proc.stdout or "") + (proc.stderr or ""))
+
+
+def _tool_version(cmd: List[str]) -> Optional[str]:
+    """Run a ``--version``-style command and return the version string, or ``None``.
+
+    Never raises: a missing binary, non-zero exit, timeout, or empty output all
+    yield ``None``. Both stdout and stderr are considered (``node``/``npm`` print
+    to stdout, but be liberal). The leading ``v`` on ``node --version`` is kept as
+    the tool prints it — callers compare majors via :func:`_major`.
+    """
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=_VERSION_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode != 0:
+        return None
+    out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    return out or None
+
+
+def node_npm_versions() -> Tuple[Optional[str], Optional[str]]:
+    """Return ``(node_version, npm_version)`` as printed by the tools, or ``None``.
+
+    Shells out to ``node --version`` and ``npm --version`` independently — either
+    may be ``None`` when that binary is absent or fails. Never raises.
+    """
+    return _tool_version(["node", "--version"]), _tool_version(["npm", "--version"])
+
+
+def _major(version: Optional[str]) -> Optional[int]:
+    """Extract the leading major-version integer from a version string, or ``None``."""
+    if not version:
+        return None
+    match = _VERSION_NUM.search(version)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def driver_manager_remediation(node: Optional[str], npm: Optional[str]) -> str:
+    """The actionable fix for the npm >= 11 ``--global-style`` breakage.
+
+    Names the detected versions so the message is concrete, then spells out the
+    Node-LTS reinstall path. Kept as a formatter (not a bare constant) so the
+    versions in the text match what was actually probed.
+    """
+    ver = f"Node {node or '?'} / npm {npm or '?'}"
+    return (
+        "Appium's `driver install/update` needs npm <= 10 (Node LTS). "
+        f"Your Node/npm is {ver} which breaks the `--global-style` install. "
+        "Fix: install Node LTS (e.g. `nvm install --lts && nvm use --lts`) and "
+        "reinstall Appium under it (`npm i -g appium && appium driver install <driver>`). "
+        "Drivers already installed keep working; this only blocks updates."
+    )
+
+
+def driver_manager_healthy(
+    get_versions: VersionGetter = node_npm_versions,
+) -> Tuple[bool, Optional[str]]:
+    """Report whether Appium's driver manager can install/update drivers here.
+
+    UNHEALTHY (``ok=False``) when npm major >= 11 (equivalently Node major >= 23),
+    because Appium shells out to ``npm install ... --global-style ...`` and npm
+    removed that flag there — ``appium driver install/update`` then dies with a
+    raw ``Cannot read properties of null (reading 'package')``. The reason names
+    the versions.
+
+    HEALTHY (``ok=True``, reason ``None``) when npm/node are <= the breaking
+    majors, or when neither version is known — with no versions we can't diagnose,
+    so we don't cry wolf. ``get_versions`` is injectable for tests.
+    """
+    node, npm = get_versions()
+    npm_major = _major(npm)
+    node_major = _major(node)
+
+    unhealthy = (npm_major is not None and npm_major >= _NPM_BREAKING_MAJOR) or (
+        node_major is not None and node_major >= _NODE_BREAKING_MAJOR
+    )
+    if unhealthy:
+        reason = (
+            f"npm {npm or '?'} (Node {node or '?'}) removed the `--global-style` "
+            "flag Appium's driver install/update relies on (needs npm <= 10)"
+        )
+        return False, reason
+    return True, None
 
 
 def required_driver(platform: str) -> str:
