@@ -11,7 +11,7 @@ from typing import Optional, Tuple
 
 import click
 
-from framework.cli.rich_output import print_error, print_header, print_info, print_success
+from framework.cli.rich_output import print_error, print_header, print_info, print_success, print_warning
 from framework.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -85,6 +85,14 @@ logger = get_logger(__name__)
     help="Also record the crawl as a queryable event session (SQLite). Off by default so it "
     "never affects crawl speed — events are derived after the crawl. Query with `mobiscout events`.",
 )
+@click.option(
+    "--uninstall-after",
+    "uninstall_after",
+    is_flag=True,
+    default=False,
+    help="After a successful crawl, uninstall the app from the device (adb uninstall / simctl "
+    "uninstall). Off by default; a failed uninstall only warns and never fails the crawl.",
+)
 def crawl(
     package: str,
     platform: str,
@@ -105,6 +113,7 @@ def crawl(
     launch_args: Tuple[str, ...],
     assert_values: bool,
     record_events: Optional[str],
+    uninstall_after: bool,
 ) -> None:
     """
     Crawl a running app and export an element inventory + tests.
@@ -118,7 +127,13 @@ def crawl(
         mobiscout crawl --package com.example.app --driver appium --udid <UDID>
         mobiscout crawl --platform ios --package com.apple.Preferences --udid <UDID>
     """
-    from framework.cli.crawl_service import CrawlServiceError, build_crawl_driver, ensure_foreground, write_kit
+    from framework.cli.crawl_service import (
+        CrawlServiceError,
+        build_crawl_driver,
+        ensure_foreground,
+        uninstall_app,
+        write_kit,
+    )
     from framework.crawler import AppCrawler
     from framework.crawler.classify import ensure_model
 
@@ -202,3 +217,12 @@ def crawl(
 
     print_success(f"Kit written to {Path(output).absolute()}")
     logger.info(f"Crawl kit for {package}: {len(result.screens)} screens -> {output}")
+
+    # Opt-in cleanup: remove the app from the device now the crawl succeeded. A
+    # failed uninstall is a warning only — it must never fail an otherwise-good run.
+    if uninstall_after:
+        ok, message = uninstall_app(platform=platform, package=package, serial=serial, udid=udid)
+        if ok:
+            print_info(message)
+        else:
+            print_warning(message)
