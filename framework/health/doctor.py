@@ -4,6 +4,7 @@ Doctor Command - System Health Checks
 Comprehensive health check for the framework and environment.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -62,6 +63,7 @@ class SystemDoctor:
             ("Git Configuration", self._check_git),
             ("File Permissions", self._check_permissions),
             ("Appium Server", self._check_appium),
+            ("Android SDK", self._check_android_sdk),
             ("Connected Devices", self._check_devices),
             ("Configuration Files", self._check_config),
             ("Performance", self._check_performance),
@@ -223,10 +225,21 @@ class SystemDoctor:
 
             if result.returncode == 0:
                 version = result.stdout.strip()
+                from framework.health.preflight import installed_appium_drivers
+
+                drivers = installed_appium_drivers()
+                missing = [d for d in ("uiautomator2", "xcuitest") if d not in drivers]
+                if missing:
+                    return HealthCheck(
+                        name="Appium",
+                        status=CheckStatus.WARN,
+                        message=f"Appium {version}; missing driver(s): {', '.join(missing)}",
+                        fix_command=f"appium driver install {missing[0]}",
+                    )
                 return HealthCheck(
                     name="Appium",
                     status=CheckStatus.PASS,
-                    message=f"Appium {version}",
+                    message=f"Appium {version} (drivers: {', '.join(sorted(drivers))})",
                 )
         except (subprocess.SubprocessError, OSError):
             pass
@@ -235,6 +248,39 @@ class SystemDoctor:
             name="Appium",
             status=CheckStatus.WARN,
             message="Could not verify Appium",
+        )
+
+    def _check_android_sdk(self, verbose: bool) -> HealthCheck:
+        """Check that an Android SDK is available (needed by Appium/UiAutomator2).
+
+        PASS when ``ANDROID_HOME``/``ANDROID_SDK_ROOT`` is set; WARN (with an
+        ``export`` fix) when an SDK is detected on disk but the env var is unset;
+        FAIL when no SDK can be found at all.
+        """
+        from framework.health.preflight import resolve_android_home
+
+        existing = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
+        if existing:
+            return HealthCheck(
+                name="Android SDK",
+                status=CheckStatus.PASS,
+                message=f"ANDROID_HOME={existing}",
+            )
+
+        detected = resolve_android_home()
+        if detected:
+            return HealthCheck(
+                name="Android SDK",
+                status=CheckStatus.WARN,
+                message=f"SDK detected but ANDROID_HOME unset: {detected}",
+                fix_command=f"export ANDROID_HOME={detected}",
+            )
+
+        return HealthCheck(
+            name="Android SDK",
+            status=CheckStatus.FAIL,
+            message="No Android SDK found",
+            fix_command="Install the Android SDK and set ANDROID_HOME",
         )
 
     def _check_devices(self, verbose: bool) -> HealthCheck:

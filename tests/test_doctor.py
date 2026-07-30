@@ -80,7 +80,7 @@ def test_run_all_checks_and_report(tmp_path, monkeypatch):
 
     doctor = _doctor()
     checks = doctor.run_all_checks(verbose=False)
-    assert len(checks) == 8
+    assert len(checks) == 9
     assert all(isinstance(c, HealthCheck) for c in checks)
 
     passed, failed, warned, skipped = doctor.generate_report()
@@ -91,6 +91,53 @@ def test_run_all_checks_and_report(tmp_path, monkeypatch):
     # print_report must render without raising and produce output
     doctor.print_report(verbose=False)
     assert doctor.console.file.getvalue()  # something was written
+
+
+def test_android_sdk_check_passes_when_env_set(tmp_path, monkeypatch):
+    monkeypatch.setenv("ANDROID_HOME", str(tmp_path))
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    check = _doctor()._check_android_sdk(verbose=False)
+    assert check.status == CheckStatus.PASS
+    assert str(tmp_path) in check.message
+
+
+def test_android_sdk_check_warns_when_detected_but_unset(tmp_path, monkeypatch):
+    monkeypatch.delenv("ANDROID_HOME", raising=False)
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr("framework.health.preflight.resolve_android_home", lambda: str(tmp_path))
+    check = _doctor()._check_android_sdk(verbose=False)
+    assert check.status == CheckStatus.WARN
+    assert check.fix_command == f"export ANDROID_HOME={tmp_path}"
+
+
+def test_android_sdk_check_fails_when_no_sdk(monkeypatch):
+    monkeypatch.delenv("ANDROID_HOME", raising=False)
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr("framework.health.preflight.resolve_android_home", lambda: None)
+    check = _doctor()._check_android_sdk(verbose=False)
+    assert check.status == CheckStatus.FAIL
+    assert check.fix_command
+
+
+def test_appium_check_warns_when_a_driver_is_missing(monkeypatch):
+    """When appium is present but a required driver is missing, warn with a fix."""
+    import framework.health.doctor as doctor_mod
+
+    monkeypatch.setattr(doctor_mod.shutil, "which", lambda _: "/usr/local/bin/appium")
+
+    class _Result:
+        returncode = 0
+        stdout = "2.11.0"
+
+    monkeypatch.setattr(doctor_mod.subprocess, "run", lambda *a, **k: _Result())
+    monkeypatch.setattr(
+        "framework.health.preflight.installed_appium_drivers",
+        lambda: {"uiautomator2": "2.34.1"},  # xcuitest missing
+    )
+    check = _doctor()._check_appium(verbose=False)
+    assert check.status == CheckStatus.WARN
+    assert "xcuitest" in check.message
+    assert check.fix_command == "appium driver install xcuitest"
 
 
 def test_generate_report_counts_each_status():
