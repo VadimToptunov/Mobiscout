@@ -29,7 +29,11 @@ class DevicesPanel(
             refreshDevices()
         }
         toolbar.add(refreshButton)
-        
+
+        val installButton = JButton("Install build…")
+        installButton.addActionListener { installBuild() }
+        toolbar.add(installButton)
+
         // Table
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         val scrollPane = JBScrollPane(table)
@@ -79,5 +83,49 @@ class DevicesPanel(
         }
     }
     
+    /**
+     * Install a build (.apk / .app) onto the selected device via the daemon's
+     * app/install RPC — the IDE side of the install → crawl → cleanup flow.
+     */
+    private fun installBuild() {
+        val row = table.selectedRow
+        if (row < 0) {
+            JOptionPane.showMessageDialog(panel, "Select a device first.", "Install build", JOptionPane.WARNING_MESSAGE)
+            return
+        }
+        val deviceId = tableModel.getValueAt(row, 0)?.toString().orEmpty()
+        val platform = tableModel.getValueAt(row, 2)?.toString().orEmpty().ifEmpty { "android" }
+
+        val chooser = JFileChooser()
+        chooser.dialogTitle = "Select a build (.apk / .app)"
+        if (chooser.showOpenDialog(panel) != JFileChooser.APPROVE_OPTION) return
+        val appPath = chooser.selectedFile?.absolutePath ?: return
+
+        (object : SwingWorker<JsonObject?, Void>() {
+            override fun doInBackground(): JsonObject? {
+                return try {
+                    daemonService.installApp(platform, deviceId, appPath)
+                } catch (e: Exception) {
+                    JsonObject().apply {
+                        addProperty("ok", false)
+                        addProperty("detail", e.message ?: e.toString())
+                    }
+                }
+            }
+
+            override fun done() {
+                val result = get()
+                val ok = result?.get("ok")?.asBoolean ?: false
+                val detail = result?.get("detail")?.asString ?: "No response from the daemon."
+                JOptionPane.showMessageDialog(
+                    panel,
+                    if (ok) "Installed on $deviceId." else "Install failed: $detail",
+                    "Install build",
+                    if (ok) JOptionPane.INFORMATION_MESSAGE else JOptionPane.ERROR_MESSAGE
+                )
+            }
+        }).execute()
+    }
+
     fun getPanel(): JComponent = panel
 }
