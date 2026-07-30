@@ -13,11 +13,14 @@ tools actually installed.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
+
+from framework.health.preflight import resolve_android_home
 
 Runner = Callable[[List[str]], Tuple[int, str]]
 
@@ -57,9 +60,23 @@ class Environment:
     appium_drivers: List[str] = field(default_factory=list)
     android_ready: bool = False
     ios_ready: bool = False
+    # The resolved Android SDK path (from ANDROID_HOME/ANDROID_SDK_ROOT or a probed
+    # common location), or None when no SDK is found on this machine.
+    android_home: Optional[str] = None
+    # True only when ANDROID_HOME/ANDROID_SDK_ROOT is actually exported in the env
+    # — a detected-but-unset SDK is False (an Appium server won't inherit it).
+    android_home_set: bool = False
+    # The Appium/UiAutomator2 path needs an SDK path *and* the driver, not just adb
+    # on PATH — this is the readiness the plugin should gate an Appium session on.
+    appium_android_ready: bool = False
 
     def to_dict(self) -> Dict:
-        return asdict(self)
+        data = asdict(self)
+        # When the SDK is on disk but not exported, hand the plugin a copy-pasteable
+        # fix — a separately launched Appium server won't inherit our self-heal.
+        if self.android_home is not None and not self.android_home_set:
+            data["android_home_fix"] = f"export ANDROID_HOME={self.android_home}"
+        return data
 
 
 def detect_environment(run: Runner = _run) -> Environment:
@@ -79,6 +96,11 @@ def detect_environment(run: Runner = _run) -> Environment:
         _, drivers_out = run(["appium", "driver", "list", "--installed"])
         drivers = [d for d in ("uiautomator2", "xcuitest") if d in (drivers_out or "")]
 
+    # ANDROID_HOME matters for the Appium/UiAutomator2 path even when adb is on
+    # PATH: probe the SDK path and whether it's actually exported.
+    android_home = resolve_android_home()
+    android_home_set = bool(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
+
     return Environment(
         tools=[py, adb, appium, java, xcode],
         appium_drivers=drivers,
@@ -86,4 +108,8 @@ def detect_environment(run: Runner = _run) -> Environment:
         android_ready=adb.found,
         # iOS needs an Appium/XCUITest session (server + driver) and Xcode.
         ios_ready=xcode.found and appium.found and "xcuitest" in drivers,
+        android_home=android_home,
+        android_home_set=android_home_set,
+        # The Appium Android path additionally needs the SDK path and the driver.
+        appium_android_ready=adb.found and android_home is not None and "uiautomator2" in drivers,
     )

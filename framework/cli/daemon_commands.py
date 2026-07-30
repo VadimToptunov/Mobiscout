@@ -14,6 +14,15 @@ from framework.health import HealthChecker
 logger = logging.getLogger(__name__)
 
 
+def _format_preflight(result: Any) -> str:
+    """One-line, human-readable rendering of a PreflightResult (``name: detail``,
+    with the copy-pasteable fix appended when present)."""
+    line = f"{result.name}: {result.detail}"
+    if result.fix:
+        line += f" -> {result.fix}"
+    return line
+
+
 def ui_tree(source: str) -> Dict[str, Any]:
     """Parse a device page source into the IDE's UI-tree response: the platform,
     toolkit and a flat element list, each with a semantic type. Pure function of
@@ -259,12 +268,34 @@ class JSONRPCServer:
         return ui_tree(source)
 
     def handle_session_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle session start request."""
+        """Handle session start request.
+
+        Runs a fast, device-free preflight (env + Appium HTTP only — never touches
+        a device) before storing the session. If any check hard-fails, raise so the
+        JSON-RPC layer surfaces the actionable fix (e.g. the ANDROID_HOME message)
+        to the plugin, instead of letting an Appium/UiAutomator2 session die deep
+        with a cryptic error. Warn-level checks don't block — they ride along on the
+        success response as ``warnings``.
+        """
         import uuid
 
-        session_id = str(uuid.uuid4())
-        device_id = params.get("device_id")
+        from framework.health.preflight import ensure_android_home, preflight
+
+        platform = params.get("platform", "android")
         backend = params.get("backend", "appium")
+        server = params.get("server") or "http://localhost:4723"
+        device_id = params.get("device_id")
+
+        # Self-heal our own env first (so spawned adb inherits ANDROID_HOME), then
+        # run the checks that matter for this platform/backend(=driver).
+        ensure_android_home()
+        results = preflight(platform, backend, server)
+        failures = [r for r in results if r.level == "fail"]
+        if failures:
+            raise ValueError("Session preflight failed:\n" + "\n".join(_format_preflight(r) for r in failures))
+        warnings = [_format_preflight(r) for r in results if r.level == "warn"]
+
+        session_id = str(uuid.uuid4())
 
         # Store what building the device driver needs. The driver itself is built
         # lazily on first use (see _session_driver) so starting a session stays
@@ -273,15 +304,18 @@ class JSONRPCServer:
             "id": session_id,
             "device_id": device_id,
             "backend": backend,
-            "platform": params.get("platform", "android"),
+            "platform": platform,
             # iOS needs these to open an Appium session; harmless on Android.
             "bundle_id": params.get("bundle_id") or params.get("package"),
-            "server": params.get("server") or "http://localhost:4723",
+            "server": server,
             "launch_args": params.get("launch_args") or params.get("process_args"),
             "started_at": "2026-01-14T12:00:00Z",
         }
 
-        return {"session_id": session_id, "backend": backend, "device_id": device_id}
+        response: Dict[str, Any] = {"session_id": session_id, "backend": backend, "device_id": device_id}
+        if warnings:
+            response["warnings"] = warnings
+        return response
 
     def handle_session_stop(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle session stop request — closing the device driver if one was
