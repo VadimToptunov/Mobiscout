@@ -1,5 +1,7 @@
 package com.mobiletest.recorder.wizard
 
+import com.google.gson.JsonObject
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
@@ -7,6 +9,7 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBRadioButton
 import com.intellij.util.ui.JBUI
+import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.settings.MTRSettings
 import java.awt.*
 import javax.swing.*
@@ -524,6 +527,129 @@ class SummaryStep(model: SetupWizardModel) : SetupWizardStep(model) {
     override fun _commit(finishChosen: Boolean) {
         // Update summary before showing
         updateSummary()
+    }
+
+    private fun createHeaderLabel(text: String): JBLabel {
+        val label = JBLabel(text)
+        label.font = label.font.deriveFont(Font.BOLD, 14f)
+        return label
+    }
+}
+
+/**
+ * Step: Environment Check
+ *
+ * Calls the daemon's `environment/detect` and shows the automation toolchain
+ * (Appium, adb/Android SDK, drivers) with the ANDROID_HOME fix hint — so the
+ * user sees, before crawling, what to set up (e.g. the ANDROID_HOME a
+ * UiAutomator2 Appium session needs even when adb is on PATH).
+ */
+class EnvironmentCheckStep(model: SetupWizardModel) : SetupWizardStep(model) {
+
+    override val stepTitle = "Environment"
+    override val stepDescription = "Check the automation toolchain (Appium, Android SDK, drivers)"
+
+    private val statusLabel = JBLabel()
+
+    override fun createStepComponent(): JComponent {
+        val panel = JPanel(GridBagLayout())
+        val gbc = GridBagConstraints().apply {
+            gridx = 0
+            gridy = 0
+            anchor = GridBagConstraints.WEST
+            fill = GridBagConstraints.HORIZONTAL
+            insets = JBUI.insets(5, 10)
+            weightx = 1.0
+        }
+
+        panel.add(createHeaderLabel("Automation Toolchain"), gbc)
+        gbc.gridy++
+
+        val refresh = JButton("Re-check")
+        refresh.addActionListener { updateStatus() }
+        panel.add(refresh, gbc)
+        gbc.gridy++
+        gbc.insets = JBUI.insets(10, 10)
+
+        updateStatus()
+        panel.add(statusLabel, gbc)
+        gbc.gridy++
+
+        gbc.weighty = 1.0
+        gbc.fill = GridBagConstraints.BOTH
+        panel.add(JPanel(), gbc)
+        return panel
+    }
+
+    private fun daemon(): MTRDaemonService =
+        ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
+
+    private fun updateStatus() {
+        val service = daemon()
+        if (!service.isRunning()) {
+            statusLabel.text = "<html><font color='gray'>Start the Mobiscout daemon " +
+                "(Tools ▸ Mobiscout ▸ Start Daemon) and click <b>Re-check</b> to inspect the " +
+                "Appium / Android SDK / driver setup.</font></html>"
+            return
+        }
+        val env = try {
+            service.detectEnvironment()
+        } catch (e: Exception) {
+            statusLabel.text = "<html><font color='#dc3545'>Could not detect the environment: " +
+                "${escape(e.message ?: e.toString())}</font></html>"
+            return
+        }
+        if (env == null) {
+            statusLabel.text = "<html><font color='gray'>No response from the daemon.</font></html>"
+            return
+        }
+        statusLabel.text = render(env)
+    }
+
+    private fun render(env: JsonObject): String {
+        val rows = StringBuilder("<html><table style='font-size: 12px;'>")
+
+        fun bool(key: String): Boolean = env.get(key)?.takeIf { !it.isJsonNull }?.asBoolean ?: false
+        fun str(key: String): String? =
+            env.get(key)?.takeIf { !it.isJsonNull && it.isJsonPrimitive }?.asString
+
+        fun row(name: String, ok: Boolean, detail: String) {
+            val mark = if (ok) "<font color='#28a745'>✓</font>" else "<font color='#dc3545'>✗</font>"
+            rows.append("<tr><td>$mark <b>${escape(name)}</b></td><td>${escape(detail)}</td></tr>")
+        }
+
+        // Appium + the adb/Appium readiness split from the daemon's environment report.
+        row("Appium reachable / usable", bool("appium_ready") || bool("android_ready"), "")
+        row("adb (Android SDK on PATH)", bool("android_ready"), "")
+        val androidHome = str("android_home")
+        val androidHomeSet = bool("android_home_set")
+        row(
+            "ANDROID_HOME",
+            androidHome != null && androidHomeSet,
+            when {
+                androidHome == null -> "no Android SDK found"
+                !androidHomeSet -> "SDK detected but ANDROID_HOME is not exported"
+                else -> androidHome
+            }
+        )
+        row("Appium Android ready (adb + ANDROID_HOME + uiautomator2)", bool("appium_android_ready"), "")
+
+        val fix = str("android_home_fix")
+        if (fix != null) {
+            rows.append(
+                "<tr><td colspan='2'><br><font color='#c47f00'>Fix:</font> " +
+                    "<code>${escape(fix)}</code> (add it to your shell profile so Appium sees it).</td></tr>"
+            )
+        }
+        rows.append("</table></html>")
+        return rows.toString()
+    }
+
+    private fun escape(s: String): String =
+        s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    override fun applyToModel() {
+        // Read-only diagnostics step; nothing to persist.
     }
 
     private fun createHeaderLabel(text: String): JBLabel {

@@ -24,6 +24,7 @@ class SetupWizard(project: Project?) : AbstractWizard<SetupWizardStep>("Mobiscou
 
     init {
         addStep(SourceCodeStep(wizardModel))
+        addStep(EnvironmentCheckStep(wizardModel))
         addStep(BuildConfigStep(wizardModel))
         addStep(AnalysisOptionsStep(wizardModel))
         addStep(FrameworkSelectionStep(wizardModel))
