@@ -23,6 +23,11 @@ class ScreenPanel(
     private var currentImage: BufferedImage? = null
     private var currentDeviceId: String? = null
 
+    // The daemon runs a fail-fast preflight on session/start and returns an
+    // actionable JSON-RPC error (e.g. the ANDROID_HOME fix) — surface it verbatim
+    // instead of a generic "failed" message.
+    private var lastStartError: String? = null
+
     // App under test + Appium server for the session — iOS needs a bundle id to
     // open an Appium session; both are harmless on Android.
     private val appField = JBTextField(16)
@@ -197,10 +202,12 @@ class ScreenPanel(
                         if (serverField.text.isNotBlank()) put("server", serverField.text.trim())
                         if (launchArgs.isNotEmpty()) put("launch_args", launchArgs)
                     }
+                    lastStartError = null
                     val client = daemonService.getClient()
                     val response = client?.call("session/start", params)
                     return response?.getResultOrThrow()?.get("session_id")?.asString
                 } catch (e: Exception) {
+                    lastStartError = e.message ?: e.toString()
                     return null
                 }
             }
@@ -217,10 +224,20 @@ class ScreenPanel(
                     // Auto-capture first screenshot
                     captureScreen()
                 } else {
+                    // Show the daemon's actionable message (preflight/ANDROID_HOME
+                    // fix) verbatim; it can be multi-line, so use a scrollable area.
+                    val message = lastStartError ?: "Failed to start session"
+                    val area = JTextArea(message).apply {
+                        isEditable = false
+                        lineWrap = true
+                        wrapStyleWord = true
+                        rows = minOf(10, message.lines().size + 1)
+                        columns = 60
+                    }
                     JOptionPane.showMessageDialog(
                         panel,
-                        "Failed to start session",
-                        "Error",
+                        JScrollPane(area),
+                        "Could not start session",
                         JOptionPane.ERROR_MESSAGE
                     )
                 }
