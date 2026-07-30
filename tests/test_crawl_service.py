@@ -6,7 +6,6 @@ import json
 
 import pytest
 
-from framework.cli import crawl_service
 from framework.cli.crawl_service import (
     CrawlServiceError,
     build_crawl_driver,
@@ -104,6 +103,63 @@ def test_build_crawl_driver_ios_session_failure_raises_service_error(monkeypatch
             app_activity=None,
         )
     assert "Appium iOS session" in str(ei.value) and "connection refused" in str(ei.value)
+
+
+def test_build_crawl_driver_appium_android_gives_actionable_android_home_message(monkeypatch):
+    """When the underlying Appium error mentions ANDROID_HOME and we can detect an
+    SDK, the raised message names the SDK path and the exact server restart fix."""
+
+    def _boom(**kwargs):
+        raise RuntimeError("UiAutomator2 failed: Neither ANDROID_HOME nor ANDROID_SDK_ROOT is set")
+
+    monkeypatch.setattr("framework.crawler.AndroidAppiumDriver", _boom)
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", lambda: None)
+    monkeypatch.setattr("framework.health.preflight.resolve_android_home", lambda: "/opt/android/sdk")
+
+    with pytest.raises(CrawlServiceError) as ei:
+        build_crawl_driver(
+            package=_PKG,
+            platform="android",
+            driver="appium",
+            serial=None,
+            udid="UDID",
+            device_name=None,
+            server="http://localhost:4723",
+            extra_caps={},
+            launch_args=(),
+            app_activity=None,
+        )
+    msg = str(ei.value)
+    assert "ANDROID_HOME=/opt/android/sdk" in msg
+    assert "/opt/android/sdk" in msg
+    assert "appium" in msg
+
+
+def test_build_crawl_driver_appium_android_falls_back_to_generic_message(monkeypatch):
+    """A genuine connectivity error (no ANDROID_HOME mention) keeps the generic hint."""
+
+    def _boom(**kwargs):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr("framework.crawler.AndroidAppiumDriver", _boom)
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", lambda: None)
+
+    with pytest.raises(CrawlServiceError) as ei:
+        build_crawl_driver(
+            package=_PKG,
+            platform="android",
+            driver="appium",
+            serial=None,
+            udid="UDID",
+            device_name=None,
+            server="http://localhost:4723",
+            extra_caps={},
+            launch_args=(),
+            app_activity=None,
+        )
+    msg = str(ei.value)
+    assert "Is the Appium server running" in msg
+    assert "connection refused" in msg
 
 
 def test_build_crawl_driver_appium_android_returns_the_session_to_quit(monkeypatch):

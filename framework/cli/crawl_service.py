@@ -113,6 +113,11 @@ def build_crawl_driver(
         return crawl_driver, crawl_driver
 
     if driver == "appium":
+        from framework.health.preflight import ensure_android_home, resolve_android_home
+
+        # Self-heal *our* env so the adb subprocesses spawned during the session
+        # inherit ANDROID_HOME. This cannot fix a separately launched Appium server.
+        ensure_android_home()
         try:
             crawl_driver = AndroidAppiumDriver(
                 app_package=package,
@@ -123,6 +128,23 @@ def build_crawl_driver(
                 extra_caps=extra_caps,
             )
         except Exception as e:
+            # The classic dead-end: the running Appium server has no ANDROID_HOME,
+            # so UiAutomator2 fails deep with an opaque error. Detect the SDK here
+            # and tell the tester exactly how to relaunch the server.
+            text = str(e)
+            if "ANDROID_HOME" in text or "ANDROID_SDK_ROOT" in text:
+                detected = resolve_android_home()
+                if detected:
+                    raise CrawlServiceError(
+                        f"The Appium server has no ANDROID_HOME. Detected an Android SDK at "
+                        f"{detected}. Restart Appium with ANDROID_HOME={detected} "
+                        f"(e.g. `ANDROID_HOME={detected} appium`)."
+                    )
+                raise CrawlServiceError(
+                    "The Appium server has no ANDROID_HOME and no Android SDK was found on "
+                    "this machine. Install the Android SDK and restart Appium with "
+                    "ANDROID_HOME set to its path (e.g. `ANDROID_HOME=/path/to/sdk appium`)."
+                )
             raise CrawlServiceError(
                 f"Could not open an Appium Android session ({e}). Is the Appium server running at {server}?"
             )
