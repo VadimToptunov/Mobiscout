@@ -129,3 +129,97 @@ def test_android_name_falls_back_on_oserror():
     with mock.patch("framework.devices.device_manager.subprocess.run", side_effect=run):
         dev = DeviceManager.list_android_devices()[0]
     assert dev["name"] == "DEV" and dev["api_level"] is None
+
+
+# ---- install / uninstall (mocked subprocess; path existence patched) ----
+
+
+def _ok(stdout="Success"):
+    return SimpleNamespace(returncode=0, stdout=stdout, stderr="")
+
+
+def test_install_app_android_builds_adb_argv(tmp_path):
+    apk = tmp_path / "app.apk"
+    apk.write_text("x")
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=_ok()) as run:
+        res = DeviceManager.install_app("android", "emulator-5554", str(apk))
+    assert res["ok"] is True and res["detail"] == "installed"
+    assert run.call_args[0][0] == ["adb", "-s", "emulator-5554", "install", "-r", str(apk)]
+
+
+def test_install_app_ios_builds_simctl_argv(tmp_path):
+    app = tmp_path / "App.app"
+    app.mkdir()
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=_ok()) as run:
+        res = DeviceManager.install_app("ios", "AAA", str(app))
+    assert res["ok"] is True
+    assert run.call_args[0][0] == ["xcrun", "simctl", "install", "AAA", str(app)]
+
+
+def test_install_app_ios_defaults_to_booted(tmp_path):
+    app = tmp_path / "App.app"
+    app.mkdir()
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=_ok()) as run:
+        DeviceManager.install_app("ios", "", str(app))
+    assert run.call_args[0][0] == ["xcrun", "simctl", "install", "booted", str(app)]
+
+
+def test_install_app_missing_path_fails_without_shelling_out():
+    with mock.patch("framework.devices.device_manager.subprocess.run") as run:
+        res = DeviceManager.install_app("android", "emulator-5554", "/no/such/app.apk")
+    assert res["ok"] is False and "does not exist" in res["detail"]
+    run.assert_not_called()
+
+
+def test_install_app_nonzero_exit_is_failure(tmp_path):
+    apk = tmp_path / "app.apk"
+    apk.write_text("x")
+    fail = SimpleNamespace(returncode=1, stdout="", stderr="adb: device offline")
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=fail):
+        res = DeviceManager.install_app("android", "emulator-5554", str(apk))
+    assert res["ok"] is False and "offline" in res["detail"]
+
+
+def test_install_app_adb_exit0_failure_stdout_is_failure(tmp_path):
+    apk = tmp_path / "app.apk"
+    apk.write_text("x")
+    # adb returns 0 but prints a Failure line — must be treated as a failure.
+    bad = SimpleNamespace(returncode=0, stdout="Failure [INSTALL_FAILED_OLDER_SDK]", stderr="")
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=bad):
+        res = DeviceManager.install_app("android", "emulator-5554", str(apk))
+    assert res["ok"] is False and "INSTALL_FAILED_OLDER_SDK" in res["detail"]
+
+
+def test_install_app_never_raises(tmp_path):
+    apk = tmp_path / "app.apk"
+    apk.write_text("x")
+    with mock.patch("framework.devices.device_manager.subprocess.run", side_effect=FileNotFoundError("adb")):
+        res = DeviceManager.install_app("android", "emulator-5554", str(apk))
+    assert res["ok"] is False
+
+
+def test_uninstall_app_android_builds_adb_argv():
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=_ok()) as run:
+        res = DeviceManager.uninstall_app("android", "emulator-5554", "com.x")
+    assert res["ok"] is True and res["detail"] == "uninstalled"
+    assert run.call_args[0][0] == ["adb", "-s", "emulator-5554", "uninstall", "com.x"]
+
+
+def test_uninstall_app_ios_builds_simctl_argv():
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=_ok()) as run:
+        res = DeviceManager.uninstall_app("ios", "", "com.x.bundle")
+    assert res["ok"] is True
+    assert run.call_args[0][0] == ["xcrun", "simctl", "uninstall", "booted", "com.x.bundle"]
+
+
+def test_uninstall_app_adb_exit0_failure_stdout_is_failure():
+    bad = SimpleNamespace(returncode=0, stdout="Failure [DELETE_FAILED_INTERNAL_ERROR]", stderr="")
+    with mock.patch("framework.devices.device_manager.subprocess.run", return_value=bad):
+        res = DeviceManager.uninstall_app("android", "emulator-5554", "com.x")
+    assert res["ok"] is False and "DELETE_FAILED_INTERNAL_ERROR" in res["detail"]
+
+
+def test_uninstall_app_never_raises():
+    with mock.patch("framework.devices.device_manager.subprocess.run", side_effect=OSError("boom")):
+        res = DeviceManager.uninstall_app("android", "emulator-5554", "com.x")
+    assert res["ok"] is False

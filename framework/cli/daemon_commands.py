@@ -140,6 +140,8 @@ class JSONRPCServer:
             "device/start": self.handle_device_start,
             "device/stop": self.handle_device_stop,
             "device/listAvds": self.handle_list_avds,
+            "app/install": self.handle_app_install,
+            "app/uninstall": self.handle_app_uninstall,
         }
 
     def handle_selector_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -168,6 +170,32 @@ class JSONRPCServer:
     def handle_list_avds(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """List installed Android AVDs the plugin can offer to boot."""
         return {"avds": self.device_manager.list_avds()}
+
+    def handle_app_install(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Install a build (.apk / .app) onto a device so the IDE can run a session.
+
+        params: {platform: "android"|"ios", device_id: adb serial | simulator UDID,
+                 app_path: path to the .apk/.app}. Raises if app_path is missing.
+        """
+        platform = params.get("platform", "android")
+        device_id = params.get("device_id") or params.get("udid", "")
+        app_path = params.get("app_path")
+        if not app_path:
+            raise ValueError("app/install requires 'app_path'")
+        return self.device_manager.install_app(platform, device_id, app_path)
+
+    def handle_app_uninstall(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Remove an installed app from a device after the IDE is done with it.
+
+        params: {platform: "android"|"ios", device_id: adb serial | simulator UDID,
+                 package: Android package | iOS bundle id}. Raises if package missing.
+        """
+        platform = params.get("platform", "android")
+        device_id = params.get("device_id") or params.get("udid", "")
+        package = params.get("package")
+        if not package:
+            raise ValueError("app/uninstall requires 'package'")
+        return self.device_manager.uninstall_app(platform, device_id, package)
 
     def handle_flow_get_graph(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Crawl the app and return its interaction graph (nodes/edges + reachability,

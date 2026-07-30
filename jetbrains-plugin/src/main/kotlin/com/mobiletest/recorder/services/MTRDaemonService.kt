@@ -125,4 +125,22 @@ class MTRDaemonService {
     fun detectEnvironment(): JsonObject? {
         return client?.call("environment/detect")?.getResultOrThrow()
     }
+
+    /** Boot an emulator/simulator so a session can start on it. */
+    fun startDevice(platform: String, target: String): JsonObject? {
+        val params = mapOf("platform" to platform, "target" to target)
+        return client?.call("device/start", params)?.getResultOrThrow()
+    }
+
+    /** Install a build (.apk / .app) onto a device before crawling. */
+    fun installApp(platform: String, deviceId: String, appPath: String): JsonObject? {
+        val params = mapOf("platform" to platform, "device_id" to deviceId, "app_path" to appPath)
+        return client?.call("app/install", params)?.getResultOrThrow()
+    }
+
+    /** Remove the app after a run (install → crawl → cleanup). */
+    fun uninstallApp(platform: String, deviceId: String, packageName: String): JsonObject? {
+        val params = mapOf("platform" to platform, "device_id" to deviceId, "package" to packageName)
+        return client?.call("app/uninstall", params)?.getResultOrThrow()
+    }
 }

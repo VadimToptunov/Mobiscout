@@ -1,6 +1,7 @@
 """Device management for CLI daemon."""
 
 import json
+import os
 import subprocess
 from typing import List, Dict, Any, Optional
 
@@ -221,3 +222,65 @@ class DeviceManager:
             return {"stopped": False, "error": result.stderr.strip() or "shutdown failed"}
         except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
             return {"stopped": False, "error": str(e)}
+
+    @staticmethod
+    def install_app(platform: str, device_id: str, app_path: str) -> Dict[str, Any]:
+        """Install a build (.apk / .app) onto a device/simulator.
+
+        Android uses ``adb -s <device_id> install -r <app_path>``; iOS uses
+        ``xcrun simctl install <device_id|booted> <app_path>``. The path is
+        validated first. adb exits 0 even on some install failures (printing
+        ``Failure ...`` to stdout), so that is treated as a failure too.
+
+        Never raises — returns ``{"ok": False, "detail": ...}`` on any error.
+        Returns ``{"ok": bool, "detail": str, "platform": str, "device_id": str}``.
+        """
+        if not app_path:
+            return {"ok": False, "detail": "app_path is required"}
+        if not os.path.exists(app_path):
+            return {"ok": False, "detail": f"app path does not exist: {app_path}"}
+        try:
+            if platform == "android":
+                cmd = ["adb", "-s", device_id, "install", "-r", app_path]
+            elif platform == "ios":
+                cmd = ["xcrun", "simctl", "install", device_id or "booted", app_path]
+            else:
+                return {"ok": False, "detail": f"unsupported platform: {platform}"}
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+            # adb prints "Failure ..." to stdout while still exiting 0, so check both.
+            if result.returncode == 0 and "Failure" not in (result.stdout or ""):
+                return {"ok": True, "detail": "installed", "platform": platform, "device_id": device_id}
+            detail = (result.stderr or "").strip() or (result.stdout or "").strip() or f"exit code {result.returncode}"
+            return {"ok": False, "detail": detail, "platform": platform, "device_id": device_id}
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            return {"ok": False, "detail": str(e)}
+
+    @staticmethod
+    def uninstall_app(platform: str, device_id: str, package: str) -> Dict[str, Any]:
+        """Remove an installed app from a device/simulator.
+
+        Android uses ``adb -s <device_id> uninstall <package>``; iOS uses
+        ``xcrun simctl uninstall <device_id|booted> <package>``. As with
+        :meth:`install_app`, adb's exit-0 ``Failure ...`` stdout counts as a
+        failure.
+
+        Never raises — returns ``{"ok": False, "detail": ...}`` on any error.
+        Returns ``{"ok": bool, "detail": str, "platform": str, "device_id": str}``.
+        """
+        if not package:
+            return {"ok": False, "detail": "package is required"}
+        try:
+            if platform == "android":
+                cmd = ["adb", "-s", device_id, "uninstall", package]
+            elif platform == "ios":
+                cmd = ["xcrun", "simctl", "uninstall", device_id or "booted", package]
+            else:
+                return {"ok": False, "detail": f"unsupported platform: {platform}"}
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            # adb prints "Failure ..." to stdout while still exiting 0, so check both.
+            if result.returncode == 0 and "Failure" not in (result.stdout or ""):
+                return {"ok": True, "detail": "uninstalled", "platform": platform, "device_id": device_id}
+            detail = (result.stderr or "").strip() or (result.stdout or "").strip() or f"exit code {result.returncode}"
+            return {"ok": False, "detail": detail, "platform": platform, "device_id": device_id}
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            return {"ok": False, "detail": str(e)}

@@ -168,6 +168,68 @@ def test_screenshot_encodes_capture(server, tmp_path):
     assert resp["format"] == "png" and resp["width"] > 0
 
 
+# ---- app/install + app/uninstall (delegate to DeviceManager) ----
+
+
+def test_app_install_dispatches_to_device_manager(server):
+    with mock.patch.object(
+        server.device_manager, "install_app", return_value={"ok": True, "detail": "installed"}
+    ) as inst:
+        resp = server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 20,
+                "method": "app/install",
+                "params": {"platform": "android", "device_id": "emulator-5554", "app_path": "/tmp/app.apk"},
+            }
+        )
+    assert resp["result"] == {"ok": True, "detail": "installed"}
+    inst.assert_called_once_with("android", "emulator-5554", "/tmp/app.apk")
+
+
+def test_app_install_without_app_path_is_rpc_error(server):
+    resp = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 21,
+            "method": "app/install",
+            "params": {"platform": "android", "device_id": "emulator-5554"},
+        }
+    )
+    assert resp["error"]["code"] == -32603 and "app_path" in resp["error"]["message"]
+
+
+def test_app_install_surfaces_failure_result(server):
+    with mock.patch.object(server.device_manager, "install_app", return_value={"ok": False, "detail": "offline"}):
+        resp = server.handle_app_install(
+            {"platform": "android", "device_id": "emulator-5554", "app_path": "/tmp/app.apk"}
+        )
+    assert resp == {"ok": False, "detail": "offline"}
+
+
+def test_app_uninstall_dispatches_to_device_manager(server):
+    with mock.patch.object(
+        server.device_manager, "uninstall_app", return_value={"ok": True, "detail": "uninstalled"}
+    ) as uninst:
+        resp = server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 22,
+                "method": "app/uninstall",
+                "params": {"platform": "ios", "device_id": "AAA", "package": "com.x"},
+            }
+        )
+    assert resp["result"] == {"ok": True, "detail": "uninstalled"}
+    uninst.assert_called_once_with("ios", "AAA", "com.x")
+
+
+def test_app_uninstall_without_package_is_rpc_error(server):
+    resp = server.handle_request(
+        {"jsonrpc": "2.0", "id": 23, "method": "app/uninstall", "params": {"platform": "android"}}
+    )
+    assert resp["error"]["code"] == -32603 and "package" in resp["error"]["message"]
+
+
 # ---- selector/generate (pure) ----
 
 _XML = (
