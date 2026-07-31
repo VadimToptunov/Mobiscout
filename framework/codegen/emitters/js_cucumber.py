@@ -15,6 +15,7 @@ from framework.codegen.emitters._js_common import js_str, selector_array
 from framework.codegen.emitters._naming import kebab
 from framework.codegen.emitters.base import Emitter
 from framework.codegen.ir import TestModel
+from framework.codegen.keys import as_js_object_literal
 from framework.codegen.targets import Target, register
 from framework.core.engine import Language
 
@@ -30,7 +31,12 @@ class JsCucumberEmitter(Emitter):
         platform = model.platform.value
         # (registry key, JS array literal of primary + fallbacks)
         locators = [(key, selector_array(sel, platform)) for key, sel in collect_targets(model)]
-        steps = self.env.get_template("steps.js.j2").render(model=model, locators=locators)
+        steps = self.env.get_template("steps.js.j2").render(
+            model=model,
+            locators=locators,
+            # Keycode table embedded in the generated glue, from the one source.
+            keycodes_literal=as_js_object_literal(),
+        )
         return {
             f"{slug}.feature": render_feature(model),
             f"{slug}.steps.js": steps,

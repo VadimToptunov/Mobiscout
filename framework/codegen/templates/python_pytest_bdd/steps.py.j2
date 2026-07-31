@@ -155,7 +155,7 @@ def _press_key(driver, key):
     # UNSUPPORTED on iOS: no hardware keycode equivalent; press the key via the on-screen keyboard instead.
     pass
 {% else %}
-    codes = {"BACK": 4, "HOME": 3, "ENTER": 66, "TAB": 61, "SEARCH": 84, "APP_SWITCH": 187, "DEL": 67}
+    codes = {{ keycodes_literal }}
     driver.press_keycode(codes.get(key.upper(), 0))
 {% endif %}
 
