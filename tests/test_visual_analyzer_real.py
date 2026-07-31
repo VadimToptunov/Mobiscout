@@ -61,3 +61,25 @@ def test_partial_change_bounding_box(tmp_path):
     diff = va.compare_screenshots("home", cur)
     assert 0 < diff.diff_percentage < 50
     assert diff.diff_regions == [(0, 0, 5, 5)]
+
+
+def test_export_diff_draws_regions_not_just_a_copy(tmp_path):
+    """export_diff_images used to just copy the current frame; it must now draw
+    the changed regions so a reviewer sees *what* changed. The current image is
+    solid black, so any red pixel proves an outline was actually rendered."""
+    va, base = _analyzer(tmp_path)
+    _solid(base / "home.png", (255, 255, 255), size=(40, 40))  # white baseline
+    cur = _solid(tmp_path / "home.png", (0, 0, 0), size=(40, 40))  # black current
+    va.compare_screenshots("home", cur)
+
+    out_dir = tmp_path / "diffs"
+    va.export_diff_images(out_dir)
+
+    out = out_dir / "home_diff.png"
+    assert out.exists()
+    with Image.open(out) as img:
+        rgb = img.convert("RGB")
+        assert rgb.size == (40, 40)  # same frame, annotated
+        colors = {c for _, c in rgb.getcolors(maxcolors=4096)}
+    # A red outline was drawn onto the black frame (a plain copy would be all black).
+    assert any(r > 200 and g < 80 and b < 80 for (r, g, b) in colors)

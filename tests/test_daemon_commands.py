@@ -31,6 +31,54 @@ def server():
 # ---- protocol ----
 
 
+def test_process_line_handles_request_blank_and_parse_error(server):
+    """The shared line handler (used by both stdio and TCP) frames a valid
+    request, ignores blank lines, and turns malformed JSON into a -32700."""
+    import json as _json
+
+    ok = server._process_line('{"jsonrpc": "2.0", "id": 1, "method": "health/check"}')
+    assert _json.loads(ok)["id"] == 1
+
+    assert server._process_line("   \n") is None  # blank -> nothing to send
+
+    bad = server._process_line("{not json")
+    assert _json.loads(bad)["error"]["code"] == -32700
+
+
+def test_tcp_transport_serves_a_request(server):
+    """--tcp now actually serves: connect, read the ready notification, send a
+    request, get its response — same framing as stdio."""
+    import socket
+    import threading
+    import json as _json
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]  # a free port
+
+    threading.Thread(target=server.run_tcp, args=(port,), daemon=True).start()
+
+    deadline = 2.0
+    conn = None
+    while deadline > 0 and conn is None:
+        try:
+            conn = socket.create_connection(("127.0.0.1", port), timeout=1.0)
+        except OSError:
+            import time
+
+            time.sleep(0.05)
+            deadline -= 0.05
+    assert conn is not None, "TCP server never started listening"
+
+    with conn, conn.makefile("rwb") as stream:
+        ready = _json.loads(stream.readline().decode("utf-8"))
+        assert ready["method"] == "notification/ready"
+        stream.write(b'{"jsonrpc": "2.0", "id": 7, "method": "health/check"}\n')
+        stream.flush()
+        resp = _json.loads(stream.readline().decode("utf-8"))
+    assert resp["id"] == 7 and "error" not in resp
+
+
 def test_rejects_wrong_jsonrpc_version(server):
     resp = server.handle_request({"jsonrpc": "1.0", "id": 1, "method": "health/check"})
     assert resp["error"]["code"] == -32600

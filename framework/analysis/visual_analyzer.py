@@ -218,16 +218,28 @@ class VisualAnalyzer:
         output_dir.mkdir(parents=True, exist_ok=True)
 
         for diff in self.diffs:
-            # In production: create visual diff image with highlighted regions
-            # For now, just copy current image
-            import shutil
-
             output_path = output_dir / f"{diff.screen_name}_diff.png"
             try:
-                shutil.copy(diff.current_image, output_path)
+                self._draw_diff_image(diff, output_path)
                 print(f"Exported diff: {output_path}")
-            except (OSError, shutil.Error) as e:
+            except (OSError, ValueError) as e:
                 print(f"Error exporting diff: {e}")
+
+    def _draw_diff_image(self, diff: VisualDiff, output_path: Path) -> None:
+        """Render the current screenshot with each changed region outlined, so a
+        reviewer sees *what* changed rather than only *that* something did. With
+        no regions (identical images) it writes the current frame unmarked."""
+        from PIL import Image, ImageDraw
+
+        with Image.open(diff.current_image) as img:
+            canvas = img.convert("RGB")
+            draw = ImageDraw.Draw(canvas)
+            # Outline width scales gently with image width so it stays visible on
+            # high-DPI captures without swamping small ones.
+            line_width = max(2, canvas.size[0] // 400)
+            for x, y, w, h in diff.diff_regions:
+                draw.rectangle((x, y, x + w, y + h), outline=(255, 0, 0), width=line_width)
+            canvas.save(output_path)
 
     def generate_html_report(self, output_path: Path) -> None:
         """

@@ -535,39 +535,68 @@ class JSONRPCServer:
                 "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
             }
 
+    @staticmethod
+    def _ready_notification() -> str:
+        """The JSON line announcing the server is ready, sent on connect."""
+        return json.dumps({"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": "0.5.0"}})
+
+    def _process_line(self, line: str) -> Optional[str]:
+        """Handle one newline-delimited JSON-RPC request and return its response
+        as a JSON string (``None`` for a blank line). Shared by the stdio and TCP
+        transports so both frame and error-handle requests identically."""
+        line = line.strip()
+        if not line:
+            return None
+        try:
+            request = json.loads(line)
+            response = self.handle_request(request)
+            return json.dumps(response)
+        except json.JSONDecodeError as e:
+            return json.dumps(
+                {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": f"Parse error: {str(e)}"}}
+            )
+        except Exception as e:
+            logger.exception("Unexpected error")
+            return json.dumps(
+                {"jsonrpc": "2.0", "id": None, "error": {"code": -32603, "message": f"Internal error: {str(e)}"}}
+            )
+
     def run_stdio(self) -> None:
         """Run server using stdin/stdout."""
         logger.info("Starting JSON-RPC server (stdio mode)")
 
-        # Send initial notification that we're ready
-        ready_notification = {"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": "0.5.0"}}
-        print(json.dumps(ready_notification), flush=True)
+        print(self._ready_notification(), flush=True)
 
-        # Read requests from stdin line by line
         for line in sys.stdin:
-            line = line.strip()
-            if not line:
-                continue
+            response = self._process_line(line)
+            if response is not None:
+                print(response, flush=True)
 
-            try:
-                request = json.loads(line)
-                response = self.handle_request(request)
-                print(json.dumps(response), flush=True)
-            except json.JSONDecodeError as e:
-                error_response = {
-                    "jsonrpc": "2.0",
-                    "id": None,
-                    "error": {"code": -32700, "message": f"Parse error: {str(e)}"},
-                }
-                print(json.dumps(error_response), flush=True)
-            except Exception as e:
-                logger.exception("Unexpected error")
-                error_response = {
-                    "jsonrpc": "2.0",
-                    "id": None,
-                    "error": {"code": -32603, "message": f"Internal error: {str(e)}"},
-                }
-                print(json.dumps(error_response), flush=True)
+    def run_tcp(self, port: int, host: str = "127.0.0.1") -> None:
+        """Serve JSON-RPC over TCP, one client at a time — enough for the IDE
+        plugin and for poking the daemon with ``nc``. Same newline-delimited JSON
+        framing as stdio (via :meth:`_process_line`). Binds to localhost by
+        default so the daemon is never exposed on the network."""
+        import socket
+
+        logger.info("Starting JSON-RPC server (tcp mode) on %s:%d", host, port)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as srv:
+            srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            srv.bind((host, port))
+            srv.listen(1)
+            while True:
+                conn, addr = srv.accept()
+                logger.info("Client connected: %s", addr)
+                with conn, conn.makefile("rwb") as stream:
+                    stream.write((self._ready_notification() + "\n").encode("utf-8"))
+                    stream.flush()
+                    for raw in stream:
+                        response = self._process_line(raw.decode("utf-8"))
+                        if response is None:
+                            continue
+                        stream.write((response + "\n").encode("utf-8"))
+                        stream.flush()
+                logger.info("Client disconnected: %s", addr)
 
 
 @click.command(name="daemon")
@@ -583,18 +612,18 @@ def daemon_command(stdio: bool, tcp: Optional[int]) -> None:
     """
     server = JSONRPCServer()
 
-    if tcp:
-        click.echo("TCP mode not yet implemented. Use --stdio for now.", err=True)
-        sys.exit(1)
-    else:
-        # Configure logging to stderr (won't interfere with JSON-RPC on stdout)
-        logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", stream=sys.stderr)
+    # Log to stderr in both modes so it never corrupts the JSON-RPC stream (which
+    # is stdout in stdio mode, the socket in TCP mode).
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s", stream=sys.stderr)
 
-        try:
+    try:
+        if tcp:
+            server.run_tcp(tcp)
+        else:
             server.run_stdio()
-        except KeyboardInterrupt:
-            logger.info("Daemon shutting down")
-            sys.exit(0)
-        except (OSError, ConnectionError, RuntimeError):
-            logger.exception("Fatal error in daemon")
-            sys.exit(1)
+    except KeyboardInterrupt:
+        logger.info("Daemon shutting down")
+        sys.exit(0)
+    except (OSError, ConnectionError, RuntimeError):
+        logger.exception("Fatal error in daemon")
+        sys.exit(1)
