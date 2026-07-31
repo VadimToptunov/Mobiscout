@@ -1,8 +1,10 @@
 package com.mobiletest.recorder.ui
 
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
@@ -35,6 +37,11 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
     private val maxDepthField = JBTextField("8", 5)
     private val launchArgsField = JBTextField(30)
 
+    // Optional install → crawl → cleanup orchestration (not kit/generate params):
+    // if a build is given it is installed on the device (UDID) before crawling.
+    private val buildPathField = TextFieldWithBrowseButton()
+    private val uninstallAfterCheck = JBCheckBox("Uninstall the app after crawling", false)
+
     init {
         title = "Generate Test Kit"
         platformCombo.selectedItem = if (settings.targetPlatform.name.equals("IOS", true)) "ios" else "android"
@@ -43,6 +50,15 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         }
         frameworkField.text = settings.testFramework.name.lowercase()
         outputField.text = if (settings.createNewFramework) "mobile-tests" else settings.existingFrameworkPath
+        // .apk is a file, .app is a bundle directory — allow either. (Same
+        // addBrowseFolderListener overload the setup-wizard steps use; the 2-arg
+        // (project, descriptor) form isn't in this platform build.)
+        buildPathField.addBrowseFolderListener(
+            "Select a Build (.apk / .app)",
+            "The build is installed on the device (UDID) before crawling",
+            project,
+            FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor()
+        )
         init()
     }
 
@@ -63,6 +79,9 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
             .addLabeledComponent("Device UDID (Appium):", udidField)
             .addLabeledComponent("Appium server:", serverField)
             .addLabeledComponent("iOS launch args (space-separated):", launchArgsField)
+            .addSeparator()
+            .addLabeledComponent("Install build first (.apk / .app):", buildPathField)
+            .addComponent(uninstallAfterCheck)
             .addSeparator()
             .addLabeledComponent("Max crawl steps:", maxStepsField)
             .addLabeledComponent("Max crawl depth:", maxDepthField)
@@ -98,6 +117,21 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         if (launchArgs.isNotEmpty()) params["process_args"] = launchArgs
         return params
     }
+
+    /** A build (.apk / .app) to install on the device before crawling, or "" for none. */
+    fun buildPathToInstall(): String = buildPathField.text.trim()
+
+    /** Whether to uninstall the app once the crawl finishes (install → crawl → cleanup). */
+    fun uninstallAfter(): Boolean = uninstallAfterCheck.isSelected
+
+    /** The device the build installs on / the app uninstalls from — the Appium UDID, or "" if unset. */
+    fun deviceId(): String = udidField.text.trim()
+
+    /** The app package / bundle id — the uninstall target. */
+    fun appPackage(): String = packageField.text.trim()
+
+    /** The target platform (android / ios) for install / uninstall RPCs. */
+    fun platform(): String = platformCombo.selectedItem as String
 
     /** Map a language + framework choice onto one of the engine's codegen targets. */
     private fun codegenTarget(language: String, framework: String, bdd: Boolean): String {
