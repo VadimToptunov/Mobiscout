@@ -14,6 +14,22 @@ from framework.health import HealthChecker
 logger = logging.getLogger(__name__)
 
 
+def _png_dimensions(data: bytes) -> "tuple[int, int]":
+    """Read (width, height) from a PNG's IHDR header.
+
+    A PNG is an 8-byte signature followed by the IHDR chunk, whose width and
+    height are two big-endian uint32s at byte offsets 16 and 20. Returns (0, 0)
+    if ``data`` isn't a PNG (callers treat 0 as "unknown"), so a malformed
+    capture can't raise out of the screenshot RPC.
+    """
+    _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+    if len(data) < 24 or data[:8] != _PNG_SIGNATURE:
+        return (0, 0)
+    width = int.from_bytes(data[16:20], "big")
+    height = int.from_bytes(data[20:24], "big")
+    return (width, height)
+
+
 def _format_preflight(result: Any) -> str:
     """One-line, human-readable rendering of a PreflightResult (``name: detail``,
     with the copy-pasteable fix appended when present)."""
@@ -398,8 +414,12 @@ class JSONRPCServer:
                 image_data = f.read()
                 base64_data = base64.b64encode(image_data).decode("utf-8")
 
-            # Get dimensions (simplified - just return 1080x2400 for now)
-            return {"format": format_type, "data": base64_data, "width": 1080, "height": 2400}
+            # Real dimensions from the PNG header itself — both adb `screencap -p`
+            # and `simctl … screenshot` emit PNG, so this needs no extra device
+            # call and works whatever the screen size (was hardcoded 1080x2400,
+            # which mis-scaled coordinate taps on every other device).
+            width, height = _png_dimensions(image_data)
+            return {"format": format_type, "data": base64_data, "width": width, "height": height}
         finally:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)

@@ -159,13 +159,35 @@ def test_swipe_passes_coordinates(server):
     assert run.call_args[0][0][-5:] == ["1", "2", "3", "4", "200"]
 
 
-def test_screenshot_encodes_capture(server, tmp_path):
+def _fake_png(width: int, height: int) -> bytes:
+    """A byte string with a valid PNG signature + IHDR width/height — enough for
+    the dimension parser (the pixel data is irrelevant here)."""
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + b"\x00\x00\x00\x0dIHDR"
+        + width.to_bytes(4, "big")
+        + height.to_bytes(4, "big")
+        + b"\x08\x06\x00\x00\x00rest"
+    )
+
+
+def test_screenshot_reports_real_png_dimensions(server, tmp_path):
+    """The screenshot RPC must report the capture's actual size (read from the
+    PNG header), not the old hardcoded 1080x2400."""
     sid = _session(server)
-    png = b"\x89PNG\r\n\x1a\n' fake"
+    png = _fake_png(1170, 2532)  # e.g. an iPhone, not 1080x2400
     with mock.patch(f"{_SUB}.run", return_value=SimpleNamespace(returncode=0, stdout=png)):
         with mock.patch("builtins.open", mock.mock_open(read_data=png)):
             resp = server.handle_get_screenshot({"session_id": sid, "format": "png"})
-    assert resp["format"] == "png" and resp["width"] > 0
+    assert resp["format"] == "png"
+    assert resp["width"] == 1170 and resp["height"] == 2532
+
+
+def test_png_dimensions_parses_header_and_falls_back():
+    from framework.cli.daemon_commands import _png_dimensions
+
+    assert _png_dimensions(_fake_png(1080, 1920)) == (1080, 1920)
+    assert _png_dimensions(b"not a png at all") == (0, 0)  # unknown, never raises
 
 
 # ---- app/install + app/uninstall (delegate to DeviceManager) ----
