@@ -141,8 +141,9 @@ def test_appium_check_warns_when_a_driver_is_missing(monkeypatch):
 
 
 def test_driver_manager_check_warns_on_npm_11(monkeypatch):
-    """npm >= 11 breaks Appium's `--global-style` driver install: WARN (not FAIL)
-    with the Node-LTS remediation, since installed drivers still work."""
+    """npm >= 11 breaks Appium's in-place `driver update`: WARN (not FAIL), and
+    the fix is the verified non-destructive reinstall — not a Node/npm downgrade,
+    since installed drivers keep working and a fresh install is unaffected."""
     monkeypatch.setattr(
         "framework.health.preflight.node_npm_versions",
         lambda: ("v25.0.0", "11.0.0"),
@@ -151,8 +152,10 @@ def test_driver_manager_check_warns_on_npm_11(monkeypatch):
     assert check.status == CheckStatus.WARN
     assert "11.0.0" in check.message
     assert check.fix_command is not None
-    assert "npm <= 10" in check.fix_command
-    assert "nvm install --lts" in check.fix_command
+    assert "appium driver uninstall" in check.fix_command and "appium driver install" in check.fix_command
+    # The old, destructive advice must be gone.
+    assert "nvm install --lts" not in check.fix_command
+    assert "npm <= 10" not in check.fix_command
 
 
 def test_driver_manager_check_passes_on_npm_10(monkeypatch):

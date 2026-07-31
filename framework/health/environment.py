@@ -86,11 +86,12 @@ class Environment:
     # The Appium/UiAutomator2 path needs an SDK path *and* the driver, not just adb
     # on PATH — this is the readiness the plugin should gate an Appium session on.
     appium_android_ready: bool = False
-    # True when Appium's `driver install/update` can run here — False when npm >= 11
-    # (Node >= 23) removed the `--global-style` flag Appium relies on. Installed
-    # drivers still work; only updates break, so this is a warning, not a blocker.
+    # True when Appium's in-place `driver update` works here — False when npm >= 11
+    # (Node >= 23), where it mishandles `--global-style` over the existing driver
+    # tree. A fresh install/reinstall is unaffected and installed drivers keep
+    # working, so this is a warning (reinstall to update), not a blocker.
     driver_manager_ok: bool = True
-    # Copy-paste remediation when driver_manager_ok is False, else None.
+    # Copy-paste remediation (reinstall the driver) when driver_manager_ok is False.
     driver_manager_fix: Optional[str] = None
 
     def to_dict(self) -> Dict:

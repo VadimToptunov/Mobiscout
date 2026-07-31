@@ -38,9 +38,12 @@ _DRIVER_LINE = re.compile(r"([A-Za-z0-9_-]+)@(\d+\.\d+(?:\.\d+)?)")
 # First dotted-number group in a `node`/`npm --version` line (e.g. "v20.11.0").
 _VERSION_NUM = re.compile(r"(\d+)(?:\.\d+)*")
 
-# npm bundled with Node >= 23 is >= 11, where the deprecated `--global-style`
-# flag Appium's driver manager relies on was removed — driver install/update
-# then dies with a raw "Cannot read properties of null (reading 'package')".
+# npm bundled with Node >= 23 is >= 11. There Appium's in-place `driver update`
+# fails: it runs `npm install --global-style` over the *existing* extension tree,
+# which current npm mishandles ("Cannot read properties of null (reading
+# 'package')"). A fresh install is unaffected, so the fix is to reinstall the
+# driver (uninstall + install), NOT to downgrade Node/npm — verified on Appium
+# 3.6 + npm 11. Installed drivers keep working either way.
 _NPM_BREAKING_MAJOR = 11
 _NODE_BREAKING_MAJOR = 23
 
@@ -252,34 +255,39 @@ def _major(version: Optional[str]) -> Optional[int]:
 
 
 def driver_manager_remediation(node: Optional[str], npm: Optional[str]) -> str:
-    """The actionable fix for the npm >= 11 ``--global-style`` breakage.
+    """The actionable fix for the npm >= 11 in-place ``driver update`` breakage.
 
-    Names the detected versions so the message is concrete, then spells out the
-    Node-LTS reinstall path. Kept as a formatter (not a bare constant) so the
-    versions in the text match what was actually probed.
+    Names the detected versions so the message is concrete, then gives the
+    *verified* non-destructive fix: update by reinstalling the driver. Appium's
+    in-place update shells out to ``npm install --global-style`` over the existing
+    extension tree (which current npm mishandles), but a fresh install does not —
+    so ``uninstall`` + ``install`` updates cleanly with no Node/npm change.
     """
     ver = f"Node {node or '?'} / npm {npm or '?'}"
     return (
-        "Appium's `driver install/update` needs npm <= 10 (Node LTS). "
-        f"Your Node/npm is {ver} which breaks the `--global-style` install. "
-        "Fix: install Node LTS (e.g. `nvm install --lts && nvm use --lts`) and "
-        "reinstall Appium under it (`npm i -g appium && appium driver install <driver>`). "
-        "Drivers already installed keep working; this only blocks updates."
+        f"Appium's in-place `driver update` fails on {ver}: it runs "
+        "`npm install --global-style` over the existing driver tree, which current "
+        "npm mishandles (`Cannot read properties of null (reading 'package')`). "
+        "A fresh install is unaffected, so update by reinstalling the driver: "
+        "`appium driver uninstall <name> && appium driver install <name>` "
+        "(uiautomator2 for Android, xcuitest for iOS). No Node/npm downgrade is "
+        "needed and installed drivers keep working."
     )
 
 
 def driver_manager_healthy(
     get_versions: VersionGetter = node_npm_versions,
 ) -> Tuple[bool, Optional[str]]:
-    """Report whether Appium's driver manager can install/update drivers here.
+    """Report whether Appium's in-place ``driver update`` works here.
 
-    UNHEALTHY (``ok=False``) when npm major >= 11 (equivalently Node major >= 23),
-    because Appium shells out to ``npm install ... --global-style ...`` and npm
-    removed that flag there — ``appium driver install/update`` then dies with a
-    raw ``Cannot read properties of null (reading 'package')``. The reason names
-    the versions.
+    UNHEALTHY (``ok=False``) when npm major >= 11 (equivalently Node major >= 23):
+    Appium's in-place update shells out to ``npm install --global-style`` over the
+    existing driver tree, which current npm mishandles — ``appium driver update``
+    then dies with ``Cannot read properties of null (reading 'package')``. A fresh
+    install is unaffected, so this only blocks in-place updates (reinstall works);
+    installed drivers keep running. The reason names the versions.
 
-    HEALTHY (``ok=True``, reason ``None``) when npm/node are <= the breaking
+    HEALTHY (``ok=True``, reason ``None``) when npm/node are below the breaking
     majors, or when neither version is known — with no versions we can't diagnose,
     so we don't cry wolf. ``get_versions`` is injectable for tests.
     """
@@ -292,8 +300,9 @@ def driver_manager_healthy(
     )
     if unhealthy:
         reason = (
-            f"npm {npm or '?'} (Node {node or '?'}) removed the `--global-style` "
-            "flag Appium's driver install/update relies on (needs npm <= 10)"
+            f"npm {npm or '?'} (Node {node or '?'}) breaks Appium's in-place "
+            "`driver update` (--global-style over an existing tree); update by "
+            "reinstalling the driver instead"
         )
         return False, reason
     return True, None

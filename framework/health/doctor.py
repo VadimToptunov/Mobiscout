@@ -252,17 +252,19 @@ class SystemDoctor:
         )
 
     def _check_driver_manager(self, verbose: bool) -> HealthCheck:
-        """Diagnose the npm >= 11 breakage of ``appium driver install/update``.
+        """Diagnose the npm >= 11 breakage of Appium's in-place ``driver update``.
 
-        Appium shells out to ``npm install ... --global-style ...``; npm >= 11
-        (bundled with Node >= 23) removed that flag, so driver install/update
-        dies with a raw ``Cannot read properties of null (reading 'package')``.
-        We diagnose purely from ``node``/``npm --version`` — never running the
-        failing ``driver update`` ourselves.
+        Appium's in-place update shells out to ``npm install --global-style`` over
+        the existing driver tree; on npm >= 11 (bundled with Node >= 23) npm
+        mishandles that and it dies with ``Cannot read properties of null (reading
+        'package')``. A fresh install is unaffected, so the fix is to reinstall the
+        driver (uninstall + install) — no Node/npm change. We diagnose purely from
+        ``node``/``npm --version``; we never run the failing update ourselves.
 
         PASS when node/npm are absent (can't diagnose, and drivers may already be
-        installed) or healthy (npm <= 10). WARN — not FAIL, since already-installed
-        drivers keep working — when npm >= 11, with the remediation as fix_command.
+        installed) or healthy (npm <= 10). WARN — not FAIL, since installed drivers
+        keep working and reinstall updates cleanly — when npm >= 11, with the
+        reinstall remediation as fix_command.
         """
         from framework.health.preflight import (
             driver_manager_healthy,

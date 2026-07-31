@@ -164,14 +164,15 @@ def _node_npm_runner(node, npm):
 
 def test_to_dict_flags_broken_driver_manager(monkeypatch):
     """npm >= 11 (Node >= 23): driver_manager_ok is False and to_dict carries the
-    remediation, so the plugin can surface it."""
+    verified reinstall remediation, so the plugin can surface it."""
     monkeypatch.setattr(envmod, "resolve_android_home", lambda: None)
     env = detect_environment(run=_node_npm_runner("v25.0.0", "11.0.0"))
     assert env.driver_manager_ok is False
-    assert env.driver_manager_fix is not None and "npm <= 10" in env.driver_manager_fix
+    assert env.driver_manager_fix is not None and "appium driver uninstall" in env.driver_manager_fix
     d = env.to_dict()
     assert d["driver_manager_ok"] is False
-    assert "nvm install --lts" in d["driver_manager_fix"]
+    assert "appium driver install" in d["driver_manager_fix"]
+    assert "nvm install --lts" not in d["driver_manager_fix"]  # old destructive advice gone
 
 
 def test_to_dict_driver_manager_ok_on_npm_10(monkeypatch):
