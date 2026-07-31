@@ -233,10 +233,12 @@ def test_driver_manager_none_versions_treated_healthy():
 
 def test_driver_manager_remediation_names_versions_and_fix():
     text = driver_manager_remediation("v25.0.0", "11.0.0")
-    assert "npm <= 10" in text
     assert "v25.0.0" in text and "11.0.0" in text
-    assert "nvm install --lts" in text
-    assert "appium driver install" in text
+    # The verified, non-destructive fix: update by reinstalling the driver.
+    assert "appium driver uninstall" in text and "appium driver install" in text
+    # Not the old destructive advice.
+    assert "nvm install --lts" not in text
+    assert "npm <= 10" not in text
 
 
 # --- required_driver --------------------------------------------------------
