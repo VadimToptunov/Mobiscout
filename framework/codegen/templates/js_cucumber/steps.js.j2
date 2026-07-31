@@ -97,7 +97,7 @@ When('I press the {string} key', async (key) => {
 {% if model.platform.value == "ios" %}
     // UNSUPPORTED on iOS: no hardware keycode equivalent; press the key via the on-screen keyboard instead.
 {% else %}
-    const codes = { BACK: 4, HOME: 3, ENTER: 66, TAB: 61, SEARCH: 84, APP_SWITCH: 187, DEL: 67 };
+    const codes = {{ keycodes_literal }};
     await driver.pressKeyCode(codes[key.toUpperCase()] || 0);
 {% endif %}
 });

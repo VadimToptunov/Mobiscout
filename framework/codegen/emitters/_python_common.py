@@ -15,6 +15,7 @@ from framework.codegen.emitters._bdd_common import collect_targets, target_key  
 from framework.codegen.emitters._escape import make_escaper
 from framework.codegen.ir import Selector, SelectorStrategy, TestModel
 from framework.codegen.emitters._naming import ios_text_xpath, ua_escape
+from framework.codegen.keys import keycode  # noqa: F401  (re-exported for emitter filters)
 
 # Abstract strategy -> AppiumBy member used in generated Python code.
 APPIUM_BY = {
@@ -29,14 +30,9 @@ APPIUM_BY = {
 }
 
 
-# Android keycodes for the press_key action, by friendly name.
-_KEYCODES = {"BACK": 4, "HOME": 3, "ENTER": 66, "TAB": 61, "SEARCH": 84, "APP_SWITCH": 187, "DEL": 67}
-
-
-def keycode(name: str) -> int:
-    """Resolve a friendly key name (BACK/HOME/…) to its Android keycode."""
-    text = str(name)
-    return int(text) if text.isdigit() else _KEYCODES.get(text.upper(), 0)
+# The Android keycode table + `keycode` filter live in framework.codegen.keys
+# (single source of truth); `keycode` is re-exported above for the emitters that
+# register it as a Jinja filter.
 
 
 # Python double-quoted string literal, safely escaped. Control characters
