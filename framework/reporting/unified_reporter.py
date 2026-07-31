@@ -86,12 +86,13 @@ class UnifiedReporter:
         self.suites.append(suite)
 
     def load_from_junit(self, junit_path: Path) -> None:
-        """Load test results from JUnit XML"""
+        """Load test results from JUnit XML, one report suite per ``<testsuite>``
+        so a multi-suite document keeps its grouping (and loses no cases)."""
         from .junit_parser import JUnitParser
 
         parser = JUnitParser()
-        suite = parser.parse(junit_path)
-        self.add_suite(suite)
+        for suite in parser.parse_all(junit_path):
+            self.add_suite(suite)
 
     def load_from_directory(self, directory: Path) -> None:
         """Load all JUnit XML files from directory"""

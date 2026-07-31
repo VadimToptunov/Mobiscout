@@ -6,6 +6,7 @@ Parses JUnit XML test results.
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import List
 
 from .unified_reporter import TestResult, TestSuite
 
@@ -15,39 +16,56 @@ class JUnitParser:
     Parser for JUnit XML format
     """
 
+    def parse_all(self, junit_path: Path) -> List[TestSuite]:
+        """Parse every ``<testsuite>`` in a JUnit XML file, one TestSuite each.
+
+        A ``<testsuites>`` document commonly holds several suites (one per test
+        file / framework); returning them separately keeps their grouping in the
+        report. Use :meth:`parse` when a single aggregated suite is wanted.
+        """
+        root = ET.parse(junit_path).getroot()
+        return self._suites_from_root(root)
+
     def parse(self, junit_path: Path) -> TestSuite:
+        """Parse a JUnit XML file into a single suite.
+
+        A ``<testsuites>`` document with multiple ``<testsuite>`` children is
+        aggregated into one suite so **no test case is dropped** (the old code
+        kept only the first suite). Use :meth:`parse_all` to keep suites apart.
         """
-        Parse JUnit XML file
+        suites = self.parse_all(junit_path)
+        if len(suites) == 1:
+            return suites[0]
 
-        Args:
-            junit_path: Path to JUnit XML file
+        root = ET.parse(junit_path).getroot()
+        name = root.get("name") or "Aggregated Results"
+        tests = [t for s in suites for t in s.tests]
+        timestamp = root.get("timestamp") or next((s.timestamp for s in suites if s.timestamp), "")
+        # Prefer the document's own total time; else sum the suites'.
+        root_time = root.get("time")
+        duration = float(root_time) if root_time else sum(s.duration for s in suites)
+        return TestSuite(name=name, tests=tests, timestamp=timestamp, duration=duration)
 
-        Returns:
-            TestSuite with parsed results
-        """
-        tree = ET.parse(junit_path)
-        root = tree.getroot()
-
-        # Handle both <testsuite> and <testsuites> root elements
+    def _suites_from_root(self, root: ET.Element) -> List[TestSuite]:
+        """The suites under a JUnit root: each ``<testsuite>`` child of a
+        ``<testsuites>`` wrapper, or the root itself when it is a bare
+        ``<testsuite>`` (or a wrapper carrying test cases directly)."""
         if root.tag == "testsuites":
-            suites = root.findall("testsuite")
-            if not suites:
-                raise ValueError("No testsuites found in XML")
-            # Use first suite for now (could aggregate multiple)
-            suite_elem = suites[0]
-        else:
-            suite_elem = root
+            suite_elems = root.findall("testsuite")
+            if suite_elems:
+                return [self._suite_from_elem(e) for e in suite_elems]
+            # Non-standard: test cases sit directly under <testsuites>.
+            return [self._suite_from_elem(root)]
+        return [self._suite_from_elem(root)]
 
-        suite_name = suite_elem.get("name", "Unknown Suite")
+    def _suite_from_elem(self, suite_elem: ET.Element) -> TestSuite:
+        """Build a TestSuite from one ``<testsuite>`` element. Test cases are
+        collected at any depth so a suite that nests sub-suites keeps them all."""
+        name = suite_elem.get("name", "Unknown Suite")
         timestamp = suite_elem.get("timestamp", "")
         duration = float(suite_elem.get("time", 0))
-
-        tests = []
-        for testcase in suite_elem.findall("testcase"):
-            test = self._parse_testcase(testcase)
-            tests.append(test)
-
-        return TestSuite(name=suite_name, tests=tests, timestamp=timestamp, duration=duration)
+        tests = [self._parse_testcase(tc) for tc in suite_elem.iter("testcase")]
+        return TestSuite(name=name, tests=tests, timestamp=timestamp, duration=duration)
 
     def _parse_testcase(self, testcase: ET.Element) -> TestResult:
         """Parse individual test case"""

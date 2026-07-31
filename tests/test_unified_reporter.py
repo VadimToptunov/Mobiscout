@@ -140,3 +140,64 @@ def test_load_from_directory_skips_unparsable_and_finds_junit(tmp_path):
     r = UnifiedReporter()
     r.load_from_directory(tmp_path)
     assert len(r.suites) == 1 and r.suites[0].name == "A"
+
+
+_MULTI_SUITE_XML = (
+    '<?xml version="1.0"?>'
+    '<testsuites name="All" time="0.9">'
+    '<testsuite name="A" time="0.4">'
+    '<testcase name="a1" classname="C" time="0.2"/>'
+    '<testcase name="a2" classname="C" time="0.2"><failure message="boom">t</failure></testcase>'
+    "</testsuite>"
+    '<testsuite name="B" time="0.5">'
+    '<testcase name="b1" classname="C" time="0.3"/>'
+    '<testcase name="b2" classname="C" time="0.2"><skipped/></testcase>'
+    "</testsuite>"
+    "</testsuites>"
+)
+
+
+def _write(tmp_path, xml):
+    from pathlib import Path
+
+    p = Path(tmp_path) / "junit-multi.xml"
+    p.write_text(xml, encoding="utf-8")
+    return p
+
+
+def test_load_from_junit_keeps_every_suite(tmp_path):
+    """Regression: a <testsuites> document with several suites used to keep only
+    the first — every suite (and its cases) must now load, grouping preserved."""
+    r = UnifiedReporter()
+    r.load_from_junit(_write(tmp_path, _MULTI_SUITE_XML))
+    assert [s.name for s in r.suites] == ["A", "B"]
+    assert sum(s.total for s in r.suites) == 4  # no case dropped
+
+
+def test_parse_aggregates_all_suites_into_one(tmp_path):
+    """parse() stays single-suite for its callers, but now aggregates every case
+    (was first-suite-only), so counts over a multi-suite file are correct."""
+    from framework.reporting.junit_parser import JUnitParser
+
+    suite = JUnitParser().parse(_write(tmp_path, _MULTI_SUITE_XML))
+    assert suite.total == 4
+    assert suite.failed == 1 and suite.skipped == 1
+    assert suite.duration == pytest.approx(0.9)  # document's own time
+
+
+def test_parse_all_returns_each_suite(tmp_path):
+    from framework.reporting.junit_parser import JUnitParser
+
+    suites = JUnitParser().parse_all(_write(tmp_path, _MULTI_SUITE_XML))
+    assert [s.name for s in suites] == ["A", "B"]
+    assert [s.total for s in suites] == [2, 2]
+
+
+def test_parse_testsuites_wrapper_with_direct_testcases(tmp_path):
+    """Some tools omit the inner <testsuite> and hang <testcase>s off the
+    <testsuites> wrapper directly — those cases must still be parsed."""
+    from framework.reporting.junit_parser import JUnitParser
+
+    xml = '<testsuites name="W"><testcase name="x" classname="C" time="0.1"/></testsuites>'
+    suite = JUnitParser().parse(_write(tmp_path, xml))
+    assert suite.total == 1
