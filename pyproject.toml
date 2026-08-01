@@ -63,8 +63,12 @@ Documentation = "https://github.com/vadimtoptunov/mobile-test-recorder/docs"
 Repository = "https://github.com/vadimtoptunov/mobile-test-recorder"
 Issues = "https://github.com/vadimtoptunov/mobile-test-recorder/issues"
 
-[tool.setuptools]
-packages = ["framework"]
+[tool.setuptools.packages.find]
+# Ship the whole framework package tree. A bare `packages = ["framework"]` shipped
+# only framework/__init__.py (which imports framework.model), so a real
+# `pip install` produced a broken, non-importable distribution — only editable
+# installs (dev/CI) worked. `find` includes every framework subpackage.
+include = ["framework*"]
 
 [tool.setuptools.package-data]
 # Ship the curated real-app training data so the classifier blends it in on first
