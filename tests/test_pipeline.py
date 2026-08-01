@@ -64,3 +64,47 @@ def test_daemon_kit_generate_requires_package():
 
     with pytest.raises(ValueError):
         JSONRPCServer().handle_kit_generate({})
+
+
+# --- open-core entitlement enforcement (the seam a paid tier limits) -----------
+# FakeDriver yields 4 screens / 7 cases unlimited; a limited provider must cap the
+# kit. These prove cap_screens/cap_tests are actually wired into build_kit, not
+# just defined — the free-tier quota the PRO layer sells against.
+
+
+@pytest.fixture()
+def _limited(monkeypatch):
+    """Install a limited entitlements provider for the duration of one test."""
+    from framework.licensing import Entitlements, Tier, reset_provider, set_provider
+
+    def _install(*, max_screens=None, max_tests=None):
+        set_provider(lambda: Entitlements(tier=Tier.FREE, max_screens=max_screens, max_tests=max_tests))
+
+    yield _install
+    reset_provider()
+
+
+def test_screen_cap_trims_kit_and_keeps_transitions_consistent(_limited, tmp_path):
+    _limited(max_screens=2)
+    summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert summary["screens"] == 2  # capped from the unlimited 4
+    # Every transition still references a kept screen — no dangling endpoints.
+    graph = json.loads((tmp_path / "graph.json").read_text(encoding="utf-8"))
+    node_ids = {n["id"] for n in graph.get("nodes", [])}
+    for edge in graph.get("edges", []):
+        assert edge["src"] in node_ids and edge["dst"] in node_ids
+
+
+def test_test_cap_trims_generated_cases(_limited, tmp_path):
+    _limited(max_tests=2)
+    summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert summary["cases"] == 2  # capped from the unlimited 7
+    assert summary["screens"] == 4  # screens untouched by the test cap
+
+
+def test_unlimited_default_caps_nothing(tmp_path):
+    from framework.licensing import reset_provider
+
+    reset_provider()  # the open-core default is UNLIMITED
+    summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert summary["screens"] == 4 and summary["cases"] == 7

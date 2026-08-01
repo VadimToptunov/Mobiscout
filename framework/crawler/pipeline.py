@@ -24,6 +24,7 @@ Config keys (all but ``package`` optional):
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +37,23 @@ from framework.crawler.to_codegen import build_test_model
 _DEFAULT_TARGETS = ["python_pytest"]
 
 
+def _cap_screens(result: CrawlResult, limit: int) -> CrawlResult:
+    """Trim a crawl result to at most ``limit`` screens (keeping insertion order),
+    dropping transitions that touch a removed screen so every downstream artifact
+    (graph, inventory, model) is built from one consistent set. Returns ``result``
+    unchanged when already within the limit — so the open-core / PRO unlimited tier
+    pays nothing. New instance (``replace``): never mutates the caller's result."""
+    if limit >= len(result.screens):
+        return result
+    kept = list(result.screens)[:limit]
+    kept_set = set(kept)
+    return replace(
+        result,
+        screens={fp: result.screens[fp] for fp in kept},
+        transitions=[t for t in result.transitions if t[0] in kept_set and t[2] in kept_set],
+    )
+
+
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8", newline="\n")
@@ -46,6 +64,13 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     package = config["package"]
     out = Path(config.get("output", "crawl-kit"))
     out.mkdir(parents=True, exist_ok=True)
+
+    # Entitlement quota (open-core seam): the free tier maps at most N screens per
+    # crawl. Trim the result up front so the graph, inventory and model are all
+    # built from the capped set. No-op on the unlimited (open-core / PRO) tier.
+    from framework.licensing import cap_screens, cap_tests
+
+    result = _cap_screens(result, cap_screens(len(result.screens)))
 
     # Build the interaction graph once and thread it through every consumer
     # (inventory, graph writers, and the test model, which would otherwise rebuild
@@ -84,6 +109,10 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         model, report = filter_to_new(model, covered)
         gap = report.summary()
         _write(out / "coverage_gap.txt", gap + "\n" + "\n".join(f"- {n}" for n in report.new_case_names) + "\n")
+
+    # Entitlement quota: cap generated test cases for the free tier (after only-new
+    # filtering, so the final kit carries at most N cases). No-op when unlimited.
+    model.cases = model.cases[: cap_tests(len(model.cases))]
 
     target_ids = {t.id for t in available_targets()}
     from framework.licensing import allow_targets
