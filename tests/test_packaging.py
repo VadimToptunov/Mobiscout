@@ -5,25 +5,36 @@ Mobiscout-PRO's CI, actually does) must ship the whole ``framework`` tree. A bar
 ``packages = ["framework"]`` once shipped only ``framework/__init__.py`` — which
 imports ``framework.model`` — so a real install was broken and non-importable,
 while editable installs (dev/CI) silently worked. This asserts the configured
-distribution packages cover every ``framework`` subpackage on disk.
+distribution would package every ``framework`` subpackage on disk.
+
+Deliberately depends only on the stdlib (``tomllib`` + ``fnmatch``): the test
+runtime doesn't install setuptools, and this guard must run in CI.
 """
 
 from __future__ import annotations
 
 import os
 import tomllib
+from fnmatch import fnmatch
 
-from setuptools import find_packages
 
-
-def _configured_packages() -> set[str]:
+def _setuptools_cfg() -> dict:
     with open("pyproject.toml", "rb") as fh:
-        setuptools_cfg = tomllib.load(fh)["tool"]["setuptools"]
-    pkgs = setuptools_cfg.get("packages")
+        return tomllib.load(fh)["tool"]["setuptools"]
+
+
+def _is_shipped(package: str, cfg: dict) -> bool:
+    """Whether ``package`` (a dotted name) would be included by the pyproject
+    ``[tool.setuptools]`` config — handling both the explicit ``packages = [...]``
+    list and the ``packages.find`` include/exclude glob form. ``fnmatch``'s ``*``
+    spans dots, matching setuptools' own ``find`` include semantics."""
+    pkgs = cfg.get("packages")
     if isinstance(pkgs, list):  # explicit list form
-        return set(pkgs)
+        return package in pkgs
     find = (pkgs or {}).get("find", {}) if isinstance(pkgs, dict) else {}
-    return set(find_packages(where=".", include=find.get("include", ["*"]), exclude=find.get("exclude", [])))
+    include = find.get("include", ["*"])
+    exclude = find.get("exclude", [])
+    return any(fnmatch(package, g) for g in include) and not any(fnmatch(package, g) for g in exclude)
 
 
 def _framework_packages_on_disk() -> set[str]:
@@ -35,16 +46,17 @@ def _framework_packages_on_disk() -> set[str]:
 
 
 def test_distribution_ships_every_framework_subpackage():
-    missing = _framework_packages_on_disk() - _configured_packages()
+    cfg = _setuptools_cfg()
+    missing = sorted(p for p in _framework_packages_on_disk() if not _is_shipped(p, cfg))
     assert not missing, (
         "pyproject.toml would not package these subpackages (a plain `pip install` "
-        f"would then fail to import them): {sorted(missing)}"
+        f"would then fail to import them): {missing}"
     )
 
 
 def test_core_subpackages_are_packaged():
     """Spot-check the ones framework/__init__ imports at module load — the exact
     modules whose absence broke the install before."""
-    configured = _configured_packages()
+    cfg = _setuptools_cfg()
     for pkg in ("framework", "framework.model", "framework.crawler", "framework.codegen", "framework.licensing"):
-        assert pkg in configured, f"{pkg} is not in the distribution"
+        assert _is_shipped(pkg, cfg), f"{pkg} is not in the distribution"
