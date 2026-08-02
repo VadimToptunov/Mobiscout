@@ -172,6 +172,15 @@ def test_no_fixed_wait_anti_patterns(target_id: str, login_model: TestModel):
         assert anti not in src, f"{target_id} emits the {anti!r} anti-pattern"
 
 
+def test_python_pytest_driver_is_env_configurable(login_model: TestModel):
+    """The generated pytest must run against any Appium/cloud-grid hub and merge
+    extra capabilities from the environment — no regeneration — so a paid layer
+    (Mobiscout-PRO cloud_grid) can point a run at BrowserStack/Sauce/LambdaTest."""
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert 'os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")' in src
+    assert "MOBISCOUT_EXTRA_CAPS" in src and "set_capability(_cap, _value)" in src
+
+
 def test_python_pytest_isolates_test_data_and_state(login_model: TestModel):
     """P8: input data lives in a TEST_DATA table (not inline send_keys literals) so
     it changes in one place, and each test runs on a reset app (isolated,
