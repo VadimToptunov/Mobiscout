@@ -5,6 +5,9 @@ App under test: com.example.app
 DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
 """
 
+import json
+import os
+
 import pytest
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
@@ -61,7 +64,13 @@ def driver():
     options.app_activity = ".MainActivity"
     # A fresh session per test with a reset app = isolated, parallel-safe state.
     options.set_capability("noReset", False)
-    drv = webdriver.Remote("http://localhost:4723", options=options)
+    # Run anywhere without regenerating: point at a different Appium/cloud-grid hub
+    # with MOBISCOUT_APPIUM_SERVER, and merge extra capabilities (e.g. a
+    # BrowserStack/Sauce options block) from MOBISCOUT_EXTRA_CAPS (a JSON object).
+    for _cap, _value in json.loads(os.environ.get("MOBISCOUT_EXTRA_CAPS", "{}")).items():
+        options.set_capability(_cap, _value)
+    _server = os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")
+    drv = webdriver.Remote(_server, options=options)
     yield drv
     drv.quit()
 
