@@ -143,4 +143,13 @@ class MTRDaemonService {
         val params = mapOf("platform" to platform, "device_id" to deviceId, "package" to packageName)
         return client?.call("app/uninstall", params)?.getResultOrThrow()
     }
+
+    /**
+     * The active entitlement tier + quotas, so the IDE can show limits and upsell.
+     * The open-core engine is unlimited (`pro`); a Mobiscout-PRO install with a
+     * FREE licence reports `free` with `max_screens`/`max_tests`/`max_targets`.
+     */
+    fun licenseStatus(): JsonObject? {
+        return client?.call("license/status")?.getResultOrThrow()
+    }
 }

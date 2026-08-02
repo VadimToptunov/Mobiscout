@@ -96,11 +96,16 @@ class GenerateKitAction : AnAction() {
                         }
                     }
 
+                    // Show the active tier, and upsell when the free-tier quota
+                    // actually clipped this kit. On the open-core engine the tier
+                    // is unlimited, so this adds nothing.
+                    val tierNote = tierNote(daemonService, screens, cases)
+
                     ApplicationManager.getApplication().invokeLater {
                         notify(
                             project,
                             "Test kit generated",
-                            "$screens screen(s), $cases test case(s)$extra\nWritten to: $output$cleanupNote",
+                            "$screens screen(s), $cases test case(s)$extra\nWritten to: $output$cleanupNote$tierNote",
                             NotificationType.INFORMATION,
                         )
                     }
@@ -111,6 +116,31 @@ class GenerateKitAction : AnAction() {
                 }
             }
         })
+    }
+
+    /**
+     * A one-line tier note for the result notification: empty on the unlimited
+     * open-core engine; on a Mobiscout-PRO free tier it names the quota, and adds
+     * an upgrade nudge when this kit actually hit the screen/test cap. Best-effort
+     * — any lookup failure just omits the note.
+     */
+    private fun tierNote(daemonService: MTRDaemonService, screens: Int, cases: Int): String {
+        return try {
+            val lic = daemonService.licenseStatus()
+            if (lic?.get("unlimited")?.asBoolean != false) return ""
+            fun intOrNull(key: String): Int? = lic.get(key)?.let { if (it.isJsonNull) null else it.asInt }
+            val maxScreens = intOrNull("max_screens")
+            val maxTests = intOrNull("max_tests")
+            val limits = listOfNotNull(maxScreens?.let { "$it screens" }, maxTests?.let { "$it tests" }).joinToString(" / ")
+            val clipped = (maxScreens != null && screens >= maxScreens) || (maxTests != null && cases >= maxTests)
+            if (clipped) {
+                "\nFree tier — capped at $limits. Upgrade to Mobiscout PRO for unlimited."
+            } else {
+                "\nFree tier ($limits)."
+            }
+        } catch (ex: Exception) {
+            ""
+        }
     }
 
     private fun notify(project: com.intellij.openapi.project.Project, title: String, content: String, type: NotificationType) {

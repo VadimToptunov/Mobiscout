@@ -79,6 +79,46 @@ def test_tcp_transport_serves_a_request(server):
     assert resp["id"] == 7 and "error" not in resp
 
 
+def test_license_status_defaults_to_unlimited(server):
+    """The open-core engine has no paid provider — license/status reports the
+    fully-unlocked default so the IDE shows no quota."""
+    import framework.licensing as lic
+
+    lic.reset_provider()
+    resp = server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "license/status"})
+    result = resp["result"]
+    assert result["unlimited"] is True
+    assert result["max_screens"] is None and result["max_tests"] is None
+
+
+def test_license_status_reflects_an_installed_free_tier(server):
+    """Once a paid layer installs a FREE (quota) provider, the IDE sees the tier
+    and its limits verbatim."""
+    import framework.licensing as lic
+
+    lic.set_provider(lambda: lic.Entitlements(tier=lic.Tier.FREE, max_screens=15, max_tests=40, max_targets=2))
+    try:
+        result = server.handle_request({"jsonrpc": "2.0", "id": 2, "method": "license/status"})["result"]
+    finally:
+        lic.reset_provider()
+    assert result["tier"] == "free" and result["unlimited"] is False
+    assert result["max_screens"] == 15 and result["max_tests"] == 40 and result["max_targets"] == 2
+
+
+def test_activate_pro_layer_never_raises():
+    """The daemon's PRO bootstrap is best-effort: whether or not the paid layer is
+    installed, activating it must never raise (a load failure can't stop the
+    daemon). On a plain engine it's a no-op and the tier stays UNLIMITED."""
+    import framework.licensing as lic
+    from framework.cli.daemon_commands import _activate_pro_layer
+
+    lic.reset_provider()
+    try:
+        _activate_pro_layer()  # must not raise, regardless of environment
+    finally:
+        lic.reset_provider()  # undo any provider it installed, for later tests
+
+
 def test_rejects_wrong_jsonrpc_version(server):
     resp = server.handle_request({"jsonrpc": "1.0", "id": 1, "method": "health/check"})
     assert resp["error"]["code"] == -32600
