@@ -158,6 +158,30 @@ class JSONRPCServer:
             "device/listAvds": self.handle_list_avds,
             "app/install": self.handle_app_install,
             "app/uninstall": self.handle_app_uninstall,
+            "license/status": self.handle_license_status,
+        }
+
+    def handle_license_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Report the active entitlement tier so the IDE can show quota and gate
+        PRO-only actions. Reads ``framework.licensing`` — the open-core engine is
+        UNLIMITED until a paid layer (Mobiscout-PRO) installs a limited provider,
+        so this is ``pro``/unlimited on a plain engine and ``free`` with quotas
+        once a FREE licence is active."""
+        from framework.licensing import entitlements
+
+        ent = entitlements()
+        features = sorted(ent.features)
+        return {
+            "tier": ent.tier.value,
+            "max_screens": ent.max_screens,
+            "max_tests": ent.max_tests,
+            "max_targets": ent.max_targets,
+            "features": features,
+            # Fully unlocked = no quota on any axis (the open-core / PRO default).
+            "unlimited": ent.max_screens is None
+            and ent.max_tests is None
+            and ent.max_targets is None
+            and ("*" in features or not features or ent.tier.value == "pro"),
         }
 
     def handle_selector_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -599,6 +623,20 @@ class JSONRPCServer:
                 logger.info("Client disconnected: %s", addr)
 
 
+def _activate_pro_layer() -> None:
+    """Best-effort: if the paid Mobiscout-PRO package is installed, let it install
+    its tiered entitlements (honouring ``MOBISCOUT_PRO_LICENSE``). A plain open-core
+    engine has no such package, so this is a no-op and the engine stays UNLIMITED —
+    the import/activation failure must never stop the daemon starting."""
+    try:
+        import mobiscout_pro  # type: ignore
+
+        mobiscout_pro.install()
+        logger.info("Mobiscout-PRO layer active")
+    except Exception:
+        pass  # no PRO layer (or it failed to load) — free engine runs unlimited
+
+
 @click.command(name="daemon")
 @click.option("--stdio", is_flag=True, default=True, help="Run in stdio mode (default)")
 @click.option("--tcp", type=int, help="Run in TCP mode on specified port (for debugging)")
@@ -611,6 +649,7 @@ def daemon_command(stdio: bool, tcp: Optional[int]) -> None:
         mobiscout daemon --tcp 33333
     """
     server = JSONRPCServer()
+    _activate_pro_layer()
 
     # Log to stderr in both modes so it never corrupts the JSON-RPC stream (which
     # is stdout in stdio mode, the socket in TCP mode).
