@@ -203,7 +203,7 @@ def tests(
     "--source",
     "source",
     type=click.Path(exists=True),
-    help="App SOURCE directory: extract the API the app itself calls (Android/Retrofit)",
+    help="App SOURCE directory: extract the API the app itself calls (Android/Retrofit + iOS/URLSession)",
 )
 @click.option("--output", default="tests/api", help="Output directory")
 @click.option("--base-url", default="http://localhost:8000", help="Backend base URL for the tests")

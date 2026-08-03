@@ -15,7 +15,9 @@ through.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Set
+from urllib.parse import urlparse
 
 from framework.model.api import APICall
 
@@ -24,6 +26,14 @@ def _slug(path: str) -> str:
     """A short, name-safe slug for a URL path (used to derive a call name)."""
     cleaned = "".join(char if char.isalnum() else "_" for char in path).strip("_")
     return (cleaned or "root").lower()[:40]
+
+
+def _as_path(endpoint: str) -> str:
+    """Reduce a full URL to its path so the generated test can prepend BASE_URL.
+    iOS URLSession calls carry absolute URLs; Android Retrofit paths pass through."""
+    if endpoint.startswith(("http://", "https://")):
+        return urlparse(endpoint).path or "/"
+    return endpoint
 
 
 def _unique(name: str, seen: Set[str]) -> str:
@@ -62,7 +72,7 @@ def contracts_to_api_calls(contracts: Iterable[Any]) -> List[APICall]:
     seen: Set[str] = set()
     for contract in contracts:
         method = (getattr(contract, "method", "") or "GET").upper()
-        endpoint = getattr(contract, "endpoint", "") or ""
+        endpoint = _as_path(getattr(contract, "endpoint", "") or "")
         name = _unique(f"{method.lower()}_{_slug(endpoint)}", seen)
         responses: List[Dict[str, Any]] = []
         response_schema = getattr(contract, "response_schema", None)
@@ -81,10 +91,29 @@ def contracts_to_api_calls(contracts: Iterable[Any]) -> List[APICall]:
     return calls
 
 
-def source_api_calls(source_path: str) -> List[APICall]:
-    """Statically extract the API an Android app calls (Retrofit) as ``APICall``s,
-    ready to hand to ``emit_api_tests``."""
-    from framework.analyzers.android_analyzer import AndroidAnalyzer
+def _ios_source_api_calls(root: Path) -> List[APICall]:
+    """Statically extract the API a Swift/iOS app calls (URLSession) as APICalls."""
+    from framework.analyzers.business_logic_analyzer import BusinessLogicAnalysis
+    from framework.analyzers.ios_business_analyzer import IOSBusinessAnalyzer
 
-    result = AndroidAnalyzer().analyze(source_path)
-    return endpoints_to_api_calls(result.api_endpoints)
+    analysis = BusinessLogicAnalysis(platform="ios")
+    IOSBusinessAnalyzer(root, analysis).generate_api_contracts()
+    return contracts_to_api_calls(analysis.api_contracts)
+
+
+def source_api_calls(source_path: str) -> List[APICall]:
+    """Statically extract the API an app calls, as ``APICall``s ready for
+    ``emit_api_tests``. Auto-detects the platform(s) from the source: Kotlin/Java
+    (Android/Retrofit) and/or Swift (iOS/URLSession) — a mixed tree yields both."""
+    root = Path(source_path)
+    calls: List[APICall] = []
+
+    if any(root.rglob("*.kt")) or any(root.rglob("*.java")):
+        from framework.analyzers.android_analyzer import AndroidAnalyzer
+
+        calls.extend(endpoints_to_api_calls(AndroidAnalyzer().analyze(source_path).api_endpoints))
+
+    if any(root.rglob("*.swift")):
+        calls.extend(_ios_source_api_calls(root))
+
+    return calls

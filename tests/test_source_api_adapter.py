@@ -44,6 +44,14 @@ def test_endpoint_without_function_name_gets_a_derived_name():
     assert call.name  # derived, non-empty
 
 
+def test_contract_full_urls_are_reduced_to_paths():
+    # iOS URLSession endpoints are absolute URLs; the generated test prepends
+    # BASE_URL, so they must become paths (Android Retrofit paths pass through).
+    contract = SimpleNamespace(method="GET", endpoint="https://api.bank.com/accounts/me", response_schema={})
+    (call,) = contracts_to_api_calls([contract])
+    assert call.endpoint == "/accounts/me"
+
+
 def test_contracts_carry_schemas_and_responses():
     contract = SimpleNamespace(
         method="POST",
@@ -91,3 +99,21 @@ def test_source_to_runnable_api_tests_end_to_end(tmp_path):
     out = tmp_path / "test_api.py"
     out.write_text(test_src, encoding="utf-8", newline="\n")
     py_compile.compile(str(out), doraise=True)  # generated source is valid Python
+
+
+def test_ios_swift_source_yields_api_calls(tmp_path):
+    """Swift/URLSession source is auto-detected and its absolute URLs become path
+    endpoints — so `generate api-tests --source` works on iOS too."""
+    (tmp_path / "Api.swift").write_text(
+        """
+        func fetchAccount() {
+            var request = URLRequest(url: URL(string: "https://api.bank.com/accounts/me")!)
+            request.httpMethod = "GET"
+            URLSession.shared.dataTask(with: request) { data, response, error in }
+        }
+        """,
+        encoding="utf-8",
+    )
+    calls = source_api_calls(str(tmp_path))
+    assert any(c.endpoint == "/accounts/me" for c in calls)
+    assert all(not c.endpoint.startswith("http") for c in calls)  # normalized to paths
