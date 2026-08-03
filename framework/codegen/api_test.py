@@ -40,10 +40,24 @@ class _ApiTest:
     # When known, the test asserts the response is one of them — a real contract
     # check — instead of merely "not a 5xx". Empty => fall back to the 5xx check.
     expected_statuses: List[int] = field(default_factory=list)
+    # Top-level keys the success response body should carry (from a 2xx response
+    # schema). When known, the test also validates the response shape on 2xx.
+    response_keys: List[str] = field(default_factory=list)
 
     @property
     def has_body(self) -> bool:
         return self.method in _BODY_METHODS and bool(self.body)
+
+
+def _response_keys(responses: Any) -> List[str]:
+    """Top-level field names of the first 2xx response that carries a schema
+    (``{"status": "200", "schema": {field: type, ...}}``), sorted. Empty if none."""
+    for response in responses or []:
+        status = str((response or {}).get("status", "")).strip()
+        schema = (response or {}).get("schema")
+        if status.startswith("2") and isinstance(schema, dict) and schema:
+            return sorted(schema.keys())
+    return []
 
 
 def _expected_statuses(responses: Any) -> List[int]:
@@ -77,6 +91,7 @@ def _build(app_model: AppModel) -> List[_ApiTest]:
                 endpoint=endpoint,
                 body=body,
                 expected_statuses=_expected_statuses(getattr(call, "responses", None)),
+                response_keys=_response_keys(getattr(call, "responses", None)),
             )
         )
     return tests

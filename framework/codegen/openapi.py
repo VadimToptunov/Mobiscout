@@ -83,6 +83,22 @@ def _schema_fields(spec: Dict[str, Any], schema: Any) -> Dict[str, str]:
     return fields
 
 
+def _response_schema(spec: Dict[str, Any], response: Any) -> Dict[str, str]:
+    """Extract a response body's fields (OpenAPI 3 ``content`` or Swagger 2
+    ``schema``) so the generated test can assert the response shape."""
+    response = _resolve_ref(spec, response)
+    if not isinstance(response, dict):
+        return {}
+    content = response.get("content", {})  # OpenAPI 3.x
+    if isinstance(content, dict):
+        for media, media_obj in content.items():
+            if "json" in media and isinstance(media_obj, dict):
+                return _schema_fields(spec, media_obj.get("schema", {}))
+    if "schema" in response:  # Swagger 2.0
+        return _schema_fields(spec, response["schema"])
+    return {}
+
+
 def _request_schema(spec: Dict[str, Any], op: Dict[str, Any]) -> Dict[str, str]:
     """Extract the request body's fields (OpenAPI 3 requestBody or Swagger 2 body param)."""
     body = op.get("requestBody")  # OpenAPI 3.x
@@ -115,7 +131,13 @@ def parse_openapi(spec: Dict[str, Any]) -> List[APICall]:
                 name = f"{base}_{i}"
                 i += 1
             used.add(name)
-            responses = [{"status": code} for code in (op.get("responses") or {}).keys()]
+            responses = []
+            for code, response_obj in (op.get("responses") or {}).items():
+                entry: Dict[str, Any] = {"status": code}
+                fields = _response_schema(spec, response_obj) if str(code).startswith("2") else {}
+                if fields:
+                    entry["schema"] = fields
+                responses.append(entry)
             calls.append(
                 APICall(  # type: ignore[call-arg]  # triggers_state_change is optional (default None)
                     name=name,

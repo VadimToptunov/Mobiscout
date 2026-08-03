@@ -73,3 +73,26 @@ def test_falls_back_to_no_5xx_without_documented_statuses():
     reachable-and-not-5xx check."""
     content = emit_api_tests(_model([APICall(name="ping", endpoint="/ping", method="GET")]))["test_api.py"]
     assert "response.status_code < 500" in content
+
+
+def test_validates_response_shape_when_a_2xx_schema_is_known(tmp_path):
+    """A 2xx response schema makes the test also assert the body carries those
+    fields (on success); endpoints without a schema get no shape check."""
+    model = _model(
+        [
+            APICall(
+                name="get_pet",
+                endpoint="/pets/{id}",
+                method="GET",
+                responses=[{"status": "200", "schema": {"id": "integer", "name": "string"}}, {"status": "404"}],
+            ),
+            APICall(name="ping", endpoint="/ping", method="GET"),  # no schema -> no shape check
+        ]
+    )
+    content = emit_api_tests(model)["test_api.py"]
+    assert "for _key in ['id', 'name']" in content and "response.ok" in content
+    # Only the schema'd endpoint gets a shape check.
+    assert content.count("_body = response.json()") == 1
+    f = tmp_path / "test_api.py"
+    f.write_text(content, encoding="utf-8", newline="\n")
+    py_compile.compile(str(f), doraise=True)
