@@ -16,6 +16,7 @@ Locators are derived from what the source exposes, best-first: a Compose
 from __future__ import annotations
 
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from framework.model.app_model import AppModel, AppModelMeta
@@ -64,12 +65,14 @@ def _element_selector(candidate: Any) -> Optional[Selector]:
     return None
 
 
-def analysis_to_app_model(result: Any, app_version: str = "1.0.0") -> AppModel:
+def analysis_to_app_model(result: Any, app_version: str = "1.0.0", platform: Platform = Platform.ANDROID) -> AppModel:
     """Map an ``AnalysisResult`` (screens + ui_elements) to an ``AppModel``.
 
     Elements are grouped by their screen; those with no derivable locator are
     dropped (a UI test can't assert on them). Screens are taken from both the
-    discovered screen list and any screen an element references."""
+    discovered screen list and any screen an element references. ``platform`` is
+    stamped on the model so codegen emits the right driver/locators (the accessory
+    locators — accessibility id, text — work on both; it drives the setup)."""
     by_screen: Dict[str, List[Any]] = defaultdict(list)
     for candidate in getattr(result, "ui_elements", []) or []:
         by_screen[getattr(candidate, "screen", None) or "app"].append(candidate)
@@ -96,12 +99,19 @@ def analysis_to_app_model(result: Any, app_version: str = "1.0.0") -> AppModel:
             )
         screens[name] = Screen(name=name, elements=elements)  # type: ignore[call-arg]
 
-    return AppModel(meta=AppModelMeta(app_version=app_version, platform=Platform.ANDROID), screens=screens)
+    return AppModel(meta=AppModelMeta(app_version=app_version, platform=platform), screens=screens)
 
 
 def source_app_model(source_path: str) -> AppModel:
-    """Statically analyze an Android source tree into an ``AppModel`` ready for
-    ``build_smoke_model`` — the source → UI-tests entry point."""
+    """Statically analyze an app source tree into an ``AppModel`` ready for
+    ``build_smoke_model`` — the source → UI-tests entry point. Auto-detects the
+    platform: Swift (iOS/SwiftUI) else Kotlin/Java (Android/Compose)."""
+    root = Path(source_path)
+    if any(root.rglob("*.swift")) and not (any(root.rglob("*.kt")) or any(root.rglob("*.java"))):
+        from framework.analyzers.ios_source_analyzer import IOSSourceAnalyzer
+
+        return analysis_to_app_model(IOSSourceAnalyzer().analyze(source_path), platform=Platform.IOS)
+
     from framework.analyzers.android_analyzer import AndroidAnalyzer
 
-    return analysis_to_app_model(AndroidAnalyzer().analyze(source_path))
+    return analysis_to_app_model(AndroidAnalyzer().analyze(source_path), platform=Platform.ANDROID)

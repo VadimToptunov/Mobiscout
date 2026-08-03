@@ -127,7 +127,8 @@ def features(model: str, output: str) -> None:
     "--source",
     "source",
     type=click.Path(exists=True),
-    help="App SOURCE directory: build UI tests from the screens/elements in the code (Android/Compose)",
+    help="App SOURCE directory: build UI tests from the screens/elements in the code "
+    "(Android/Compose + iOS/SwiftUI)",
 )
 @click.option("--app-package", required=True, help="App under test, e.g. com.example.app")
 @click.option("--target", default="python_pytest", help="Codegen target (see --list-targets)")

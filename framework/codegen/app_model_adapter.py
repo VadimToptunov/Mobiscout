@@ -139,8 +139,19 @@ def build_smoke_model(
     return TestModel(
         name=suite_name,
         app_package=app_package,
-        platform=Platform.ANDROID,
+        # Honour the model's own platform (was hardwired to Android, so iOS models
+        # emitted Android drivers/locators). Map by value; default Android.
+        platform=_ir_platform(app_model),
         app_activity=app_activity,
         cases=cases,
         description="Auto-generated smoke suite from the recorded app model.",
     )
+
+
+def _ir_platform(app_model: AppModel) -> Platform:
+    """The codegen-IR platform for an AppModel, from its meta (default Android)."""
+    raw = getattr(getattr(app_model.meta, "platform", None), "value", None)
+    try:
+        return Platform(raw) if raw else Platform.ANDROID
+    except ValueError:
+        return Platform.ANDROID
