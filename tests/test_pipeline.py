@@ -108,3 +108,55 @@ def test_unlimited_default_caps_nothing(tmp_path):
     reset_provider()  # the open-core default is UNLIMITED
     summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
     assert summary["screens"] == 4 and summary["cases"] == 7
+
+
+# --- crawl + captured traffic (HAR) -> UI tests AND API tests in one kit --------
+
+_HAR = {
+    "log": {
+        "entries": [
+            {"request": {"method": "GET", "url": "https://api.bank.com/accounts"}, "response": {"status": 200}},
+            {"request": {"method": "POST", "url": "https://api.bank.com/transfers"}, "response": {"status": 201}},
+        ]
+    }
+}
+
+
+def _write_har(tmp_path):
+    import json
+
+    p = tmp_path / "capture.har"
+    p.write_text(json.dumps(_HAR), encoding="utf-8")
+    return str(p)
+
+
+def test_run_kit_with_har_also_emits_api_tests(tmp_path):
+    """build_kit path: a crawl given a proxy HAR emits test_api.py alongside the UI tests."""
+    summary = run_kit(
+        {"package": APP, "targets": ["python_pytest"], "output": str(tmp_path), "har": _write_har(tmp_path)},
+        driver=FakeDriver(),
+    )
+    assert summary["api_tests"] == 2  # both captured endpoints
+    assert (tmp_path / "test_api.py").exists()
+    assert summary["cases"] >= 1  # UI tests still produced
+
+
+def test_write_kit_with_har_emits_api_tests(tmp_path):
+    """crawl-CLI path (write_kit): the same HAR wiring produces API tests."""
+    from framework.cli.crawl_service import write_kit
+    from framework.crawler.app_crawler import CrawlResult
+
+    report = write_kit(
+        result=CrawlResult(),
+        output=str(tmp_path),
+        package=APP,
+        targets="python_pytest",
+        style="flat",
+        scaffold=False,
+        server="http://localhost:4723",
+        app_activity=None,
+        launch_args=(),
+        har=_write_har(tmp_path),
+    )
+    assert (tmp_path / "test_api.py").exists()
+    assert any("API tests from captured traffic" in line for line in report.info)

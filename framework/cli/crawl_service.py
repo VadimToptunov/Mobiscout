@@ -285,6 +285,7 @@ def write_kit(
     app_activity: Optional[str],
     launch_args: Tuple[str, ...],
     assert_values: bool = False,
+    har: Optional[str] = None,
 ) -> KitReport:
     """Write every artifact of a crawl kit to ``output`` and report what was written.
 
@@ -400,5 +401,17 @@ def write_kit(
             report.warnings.append(
                 f"No project scaffold for {', '.join(requested)} yet (specs written; add to your framework)."
             )
+
+    # 5) Optional: API contract tests from network traffic captured during the same
+    # session (a proxy HAR). The crawl gives the UI tests; the capture adds tests
+    # for the endpoints the app actually called — one kit, both facets.
+    if har:
+        from framework.crawler.pipeline import emit_api_tests_from_har
+
+        covered = emit_api_tests_from_har(har, out)
+        if covered:
+            report.info.append(f"API tests from captured traffic ({covered} endpoint(s)): {out / 'test_api.py'}")
+        else:
+            report.warnings.append(f"No modelled API calls found in {har} — no API tests generated.")
 
     return report
