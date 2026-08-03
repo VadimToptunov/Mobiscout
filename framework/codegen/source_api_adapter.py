@@ -91,6 +91,47 @@ def contracts_to_api_calls(contracts: Iterable[Any]) -> List[APICall]:
     return calls
 
 
+def har_calls_to_api_calls(har_calls: Iterable[Any]) -> List[APICall]:
+    """Convert captured HAR traffic (``api_analyzer.APICall``) to ``model.APICall``.
+
+    Repeated calls to the same ``(method, path)`` are grouped and their **observed**
+    response statuses unioned, so the generated test asserts the status the API
+    actually returned (the strengthened assertion in ``api_test``). Absolute URLs
+    are reduced to paths (the test prepends BASE_URL)."""
+    grouped: Dict[tuple, Set[int]] = {}
+    order: List[tuple] = []
+    for call in har_calls:
+        raw_method = getattr(call, "method", None)
+        method = str(getattr(raw_method, "value", raw_method) or "GET").upper()
+        path = _as_path(getattr(call, "url", "") or "")
+        key = (method, path)
+        if key not in grouped:
+            grouped[key] = set()
+            order.append(key)
+        status = getattr(call, "response_status", None)
+        if status:
+            grouped[key].add(int(status))
+
+    calls: List[APICall] = []
+    seen: Set[str] = set()
+    for method, path in order:
+        name = _unique(f"{method.lower()}_{_slug(path)}", seen)
+        responses = [{"status": status} for status in sorted(grouped[(method, path)])]
+        # triggers_state_change is optional (default None); see openapi.py.
+        calls.append(APICall(name=name, endpoint=path, method=method, responses=responses))  # type: ignore[call-arg]
+    return calls
+
+
+def base_url_from_har(har_calls: Iterable[Any], default: str = "http://localhost:8000") -> str:
+    """The backend origin (scheme://host) of the first captured absolute URL, so
+    generated tests default to the real backend; ``default`` if none is absolute."""
+    for call in har_calls:
+        parsed = urlparse(getattr(call, "url", "") or "")
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    return default
+
+
 def _ios_source_api_calls(root: Path) -> List[APICall]:
     """Statically extract the API a Swift/iOS app calls (URLSession) as APICalls."""
     from framework.analyzers.business_logic_analyzer import BusinessLogicAnalysis

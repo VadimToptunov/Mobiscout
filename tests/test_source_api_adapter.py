@@ -2,13 +2,16 @@
 calls; this maps them onto the codegen model so `generate api-tests --source`
 produces tests from the app's own code (not only a user-supplied OpenAPI spec)."""
 
+import json
 import py_compile
 from types import SimpleNamespace
 
 from framework.codegen.api_test import emit_api_tests
 from framework.codegen.source_api_adapter import (
+    base_url_from_har,
     contracts_to_api_calls,
     endpoints_to_api_calls,
+    har_calls_to_api_calls,
     source_api_calls,
 )
 
@@ -117,3 +120,56 @@ def test_ios_swift_source_yields_api_calls(tmp_path):
     calls = source_api_calls(str(tmp_path))
     assert any(c.endpoint == "/accounts/me" for c in calls)
     assert all(not c.endpoint.startswith("http") for c in calls)  # normalized to paths
+
+
+# --- captured HAR traffic -> API tests (with observed status assertions) --------
+
+
+def _har_call(method, url, response_status):
+    return SimpleNamespace(method=method, url=url, response_status=response_status)
+
+
+def test_har_calls_group_and_union_observed_statuses():
+    calls = har_calls_to_api_calls(
+        [
+            _har_call("GET", "https://api.bank.com/accounts", 200),
+            _har_call("GET", "https://api.bank.com/accounts", 500),  # same endpoint, another status
+            _har_call("POST", "https://api.bank.com/transfers", 201),
+        ]
+    )
+    by_ep = {(c.method, c.endpoint): c for c in calls}
+    assert set(by_ep) == {("GET", "/accounts"), ("POST", "/transfers")}  # deduped, URLs -> paths
+    statuses = sorted(r["status"] for r in by_ep[("GET", "/accounts")].responses)
+    assert statuses == [200, 500]  # observed statuses unioned
+
+
+def test_base_url_from_har():
+    assert base_url_from_har([_har_call("GET", "https://api.bank.com/x", 200)]) == "https://api.bank.com"
+    assert base_url_from_har([_har_call("GET", "", None)]) == "http://localhost:8000"  # fallback
+
+
+def test_har_to_runnable_api_tests_end_to_end(tmp_path):
+    """A captured HAR -> `api analyze --emit-tests` -> a runnable test_api.py that
+    asserts the observed status (via #303's documented-status assertion)."""
+    from click.testing import CliRunner
+
+    from framework.cli.api_commands import api
+
+    har = {
+        "log": {
+            "entries": [
+                {"request": {"method": "GET", "url": "https://api.bank.com/accounts/me"}, "response": {"status": 200}},
+            ]
+        }
+    }
+    har_file = tmp_path / "capture.har"
+    har_file.write_text(json.dumps(har), encoding="utf-8")
+    out_dir = tmp_path / "apitests"
+
+    result = CliRunner().invoke(api, ["analyze", str(har_file), "--emit-tests", str(out_dir)])
+    assert result.exit_code == 0, result.output
+
+    test_src = (out_dir / "test_api.py").read_text(encoding="utf-8")
+    assert "/accounts/me" in test_src
+    assert "response.status_code in [200]" in test_src  # observed status became the contract
+    py_compile.compile(str(out_dir / "test_api.py"), doraise=True)
