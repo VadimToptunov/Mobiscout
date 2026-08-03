@@ -1,6 +1,9 @@
 # Phase 3 Implementation Roadmap - Advanced Features
 
-> Status: Phase 1 & 2 Complete ✅ | Phase 3 Starting
+> Status: Priorities 1–3 **shipped** — API Mocking (`mobiscout mock`), Accessibility
+> (`mobiscout a11y`), and Load Testing (`mobiscout load`) are implemented. Still
+> future: Priority 4 (Cross-Platform Sync) and Priority 5 (Analytics CLI) — no
+> `sync`/`analytics` command groups exist yet.
 
 ---
 

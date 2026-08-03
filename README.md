@@ -108,16 +108,36 @@ locators.
 
 ### 4. API contract tests
 
-Point at an OpenAPI/Swagger spec (file **or URL**) and get contract tests
-alongside the UI suite ([example](examples/shop_demo/api/test_api.py)). A full
-generated kit lives in [`examples/shop_demo/`](examples/shop_demo):
+Get contract tests (pytest + requests) from any of three inputs — the app's own
+**source** (Retrofit on Android, URLSession on iOS), an **OpenAPI/Swagger** spec
+(file or URL), or **captured traffic** (a proxy HAR):
 
-```python
-def test_login(session):
-    """POST /auth/login"""
-    response = session.post(BASE_URL + "/auth/login", json={'email': 'test', 'password': 'test'})
-    assert response.status_code < 500
+```bash
+mobiscout generate api-tests --source ./app/src        # extract the API the app calls
+mobiscout generate api-tests --openapi openapi.yaml    # from the backend's spec
+mobiscout api analyze capture.har --emit-tests tests/  # from recorded traffic
+mobiscout crawl --package com.x.app --har capture.har  # UI tests + API tests in one kit
 ```
+
+Each test asserts the status the API documents (else that it did not 5xx) and, when
+a response schema is known, that a success body carries the documented fields.
+
+### 5. Tests from source (no device)
+
+Point at the app's **source** and get runnable UI tests from the screens/elements
+in the code — Android/Compose and iOS/SwiftUI:
+
+```bash
+mobiscout generate tests --source ./app/src --app-package com.x.app
+```
+
+Generated pytest is **environment-configurable**: set `MOBISCOUT_APPIUM_SERVER`
+(hub URL) and `MOBISCOUT_EXTRA_CAPS` (JSON capabilities) to run the same suite on
+a cloud grid or a different server without regenerating.
+
+> Static source analysis and the live crawl support **Android and iOS**. (The ML
+> element classifier is additionally trained on Flutter/React Native samples, but
+> those aren't yet analyzable/crawlable platforms.)
 
 Plus an accessibility audit and an APK/IPA security scan (OWASP-mapped) round out
 the picture — so a tester gets an inventory, a map, and a running suite from a
@@ -501,7 +521,7 @@ mobiscout load compare baseline.json current.json
 ### Complete Guides
 
 - **[Architecture](docs/ARCHITECTURE.md)** - System design & components
-- **[Phase 5: Rust Core](docs/PHASE5_RUST_CORE.md)** - Performance migration guide
+- **[Rust Core](docs/RUST_CORE.md)** - CPU-heavy paths in Rust
 - **[Load Testing](docs/LOAD_TESTING.md)** - Performance testing guide
 - **[API Mocking](docs/API_MOCKING.md)** - Mock & replay APIs
 - **[Advanced Selectors](docs/ADVANCED_SELECTORS.md)** - Robust selectors
@@ -511,8 +531,6 @@ mobiscout load compare baseline.json current.json
 
 - **[Quick Start](QUICKSTART.md)** - 10-minute setup
 - **[User Guide](USER_GUIDE.md)** - Complete use cases & workflows ⭐
-- **[CLI Reference](docs/CLI_REFERENCE.md)** - All commands
-- **[Configuration](docs/CONFIGURATION.md)** - Setup guide
 
 ---
 
