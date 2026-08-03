@@ -122,7 +122,13 @@ def features(model: str, output: str) -> None:
 
 
 @generate.command()
-@click.option("--model", required=True, type=click.Path(exists=True), help="App model YAML file")
+@click.option("--model", type=click.Path(exists=True), help="App model YAML file")
+@click.option(
+    "--source",
+    "source",
+    type=click.Path(exists=True),
+    help="App SOURCE directory: build UI tests from the screens/elements in the code (Android/Compose)",
+)
 @click.option("--app-package", required=True, help="App under test, e.g. com.example.app")
 @click.option("--target", default="python_pytest", help="Codegen target (see --list-targets)")
 @click.option("--output", default="tests/generated", help="Output directory")
@@ -131,6 +137,7 @@ def features(model: str, output: str) -> None:
 @click.option("--list-targets", is_flag=True, help="List available codegen targets and exit")
 def tests(
     model: str,
+    source: str,
     app_package: str,
     target: str,
     output: str,
@@ -139,12 +146,14 @@ def tests(
     list_targets: bool,
 ) -> None:
     """
-    Generate runnable test code in any supported language from an app model.
+    Generate runnable test code in any supported language from an app model, or
+    straight from the app's SOURCE (--source builds the model by static analysis).
 
     Uses the language-agnostic codegen pipeline (one IR, many emitters), so the
     same model can produce Python/Java/JS/Kotlin, imperative or BDD.
 
     Example:
+        mobiscout generate tests --source ./app/src --app-package com.x.app
         mobiscout generate tests --model app.yaml --app-package com.x.app \\
             --target java_testng --output tests/java
     """
@@ -157,6 +166,10 @@ def tests(
             print_info(f"{t.id}  —  {t.description}")
         return
 
+    if not model and not source:
+        print_error("Provide --source or --model.")
+        raise click.Abort()
+
     target_ids = [t.id for t in available_targets()]
     if target not in target_ids:
         print_error(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
@@ -165,7 +178,12 @@ def tests(
     print_header("🧪 Generating tests", f"Target: {target}")
 
     try:
-        app_model = load_app_model(Path(model))
+        if source:
+            from framework.codegen.source_app_model import source_app_model
+
+            app_model = source_app_model(source)
+        else:
+            app_model = load_app_model(Path(model))
 
         test_model = build_smoke_model(
             app_model, app_package=app_package, suite_name=suite_name, app_activity=app_activity
@@ -186,7 +204,7 @@ def tests(
 
         print_success(f"Generated {len(files)} file(s) for {len(test_model.cases)} screen(s)")
         print_info(f"Output directory: {output_path.absolute()}")
-        logger.info(f"Generated {len(files)} {target} files from {model}")
+        logger.info(f"Generated {len(files)} {target} files from {source or model}")
 
     except click.Abort:
         raise
