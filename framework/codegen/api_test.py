@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
@@ -36,10 +36,26 @@ class _ApiTest:
     method: str  # lower-case: get/post/put/delete/patch
     endpoint: str  # path params substituted with a sample value
     body: Dict[str, str] = field(default_factory=dict)
+    # Documented numeric status codes for the endpoint (e.g. from an OpenAPI spec).
+    # When known, the test asserts the response is one of them — a real contract
+    # check — instead of merely "not a 5xx". Empty => fall back to the 5xx check.
+    expected_statuses: List[int] = field(default_factory=list)
 
     @property
     def has_body(self) -> bool:
         return self.method in _BODY_METHODS and bool(self.body)
+
+
+def _expected_statuses(responses: Any) -> List[int]:
+    """The documented numeric status codes from an APICall's ``responses`` (OpenAPI
+    keys like ``"200"``/``"404"``; non-numeric keys such as ``"default"`` or
+    ``"2XX"`` are skipped). Sorted and de-duplicated."""
+    codes = set()
+    for response in responses or []:
+        raw = str((response or {}).get("status", "")).strip()
+        if raw.isdigit() and len(raw) == 3:
+            codes.add(int(raw))
+    return sorted(codes)
 
 
 def _build(app_model: AppModel) -> List[_ApiTest]:
@@ -54,7 +70,15 @@ def _build(app_model: AppModel) -> List[_ApiTest]:
             name += "_x"
         used.add(name)
         body = {snake(k): "test" for k in (call.request_schema or {}).keys()} if method in _BODY_METHODS else {}
-        tests.append(_ApiTest(name=name, method=method, endpoint=endpoint, body=body))
+        tests.append(
+            _ApiTest(
+                name=name,
+                method=method,
+                endpoint=endpoint,
+                body=body,
+                expected_statuses=_expected_statuses(getattr(call, "responses", None)),
+            )
+        )
     return tests
 
 

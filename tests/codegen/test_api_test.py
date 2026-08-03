@@ -44,3 +44,32 @@ def test_emits_one_test_per_endpoint_and_compiles(tmp_path):
 
 def test_no_api_calls_emits_nothing():
     assert emit_api_tests(_model([])) == {}
+
+
+def test_asserts_documented_status_codes_when_known(tmp_path):
+    """When the endpoint documents status codes (e.g. from an OpenAPI spec), the
+    test asserts the response is one of them — a real contract check — and skips
+    non-numeric keys like 'default'."""
+    model = _model(
+        [
+            APICall(
+                name="get_pet",
+                endpoint="/pets/{id}",
+                method="GET",
+                responses=[{"status": "200"}, {"status": "404"}, {"status": "default"}],
+            )
+        ]
+    )
+    content = emit_api_tests(model)["test_api.py"]
+    assert "response.status_code in [200, 404]" in content  # documented codes, 'default' dropped
+    assert "status_code < 500" not in content  # the weaker fallback is not used here
+    f = tmp_path / "test_api.py"
+    f.write_text(content, encoding="utf-8", newline="\n")
+    py_compile.compile(str(f), doraise=True)
+
+
+def test_falls_back_to_no_5xx_without_documented_statuses():
+    """No documented responses (e.g. endpoints extracted from source) — keep the
+    reachable-and-not-5xx check."""
+    content = emit_api_tests(_model([APICall(name="ping", endpoint="/ping", method="GET")]))["test_api.py"]
+    assert "response.status_code < 500" in content
