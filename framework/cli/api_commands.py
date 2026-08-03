@@ -8,7 +8,7 @@ into API tests.
 
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import click
 from rich.table import Table
@@ -29,8 +29,18 @@ def api() -> None:
 @click.option(
     "--min-confidence", default=0.7, type=float, show_default=True, help="Minimum confidence for a generated assertion."
 )
-def analyze(har_file: str, output: Optional[str], min_confidence: float) -> None:
-    """Analyze a HAR capture: surface API call patterns and generate assertions."""
+@click.option(
+    "--emit-tests",
+    type=click.Path(),
+    default=None,
+    help="Also generate runnable pytest API tests from the captured traffic into this directory.",
+)
+def analyze(har_file: str, output: Optional[str], min_confidence: float, emit_tests: Optional[str]) -> None:
+    """Analyze a HAR capture: surface API call patterns and generate assertions.
+
+    With --emit-tests, the captured traffic is turned into runnable pytest+requests
+    tests that assert the status each endpoint actually returned.
+    """
     from framework.api_analyzer.api_log_analyzer import APIAnalyzer
     from framework.api_analyzer.har import load_har_calls
 
@@ -40,6 +50,22 @@ def analyze(har_file: str, output: Optional[str], min_confidence: float) -> None
     if not calls:
         print_error("No modelled API calls found in the HAR.")
         raise click.Abort()
+
+    if emit_tests:
+        from types import SimpleNamespace
+
+        from framework.codegen.api_test import emit_api_tests
+        from framework.codegen.source_api_adapter import base_url_from_har, har_calls_to_api_calls
+
+        api_calls = har_calls_to_api_calls(calls)
+        app_model: Any = SimpleNamespace(api_calls={c.name: c for c in api_calls})
+        files = emit_api_tests(app_model, base_url=base_url_from_har(calls))
+        tests_dir = Path(emit_tests)
+        for filename, content in files.items():
+            dest = tests_dir / filename
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(content, encoding="utf-8", newline="\n")
+        print_success(f"✅ Generated API tests from captured traffic: {tests_dir}")
 
     analyzer = APIAnalyzer()
     for call in calls:
