@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
+from framework.analyzers._scope import block_text_after, enclosing_declaration
 from framework.analyzers.analysis_result import (
     AnalysisResult,
     ScreenCandidate,
@@ -251,15 +252,10 @@ class AndroidAnalyzer:
         return None
 
     def _find_ui_elements_in_scope(self, content: str, start_pos: int, func_name: str) -> List[str]:
-        """Find test tags within a function scope"""
-        # Simple heuristic: look for test tags within ~500 characters of function start
-        scope = content[start_pos : start_pos + 2000]
-
-        tags = []
-        for match in self.test_tag_pattern.finditer(scope):
-            tags.append(match.group(1))
-
-        return tags
+        """Find test tags within a Composable's actual ``{...}`` body (brace-matched,
+        so tags from the *next* function no longer leak into this one)."""
+        scope = block_text_after(content, start_pos) or content[start_pos : start_pos + 2000]
+        return [match.group(1) for match in self.test_tag_pattern.finditer(scope)]
 
     def _guess_element_type(self, content: str, position: int) -> Optional[str]:
         """Guess UI element type from surrounding code"""
@@ -280,21 +276,11 @@ class AndroidAnalyzer:
         return None
 
     def _find_containing_screen(self, content: str, position: int) -> Optional[str]:
-        """Find which @Composable screen function contains this position"""
-        # Look backwards for @Composable function
-        before = content[:position]
-
-        # Find all @Composable functions before this point
-        composables = list(self.composable_pattern.finditer(before))
-
-        if composables:
-            last_composable = composables[-1]
-            func_name = last_composable.group(1)
-
-            # Check if it looks like a screen
-            if self.screen_pattern.search(func_name):
-                return func_name
-
+        """The @Composable screen function whose body actually contains this
+        position (brace-matched), not merely the nearest one before it."""
+        func_name = enclosing_declaration(content, position, self.composable_pattern)
+        if func_name and self.screen_pattern.search(func_name):
+            return func_name
         return None
 
     def _extract_function_signature(self, content: str, start_pos: int) -> str:

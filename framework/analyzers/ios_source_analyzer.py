@@ -16,6 +16,7 @@ import re
 from pathlib import Path
 from typing import List, Optional
 
+from framework.analyzers._scope import enclosing_declaration
 from framework.analyzers.analysis_result import AnalysisResult, ScreenCandidate, UIElementCandidate
 
 # A struct conforming to View — a SwiftUI screen/view.
@@ -97,8 +98,6 @@ class IOSSourceAnalyzer:
 
     @staticmethod
     def _containing_view(content: str, pos: int) -> Optional[str]:
-        """The nearest preceding ``struct X: View`` — the screen the element is on."""
-        name: Optional[str] = None
-        for match in _VIEW.finditer(content, 0, pos):
-            name = match.group(1)
-        return name
+        """The ``struct X: View`` whose body actually contains the element (brace-
+        matched, so an element after a view's closing brace isn't misattributed)."""
+        return enclosing_declaration(content, pos, _VIEW)
