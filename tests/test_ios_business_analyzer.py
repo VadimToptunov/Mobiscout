@@ -122,6 +122,31 @@ def test_api_contract_from_urlsession(tmp_path):
     assert any(c.method == "POST" for c in contracts)
 
 
+def test_api_contract_method_is_per_call_not_a_neighbour(tmp_path):
+    """Regression: a ±500-char window let one call's URL pick up a neighbouring
+    call's httpMethod (a POST read as the previous GET). Each request must keep
+    its own method (scoped to its enclosing block)."""
+    az = _project(
+        tmp_path,
+        {
+            "API.swift": (
+                "func fetchAccount() {\n"
+                '    var request = URLRequest(url: URL(string: "https://api.bank.com/accounts")!)\n'
+                '    request.httpMethod = "GET"\n'
+                "}\n"
+                "func transfer() {\n"
+                '    var request = URLRequest(url: URL(string: "https://api.bank.com/transfers")!)\n'
+                '    request.httpMethod = "POST"\n'
+                "}\n"
+            )
+        },
+    )
+    az.generate_api_contracts()
+    by_endpoint = {c.endpoint: c.method for c in az.analysis.api_contracts}
+    assert by_endpoint["https://api.bank.com/accounts"] == "GET"
+    assert by_endpoint["https://api.bank.com/transfers"] == "POST"
+
+
 def test_analyze_empty_project_is_safe(tmp_path):
     az = IOSBusinessAnalyzer(tmp_path, BusinessLogicAnalysis())
     az.analyze()  # no .swift files

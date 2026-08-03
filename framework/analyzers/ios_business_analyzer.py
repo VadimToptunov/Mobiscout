@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from framework.analyzers._scope import enclosing_block
 from framework.analyzers.business_logic_analyzer import (
     APIContract,
     BusinessLogicAnalysis,
@@ -23,6 +24,20 @@ from framework.analyzers.business_logic_analyzer import (
     StateMachine,
     UserFlow,
 )
+
+_HTTP_METHOD = re.compile(r'httpMethod\s*=\s*"(GET|POST|PUT|DELETE|PATCH)"')
+
+
+def _nearest_http_method(scope: str, target: int) -> str:
+    """The ``httpMethod`` assignment in ``scope`` nearest to ``target`` (the URL's
+    offset within the scope), or ``"GET"`` if none — so a request uses its own
+    method, not a neighbouring call's."""
+    best_method, best_distance = "GET", None
+    for match in _HTTP_METHOD.finditer(scope):
+        distance = abs(match.start() - target)
+        if best_distance is None or distance < best_distance:
+            best_method, best_distance = match.group(1), distance
+    return best_method
 
 
 class IOSBusinessAnalyzer:
@@ -323,14 +338,20 @@ class IOSBusinessAnalyzer:
                 for url_match in url_matches:
                     url = url_match.group(1)
 
-                    # Find HTTP method in context
+                    # Find HTTP method in context.
                     url_pos = url_match.start()
                     context_start = max(0, url_pos - 500)
                     context_end = min(len(content), url_pos + 500)
                     context = content[context_start:context_end]
 
-                    method_match = re.search(r'httpMethod\s*=\s*"(GET|POST|PUT|DELETE|PATCH)"', context)
-                    method = method_match.group(1) if method_match else "GET"
+                    # Prefer the httpMethod set on the SAME request: scope to the
+                    # URL's enclosing { } block, and pick the assignment nearest the
+                    # URL (a plain ±500 window grabbed a neighbouring call's method,
+                    # e.g. a POST reading as the previous GET).
+                    block = enclosing_block(content, url_pos)
+                    scope = content[block[0] : block[1] + 1] if block else context
+                    scope_base = block[0] if block else context_start
+                    method = _nearest_http_method(scope, url_pos - scope_base)
 
                     # Find schemas
                     schemas = re.findall(
