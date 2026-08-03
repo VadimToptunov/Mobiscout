@@ -86,3 +86,79 @@ def test_generate_tests_source_cli_end_to_end(tmp_path):
     generated = list(out_dir.rglob("test_*.py"))
     assert generated, "no test files written"
     assert "pay_button" in generated[0].read_text(encoding="utf-8")
+
+
+# --- iOS/SwiftUI source -> UI tests (the iOS twin of the Android path) ----------
+
+_SWIFTUI = """
+struct LoginView: View {
+    var body: some View {
+        VStack {
+            TextField("Username", text: $user).accessibilityIdentifier("username_field")
+            Button("Log in") { login() }.accessibilityIdentifier("login_button")
+            Text("Forgot password?").accessibilityLabel("forgot_password")
+        }
+    }
+}
+"""
+
+
+def test_ios_analyzer_extracts_screens_and_a11y_elements(tmp_path):
+    from framework.analyzers.ios_source_analyzer import IOSSourceAnalyzer
+
+    (tmp_path / "LoginView.swift").write_text(_SWIFTUI, encoding="utf-8")
+    result = IOSSourceAnalyzer().analyze(str(tmp_path))
+    assert result.platform == "ios"
+    assert [s.name for s in result.screens] == ["LoginView"]
+    ids = {e.id for e in result.ui_elements}
+    assert {"username_field", "login_button", "forgot_password"} <= ids
+    # elements are attributed to their containing view, and carry the a11y name
+    assert all(e.screen == "LoginView" for e in result.ui_elements)
+    assert all(e.content_description for e in result.ui_elements)
+
+
+def test_build_smoke_model_honours_ios_platform():
+    """Regression: build_smoke_model hardwired Android, so iOS models emitted the
+    wrong driver. It now follows the model's own platform."""
+    from framework.codegen.app_model_adapter import build_smoke_model
+    from framework.codegen.source_app_model import analysis_to_app_model
+    from framework.model.enums import Platform as ModelPlatform
+    from types import SimpleNamespace
+
+    result = SimpleNamespace(
+        screens=[SimpleNamespace(name="Home")],
+        ui_elements=[_ui("greeting", "Text", "Home", content_description="Welcome")],
+    )
+    app_model = analysis_to_app_model(result, platform=ModelPlatform.IOS)
+    assert app_model.meta.platform == ModelPlatform.IOS
+    tm = build_smoke_model(app_model, app_package="com.example.App")
+    assert tm.platform.value == "ios"
+
+
+def test_source_app_model_autodetects_ios(tmp_path):
+    from framework.codegen.source_app_model import source_app_model
+
+    (tmp_path / "HomeView.swift").write_text(
+        'struct HomeView: View { var body: some View { Button("Pay") {}.accessibilityIdentifier("pay") } }',
+        encoding="utf-8",
+    )
+    app_model = source_app_model(str(tmp_path))
+    assert app_model.meta.platform.value == "ios"
+    assert "HomeView" in app_model.screens
+
+
+def test_ios_source_to_runnable_xcuitest_end_to_end(tmp_path):
+    import py_compile
+
+    from framework.codegen import get_emitter
+    from framework.codegen.app_model_adapter import build_smoke_model
+    from framework.codegen.source_app_model import source_app_model
+
+    (tmp_path / "LoginView.swift").write_text(_SWIFTUI, encoding="utf-8")
+    tm = build_smoke_model(source_app_model(str(tmp_path)), app_package="com.example.App")
+    src = next(iter(get_emitter("python_pytest").emit(tm).values()))
+    assert "XCUITestOptions" in src and "UiAutomator2Options" not in src  # iOS driver
+    assert "login_button" in src
+    out = tmp_path / "test_ios_smoke.py"
+    out.write_text(src, encoding="utf-8", newline="\n")
+    py_compile.compile(str(out), doraise=True)
