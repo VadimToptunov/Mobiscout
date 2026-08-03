@@ -152,7 +152,7 @@ def test_api_tests_requires_a_source(runner):
     result = runner.invoke(generate, ["api-tests"])
     _no_crash(result)
     assert result.exit_code != 0
-    assert "Provide --model or --openapi" in result.output
+    assert "Provide --source, --model, or --openapi" in result.output
 
 
 _NON_ASCII_MODEL_YAML = """
