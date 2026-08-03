@@ -35,6 +35,22 @@ def block_after(content: str, from_pos: int) -> Optional[Tuple[int, int]]:
     return (open_i, len(content))
 
 
+def enclosing_block(content: str, pos: int) -> Optional[Tuple[int, int]]:
+    """``(open, close)`` of the innermost ``{...}`` block containing ``pos``, or
+    ``None`` if ``pos`` is not inside any block. Use it to scope a search to the
+    statement/function a token lives in instead of a fixed character window."""
+    stack = []
+    for i in range(min(pos, len(content))):
+        char = content[i]
+        if char == "{":
+            stack.append(i)
+        elif char == "}" and stack:
+            stack.pop()
+    if not stack:
+        return None
+    return block_after(content, stack[-1])
+
+
 def enclosing_declaration(content: str, pos: int, pattern: "Pattern[str]") -> Optional[str]:
     """Name (regex group 1) of the *tightest* declaration matched by ``pattern``
     whose body block ``{...}`` contains ``pos``, else ``None``.
