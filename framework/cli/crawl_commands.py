@@ -93,6 +93,13 @@ logger = get_logger(__name__)
     help="After a successful crawl, uninstall the app from the device (adb uninstall / simctl "
     "uninstall). Off by default; a failed uninstall only warns and never fails the crawl.",
 )
+@click.option(
+    "--har",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Proxy capture (HAR) from the same session: also generate API contract tests for the "
+    "endpoints the app called, alongside the UI tests.",
+)
 def crawl(
     package: str,
     platform: str,
@@ -114,6 +121,7 @@ def crawl(
     assert_values: bool,
     record_events: Optional[str],
     uninstall_after: bool,
+    har: Optional[str],
 ) -> None:
     """
     Crawl a running app and export an element inventory + tests.
@@ -209,6 +217,7 @@ def crawl(
         app_activity=app_activity,
         launch_args=launch_args,
         assert_values=assert_values,
+        har=har,
     )
     for line in report.info:
         print_info(line)

@@ -143,18 +143,47 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         except ImportError:
             pass
 
+    # API tests from network traffic captured during the same session (a proxy
+    # HAR — mitmproxy/Charles). The crawl produces the UI tests; the capture adds
+    # contract tests for the endpoints the app actually called, in one kit.
+    api_tests = emit_api_tests_from_har(config.get("har"), out)
+
     return {
         "package": package,
         "platform": model.platform.value,
         "screens": len(result.screens),
         "transitions": len(result.transitions),
         "cases": len(model.cases),
+        "api_tests": api_tests,
         "targets": written,
         "scaffolded": scaffolded,
         "gap": gap,
         "invariants": invariant_count,
         "output": str(out.absolute()),
     }
+
+
+def emit_api_tests_from_har(har: Optional[str], out: Path) -> int:
+    """Write ``test_api.py`` into the kit at ``out`` from a captured proxy HAR,
+    returning the number of endpoints covered (0 when no HAR is given or it holds
+    no modelled calls). Shared by both kit writers (``build_kit`` and the crawl
+    CLI's ``write_kit``) so a crawl + capture yields UI *and* API tests."""
+    if not har:
+        return 0
+    from types import SimpleNamespace
+
+    from framework.api_analyzer.har import load_har_calls
+    from framework.codegen.api_test import emit_api_tests
+    from framework.codegen.source_api_adapter import base_url_from_har, har_calls_to_api_calls
+
+    har_calls = load_har_calls(Path(har))
+    api_calls = har_calls_to_api_calls(har_calls)
+    if not api_calls:
+        return 0
+    app_model: Any = SimpleNamespace(api_calls={c.name: c for c in api_calls})
+    for name, content in emit_api_tests(app_model, base_url=base_url_from_har(har_calls)).items():
+        _write(out / name, content)
+    return len(api_calls)
 
 
 def _make_driver(config: Dict[str, Any]) -> Any:
