@@ -199,32 +199,46 @@ def tests(
 @generate.command("api-tests")
 @click.option("--model", type=click.Path(exists=True), help="App model YAML file (recorded api_calls)")
 @click.option("--openapi", help="OpenAPI/Swagger spec: local file OR http(s) URL (JSON or YAML)")
+@click.option(
+    "--source",
+    "source",
+    type=click.Path(exists=True),
+    help="App SOURCE directory: extract the API the app itself calls (Android/Retrofit)",
+)
 @click.option("--output", default="tests/api", help="Output directory")
 @click.option("--base-url", default="http://localhost:8000", help="Backend base URL for the tests")
-def api_tests(model: str, openapi: str, output: str, base_url: str) -> None:
+def api_tests(model: str, openapi: str, source: str, output: str, base_url: str) -> None:
     """
     Generate runnable API contract tests (pytest + requests).
 
-    Source the endpoints either from a recorded app model (--model) or, for much
-    richer context, straight from the backend's OpenAPI/Swagger spec (--openapi).
+    Source the endpoints from the app's own SOURCE (--source, extracts the API it
+    calls), a recorded app model (--model), or — for the richest context — the
+    backend's OpenAPI/Swagger spec (--openapi).
 
     Example:
+        mobiscout generate api-tests --source ./app/src --base-url https://api.example.com
         mobiscout generate api-tests --openapi openapi.yaml --base-url https://api.example.com
     """
     from framework.codegen.api_test import emit_api_tests
 
-    if not model and not openapi:
-        print_error("Provide --model or --openapi.")
+    if not model and not openapi and not source:
+        print_error("Provide --source, --model, or --openapi.")
         raise click.Abort()
 
     print_header("🔌 Generating API tests", f"Base URL: {base_url}")
     try:
+        from types import SimpleNamespace
+
         if openapi:
-            from types import SimpleNamespace
             from framework.codegen.openapi import load_spec, parse_openapi
 
             calls = parse_openapi(load_spec(openapi))
             app_model: Any = SimpleNamespace(api_calls={c.name: c for c in calls})
+        elif source:
+            from framework.codegen.source_api_adapter import source_api_calls
+
+            calls = source_api_calls(source)
+            app_model = SimpleNamespace(api_calls={c.name: c for c in calls})
         else:
             app_model = load_app_model(Path(model))
 
@@ -241,7 +255,7 @@ def api_tests(model: str, openapi: str, output: str, base_url: str) -> None:
 
         print_success(f"Generated API tests: {len(files)} file(s)")
         print_info(f"Output directory: {output_path.absolute()}")
-        logger.info(f"Generated API tests from {openapi or model}")
+        logger.info(f"Generated API tests from {openapi or source or model}")
 
     except click.Abort:
         raise
