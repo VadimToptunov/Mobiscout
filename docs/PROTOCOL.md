@@ -521,74 +521,7 @@ Type text into element.
 
 ---
 
-### 7. Logs
-
-#### `logs/stream`
-
-Start streaming device logs.
-
-**Request**:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 13,
-  "method": "logs/stream",
-  "params": {
-    "device_id": "emulator-5554",
-    "filter": "MyApp",  // optional
-    "level": "info"  // "verbose", "debug", "info", "warn", "error"
-  }
-}
-```
-
-**Response** (notification stream):
-
-```json
-{
-  "jsonrpc": "2.0",
-  "method": "logs/message",
-  "params": {
-    "timestamp": "2026-01-13T10:30:00Z",
-    "level": "info",
-    "tag": "ActivityManager",
-    "message": "START u0 {act=android.intent.action.MAIN}"
-  }
-}
-```
-
-#### `logs/stop`
-
-Stop log streaming.
-
-**Request**:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 14,
-  "method": "logs/stop",
-  "params": {
-    "device_id": "emulator-5554"
-  }
-}
-```
-
-**Response**:
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 14,
-  "result": {
-    "status": "stopped"
-  }
-}
-```
-
----
-
-### 8. Selector Engine
+### 7. Selector Engine
 
 #### `selector/generate`
 
@@ -639,7 +572,7 @@ Generate optimal selector for element.
 
 ---
 
-### 9. Flow Analysis
+### 8. Flow Analysis
 
 #### `flow/getGraph`
 
@@ -694,11 +627,12 @@ Get flow graph for recorded session.
 
 ---
 
-### 10. Code Generation
+### 9. Code Generation
 
 #### `codegen/generate`
 
-Generate test code from session.
+Generate a test kit for an app. **This is an alias of `kit/generate`** (same
+handler, same params/result — see below); prefer `kit/generate`.
 
 **Request**:
 
@@ -785,6 +719,21 @@ form field maps to one param; nothing is a magic default.
 
 ---
 
+### 10. Devices, apps & licence
+
+These handlers are live but kept brief here — params/results are small:
+
+- **`device/listAvds`** → `{ "avds": ["Pixel_3a_API_34", …] }`. List available
+  Android AVDs.
+- **`backend/list`** → the automation backends the daemon can use.
+- **`app/install`** — params `{platform, device_id, app_path}` (.apk/.app) →
+  `{ok, detail, platform, device_id}`. Never raises; `ok=false` on failure.
+- **`app/uninstall`** — params `{platform, device_id, package}` → same result
+  shape. Used by the install → crawl → cleanup flow.
+- **`license/status`** → `{tier, max_screens, max_tests, max_targets, features,
+  unlimited}`. The open-core engine reports `pro`/unlimited; a Mobiscout-PRO
+  install with a FREE licence reports `free` + its quotas.
+
 ## Notifications (Server → Client)
 
 The server can send notifications (no `id` field) to the client:
@@ -828,14 +777,14 @@ Progress update for long-running operations.
 
 ### Server (CLI)
 
-- Run in daemon mode: `mtr daemon --stdio` or `mtr daemon --tcp 33333`
+- Run in daemon mode: `mobiscout daemon --stdio` or `mobiscout daemon --tcp 33333`
 - Parse JSON-RPC from stdin, write to stdout
 - Use structured logging to stderr (won't interfere with protocol)
 - Maintain session state in memory
 
 ### Client (Plugin)
 
-- Spawn CLI process: `mtr daemon --stdio`
+- Spawn CLI process: `mobiscout daemon --stdio`
 - Send requests via stdin
 - Parse responses from stdout
 - Handle notifications asynchronously
@@ -854,7 +803,7 @@ Progress update for long-running operations.
 
 1. **Plugin starts CLI**:
    ```bash
-   mtr daemon --stdio
+   mobiscout daemon --stdio
    ```
 
 2. **Health check**:
@@ -901,17 +850,18 @@ Progress update for long-running operations.
 
 ## Testing
 
-Use `mtr protocol-test` command to test protocol implementation:
+The daemon speaks newline-delimited JSON-RPC on stdio, so you can drive it
+directly — pipe a request in and read the response:
 
 ```bash
-# Start interactive REPL
-mtr protocol-test --interactive
+echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | mobiscout daemon --stdio
+```
 
-# Run test suite
-mtr protocol-test --suite basic
+Or connect over TCP and talk to it interactively:
 
-# Test specific method
-mtr protocol-test --method health/check
+```bash
+mobiscout daemon --tcp 33333 &
+nc 127.0.0.1 33333
 ```
 
 ---

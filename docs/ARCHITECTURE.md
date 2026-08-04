@@ -25,7 +25,10 @@
 
 Mobiscout is a **next-generation intelligent mobile testing framework** that combines:
 
-- 🦀 **Rust Core** for 16x performance boost
+- 🕷️ **Autonomous crawl → test kit** — walk an app, build an element inventory +
+  an interaction graph, and generate runnable UI + API tests (the headline
+  pipeline; see *Test-generation pipeline* below)
+- 🦀 **Rust Core** for CPU-heavy paths (parsing, file I/O)
 - 🤖 **Self-Learning ML** for universal element classification
 - 🔧 **Self-Healing Tests** with automatic selector repair
 - 📊 **Advanced Analytics** with observability and metrics
@@ -37,10 +40,10 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
 
 | Metric                         | Value                                                            |
 |--------------------------------|------------------------------------------------------------------|
-| **Performance Boost**          | 16x faster (Python → Rust)                                       |
+| **Rust acceleration**          | CPU-heavy paths only (parsing, file I/O); crawl wall-clock is cut mainly by adaptive settle (~20% adb / ~46% iOS) |
 | **Test Healing Success Rate**  | 92%                                                              |
 | **ML Classification Accuracy** | 94%                                                              |
-| **Supported Platforms**        | Android Native/Compose, iOS UIKit/SwiftUI, Flutter, React Native |
+| **Analyzed / crawled platforms** | Android (native + Compose), iOS (UIKit + SwiftUI). Flutter / React Native exist only as ML-classifier training samples — not analyzable or crawlable. |
 | **Lines of Code**              | ~50,000 (Python + Rust)                                          |
 | **Test Coverage**              | ~80% (measured)                                                  |
 
@@ -73,7 +76,7 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
 │                                                                      │
 │  Language: Rust 1.75+                                                │
 │  Size: ~1,830 lines                             │
-│  Performance: 16x faster than Python                                 │
+│  Performance: faster on CPU-heavy paths                                 │
 └──────────────────────────────────────────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼─────────────────────────────────────┐
@@ -107,7 +110,7 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
     - AST parsing, event correlation, file I/O
     - Compiled to native binary (no runtime)
     - C ABI for multi-language support
-    - 16x faster than Python
+    - faster on CPU-heavy paths
 
 2. **Python ML Layer (5%)** - Machine learning only
     - Element classification (scikit-learn)
@@ -124,7 +127,7 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
 
 **Why This Approach?**
 
-✅ **Performance**: Rust core for 16x speedup  
+✅ **Performance**: Rust core for CPU-heavy paths  
 ✅ **Flexibility**: Python for ML (best ecosystem)  
 ✅ **Maintainability**: Clear separation  
 ✅ **Binary Distribution**: Single executable
@@ -179,7 +182,27 @@ imperative + BDD), not language bindings — see the README.
 
 ## Core Components
 
-### 1. 🦀 Rust Core (`mobiscout_core`)
+### 1. 🕷️ Test-generation pipeline (`framework/crawler`, `framework/codegen`)
+
+The product's core: turn an app into a runnable test kit. Three inputs feed one
+language-agnostic IR, which many emitters render.
+
+- **Crawl** (`framework/crawler/app_crawler.py`) — drive a live app (adb or
+  Appium/XCUITest), fingerprint each screen, and walk it depth-first, filling
+  forms with sample data.
+- **Interaction graph** (`framework/crawler/graph.py`) — screens + transitions,
+  mined for reachability, depth, cycles, dead-ends and hub screens; exported as
+  Mermaid / DOT / JSON.
+- **IR → emitters** (`framework/codegen/`) — a `TestModel` (screens, steps,
+  ranked self-healing selectors) rendered to 8 targets (Python/Java/Kotlin/JS,
+  imperative + BDD) via `get_emitter(target).emit(model)`.
+- **Other inputs to the same IR:** static **source** analysis
+  (`framework/analyzers/*` → `source_app_model` / `source_api_adapter`; Android +
+  iOS), an **OpenAPI** spec (`framework/codegen/openapi.py`), and captured
+  **traffic** (a HAR → API tests). Open-core quotas are enforced here via
+  `framework.licensing` (no-op unless a paid tier limits them).
+
+### 2. 🦀 Rust Core (`mobiscout_core`)
 
 **Purpose:** High-performance CPU-intensive operations
 
@@ -206,7 +229,7 @@ imperative + BDD), not language bindings — see the README.
 
 #### File I/O Utilities
 
-- **Performance:** 16x faster than Python
+- **Performance:** faster on CPU-heavy paths
 - **Parallel Reading:** Rayon-powered
 - **Functions:** 15 utility functions
 - **Throughput:** 1.5 GB/s
@@ -220,7 +243,7 @@ imperative + BDD), not language bindings — see the README.
 
 ---
 
-### 2. 🤖 ML System
+### 3. 🤖 ML System
 
 **Architecture:**
 
@@ -251,7 +274,8 @@ imperative + BDD), not language bindings — see the README.
 #### Universal Model
 
 - **Training Data:** 10,000+ anonymized elements
-- **Platforms:** Android Native/Compose, iOS UIKit/SwiftUI, Flutter, React Native
+- **Platforms:** Android (native + Compose) and iOS (UIKit + SwiftUI) are analyzed
+  and crawled; Flutter / React Native appear only as ML-classifier training samples
 - **Size:** 2.5 MB
 - **Inference Time:** <5ms per element
 
@@ -264,7 +288,7 @@ imperative + BDD), not language bindings — see the README.
 
 ---
 
-### 3. 🔧 Self-Healing System
+### 4. 🔧 Self-Healing System
 
 **Architecture:**
 
@@ -303,7 +327,7 @@ imperative + BDD), not language bindings — see the README.
 
 ---
 
-### 4. 📊 Advanced Analytics
+### 5. 📊 Advanced Analytics
 
 **Observability Stack:**
 
@@ -347,7 +371,7 @@ imperative + BDD), not language bindings — see the README.
 
 ---
 
-### 5. ⚡ Load Testing & Profiling
+### 6. ⚡ Load Testing & Profiling
 
 **Architecture:**
 
@@ -390,7 +414,7 @@ imperative + BDD), not language bindings — see the README.
 
 ---
 
-### 6. 🔒 Security & Accessibility
+### 7. 🔒 Security & Accessibility
 
 **Security Architecture:**
 
@@ -826,7 +850,7 @@ jobs:
 # 1. Install Python package
 pip install -e .
 
-# 2. Install Rust core (optional, for 16x speedup)
+# 2. Install Rust core (optional; speeds up CPU-heavy paths)
 pip install -e ".[rust]"
 
 # 3. Setup Appium
