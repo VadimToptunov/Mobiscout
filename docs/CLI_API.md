@@ -26,7 +26,9 @@ Communication via stdin/stdout using JSON-RPC 2.0 protocol.
 mobiscout daemon --tcp 33333
 ```
 
-**Note**: TCP mode not yet implemented in Phase 0.
+Both transports use the same newline-delimited JSON-RPC 2.0 framing. TCP binds to
+`127.0.0.1` and serves one client at a time (for debugging with `nc`); stdio is
+the default the IDE plugin uses.
 
 ## Protocol
 
@@ -46,27 +48,38 @@ See [PROTOCOL.md](./PROTOCOL.md) for complete JSON-RPC 2.0 specification.
 {"jsonrpc":"2.0","id":1,"result":{"status":"ok","version":"0.5.0","rust_core":true,"uptime_seconds":10}}
 ```
 
-## Available Methods (Phase 0)
+## Available Methods
 
-| Method               | Status        | Description                   |
-|----------------------|---------------|-------------------------------|
-| `health/check`       | ✅ Implemented | Health check and version info |
-| `environment/detect` | 🚧 Phase 0    | Detect Appium, SDKs, tools    |
-| `device/list`        | 📋 Phase 1    | List devices/simulators       |
-| `device/start`       | 📋 Phase 1    | Start emulator/simulator      |
-| `device/stop`        | 📋 Phase 1    | Stop device                   |
-| `session/start`      | 📋 Phase 2    | Start automation session      |
-| `session/stop`       | 📋 Phase 2    | Stop session                  |
-| `ui/getTree`         | 📋 Phase 2    | Get UI element tree           |
-| `ui/getScreenshot`   | 📋 Phase 2    | Capture screenshot            |
-| `action/tap`         | 📋 Phase 2    | Tap element/coordinates       |
-| `action/swipe`       | 📋 Phase 2    | Swipe gesture                 |
-| `action/type`        | 📋 Phase 2    | Type text                     |
-| `logs/stream`        | 📋 Phase 1    | Stream device logs            |
-| `logs/stop`          | 📋 Phase 1    | Stop log streaming            |
-| `selector/generate`  | 📋 Phase 6    | Generate smart selector       |
-| `flow/getGraph`      | 📋 Phase 8    | Get flow graph                |
-| `codegen/generate`   | 📋 Phase 7    | Generate test code            |
+Every method below is implemented — this is the live handler set registered in
+`framework/cli/daemon_commands.py`. See [PROTOCOL.md](./PROTOCOL.md) for the full
+params/results of each.
+
+| Method               | Description                                              |
+|----------------------|----------------------------------------------------------|
+| `health/check`       | Health check + version info                              |
+| `environment/detect` | Detect Appium, Android SDK / ANDROID_HOME, drivers, Xcode |
+| `device/list`        | List devices/simulators                                  |
+| `device/start`       | Boot an emulator/simulator                               |
+| `device/stop`        | Shut down a device                                       |
+| `device/listAvds`    | List available Android AVDs                              |
+| `backend/list`       | List available automation backends                       |
+| `session/start`      | Start an automation session (runs a device-free preflight) |
+| `session/stop`       | Stop a session                                           |
+| `ui/getTree`         | Get the UI element tree                                  |
+| `ui/getScreenshot`   | Capture a screenshot (real device dimensions)            |
+| `action/tap`         | Tap element/coordinates                                  |
+| `action/swipe`       | Swipe gesture                                            |
+| `action/type`        | Type text                                                |
+| `selector/generate`  | Ranked, self-healing locator for an element              |
+| `flow/getGraph`      | Interaction graph for an app                             |
+| `kit/generate`       | Crawl + generate the full test kit (params: `package`, …) |
+| `codegen/generate`   | Alias of `kit/generate`                                  |
+| `app/install`        | Install a build (.apk/.app) on a device                  |
+| `app/uninstall`      | Uninstall the app from a device                          |
+| `license/status`     | Active entitlement tier + quotas (open-core is unlimited) |
+
+> There is **no** `logs/stream` / `logs/stop` — earlier drafts of this doc listed
+> them; they were never implemented.
 
 ## IDE Plugin Integration Guide
 
@@ -249,8 +262,8 @@ print(response)
 ## Security
 
 - Daemon runs with user permissions
-- No authentication in Phase 0 (local use only)
-- No network exposure (stdio only)
+- No authentication (local use only)
+- No public network exposure — stdio, or TCP bound to `127.0.0.1`
 - Future: Add authentication for TCP mode
 
 ## Troubleshooting
@@ -285,21 +298,11 @@ python -m framework.cli.main daemon --stdio
 
 ## Roadmap
 
-### Phase 0 (Current)
-
-- ✅ JSON-RPC protocol
-- ✅ Health check
-- 🚧 Environment detection
-
-### Phase 1 (Next)
-
-- Device management
-- Log streaming
-- Basic UI inspection
-
-### Phase 2-11
-
-See [JETBRAINS_PLUGIN_ROADMAP.md](../JETBRAINS_PLUGIN_ROADMAP.md) for complete roadmap.
+The daemon protocol is complete for the current product: health, environment
+detection, device + session lifecycle, UI inspection, input actions, selector +
+graph generation, the full crawl→kit (`kit/generate`), app install/uninstall, and
+licence status are all live (see the table above). See
+[JETBRAINS_PLUGIN_ROADMAP.md](../JETBRAINS_PLUGIN_ROADMAP.md) for plugin-side plans.
 
 ## Support
 
@@ -360,8 +363,8 @@ try:
     health = client.call("health/check")
     print(f"Health: {health}")
     
-    # More methods coming in Phase 1+
-    # devices = client.call("device/list", {"platform": "android"})
+    # Any of the methods in the table above, e.g.:
+    devices = client.call("device/list", {"platform": "android"})
     # session = client.call("session/start", {...})
     
 finally:
