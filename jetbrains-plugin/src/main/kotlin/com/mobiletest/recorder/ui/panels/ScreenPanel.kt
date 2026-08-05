@@ -2,6 +2,7 @@ package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonObject
 import com.intellij.openapi.project.Project
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.mobiletest.recorder.services.MTRDaemonService
@@ -59,7 +60,7 @@ class ScreenPanel(
     }
     
     init {
-        imagePanel.background = Color.DARK_GRAY
+        imagePanel.background = JBColor(0x2B2B2B, 0x1E1E1E)
         imagePanel.preferredSize = Dimension(400, 800)
         
         // Handle clicks on image
