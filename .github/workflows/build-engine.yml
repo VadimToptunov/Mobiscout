@@ -86,8 +86,13 @@ jobs:
             out/${{ matrix.artifact }}.sha256
           if-no-files-found: error
 
-      - name: Attach to release
-        if: github.event_name == 'release'
+      - name: Create / attach release
+        # On a tag push, create the release for the tag and upload the binaries;
+        # on a published release, attach to it. Either way the plugin's
+        # EngineProvider can then GET releases/download/<tag>/<asset>. Without the
+        # tag-push case, `git push vX.Y.Z` built artifacts but published nothing,
+        # so the plugin's download 404'd.
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           files: |
