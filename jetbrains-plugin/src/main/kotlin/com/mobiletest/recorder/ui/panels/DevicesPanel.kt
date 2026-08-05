@@ -3,6 +3,7 @@ package com.mobiletest.recorder.ui.panels
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import com.mobiletest.recorder.services.MTRDaemonService
@@ -57,12 +58,7 @@ class DevicesPanel(
                 if (result != null) {
                     updateTable(result)
                 } else {
-                    JOptionPane.showMessageDialog(
-                        panel,
-                        "Failed to list devices. Is daemon running?",
-                        "Error",
-                        JOptionPane.ERROR_MESSAGE
-                    )
+                    Messages.showErrorDialog(project, "Failed to list devices. Is the engine running?", "Devices")
                 }
             }
         }).execute()
@@ -90,7 +86,7 @@ class DevicesPanel(
     private fun installBuild() {
         val row = table.selectedRow
         if (row < 0) {
-            JOptionPane.showMessageDialog(panel, "Select a device first.", "Install build", JOptionPane.WARNING_MESSAGE)
+            Messages.showWarningDialog(project, "Select a device first.", "Install Build")
             return
         }
         val deviceId = tableModel.getValueAt(row, 0)?.toString().orEmpty()
@@ -116,13 +112,12 @@ class DevicesPanel(
             override fun done() {
                 val result = get()
                 val ok = result?.get("ok")?.asBoolean ?: false
-                val detail = result?.get("detail")?.asString ?: "No response from the daemon."
-                JOptionPane.showMessageDialog(
-                    panel,
-                    if (ok) "Installed on $deviceId." else "Install failed: $detail",
-                    "Install build",
-                    if (ok) JOptionPane.INFORMATION_MESSAGE else JOptionPane.ERROR_MESSAGE
-                )
+                val detail = result?.get("detail")?.asString ?: "No response from the engine."
+                if (ok) {
+                    Messages.showInfoMessage(project, "Installed on $deviceId.", "Install Build")
+                } else {
+                    Messages.showErrorDialog(project, "Install failed: $detail", "Install Build")
+                }
             }
         }).execute()
     }

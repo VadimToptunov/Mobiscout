@@ -1,7 +1,13 @@
 package com.mobiletest.recorder.ui
 
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
+import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBTabbedPane
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
@@ -39,57 +45,76 @@ class MTRToolWindow(private val project: Project) {
         val toolbar = JPanel()
         toolbar.layout = BoxLayout(toolbar, BoxLayout.X_AXIS)
         
-        // Start/Stop Daemon buttons
+        // Theme-aware status colours (a hardcoded Color.GREEN/RED washes out in the
+        // Darcula/dark themes); JBColor picks the right shade per theme.
+        val runningColor = JBColor(0x2E7D32, 0x6A8759)
+        val stoppedColor = JBColor(0x9E9E9E, 0x808080)
+
         val startButton = JButton("Start Daemon")
         val stopButton = JButton("Stop Daemon")
-        val statusLabel = JLabel("Daemon: Stopped")
-        
+        val statusLabel = JLabel("● Stopped").apply { foreground = stoppedColor }
+        // The primary action — surfaced right in the tool window instead of only
+        // living under Tools ▸ Mobiscout Framework.
+        val generateButton = JButton("Generate Test Kit…")
+
         startButton.addActionListener {
+            startButton.isEnabled = false
+            statusLabel.text = "● Starting…"
+            statusLabel.foreground = stoppedColor
             (object : SwingWorker<Boolean, Void>() {
-                override fun doInBackground(): Boolean {
-                    return daemonService.start()
-                }
-                
+                override fun doInBackground(): Boolean = daemonService.start()
+
                 override fun done() {
                     val started = get()
                     if (started) {
-                        statusLabel.text = "Daemon: Running"
-                        statusLabel.foreground = java.awt.Color.GREEN
-                        startButton.isEnabled = false
+                        statusLabel.text = "● Running"
+                        statusLabel.foreground = runningColor
                         stopButton.isEnabled = true
-                        
-                        // Refresh devices
                         devicesPanel.refreshDevices()
                     } else {
-                        JOptionPane.showMessageDialog(
-                            mainPanel,
-                            "Failed to start the engine. It is downloaded automatically on first use; " +
-                                "check your internet connection, or install the 'mobiscout' CLI on PATH.",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
+                        statusLabel.text = "● Stopped"
+                        statusLabel.foreground = stoppedColor
+                        startButton.isEnabled = true
+                        Messages.showErrorDialog(
+                            project,
+                            "The engine is downloaded automatically on first use. Check your internet " +
+                                "connection, or install the 'mobiscout' CLI on PATH.",
+                            "Couldn't Start the Mobiscout Engine",
                         )
                     }
                 }
             }).execute()
         }
-        
+
         stopButton.addActionListener {
             daemonService.stop()
-            statusLabel.text = "Daemon: Stopped"
-            statusLabel.foreground = java.awt.Color.RED
+            statusLabel.text = "● Stopped"
+            statusLabel.foreground = stoppedColor
             startButton.isEnabled = true
             stopButton.isEnabled = false
         }
-        
+
+        // Run the registered "Generate Test Kit" action (starts the daemon if
+        // needed). ActionUtil.invokeAction is the sanctioned way to fire an action
+        // programmatically — don't call actionPerformed() directly (override-only).
+        generateButton.addActionListener {
+            ActionManager.getInstance().getAction("MTR.GenerateKit")?.let { action ->
+                val ctx = SimpleDataContext.getProjectContext(project)
+                ActionUtil.invokeAction(action, ctx, ActionPlaces.TOOLWINDOW_CONTENT, null, null)
+            }
+        }
+
         stopButton.isEnabled = false
-        
+
+        toolbar.add(generateButton)
+        toolbar.add(Box.createHorizontalStrut(12))
         toolbar.add(startButton)
         toolbar.add(Box.createHorizontalStrut(5))
         toolbar.add(stopButton)
         toolbar.add(Box.createHorizontalStrut(10))
         toolbar.add(statusLabel)
         toolbar.add(Box.createHorizontalGlue())
-        
+
         mainPanel.add(toolbar, BorderLayout.NORTH)
     }
     
