@@ -14,6 +14,7 @@ import com.mobiletest.recorder.services.MTRToolWindowService
 import com.mobiletest.recorder.ui.panels.DevicesPanel
 import com.mobiletest.recorder.ui.panels.InspectorPanel
 import com.mobiletest.recorder.ui.panels.LogsPanel
+import com.mobiletest.recorder.ui.panels.ProPanel
 import com.mobiletest.recorder.ui.panels.ScreenPanel
 import java.awt.BorderLayout
 import javax.swing.*
@@ -27,6 +28,7 @@ class MTRToolWindow(private val project: Project) {
     private val screenPanel = ScreenPanel(project, daemonService)
     private val inspectorPanel = InspectorPanel(project, daemonService)
     private val logsPanel = LogsPanel(project, daemonService)
+    private val proPanel = ProPanel(project, daemonService)
     
     private val mainPanel = JPanel(BorderLayout())
     
@@ -71,6 +73,7 @@ class MTRToolWindow(private val project: Project) {
                         statusLabel.foreground = runningColor
                         stopButton.isEnabled = true
                         devicesPanel.refreshDevices()
+                        proPanel.refreshTier()
                     } else {
                         statusLabel.text = "● Stopped"
                         statusLabel.foreground = stoppedColor
@@ -123,6 +126,7 @@ class MTRToolWindow(private val project: Project) {
         tabbedPane.addTab("Screen", screenPanel.getPanel())
         tabbedPane.addTab("Inspector", inspectorPanel.getPanel())
         tabbedPane.addTab("Logs", logsPanel.getPanel())
+        tabbedPane.addTab("PRO", proPanel.getPanel())
         
         mainPanel.add(tabbedPane, BorderLayout.CENTER)
     }
