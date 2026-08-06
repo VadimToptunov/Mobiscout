@@ -443,6 +443,10 @@ class JSONRPCServer:
             # call and works whatever the screen size (was hardcoded 1080x2400,
             # which mis-scaled coordinate taps on every other device).
             width, height = _png_dimensions(image_data)
+            # Remember the mirror's pixel size so an iOS tap can map a click on it
+            # back into Appium points (simctl PNG is native pixels, ~3× the points
+            # `mobile: tap` expects).
+            self.sessions[session_id]["_screenshot_px"] = (width, height)
             return {"format": format_type, "data": base64_data, "width": width, "height": height}
         finally:
             if os.path.exists(tmp_path):
@@ -467,7 +471,21 @@ class JSONRPCServer:
         platform = str(session.get("platform") or "android").lower()
 
         if platform == "ios":
-            self._session_driver(session).tap(int(x), int(y))
+            driver = self._session_driver(session)
+            tx, ty = int(x), int(y)
+            # The Screen tab derives coordinates from the mirror, which is a native
+            # simctl screenshot in pixels; `mobile: tap` wants points. Scale by the
+            # pixel→point ratio so a click lands where the user aimed (skipped when
+            # the caller already sent points, i.e. no screenshot was taken).
+            px = session.get("_screenshot_px")
+            if px and px[0] and px[1]:
+                try:
+                    size = driver.window_size()
+                    tx = round(tx * size["width"] / px[0])
+                    ty = round(ty * size["height"] / px[1])
+                except Exception:
+                    pass
+            driver.tap(tx, ty)
         else:
             device_id = session["device_id"]
             subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
