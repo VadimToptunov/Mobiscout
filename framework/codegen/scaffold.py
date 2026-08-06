@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from typing import Callable, Dict
 
+from framework.codegen.emitters._naming import pascal
 from framework.codegen.ir import Platform, TestModel
 
 
@@ -138,11 +139,202 @@ def _python_pytest(model: TestModel, server: str, target: str) -> Dict[str, str]
     return {"requirements.txt": requirements, "pytest.ini": pytest_ini, "README.md": readme}
 
 
+def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
+    """Maven project shell for the Java targets (TestNG or Cucumber).
+
+    The emitters write flat files under ``<target>/`` (e.g. ``CrawlFlow.java``) that
+    declare ``package generated`` — the file path doesn't mirror the package. Rather
+    than rely on Surefire's path→FQN inference (which would look for a default-package
+    class and miss it), the run is driven from a ``testng.xml`` that names the class
+    by its real FQN, so it works regardless of the flat layout. ``mvn`` still compiles
+    everything under ``<target>/`` into the ``generated`` package.
+    """
+    is_ios = model.platform is Platform.IOS
+    is_cucumber = target == "java_cucumber"
+    cls = pascal(model.name)
+    driver = "xcuitest" if is_ios else "uiautomator2"
+
+    files: Dict[str, str] = {}
+    if is_cucumber:
+        run_class = "RunCucumberTest"
+        files[f"{target}/{run_class}.java"] = (
+            "package generated;\n\n"
+            "import io.cucumber.testng.AbstractTestNGCucumberTests;\n"
+            "import io.cucumber.testng.CucumberOptions;\n\n"
+            f'@CucumberOptions(features = "{target}", glue = "generated")\n'
+            f"public class {run_class} extends AbstractTestNGCucumberTests {{\n}}\n"
+        )
+        suite_class = f"generated.{run_class}"
+        extra_deps = (
+            "    <dependency>\n"
+            "      <groupId>io.cucumber</groupId>\n"
+            "      <artifactId>cucumber-java</artifactId>\n"
+            "      <version>7.18.1</version>\n"
+            "      <scope>test</scope>\n"
+            "    </dependency>\n"
+            "    <dependency>\n"
+            "      <groupId>io.cucumber</groupId>\n"
+            "      <artifactId>cucumber-testng</artifactId>\n"
+            "      <version>7.18.1</version>\n"
+            "      <scope>test</scope>\n"
+            "    </dependency>\n"
+        )
+    else:
+        suite_class = f"generated.{cls}"
+        extra_deps = (
+            "    <dependency>\n"
+            "      <groupId>org.testng</groupId>\n"
+            "      <artifactId>testng</artifactId>\n"
+            "      <version>7.10.2</version>\n"
+            "      <scope>test</scope>\n"
+            "    </dependency>\n"
+        )
+
+    files["testng.xml"] = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">\n'
+        '<suite name="MobiscoutGenerated">\n'
+        '  <test name="crawl">\n'
+        "    <classes>\n"
+        f'      <class name="{suite_class}"/>\n'
+        "    </classes>\n"
+        "  </test>\n"
+        "</suite>\n"
+    )
+    files["pom.xml"] = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<project xmlns="http://maven.apache.org/POM/4.0.0"\n'
+        '         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n'
+        '         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 '
+        'http://maven.apache.org/xsd/maven-4.0.0.xsd">\n'
+        "  <modelVersion>4.0.0</modelVersion>\n"
+        "  <groupId>com.mobiscout.generated</groupId>\n"
+        "  <artifactId>mobile-tests</artifactId>\n"
+        "  <version>1.0.0</version>\n"
+        "  <properties>\n"
+        "    <maven.compiler.source>17</maven.compiler.source>\n"
+        "    <maven.compiler.target>17</maven.compiler.target>\n"
+        "    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n"
+        "  </properties>\n"
+        "  <dependencies>\n"
+        "    <dependency>\n"
+        "      <groupId>io.appium</groupId>\n"
+        "      <artifactId>java-client</artifactId>\n"
+        "      <version>9.3.0</version>\n"
+        "      <scope>test</scope>\n"
+        "    </dependency>\n"
+        f"{extra_deps}"
+        "  </dependencies>\n"
+        "  <build>\n"
+        f"    <testSourceDirectory>${{project.basedir}}/{target}</testSourceDirectory>\n"
+        "    <plugins>\n"
+        "      <plugin>\n"
+        "        <groupId>org.apache.maven.plugins</groupId>\n"
+        "        <artifactId>maven-surefire-plugin</artifactId>\n"
+        "        <version>3.2.5</version>\n"
+        "        <configuration>\n"
+        "          <suiteXmlFiles>\n"
+        "            <suiteXmlFile>testng.xml</suiteXmlFile>\n"
+        "          </suiteXmlFiles>\n"
+        "        </configuration>\n"
+        "      </plugin>\n"
+        "    </plugins>\n"
+        "  </build>\n"
+        "</project>\n"
+    )
+    files["README.md"] = (
+        f"# Generated mobile tests (Java + {'Cucumber' if is_cucumber else 'TestNG'} + Appium)\n\n"
+        f"App under test: `{model.app_package}` ({'iOS' if is_ios else 'Android'}).\n\n"
+        "## Run\n\n"
+        "```bash\n"
+        f"appium driver install {driver}   # once\n"
+        "appium &   # start the Appium server\n"
+        "# boot your device/emulator and launch the app, then:\n"
+        "mvn test\n"
+        "```\n\n"
+        f"Tests are in `{target}/` (package `generated`) and run via `testng.xml`. "
+        f"Sessions target `{server}`. Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
+    )
+    return files
+
+
+def _kotlin_gradle(model: TestModel, server: str, target: str) -> Dict[str, str]:
+    """Gradle (Kotlin DSL) project shell for the Appium Kotlin target — a plain JVM
+    test module that drives Appium over JUnit 5. JUnit's platform discovers tests by
+    scanning compiled classes, so the flat ``<target>/`` layout needs no path tricks."""
+    is_ios = model.platform is Platform.IOS
+    driver = "xcuitest" if is_ios else "uiautomator2"
+    build = (
+        "plugins {\n"
+        '    kotlin("jvm") version "2.0.21"\n'
+        "}\n\n"
+        "repositories { mavenCentral() }\n\n"
+        "dependencies {\n"
+        '    testImplementation("io.appium:java-client:9.3.0")\n'
+        '    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")\n'
+        "}\n\n"
+        "sourceSets {\n"
+        f'    test {{ kotlin.srcDir("{target}") }}\n'
+        "}\n\n"
+        "tasks.test { useJUnitPlatform() }\n"
+    )
+    readme = (
+        "# Generated mobile tests (Kotlin + Appium)\n\n"
+        f"App under test: `{model.app_package}` ({'iOS' if is_ios else 'Android'}).\n\n"
+        "## Run\n\n"
+        "```bash\n"
+        f"appium driver install {driver}   # once\n"
+        "appium &   # start the Appium server\n"
+        "# boot your device/emulator and launch the app, then:\n"
+        "gradle test\n"
+        "```\n\n"
+        f"Tests are in `{target}/`. Sessions target `{server}`. "
+        "Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
+    )
+    return {"build.gradle.kts": build, "settings.gradle.kts": 'rootProject.name = "mobile-tests"\n', "README.md": readme}
+
+
+def _kotlin_espresso(model: TestModel, server: str, target: str) -> Dict[str, str]:
+    """Espresso is on-device Android instrumentation — it runs inside the app's own
+    Gradle module (``src/androidTest``), not as a standalone project. So the scaffold
+    is the dependency block plus instructions to drop the generated test into the app,
+    not a runnable project of its own (an honest shell beats a broken one)."""
+    cls = pascal(model.name)
+    snippet = (
+        "// Merge into your Android app module's build.gradle(.kts), and move\n"
+        f"// {target}/{cls}.kt into src/androidTest/java/generated/.\n"
+        "dependencies {\n"
+        '    androidTestImplementation("androidx.test.ext:junit:1.2.1")\n'
+        '    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")\n'
+        '    androidTestImplementation("androidx.test:runner:1.6.2")\n'
+        "}\n\n"
+        "android {\n"
+        "    defaultConfig {\n"
+        '        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"\n'
+        "    }\n"
+        "}\n"
+    )
+    readme = (
+        "# Generated Espresso tests (Kotlin)\n\n"
+        f"App under test: `{model.app_package}` (Android).\n\n"
+        "Espresso runs **inside your app's** instrumented test suite, so there is no\n"
+        "standalone project. To use the generated test:\n\n"
+        f"1. Move `{target}/{cls}.kt` into your app module's `src/androidTest/java/generated/`.\n"
+        "2. Merge `espresso.gradle.kts` into that module's `build.gradle(.kts)`.\n"
+        "3. Run `./gradlew connectedAndroidTest` with an emulator/device attached.\n"
+    )
+    return {"espresso.gradle.kts": snippet, "README.md": readme}
+
+
 SCAFFOLDERS: Dict[str, Callable[[TestModel, str, str], Dict[str, str]]] = {
     "js_webdriverio": _js_webdriverio,
     "js_cucumber": _js_webdriverio,
     "python_pytest": _python_pytest,
     "python_pytest_bdd": _python_pytest,
+    "java_testng": _java_maven,
+    "java_cucumber": _java_maven,
+    "kotlin_appium": _kotlin_gradle,
+    "kotlin_espresso": _kotlin_espresso,
 }
 
 
