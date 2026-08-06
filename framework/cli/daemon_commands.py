@@ -449,7 +449,13 @@ class JSONRPCServer:
                 os.unlink(tmp_path)
 
     def handle_tap(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tap action."""
+        """Handle tap action.
+
+        Platform-aware: Android taps go over adb; iOS taps go through the session's
+        Appium/XCUITest driver (adb can't drive a simulator — the old adb-only path
+        silently no-op'd every iOS tap). The iOS driver is built/cached lazily, so
+        the first tap in a session pays the one-time WebDriverAgent build.
+        """
         session_id = params.get("session_id")
         x = params.get("x")
         y = params.get("y")
@@ -458,10 +464,13 @@ class JSONRPCServer:
             raise Exception(f"Session not found: {session_id}")
 
         session = self.sessions[session_id]
-        device_id = session["device_id"]
+        platform = str(session.get("platform") or "android").lower()
 
-        # Execute tap via adb
-        subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
+        if platform == "ios":
+            self._session_driver(session).tap(int(x), int(y))
+        else:
+            device_id = session["device_id"]
+            subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
 
         return {"status": "success", "x": x, "y": y}
 
