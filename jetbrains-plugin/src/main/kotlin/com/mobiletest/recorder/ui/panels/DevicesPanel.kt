@@ -2,8 +2,13 @@ package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ex.ActionUtil
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import com.mobiletest.recorder.services.MTRDaemonService
@@ -37,10 +42,55 @@ class DevicesPanel(
 
         // Table
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+
+        // Actionable empty state instead of a blank grid: tell the user what to do
+        // and give one-click ways to do it (the #1 friction on first run is "I see
+        // nothing"). The links appear only while the table is empty.
+        table.emptyText.text = "No devices yet"
+        table.emptyText.appendSecondaryText(
+            "Start the engine, then boot a simulator or connect a device.",
+            SimpleTextAttributes.GRAYED_ATTRIBUTES,
+            null,
+        )
+        table.emptyText.appendLine("Start engine and refresh", SimpleTextAttributes.LINK_ATTRIBUTES) {
+            startEngineAndRefresh()
+        }
+        table.emptyText.appendLine("Open Setup Wizard", SimpleTextAttributes.LINK_ATTRIBUTES) {
+            runAction("MTR.SetupWizard")
+        }
+
         val scrollPane = JBScrollPane(table)
-        
+
         panel.add(toolbar, BorderLayout.NORTH)
         panel.add(scrollPane, BorderLayout.CENTER)
+    }
+
+    /** Start the engine (if needed) then list devices — the empty-state action. */
+    private fun startEngineAndRefresh() {
+        (object : SwingWorker<Boolean, Void>() {
+            override fun doInBackground(): Boolean = daemonService.start()
+
+            override fun done() {
+                if (get()) {
+                    refreshDevices()
+                } else {
+                    Messages.showErrorDialog(
+                        project,
+                        "The engine is downloaded automatically on first use. Check your internet " +
+                            "connection, or install the 'mobiscout' CLI on PATH.",
+                        "Couldn't Start the Mobiscout Engine",
+                    )
+                }
+            }
+        }).execute()
+    }
+
+    /** Fire a registered plugin action by id (e.g. the Setup Wizard). */
+    private fun runAction(id: String) {
+        ActionManager.getInstance().getAction(id)?.let { action ->
+            val ctx = SimpleDataContext.getProjectContext(project)
+            ActionUtil.invokeAction(action, ctx, ActionPlaces.TOOLWINDOW_CONTENT, null, null)
+        }
     }
     
     fun refreshDevices() {

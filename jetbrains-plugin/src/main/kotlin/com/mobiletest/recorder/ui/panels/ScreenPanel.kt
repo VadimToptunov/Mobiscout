@@ -56,6 +56,15 @@ class ScreenPanel(
                 
                 g2d.drawImage(img, x, y, scaledWidth, scaledHeight, null)
             }
+            if (currentImage == null) {
+                // Empty state: guide the user instead of showing a blank dark panel.
+                val g2d = g as Graphics2D
+                g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+                g2d.color = JBColor(0x9E9E9E, 0x808080)
+                val msg = "Load a device and Start Session to mirror the screen"
+                val fm = g2d.fontMetrics
+                g2d.drawString(msg, (width - fm.stringWidth(msg)) / 2, height / 2)
+            }
         }
     }
     
