@@ -121,6 +121,12 @@ class IOSCrawlerDriver:
         # mid-animation frame is recovered by _read_content_screen / _await_content.
         settle_until_stable(lambda: self._driver.page_source, self._remember, max_wait=self._settle_max)
 
+    def window_size(self) -> dict:
+        """Logical screen size in points. `mobile: tap` takes points, while a
+        `simctl … screenshot` is in native pixels (3× on iPhone) — the caller needs
+        this to map a pixel coordinate from the mirror back into tap points."""
+        return self._driver.get_window_size()
+
     def tap(self, x: int, y: int) -> None:
         self._driver.execute_script("mobile: tap", {"x": x, "y": y})
         self._settle_wait()

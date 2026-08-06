@@ -443,13 +443,23 @@ class JSONRPCServer:
             # call and works whatever the screen size (was hardcoded 1080x2400,
             # which mis-scaled coordinate taps on every other device).
             width, height = _png_dimensions(image_data)
+            # Remember the mirror's pixel size so an iOS tap can map a click on it
+            # back into Appium points (simctl PNG is native pixels, ~3× the points
+            # `mobile: tap` expects).
+            self.sessions[session_id]["_screenshot_px"] = (width, height)
             return {"format": format_type, "data": base64_data, "width": width, "height": height}
         finally:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
     def handle_tap(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tap action."""
+        """Handle tap action.
+
+        Platform-aware: Android taps go over adb; iOS taps go through the session's
+        Appium/XCUITest driver (adb can't drive a simulator — the old adb-only path
+        silently no-op'd every iOS tap). The iOS driver is built/cached lazily, so
+        the first tap in a session pays the one-time WebDriverAgent build.
+        """
         session_id = params.get("session_id")
         x = params.get("x")
         y = params.get("y")
@@ -458,10 +468,27 @@ class JSONRPCServer:
             raise Exception(f"Session not found: {session_id}")
 
         session = self.sessions[session_id]
-        device_id = session["device_id"]
+        platform = str(session.get("platform") or "android").lower()
 
-        # Execute tap via adb
-        subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
+        if platform == "ios":
+            driver = self._session_driver(session)
+            tx, ty = int(x), int(y)
+            # The Screen tab derives coordinates from the mirror, which is a native
+            # simctl screenshot in pixels; `mobile: tap` wants points. Scale by the
+            # pixel→point ratio so a click lands where the user aimed (skipped when
+            # the caller already sent points, i.e. no screenshot was taken).
+            px = session.get("_screenshot_px")
+            if px and px[0] and px[1]:
+                try:
+                    size = driver.window_size()
+                    tx = round(tx * size["width"] / px[0])
+                    ty = round(ty * size["height"] / px[1])
+                except Exception:
+                    pass
+            driver.tap(tx, ty)
+        else:
+            device_id = session["device_id"]
+            subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
 
         return {"status": "success", "x": x, "y": y}
 
