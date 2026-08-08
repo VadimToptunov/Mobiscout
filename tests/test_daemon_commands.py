@@ -366,3 +366,56 @@ def test_generate_selector_off_target_is_not_found():
 def test_generate_selector_bad_params():
     with pytest.raises(ValueError):
         generate_selector({})
+
+
+# ---- app-log streaming (logs/start, logs/stop) ----
+
+
+def test_logs_start_requires_udid_or_session(server):
+    with pytest.raises(ValueError):
+        server.handle_logs_start({})
+
+
+def test_logs_start_streams_filtered_process_and_stop_terminates(server):
+    """logs/start spawns a `simctl log stream` filtered to the app process and
+    returns streaming state; logs/stop terminates it. The process defaults to the
+    bundle-id's last component."""
+    fake_proc = mock.Mock()
+    fake_proc.stdout = iter([])  # the pump thread finds no lines and exits at once
+    with mock.patch(_SUB) as sub:
+        sub.Popen.return_value = fake_proc
+        res = server.handle_logs_start({"udid": "UDID-123", "bundle_id": "com.acme.ChaosBank"})
+        assert res == {"streaming": True, "udid": "UDID-123", "platform": "ios", "process": "ChaosBank"}
+        cmd = sub.Popen.call_args[0][0]
+        assert "log" in cmd and "stream" in cmd
+        assert 'process == "ChaosBank"' in cmd
+    server.handle_logs_stop({})
+    fake_proc.terminate.assert_called_once()
+
+
+def test_logs_start_derives_udid_and_process_from_session(server):
+    server.sessions["s1"] = {"device_id": "UDID-9", "bundle_id": "io.x.MyApp"}
+    fake_proc = mock.Mock()
+    fake_proc.stdout = iter([])
+    with mock.patch(_SUB) as sub:
+        sub.Popen.return_value = fake_proc
+        res = server.handle_logs_start({"session_id": "s1"})
+    assert res["udid"] == "UDID-9" and res["process"] == "MyApp"
+    server.handle_logs_stop({})
+
+
+def test_logs_start_android_uses_adb_logcat_scoped_to_pid(server, monkeypatch):
+    """Android streams via `adb logcat`, scoped to the app's PID when running."""
+    monkeypatch.setattr(JSONRPCServer, "_android_pid", staticmethod(lambda serial, pkg: "4242"))
+    fake_proc = mock.Mock()
+    fake_proc.stdout = iter([])
+    with mock.patch(_SUB) as sub:
+        sub.Popen.return_value = fake_proc
+        res = server.handle_logs_start(
+            {"udid": "emulator-5554", "bundle_id": "com.acme.app", "platform": "android"}
+        )
+        assert res["platform"] == "android"
+        cmd = sub.Popen.call_args[0][0]
+        assert cmd[:3] == ["adb", "-s", "emulator-5554"]
+        assert "logcat" in cmd and "--pid" in cmd and "4242" in cmd
+    server.handle_logs_stop({})

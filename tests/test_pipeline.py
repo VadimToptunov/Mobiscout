@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+import framework.crawler.pipeline as pipeline
 from framework.crawler.pipeline import build_kit, run_kit
 from tests.test_crawler import APP, FakeDriver
 
@@ -160,3 +161,68 @@ def test_write_kit_with_har_emits_api_tests(tmp_path):
     )
     assert (tmp_path / "test_api.py").exists()
     assert any("API tests from captured traffic" in line for line in report.info)
+
+
+def test_run_kit_collects_ios_crash_into_kit(tmp_path, monkeypatch):
+    """A crash during the crawl is captured as a first-class kit artifact: the
+    matching .ips lands in crashes/ and the summary counts it."""
+    home = tmp_path / "home"
+    reports = home / "Library" / "Logs" / "DiagnosticReports"
+    reports.mkdir(parents=True)
+    (reports / "ChaosBank-2026-08-08-000000.ips").write_text('{"crash": 1}')
+    monkeypatch.setattr(pipeline.Path, "home", staticmethod(lambda: home))
+
+    out = tmp_path / "kit"
+    summary = run_kit(
+        {"package": "com.acme.ChaosBank", "platform": "ios", "targets": ["python_pytest"], "output": str(out)},
+        driver=FakeDriver(),
+    )
+    assert summary["crashes"] == 1
+    assert (out / "crashes" / "ChaosBank-2026-08-08-000000.ips").is_file()
+
+
+def test_run_kit_reports_zero_crashes_when_none(tmp_path, monkeypatch):
+    monkeypatch.setattr(pipeline.Path, "home", staticmethod(lambda: tmp_path / "empty"))
+    out = tmp_path / "kit"
+    summary = run_kit(
+        {"package": "com.acme.NoCrash", "platform": "ios", "targets": ["python_pytest"], "output": str(out)},
+        driver=FakeDriver(),
+    )
+    assert summary["crashes"] == 0
+    assert not (out / "crashes").exists()
+
+
+def test_android_crash_needs_a_serial():
+    # No device serial -> nothing to query, no crash (and never raises).
+    assert pipeline._collect_crashes({"platform": "android", "package": "com.x.App"}, 0.0) == []
+
+
+def test_android_crash_collected_from_logcat_buffer(monkeypatch):
+    """Android crashes come from logcat's crash buffer: a fatal exception for the
+    app is aggregated into one <package>-logcat-crash.txt artifact."""
+    import subprocess
+    from types import SimpleNamespace
+
+    logcat = "08-08 21:00:00.000 E/AndroidRuntime: FATAL EXCEPTION: main\n  com.acme.app crashed\n"
+
+    def fake_run(cmd, **kw):
+        assert cmd[:3] == ["adb", "-s", "emulator-5554"]
+        assert "-b" in cmd and "crash" in cmd
+        return SimpleNamespace(stdout=logcat, returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    got = pipeline._collect_crashes(
+        {"platform": "android", "package": "com.acme.app", "udid": "emulator-5554"}, 0.0
+    )
+    assert len(got) == 1
+    name, data = got[0]
+    assert name == "com.acme.app-logcat-crash.txt"
+    assert b"FATAL EXCEPTION" in data
+
+
+def test_android_no_crash_when_buffer_clean(monkeypatch):
+    import subprocess
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: SimpleNamespace(stdout="", returncode=0))
+    assert pipeline._collect_crashes({"platform": "android", "package": "com.x.App", "udid": "s1"}, 0.0) == []

@@ -328,10 +328,110 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
             driver.quit()
 
 
+def _ios_crashes(config: Dict[str, Any], since: float) -> "List[tuple[str, bytes]]":
+    """iOS crash reports (``.ips``) for the app that landed during the crawl window.
+
+    Scans the standard DiagnosticReports locations (host + per-simulator) for
+    ``<AppExecutable>-*.ips`` files newer than ``since``.
+    """
+    app = config.get("app_name") or str(config.get("package", "")).rsplit(".", 1)[-1]
+    if not app:
+        return []
+    home = Path.home()
+    roots = [home / "Library" / "Logs" / "DiagnosticReports"]
+    udid = config.get("udid")
+    if udid:
+        roots.append(
+            home / "Library" / "Developer" / "CoreSimulator" / "Devices" / udid
+            / "data" / "Library" / "Logs" / "DiagnosticReports"
+        )
+    cutoff = since - 5.0  # the report lands a beat after the crash
+    out: "List[tuple[str, bytes]]" = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        try:
+            for f in root.glob(f"{app}-*.ips"):
+                if f.is_file() and f.stat().st_mtime >= cutoff:
+                    out.append((f.name, f.read_bytes()))
+        except OSError:
+            continue
+    return out
+
+
+def _android_crashes(config: Dict[str, Any], since: float) -> "List[tuple[str, bytes]]":
+    """Android crashes for the app from logcat's dedicated crash buffer, limited to
+    the crawl window. Returns a single aggregated ``<package>-logcat-crash.txt`` when
+    a fatal exception for the app was logged, else nothing."""
+    import subprocess
+    import time
+
+    serial = config.get("udid") or config.get("serial")
+    package = config.get("package")
+    if not serial:
+        return []
+    since_arg = time.strftime("%m-%d %H:%M:%S.000", time.localtime(since))
+    try:
+        r = subprocess.run(
+            ["adb", "-s", serial, "logcat", "-b", "crash", "-d", "-v", "time", "-t", since_arg],
+            capture_output=True, text=True, timeout=15,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return []
+    text = r.stdout
+    if not text.strip() or "FATAL EXCEPTION" not in text:
+        return []
+    # Keep it if the app is implicated (or when we can't tell, keep it — the crash
+    # buffer only holds crashes anyway).
+    if package and package not in text and "beginning of crash" not in text:
+        return []
+    name = f"{(package or 'app').replace('/', '_')}-logcat-crash.txt"
+    return [(name, text.encode("utf-8"))]
+
+
+def _collect_crashes(config: Dict[str, Any], since: float) -> "List[tuple[str, bytes]]":
+    """Crash artifacts the app dropped during the crawl, as ``(filename, bytes)``.
+
+    A crash leaves the app but no test — so without this the kit silently loses the
+    single most useful signal ("it crashed on screen N"). iOS reads ``.ips`` reports;
+    Android reads logcat's crash buffer. Best-effort: any error yields no crashes
+    rather than failing the kit.
+    """
+    platform = config.get("platform", "android")
+    try:
+        if platform == "ios":
+            return _ios_crashes(config, since)
+        if platform == "android":
+            return _android_crashes(config, since)
+    except Exception:
+        return []
+    return []
+
+
 def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     """Crawl the app described by ``config`` (or use an injected ``driver``) and
-    build the kit. The one call the CLI and the IDE plugin both drive."""
-    return build_kit(_crawl(config, driver), config)
+    build the kit. The one call the CLI and the IDE plugin both drive.
+
+    Also collects any crash the app dropped during the crawl (iOS ``.ips`` reports
+    or Android logcat crashes) into the kit's ``crashes/`` folder, so "the app
+    crashed while crawling" is a first-class artifact rather than a silent gap.
+    """
+    import time
+
+    started = time.time()
+    summary = build_kit(_crawl(config, driver), config)
+
+    crashes = _collect_crashes(config, started)
+    if crashes:
+        dest = Path(config.get("output", "crawl-kit")) / "crashes"
+        dest.mkdir(parents=True, exist_ok=True)
+        for name, data in crashes:
+            try:
+                (dest / name).write_bytes(data)
+            except OSError:
+                pass
+    summary["crashes"] = len(crashes)
+    return summary
 
 
 def crawl_graph(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
