@@ -17,12 +17,12 @@ Pure parsers (bytes/str in, list out) so they're testable without a device; the
 from __future__ import annotations
 
 import plistlib
-import subprocess
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from typing import Any, Dict, List
 
-_ANDROID_NS = "http://schemas.android.com/apk/res/android"
+from framework.devices.app_metadata import ANDROID_NS as _ANDROID_NS
+from framework.devices.app_metadata import android_manifest as _android_manifest
+from framework.devices.app_metadata import ios_app_plist as _ios_app_plist
 
 
 def deeplinks_from_ios_plist(plist: bytes) -> List[str]:
@@ -82,44 +82,6 @@ def deeplinks_from_android_manifest(manifest_xml: str) -> List[str]:
     return sorted(set(uris))
 
 
-def _ios_app_plist(config: Dict[str, Any]) -> bytes:
-    """The installed iOS app's Info.plist bytes (via ``simctl get_app_container``),
-    or b'' when it can't be read. ``simctl`` returns the raw (often binary) plist —
-    ``plistlib`` reads both formats."""
-    udid, package = config.get("udid"), config.get("package")
-    if not udid or not package:
-        return b""
-    try:
-        r = subprocess.run(
-            ["xcrun", "simctl", "get_app_container", udid, package, "app"],
-            capture_output=True, text=True, timeout=10,
-        )
-        app_dir = r.stdout.strip()
-        if r.returncode != 0 or not app_dir:
-            return b""
-        plist = Path(app_dir) / "Info.plist"
-        return plist.read_bytes() if plist.is_file() else b""
-    except (subprocess.SubprocessError, OSError):
-        return b""
-
-
-def _android_manifest(config: Dict[str, Any]) -> str:
-    """The source ``AndroidManifest.xml`` (the one that declares intent-filters)
-    under the config's source dir, or '' if not found. A binary apk manifest needs
-    aapt to decode and is a separate path we don't take here."""
-    source = config.get("source") or config.get("source_dir")
-    if not source:
-        return ""
-    for candidate in Path(source).rglob("AndroidManifest.xml"):
-        try:
-            text = candidate.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if "<manifest" in text and "intent-filter" in text:
-            return text
-    return ""
-
-
 def extract_deeplinks(config: Dict[str, Any]) -> List[str]:
     """Declared deeplinks for the app in ``config`` — best-effort, never raises.
 
@@ -143,5 +105,16 @@ def deeplinks_markdown(uris: List[str], package: str) -> str:
         return f"# Deeplinks — {package}\n\nNo browsable deeplinks were declared by the app.\n"
     lines = [f"# Deeplinks — {package}", "", f"{len(uris)} declared deeplink(s):", ""]
     lines += [f"- `{u}`" for u in uris]
-    lines += ["", "Open one with:", "", "```bash", "# Android", "adb shell am start -W -a android.intent.action.VIEW -d '<uri>' " + package, "# iOS simulator", "xcrun simctl openurl booted '<uri>'", "```", ""]
+    lines += [
+        "",
+        "Open one with:",
+        "",
+        "```bash",
+        "# Android",
+        "adb shell am start -W -a android.intent.action.VIEW -d '<uri>' " + package,
+        "# iOS simulator",
+        "xcrun simctl openurl booted '<uri>'",
+        "```",
+        "",
+    ]
     return "\n".join(lines)
