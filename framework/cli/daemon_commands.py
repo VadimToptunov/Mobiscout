@@ -159,7 +159,16 @@ class JSONRPCServer:
             "app/install": self.handle_app_install,
             "app/uninstall": self.handle_app_uninstall,
             "license/status": self.handle_license_status,
+            "deeplinks/extract": self.handle_deeplinks_extract,
         }
+
+    def handle_deeplinks_extract(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """The deeplinks the app declares (iOS Info.plist schemes / Android manifest
+        browsable intent-filters) — the shortcuts into deep screens a tap-walk may
+        miss. params: {platform, udid?, package?, source?}."""
+        from framework.crawler.deeplinks import extract_deeplinks
+
+        return {"deeplinks": extract_deeplinks(params)}
 
     def handle_license_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Report the active entitlement tier so the IDE can show quota and gate

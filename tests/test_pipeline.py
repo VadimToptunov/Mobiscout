@@ -160,3 +160,10 @@ def test_write_kit_with_har_emits_api_tests(tmp_path):
     )
     assert (tmp_path / "test_api.py").exists()
     assert any("API tests from captured traffic" in line for line in report.info)
+
+
+def test_run_kit_writes_deeplinks_artifact(tmp_path):
+    """Every kit gets a deeplinks.md; with no source manifest it's the empty note."""
+    summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert "deeplinks" in summary
+    assert (tmp_path / "deeplinks.md").exists()

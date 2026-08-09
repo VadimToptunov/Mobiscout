@@ -148,6 +148,13 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # contract tests for the endpoints the app actually called, in one kit.
     api_tests = emit_api_tests_from_har(config.get("har"), out)
 
+    # Deeplinks the app declares — the shortcuts into deep screens a tap-walk may
+    # never reach. Listed here; opening them as extra crawl seeds is the next step.
+    from framework.crawler.deeplinks import deeplinks_markdown, extract_deeplinks
+
+    deeplinks = extract_deeplinks(config)
+    _write(out / "deeplinks.md", deeplinks_markdown(deeplinks, package))
+
     return {
         "package": package,
         "platform": model.platform.value,
@@ -159,6 +166,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "scaffolded": scaffolded,
         "gap": gap,
         "invariants": invariant_count,
+        "deeplinks": len(deeplinks),
         "output": str(out.absolute()),
     }
 
