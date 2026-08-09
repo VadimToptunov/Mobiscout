@@ -36,6 +36,27 @@ from selenium.webdriver.support.ui import WebDriverWait
 # so tests stay in sync with async UI without paying a worst-case sleep every step.
 _TIMEOUT = 10
 
+# A generic "busy" indicator per platform — used by _settle to wait out a
+# transition. Not app-specific, so it's a no-op on screens that show no spinner.
+{% if model.platform.value == "ios" %}
+_BUSY_XPATH = "//XCUIElementTypeActivityIndicator"
+{% else %}
+_BUSY_XPATH = "//android.widget.ProgressBar"
+{% endif %}
+
+
+def _settle(driver, timeout=_TIMEOUT):
+    """Middle beat of ``act -> wait-busy-clears -> assert``: after an action that
+    triggers a transition, wait for a loading/activity indicator to disappear so the
+    next step doesn't act on a mid-transition screen or read a stale result. A no-op
+    when nothing is spinning; a stuck indicator is tolerated, not failed."""
+    try:
+        WebDriverWait(driver, timeout, poll_frequency=0.3).until(
+            lambda d: not d.find_elements(AppiumBy.XPATH, _BUSY_XPATH)
+        )
+    except TimeoutException:
+        pass
+
 
 def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
     """Locate an element, waiting for it to appear and self-healing through ranked
@@ -175,6 +196,9 @@ def test_{{ case.name }}(driver):
 {% elif step.assertion.value == "enabled" %}
     assert _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).is_enabled()
 {% endif %}
+{% endif %}
+{% if step.action.value in ("tap", "type", "swipe", "back", "long_press", "deep_link", "press_key") %}
+    _settle(driver)
 {% endif %}
 {% endfor %}
 
