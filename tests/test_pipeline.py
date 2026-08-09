@@ -160,3 +160,22 @@ def test_write_kit_with_har_emits_api_tests(tmp_path):
     )
     assert (tmp_path / "test_api.py").exists()
     assert any("API tests from captured traffic" in line for line in report.info)
+
+
+def test_run_kit_no_prepared_key_by_default(tmp_path):
+    """Pre-crawl preset is opt-in: with no flags, run_kit adds no 'prepared'."""
+    summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert "prepared" not in summary
+
+
+def test_run_kit_surfaces_prepare_result_when_flagged(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "framework.devices.prepare.prepare_device",
+        lambda cfg: {"platform": "android", "granted": ["android.permission.CAMERA"], "reset": True},
+    )
+    summary = run_kit(
+        {"package": APP, "targets": ["python_pytest"], "output": str(tmp_path), "grant_permissions": True},
+        driver=FakeDriver(),
+    )
+    assert summary["prepared"]["granted"] == ["android.permission.CAMERA"]
+    assert summary["prepared"]["reset"] is True

@@ -159,7 +159,17 @@ class JSONRPCServer:
             "app/install": self.handle_app_install,
             "app/uninstall": self.handle_app_uninstall,
             "license/status": self.handle_license_status,
+            "device/prepare": self.handle_device_prepare,
         }
+
+    def handle_device_prepare(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Opt-in pre-crawl preset: grant the app's declared permissions and/or reset
+        its state (both off unless ``grant_permissions`` / ``reset_state`` are set), so
+        a system dialog can't stall a crawl. params: {platform, udid?, package?,
+        source?, grant_permissions?, reset_state?}."""
+        from framework.devices.prepare import prepare_device
+
+        return prepare_device(params)
 
     def handle_license_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Report the active entitlement tier so the IDE can show quota and gate

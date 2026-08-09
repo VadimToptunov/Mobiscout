@@ -248,8 +248,18 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
 
 def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     """Crawl the app described by ``config`` (or use an injected ``driver``) and
-    build the kit. The one call the CLI and the IDE plugin both drive."""
-    return build_kit(_crawl(config, driver), config)
+    build the kit. The one call the CLI and the IDE plugin both drive.
+
+    Runs the opt-in pre-crawl preset first (grant declared permissions / reset app
+    state, both off by default) so a system dialog can't stall the crawl.
+    """
+    from framework.devices.prepare import prepare_device
+
+    prepared = prepare_device(config)  # no-op unless grant_permissions/reset_state set
+    summary = build_kit(_crawl(config, driver), config)
+    if prepared["granted"] or prepared["reset"]:
+        summary["prepared"] = prepared
+    return summary
 
 
 def crawl_graph(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
