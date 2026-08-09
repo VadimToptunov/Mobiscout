@@ -16,45 +16,11 @@ from __future__ import annotations
 
 import subprocess
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from typing import Any, Dict, List
 
-_ANDROID_NS = "http://schemas.android.com/apk/res/android"
-
-
-def _ios_app_plist(config: Dict[str, Any]) -> bytes:
-    """The installed iOS app's Info.plist bytes (via ``simctl get_app_container``),
-    or b'' when it can't be read."""
-    udid, package = config.get("udid"), config.get("package")
-    if not udid or not package:
-        return b""
-    try:
-        r = subprocess.run(
-            ["xcrun", "simctl", "get_app_container", udid, package, "app"],
-            capture_output=True, text=True, timeout=10,
-        )
-        app_dir = r.stdout.strip()
-        if r.returncode != 0 or not app_dir:
-            return b""
-        plist = Path(app_dir) / "Info.plist"
-        return plist.read_bytes() if plist.is_file() else b""
-    except (subprocess.SubprocessError, OSError):
-        return b""
-
-
-def _android_manifest(config: Dict[str, Any]) -> str:
-    """The source ``AndroidManifest.xml`` under the config's source dir, or ''."""
-    source = config.get("source") or config.get("source_dir")
-    if not source:
-        return ""
-    for candidate in Path(source).rglob("AndroidManifest.xml"):
-        try:
-            text = candidate.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        if "<manifest" in text and "uses-permission" in text:
-            return text
-    return ""
+from framework.devices.app_metadata import ANDROID_NS as _ANDROID_NS
+from framework.devices.app_metadata import android_manifest as _android_manifest
+from framework.devices.app_metadata import ios_app_plist as _ios_app_plist
 
 # Runtime (dangerous) permissions — the only ones `pm grant` accepts; granting a
 # normal/signature permission errors, so we filter the manifest to this set.
