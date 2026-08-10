@@ -666,14 +666,17 @@ class AppCrawler:
 
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
                 result.screens[new_screen.fingerprint] = new_screen
-                self._handle_form(result, new_screen)  # exercise its form both ways (invalid→error, valid)
-                # Pass a gate on this new screen too (OTP/biometric behind a step).
+                # Pass a gate on this new screen FIRST (a login/OTP/biometric behind
+                # a step), before probing its form — otherwise _handle_form submits
+                # the gate with junk sample data and never lets the real credentials
+                # through, stranding the crawl on the login. Mirrors _explore's order.
                 if self._pass_gates(new_screen):
                     behind = parse_screen(self.driver.page_source())
                     if behind.fingerprint and behind.fingerprint not in result.screens:
                         result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
                         result.screens[behind.fingerprint] = behind
                         new_screen = behind
+                self._handle_form(result, new_screen)  # exercise the (post-gate) form both ways
                 child = self._own_interactive(new_screen, exclude_nav=exclude_nav)
                 stack.append(_Frame(new_screen.fingerprint, child, {self._element_key(e) for e in child}))
             else:
