@@ -31,6 +31,14 @@ class DevicesPanel(
         }
         toolbar.add(refreshButton)
 
+        val bootButton = JButton("Boot device…")
+        bootButton.addActionListener { bootDevice() }
+        toolbar.add(bootButton)
+
+        val shutdownButton = JButton("Shutdown")
+        shutdownButton.addActionListener { shutdownDevice() }
+        toolbar.add(shutdownButton)
+
         val installButton = JButton("Install build…")
         installButton.addActionListener { installBuild() }
         toolbar.add(installButton)
@@ -118,6 +126,102 @@ class DevicesPanel(
                 } else {
                     Messages.showErrorDialog(project, "Install failed: $detail", "Install Build")
                 }
+            }
+        }).execute()
+    }
+
+    /**
+     * Boot an emulator/simulator without leaving the IDE: offer the installed
+     * Android AVDs (device/listAvds) and the shut-down iOS simulators (device/list),
+     * then device/start the chosen one. Booting is async — the device shows up on a
+     * later Refresh, which we kick off optimistically.
+     */
+    private fun bootDevice() {
+        (object : SwingWorker<Pair<List<String>, List<Pair<String, String>>>, Void>() {
+            // labels shown to the user, and the parallel (platform, target) to boot.
+            override fun doInBackground(): Pair<List<String>, List<Pair<String, String>>> {
+                val labels = mutableListOf<String>()
+                val targets = mutableListOf<Pair<String, String>>()
+                try {
+                    daemonService.listAvds()?.getAsJsonArray("avds")?.forEach {
+                        val avd = it.asString
+                        labels.add("Android AVD — $avd")
+                        targets.add("android" to avd)
+                    }
+                } catch (_: Exception) {}
+                try {
+                    daemonService.listDevices("ios")?.getAsJsonArray("devices")?.forEach {
+                        val d = it.asJsonObject
+                        if ((d.get("status")?.asString ?: "") == "shutdown") {
+                            val name = d.get("name")?.asString ?: ""
+                            val udid = d.get("id")?.asString ?: ""
+                            labels.add("iOS Simulator — $name")
+                            targets.add("ios" to udid)
+                        }
+                    }
+                } catch (_: Exception) {}
+                return labels to targets
+            }
+
+            override fun done() {
+                val (labels, targets) = get()
+                if (labels.isEmpty()) {
+                    Messages.showInfoMessage(
+                        project,
+                        "No bootable AVDs or shut-down simulators found. Is the engine running?",
+                        "Boot Device",
+                    )
+                    return
+                }
+                val choice = Messages.showChooseDialog(
+                    project, "Pick a device to boot:", "Boot Device", null, labels.toTypedArray(), labels[0]
+                )
+                if (choice < 0) return
+                val (platform, target) = targets[choice]
+                startBoot(platform, target, labels[choice])
+            }
+        }).execute()
+    }
+
+    private fun startBoot(platform: String, target: String, label: String) {
+        (object : SwingWorker<JsonObject?, Void>() {
+            override fun doInBackground(): JsonObject? =
+                try { daemonService.startDevice(platform, target) } catch (e: Exception) { null }
+
+            override fun done() {
+                val started = get()?.get("started")?.asBoolean ?: false
+                if (started) {
+                    Messages.showInfoMessage(
+                        project, "Booting $label — it'll appear here once ready (hit Refresh).", "Boot Device"
+                    )
+                    refreshDevices()
+                } else {
+                    val err = get()?.get("error")?.asString ?: "no response from the engine"
+                    Messages.showErrorDialog(project, "Couldn't boot $label: $err", "Boot Device")
+                }
+            }
+        }).execute()
+    }
+
+    /** Shut down the selected running device (device/stop). */
+    private fun shutdownDevice() {
+        val row = table.selectedRow
+        if (row < 0) {
+            Messages.showWarningDialog(project, "Select a running device first.", "Shutdown")
+            return
+        }
+        val deviceId = tableModel.getValueAt(row, 0)?.toString().orEmpty()
+        val platform = tableModel.getValueAt(row, 2)?.toString().orEmpty().ifEmpty { "android" }
+        (object : SwingWorker<JsonObject?, Void>() {
+            override fun doInBackground(): JsonObject? =
+                try { daemonService.stopDevice(platform, deviceId) } catch (e: Exception) { null }
+
+            override fun done() {
+                val stopped = get()?.get("stopped")?.asBoolean ?: false
+                if (stopped) refreshDevices()
+                else Messages.showErrorDialog(
+                    project, "Couldn't shut down $deviceId: ${get()?.get("error")?.asString ?: "no response"}", "Shutdown"
+                )
             }
         }).execute()
     }
