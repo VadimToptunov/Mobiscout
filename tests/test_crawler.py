@@ -331,3 +331,26 @@ def test_accessibility_audit_flags_unlabelled_clickable():
     screen = parse_screen(xml)
     findings = audit(CrawlResult(screens={screen.fingerprint: screen}))
     assert len(findings) == 1 and "no accessible label" in findings[0].issue
+
+
+# --- gate-passing: tap the FORM's submit, not a same-labelled button elsewhere ---
+
+def test_fill_submit_prefers_button_below_inputs():
+    """Regression from a real ChaosBank crawl: a login gate repeats "Log in" on the
+    welcome screen AND on the sign-in form, so tapping the first match never submits
+    the form. _submit_button must pick the match below the inputs (lowest on screen)."""
+    from framework.crawler.models import CrawlElement
+    from framework.crawler.waypoints import _submit_button
+
+    def _btn(label, y):
+        return CrawlElement(
+            resource_id="", text=label, content_desc="", class_name="Button",
+            clickable=True, bounds=(0, y, 100, y + 40), package="",
+        )
+
+    welcome = _btn("Log in", 100)   # above the inputs (wrong target)
+    form_submit = _btn("Log in", 900)  # below the inputs (right target)
+    els = [welcome, form_submit]
+    assert _submit_button(els, "log in", after_y=500) is form_submit
+    assert _submit_button(els, "log in", after_y=0) is form_submit  # lowest wins
+    assert _submit_button(els, "nope", after_y=0) is None

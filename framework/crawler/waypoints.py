@@ -109,12 +109,13 @@ def apply(waypoint: Waypoint, driver: Any, screen: CrawlScreen) -> bool:
 
 
 def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
-    """Fill inputs by field hint, then tap the submit control."""
+    """Fill inputs by field hint, then tap the form's submit control."""
     fields: Dict[str, str] = data.get("fields", {})
     inputs = [e for e in els if _is_input(e)]
     used_ids: set = set()  # inputs already filled — never reuse (so two unmatched
     # fields land in two different inputs instead of both overwriting inputs[0]).
     did = False
+    last_input_y = 0
     for hint, value in fields.items():
         target = _find(inputs, hint, used_ids)
         if target is None:  # no hint match -> consume the next unused input positionally
@@ -122,15 +123,33 @@ def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
         if target is None:
             continue
         used_ids.add(id(target))
+        if target.bounds:
+            last_input_y = max(last_input_y, target.bounds[1])
         _tap(driver, target)
         if hasattr(driver, "type_text"):
             driver.type_text(value)
             did = True
-    submit = _find(els, data["submit"]) if data.get("submit") else None
+    submit = _submit_button(els, data["submit"], last_input_y) if data.get("submit") else None
     if submit is not None:
         _tap(driver, submit)
         did = True
     return did
+
+
+def _submit_button(els: List[CrawlElement], hint: str, after_y: int) -> Optional[CrawlElement]:
+    """The form's submit control among elements matching ``hint``.
+
+    A gate often repeats the same label on the launching screen and inside the
+    form ("Log in" on the welcome screen AND on the sign-in form), so the *first*
+    match is frequently the wrong one. Prefer a match that sits below the inputs we
+    just filled (the form's own submit), then the lowest match on screen, so we tap
+    the button that actually submits the form."""
+    needle = str(hint).lower()
+    cands = [e for e in els if needle in _haystack(e) and e.bounds]
+    if not cands:
+        return None
+    below = [e for e in cands if e.bounds[1] >= after_y]
+    return max(below or cands, key=lambda e: e.bounds[1])
 
 
 def _totp(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
