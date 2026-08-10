@@ -16,6 +16,7 @@ Config keys (all but ``package`` optional):
     scaffold       also write a runnable project shell (new framework) [False]
     max_steps      crawl step budget                                 [40]
     max_depth      crawl depth budget                                [8]
+    max_seconds    wall-clock crawl budget (seconds)                 [180]
     serial/udid/device_name/server/extra_caps   driver connection details
 
     build_kit(result, config)  — device-free: turn a CrawlResult into artifacts.
@@ -239,6 +240,7 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
             config["package"],
             max_steps=int(config.get("max_steps", 40)),
             max_depth=int(config.get("max_depth", 8)),
+            max_seconds=float(config.get("max_seconds", 180.0)),
             waypoints=waypoints,
         ).crawl()
     finally:

@@ -331,3 +331,71 @@ def test_accessibility_audit_flags_unlabelled_clickable():
     screen = parse_screen(xml)
     findings = audit(CrawlResult(screens={screen.fingerprint: screen}))
     assert len(findings) == 1 and "no accessible label" in findings[0].issue
+
+
+# --- wall-clock crawl budget: a flaky/slow app must not hang the crawl ----------
+
+class _InfiniteDriver:
+    """Every tap navigates to a brand-new screen — so a step-bounded crawl would run
+    to max_steps. Used to prove the wall-clock deadline stops it far sooner."""
+
+    def __init__(self):
+        self.n = 0
+        self.pkg = APP
+        self.taps = 0
+
+    def page_source(self):
+        return _screen(_node(f"Next {self.n}", f"id/next{self.n}", True, (0, 0, 100, 50)))
+
+    def current_package(self):
+        return self.pkg
+
+    def back(self):
+        self.n = max(0, self.n - 1)
+
+    def tap(self, x, y):
+        self.taps += 1
+        self.n += 1  # a fresh screen on every tap
+
+
+def test_within_budget_honours_deadline_and_steps(monkeypatch):
+    import framework.crawler.app_crawler as ac
+    from framework.crawler.app_crawler import CrawlResult
+
+    c = AppCrawler(FakeDriver(), APP, max_steps=5, max_seconds=10)
+    r = CrawlResult()
+    assert c._within_budget(r)  # no deadline armed yet -> within budget
+    c._deadline = 100.0
+    monkeypatch.setattr(ac.time, "monotonic", lambda: 99.0)
+    assert c._within_budget(r)  # before the deadline
+    monkeypatch.setattr(ac.time, "monotonic", lambda: 100.1)
+    assert not c._within_budget(r)  # past the deadline -> stop
+    c._deadline = None
+    r.steps = 5
+    assert not c._within_budget(r)  # step budget still enforced independently
+
+
+def test_crawl_stops_on_wall_clock_deadline_not_just_steps(monkeypatch):
+    """Regression: a crawl bounded only by steps could run for minutes on a flaky
+    app whose ops keep timing out. The wall-clock deadline must cut it short."""
+    import framework.crawler.app_crawler as ac
+
+    # A clock that advances a big chunk on every read, so the deadline (armed at the
+    # first read + max_seconds) is crossed within a couple of budget checks — robust
+    # to however many times the crawl reads the clock. max_steps is a low safety net
+    # so a *broken* deadline fails the assertion fast instead of hanging the test.
+    clock = {"t": 0.0}
+
+    def advancing():
+        clock["t"] += 4.0
+        return clock["t"]
+
+    monkeypatch.setattr(ac.time, "monotonic", advancing)
+
+    driver = _InfiniteDriver()
+    result = AppCrawler(driver, APP, max_steps=60, max_seconds=5).crawl()
+
+    # With the deadline it stops almost immediately; without it, it would run to the
+    # 60-step cap. Either way it returns a partial map instead of hanging.
+    assert driver.taps < 40
+    assert len(result.screens) < 40

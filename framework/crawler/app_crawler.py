@@ -18,6 +18,7 @@ now live in :mod:`framework.crawler.models` and the page-source parsing in
 
 from __future__ import annotations
 
+import time
 from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Deque, List, Optional, Tuple
@@ -123,6 +124,7 @@ class AppCrawler:
         app_package: str,
         max_steps: int = 100,
         max_depth: int = 20,
+        max_seconds: Optional[float] = 180.0,
         blocklist: Optional[Tuple[str, ...]] = None,
         waypoints: Optional[List["Waypoint"]] = None,
         allow_destructive: bool = False,
@@ -131,6 +133,11 @@ class AppCrawler:
         self.app_package = app_package
         self.max_steps = max_steps
         self.max_depth = max_depth
+        # A wall-clock budget on top of the step budget: a flaky/slow app can make
+        # each step wait out the driver's op timeout (and its retries), so a crawl
+        # bounded only by steps can still run for many minutes. None = no time cap.
+        self.max_seconds = max_seconds
+        self._deadline: Optional[float] = None
         # By default block both session-enders and destructive/financial actions.
         # ``allow_destructive`` (for throwaway sandbox/test apps) keeps only the
         # session-enders blocked, so the crawl can tap Pay/Buy/Delete/Confirm and
@@ -154,6 +161,14 @@ class AppCrawler:
 
         self._waypointed.add(screen.fingerprint)
         return apply_first_match(self.waypoints, self.driver, screen)
+
+    def _within_budget(self, result: CrawlResult) -> bool:
+        """True while the crawl may keep going — under both the step budget and the
+        wall-clock deadline. Checked at every loop boundary so a slow/flaky app makes
+        the crawl return a partial map on time instead of hanging."""
+        if result.steps >= self.max_steps:
+            return False
+        return self._deadline is None or time.monotonic() < self._deadline
 
     def _blocked(self, element: CrawlElement) -> bool:
         label = element.label.lower()
@@ -347,6 +362,7 @@ class AppCrawler:
         crashing the whole run.
         """
         result = CrawlResult()
+        self._deadline = time.monotonic() + self.max_seconds if self.max_seconds else None
         try:
             self._explore(result)
         except CrawlerDriverError:
@@ -431,7 +447,7 @@ class AppCrawler:
         roots: List[Tuple[CrawlElement, CrawlScreen]] = []
         seen_fps = set()
         for tab in nav:
-            if result.steps >= self.max_steps:
+            if not self._within_budget(result):
                 break
             self.driver.tap(*tab.center)
             result.steps += 1
@@ -450,7 +466,7 @@ class AppCrawler:
             roots.append((tab, section))
 
         for tab, section in roots:
-            if result.steps >= self.max_steps:
+            if not self._within_budget(result):
                 break
             if not self._reanchor(tab, section.fingerprint, result):
                 continue  # can't get back to this section; its root is still mapped
@@ -614,7 +630,7 @@ class AppCrawler:
         backing out of dead ends. Shared by the single-root and per-tab crawls."""
         stack: List[_Frame] = [_Frame(root_fp, root_todo, {self._element_key(e) for e in root_todo})]
 
-        while stack and result.steps < self.max_steps:
+        while stack and self._within_budget(result):
             frame = stack[-1]
             current_fp, todo = frame.fingerprint, frame.todo
             if not todo:

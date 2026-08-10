@@ -42,7 +42,7 @@ class AdbCrawlerDriver:
         serial: Optional[str] = None,
         adb: str = "adb",
         settle: float = 0.8,
-        timeout: float = 60.0,
+        timeout: float = 15.0,
         retries: int = 2,
         launch_args: Optional[List[str]] = None,
     ) -> None:
