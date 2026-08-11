@@ -7,6 +7,7 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.components.JBCheckBox
+import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.mobiletest.recorder.settings.MTRSettings
@@ -49,6 +50,13 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
     private val maxStepsField = JBTextField("40", 5)
     private val maxDepthField = JBTextField("8", 5)
     private val launchArgsField = JBTextField(30)
+
+    // Optional login the crawler applies on the first form it sees, so it can get
+    // past the sign-in gate and map the app behind it. Sent as a `waypoints` fill
+    // instruction the engine already understands; the password is never stored.
+    private val loginUserField = JBTextField(20)
+    private val loginPassField = JBPasswordField()
+    private val loginSubmitField = JBTextField("Log in", 12)
 
     // Optional install → crawl → cleanup orchestration (not kit/generate params):
     // if a build is given it is installed on the device (UDID) before crawling.
@@ -127,6 +135,10 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
             .addLabeledComponent("Appium server:", serverField)
             .addLabeledComponent("iOS launch args (space-separated):", launchArgsField)
             .addSeparator()
+            .addLabeledComponent("Login username (optional):", loginUserField)
+            .addLabeledComponent("Login password:", loginPassField)
+            .addLabeledComponent("Login submit button:", loginSubmitField)
+            .addSeparator()
             .addLabeledComponent("Install build first (.apk / .app):", buildPathField)
             .addComponent(uninstallAfterCheck)
             .addSeparator()
@@ -161,6 +173,25 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         // `process_args` (see pipeline._make_driver).
         val launchArgs = launchArgsField.text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (launchArgs.isNotEmpty()) params["process_args"] = launchArgs
+        // Login waypoint: when the crawl first hits a screen with inputs, fill the
+        // username/password and tap the submit — so it can pass the sign-in gate and
+        // map the app behind it. The engine reads `waypoints` (framework.crawler.
+        // waypoints); the password is only read here to build the param, never stored.
+        val loginUser = loginUserField.text.trim()
+        if (loginUser.isNotEmpty()) {
+            val loginPass = String(loginPassField.password)
+            val submit = loginSubmitField.text.trim().ifEmpty { "log in" }
+            params["waypoints"] = listOf(
+                mapOf(
+                    "when" to mapOf("has_input" to true),
+                    "action" to "fill",
+                    "data" to mapOf(
+                        "fields" to mapOf("user" to loginUser, "password" to loginPass),
+                        "submit" to submit,
+                    ),
+                ),
+            )
+        }
         return params
     }
 
