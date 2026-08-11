@@ -45,6 +45,8 @@ class IOSCrawlerDriver:
         self.bundle_id = bundle_id
         self._settle_max = settle
         self._cache: Optional[Tuple[float, str]] = None  # (monotonic ts, source)
+        self._web: Optional[dict] = None  # active WebView snapshot (Mode 2), or None
+        self._web_served = False  # have we ever served web content (gates the launch-race readiness poll)
 
         options = XCUITestOptions()
         options.platform_name = "iOS"
@@ -74,6 +76,13 @@ class IOSCrawlerDriver:
         # live-updating app (streaming prices) never does, so this otherwise
         # stalls every launch to its timeout.
         options.set_capability("waitForQuiescence", False)
+        # WebView "Mode 2": let XCUITest surface an inspectable WKWebView as a
+        # WEBVIEW_* context so the crawler can walk the DOM. The context probe is
+        # only run on screens whose native tree actually contains a WebView (see
+        # page_source), so this connect timeout is paid there, never on a native
+        # screen. A small bound keeps that probe cheap.
+        options.set_capability("webviewConnectTimeout", 2000)
+        options.set_capability("ensureWebviewsHavePages", True)
 
         self._driver = webdriver.Remote(server, options=options)
         self._tune_for_speed()
@@ -100,14 +109,27 @@ class IOSCrawlerDriver:
             pass
 
     def page_source(self) -> str:
-        # Serve the page source captured while settling (fresh) to avoid a second
-        # WDA round-trip right after a gesture.
+        # Native WDA source (cheap on iOS) — from the settle cache when fresh.
         if self._cache and (time.monotonic() - self._cache[0]) < 1.0:
-            source = self._cache[1]
+            native = self._cache[1]
             self._cache = None
-            return source
-        page_source: str = self._driver.page_source
-        return page_source
+        else:
+            native = self._driver.page_source
+
+        # WebView Mode 2: only when the native tree actually hosts a WebView do we
+        # pay the context-switch probe and serve its DOM as uiautomator XML (so the
+        # crawler walks the web content). Gating on the native marker keeps the
+        # probe off every pure-native screen — the contexts call is not free.
+        if "XCUIElementTypeWebView" in native:
+            from framework.crawler import webview
+
+            snap = webview.web_snapshot(self._driver, ready_polls=0 if self._web_served else 3)
+            if snap:
+                self._web = snap
+                self._web_served = True
+                return snap["xml"]
+        self._web = None
+        return native
 
     def _remember(self, source: str) -> None:
         self._cache = (time.monotonic(), source)
@@ -122,10 +144,22 @@ class IOSCrawlerDriver:
         settle_until_stable(lambda: self._driver.page_source, self._remember, max_wait=self._settle_max)
 
     def tap(self, x: int, y: int) -> None:
+        # In a WebView, resolve the tap to the DOM element and click it there.
+        from framework.crawler import webview
+
+        if self._web and webview.click_web(self._driver, self._web, x, y):
+            self._settle_wait()
+            return
         self._driver.execute_script("mobile: tap", {"x": x, "y": y})
         self._settle_wait()
 
     def type_text(self, text: str) -> None:
+        # In a WebView, type into the focused DOM input (real key events).
+        from framework.crawler import webview
+
+        if self._web and webview.type_web(self._driver, self._web, text):
+            self._settle_wait()
+            return
         # Type into the field the previous tap focused (waypoint form-filling).
         try:
             self._driver.switch_to.active_element.send_keys(text)

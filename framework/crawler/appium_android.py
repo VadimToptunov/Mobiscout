@@ -40,6 +40,11 @@ def build_uiautomator2_options(
     # Reuse the already-installed / running app; never wipe app data on attach.
     options.set_capability("noReset", True)
     options.set_capability("dontStopAppOnReset", True)
+    # WebView "Mode 2": make sure a debuggable WebView surfaces as a WEBVIEW_*
+    # context (Chromedriver) so the crawler can walk the DOM. Needs the Appium
+    # server started with `--allow-insecure chromedriver_autodownload` (or a
+    # matching Chromedriver on PATH). Harmless for pure-native apps.
+    options.set_capability("ensureWebviewsHavePages", True)
     for key, value in (extra_caps or {}).items():
         options.set_capability(key, value)
     return options
@@ -62,6 +67,9 @@ class AndroidAppiumDriver:
     ) -> None:
         self.app_package = app_package
         self._settle = settle
+        self._web: Optional[Dict[str, Any]] = None  # active WebView snapshot (Mode 2), or None
+        self._web_served = False  # have we ever served web content (gates the launch-race readiness poll)
+        self._reads = 0  # page_source calls so far (the first gets the context-attach wait budget)
         if _session is not None:
             self._driver = _session  # injected (tests / bring-your-own session)
         else:
@@ -77,13 +85,48 @@ class AndroidAppiumDriver:
             pass
 
     def page_source(self) -> str:
+        # WebView Mode 2: if the current screen hosts a debuggable WebView, serve
+        # its DOM as uiautomator XML so the crawler walks the web content.
+        from framework.crawler import webview
+
+        # WebView Mode 2 (contexts-first on Android: the native uiautomator dump is
+        # the *slow* path on an opaque WebView, so we detect the WebView via the
+        # Chromedriver context instead of dumping). The very first read waits for
+        # the context to attach (Chromedriver spins up a few seconds after launch);
+        # later pre-web reads only wait for the DOM to paint; post-web reads don't
+        # wait at all.
+        if self._web_served:
+            ready = 0
+        elif self._reads == 0:
+            ready = 12  # ~5s: cover Chromedriver attach on a hybrid launch
+        else:
+            ready = 2
+        self._reads += 1
+        snap = webview.web_snapshot(self._driver, ready_polls=ready)
+        if snap:
+            self._web = snap
+            self._web_served = True
+            return snap["xml"]
+        self._web = None
         return cast(str, self._driver.page_source)
 
     def tap(self, x: int, y: int) -> None:
+        # In a WebView, resolve the tap to the DOM element and click it there.
+        from framework.crawler import webview
+
+        if self._web and webview.click_web(self._driver, self._web, x, y):
+            time.sleep(self._settle)
+            return
         self._driver.execute_script("mobile: clickGesture", {"x": x, "y": y})
         time.sleep(self._settle)
 
     def type_text(self, text: str) -> None:
+        # In a WebView, type into the focused DOM input (real key events).
+        from framework.crawler import webview
+
+        if self._web and webview.type_web(self._driver, self._web, text):
+            time.sleep(self._settle)
+            return
         # Type into the field the previous tap focused (waypoint form-filling /
         # input coverage). UiAutomator2 has no `mobile: type`; the reliable path is
         # send_keys to the focused element, mirroring the iOS Appium driver.
