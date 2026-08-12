@@ -18,6 +18,7 @@ now live in :mod:`framework.crawler.models` and the page-source parsing in
 
 from __future__ import annotations
 
+import time
 from collections import deque
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Deque, List, Optional, Tuple
@@ -126,11 +127,17 @@ class AppCrawler:
         blocklist: Optional[Tuple[str, ...]] = None,
         waypoints: Optional[List["Waypoint"]] = None,
         allow_destructive: bool = False,
+        max_seconds: float = 0.0,
     ) -> None:
         self.driver = driver
         self.app_package = app_package
         self.max_steps = max_steps
         self.max_depth = max_depth
+        # Wall-clock budget (0 = disabled). A step-only budget can't bound a crawl
+        # whose per-step device reads are slow (e.g. an Android hybrid screen whose
+        # uiautomator dump crawls) — the deadline caps total run time regardless.
+        self.max_seconds = max_seconds
+        self._deadline = float("inf")
         # By default block both session-enders and destructive/financial actions.
         # ``allow_destructive`` (for throwaway sandbox/test apps) keeps only the
         # session-enders blocked, so the crawl can tap Pay/Buy/Delete/Confirm and
@@ -347,6 +354,8 @@ class AppCrawler:
         crashing the whole run.
         """
         result = CrawlResult()
+        if self.max_seconds > 0:
+            self._deadline = time.monotonic() + self.max_seconds
         try:
             self._explore(result)
         except CrawlerDriverError:
@@ -431,7 +440,7 @@ class AppCrawler:
         roots: List[Tuple[CrawlElement, CrawlScreen]] = []
         seen_fps = set()
         for tab in nav:
-            if result.steps >= self.max_steps:
+            if not self._within_budget(result):
                 break
             self.driver.tap(*tab.center)
             result.steps += 1
@@ -450,7 +459,7 @@ class AppCrawler:
             roots.append((tab, section))
 
         for tab, section in roots:
-            if result.steps >= self.max_steps:
+            if not self._within_budget(result):
                 break
             if not self._reanchor(tab, section.fingerprint, result):
                 continue  # can't get back to this section; its root is still mapped
@@ -607,6 +616,11 @@ class AppCrawler:
             result.screens.setdefault(outcome.fingerprint, outcome)  # error / next state
             self._go_back(screen.fingerprint)  # back to the form for the positive branch
 
+    def _within_budget(self, result: CrawlResult) -> bool:
+        """Both budgets: the step count and (when set) the wall clock. Checked at
+        every loop boundary so a slow device caps total run time, not just steps."""
+        return result.steps < self.max_steps and time.monotonic() < self._deadline
+
     def _dfs(
         self, result: CrawlResult, root_fp: str, root_todo: Deque[CrawlElement], exclude_nav: bool = False
     ) -> None:
@@ -614,7 +628,7 @@ class AppCrawler:
         backing out of dead ends. Shared by the single-root and per-tab crawls."""
         stack: List[_Frame] = [_Frame(root_fp, root_todo, {self._element_key(e) for e in root_todo})]
 
-        while stack and result.steps < self.max_steps:
+        while stack and self._within_budget(result):
             frame = stack[-1]
             current_fp, todo = frame.fingerprint, frame.todo
             if not todo:

@@ -240,6 +240,7 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
             max_steps=int(config.get("max_steps", 40)),
             max_depth=int(config.get("max_depth", 8)),
             waypoints=waypoints,
+            max_seconds=float(config.get("max_seconds", 0) or 0),
         ).crawl()
     finally:
         if owns and hasattr(driver, "quit"):
