@@ -52,6 +52,22 @@ _NAG_DISMISS = ("no thanks", "not now", "maybe later", "remind me later", "later
 _CAPTCHA_WORDS = ("captcha", "recaptcha", "hcaptcha", "i'm not a robot", "i am not a robot", "verify you are human", "are you a robot")
 _UPDATE_WORDS = ("update required", "please update", "update to continue", "must update", "update the app", "unsupported version", "outdated version")
 _PAYWALL_WORDS = ("start free trial", "free trial", "subscribe", "unlock premium", "go premium", "upgrade to premium", "restore purchase", "per month", "per year")
+# Root / jailbreak / emulator / integrity blocks — a hard dead-end the crawl can't
+# (and shouldn't) get past; record it and move on rather than loop.
+_INTEGRITY_WORDS = (
+    "rooted device", "device is rooted", "jailbroken", "jailbreak detected", "device is not secure",
+    "emulator is not supported", "cannot run on an emulator", "not supported on this device",
+    "integrity check failed", "security check failed", "device not supported",
+)
+
+# --- transient errors: a flaky backend, not a real destination — retry, don't map.
+
+_ERROR_WORDS = (
+    "no internet", "no connection", "check your connection", "network error", "connection lost",
+    "something went wrong", "server error", "unable to load", "failed to load", "request timed out",
+    "try again later", "an error occurred",
+)
+_RETRY_LABELS = ("retry", "try again", "reload", "refresh")
 
 
 def _blob(screen: CrawlScreen) -> str:
@@ -59,14 +75,22 @@ def _blob(screen: CrawlScreen) -> str:
 
 
 def _find(screen: CrawlScreen, needles: Iterable[str]) -> Optional[CrawlElement]:
-    """First on-screen element whose visible label contains any needle."""
+    """The on-screen control whose visible label matches a needle, preferring the
+    shortest label — a control reads "Retry" / "Reject all" / "Skip", while the
+    same word buried in a sentence ("...please try again.") is body text we must
+    not tap. Shortest-match picks the button, not the prose."""
+    needles = tuple(needles)
+    best: Optional[CrawlElement] = None
+    best_len = 0
     for e in screen.elements:
         if not e.bounds:
             continue
         label = (e.text or e.content_desc or "").strip().lower()
         if label and any(n in label for n in needles):
-            return e
-    return None
+            if best is None or len(label) < best_len:
+                best = e
+                best_len = len(label)
+    return best
 
 
 def clear_obstacle(driver: Any, screen: CrawlScreen) -> Optional[str]:
@@ -100,12 +124,32 @@ def clear_obstacle(driver: Any, screen: CrawlScreen) -> Optional[str]:
 def terminal_obstacle(screen: CrawlScreen) -> Optional[str]:
     """Name a dead-end obstacle the crawler must record and back out of without
     acting on it — a CAPTCHA/anti-bot check (never solved, by policy), an update
-    wall, or a paywall (never purchased). None if the screen isn't one."""
+    wall, a paywall (never purchased), or a root/emulator integrity block. None if
+    the screen isn't one."""
     blob = _blob(screen)
     if any(w in blob for w in _CAPTCHA_WORDS):
         return "captcha"
+    if any(w in blob for w in _INTEGRITY_WORDS):
+        return "integrity_block"
     if any(w in blob for w in _UPDATE_WORDS):
         return "update_wall"
     if any(w in blob for w in _PAYWALL_WORDS):
         return "paywall"
     return None
+
+
+def error_retry(driver: Any, screen: CrawlScreen) -> Optional[str]:
+    """If the screen is a transient error (a flaky/offline backend — not a real
+    destination) and offers a retry control, tap it and return "retry" so the
+    caller re-reads. Bounded by the caller's loop, so a persistently-broken backend
+    settles into the error screen being mapped once rather than looping forever.
+    Returns None when there's no error, or an error with no retry control (that
+    screen is a genuine state worth recording)."""
+    blob = _blob(screen)
+    if not any(w in blob for w in _ERROR_WORDS):
+        return None
+    target = _find(screen, _RETRY_LABELS)
+    if target is None:
+        return None
+    driver.tap(*target.center)
+    return "retry"
