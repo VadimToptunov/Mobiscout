@@ -224,3 +224,17 @@ class AdbCrawlerDriver:
                 return True
             time.sleep(1.0)  # let a splash reach the real activity
         return self.current_package() == package
+
+    def open_url(self, uri: str, package: Optional[str] = None, tries: int = 6) -> bool:
+        """Open a deeplink URI (implicit VIEW intent) so a seed crawl starts on the
+        target screen. When ``package`` is given, confirm the app under test — not a
+        browser or another handler — actually came to the foreground; returns that.
+        """
+        self._run("shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", uri)
+        if package is None:
+            return True
+        for _ in range(tries):
+            if self.current_package() == package:
+                return True
+            time.sleep(0.8)
+        return self.current_package() == package

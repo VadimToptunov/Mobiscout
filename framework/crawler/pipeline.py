@@ -222,6 +222,50 @@ def _make_driver(config: Dict[str, Any]) -> Any:
     return AdbCrawlerDriver(serial=config.get("serial")), False
 
 
+def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
+    """Fold a seed crawl's screens/transitions into the main result — union screens
+    by fingerprint, append not-yet-seen transitions (keyed by src/label/dst since a
+    CrawlElement isn't hashable), sum steps."""
+    for fingerprint, screen in extra.screens.items():
+        into.screens.setdefault(fingerprint, screen)
+    seen = {(src, el.label, dst) for src, el, dst in into.transitions}
+    for src, el, dst in extra.transitions:
+        key = (src, el.label, dst)
+        if key not in seen:
+            into.transitions.append((src, el, dst))
+            seen.add(key)
+    into.steps += extra.steps
+    return into
+
+
+def _seed_deeplinks(
+    config: Dict[str, Any], driver: Any, result: CrawlResult, waypoints: List[Any]
+) -> CrawlResult:
+    """Open each configured/extracted deeplink as an extra crawl root and merge the
+    screens it reaches into ``result`` — coverage a tap-only walk can't reach. No-op
+    when there are no deeplinks or the driver can't open one."""
+    from framework.crawler.deeplinks import extract_deeplinks
+
+    seeds = extract_deeplinks(config)
+    if not seeds or not hasattr(driver, "open_url"):
+        return result
+    package = config["package"]
+    steps = int(config.get("seed_max_steps", config.get("max_steps", 40)))
+    depth = int(config.get("max_depth", 8))
+    seconds = float(config.get("seed_max_seconds", 60) or 0)
+    for uri in seeds:
+        try:
+            if not driver.open_url(uri, package=package):
+                continue  # opened a browser / another app, or failed — skip it
+        except Exception:
+            continue
+        seeded = AppCrawler(
+            driver, package, max_steps=steps, max_depth=depth, waypoints=waypoints, max_seconds=seconds
+        ).crawl()
+        result = _merge_results(result, seeded)
+    return result
+
+
 def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
     """Crawl the app described by ``config`` (or use an injected ``driver``),
     passing any configured gates. Shared by run_kit and crawl_graph."""
@@ -234,7 +278,12 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
 
     waypoints = [Waypoint(**w) for w in config.get("waypoints") or []]
     try:
-        return AppCrawler(
+        # Opt-in device prep (grant permissions / reset state) before exploring.
+        if config.get("prepare"):
+            from framework.devices.prepare import prepare_device
+
+            prepare_device(config)
+        result = AppCrawler(
             driver,
             config["package"],
             max_steps=int(config.get("max_steps", 40)),
@@ -242,6 +291,8 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
             waypoints=waypoints,
             max_seconds=float(config.get("max_seconds", 0) or 0),
         ).crawl()
+        # Extra entry way: seed the graph from deeplinks the UI walk can't reach.
+        return _seed_deeplinks(config, driver, result, waypoints)
     finally:
         if owns and hasattr(driver, "quit"):
             driver.quit()
