@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Tuple
 from framework.crawler.errors import CrawlerDriverError
 from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen
-from framework.crawler.obstacles import clear_obstacle, terminal_obstacle
+from framework.crawler.obstacles import clear_obstacle, error_retry, terminal_obstacle
 from framework.crawler.parse import parse_screen
 from framework.utils.logger import get_logger
 
@@ -226,11 +226,14 @@ class AppCrawler:
                 screen = parse_screen(refresh())
             except Exception:
                 break
-        # Dismiss stacked no-input obstacles, re-reading after each, so the screen
-        # the crawler fingerprints and explores is the real content behind them.
+        # Dismiss stacked no-input obstacles and retry transient errors (a flaky
+        # backend), re-reading after each, so the screen the crawler fingerprints
+        # and explores is the real content behind them — not an onboarding page or
+        # a "no connection / try again" error. The bounded loop means a persistent
+        # error is mapped once instead of retried forever.
         for _ in range(self._MAX_OBSTACLES):
             try:
-                if clear_obstacle(self.driver, screen) is None:
+                if clear_obstacle(self.driver, screen) is None and error_retry(self.driver, screen) is None:
                     break
                 screen = parse_screen(self.driver.page_source())
             except Exception:
