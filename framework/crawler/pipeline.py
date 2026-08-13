@@ -147,6 +147,9 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # HAR — mitmproxy/Charles). The crawl produces the UI tests; the capture adds
     # contract tests for the endpoints the app actually called, in one kit.
     api_tests = emit_api_tests_from_har(config.get("har"), out)
+    # Mock layer: replay the same captured traffic deterministically, so the
+    # generated tests (and a re-crawl) don't depend on a live/flaky backend.
+    mocks = emit_mock_from_har(config.get("har"), out)
 
     return {
         "package": package,
@@ -155,6 +158,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "transitions": len(result.transitions),
         "cases": len(model.cases),
         "api_tests": api_tests,
+        "mocks": mocks,
         "targets": written,
         "scaffolded": scaffolded,
         "gap": gap,
@@ -184,6 +188,26 @@ def emit_api_tests_from_har(har: Optional[str], out: Path) -> int:
     for name, content in emit_api_tests(app_model, base_url=base_url_from_har(har_calls)).items():
         _write(out / name, content)
     return len(api_calls)
+
+
+def emit_mock_from_har(har: Optional[str], out: Path) -> int:
+    """Write the mock layer (``mock/mock_server.py`` + ``recordings.json`` + a
+    README) into the kit from a captured proxy HAR, returning the number of routes
+    recorded (0 when no HAR is given or it holds no responses). A deterministic
+    replay of the traffic the crawl actually saw."""
+    if not har:
+        return 0
+    from framework.api_analyzer.har import load_har_calls
+    from framework.codegen.mock_server import build_recordings, emit_mock_server
+    from framework.codegen.source_api_adapter import base_url_from_har
+
+    har_calls = load_har_calls(Path(har))
+    files = emit_mock_server(har_calls, base_url=base_url_from_har(har_calls))
+    if not files:
+        return 0
+    for name, content in files.items():
+        _write(out / "mock" / name, content)
+    return len(build_recordings(har_calls))
 
 
 def _make_driver(config: Dict[str, Any]) -> Any:
