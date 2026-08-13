@@ -228,6 +228,23 @@ class AndroidAppiumDriver:
         self._driver.back()  # Android has a real system Back
         time.sleep(self._settle)
 
+    def open_url(self, uri: str, package: Optional[str] = None, tries: int = 6) -> bool:
+        """Open a deeplink URI (implicit VIEW intent) so a seed crawl starts on the
+        target screen. Confirms the app under test came to the foreground when a
+        ``package`` is given."""
+        try:
+            self._driver.get(uri)
+        except Exception:
+            return False
+        time.sleep(self._settle)
+        if package is None:
+            return True
+        for _ in range(tries):
+            if self.current_package() == package:
+                return True
+            time.sleep(0.8)
+        return self.current_package() == package
+
     def current_package(self) -> str:
         try:
             return self._driver.current_package or ""

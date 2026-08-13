@@ -240,6 +240,19 @@ class IOSCrawlerDriver:
             time.sleep(0.3)  # let a launch animation / splash settle
         return self.current_package() == bundle
 
+    def open_url(self, uri: str, package: Optional[str] = None, tries: int = 6) -> bool:
+        """Open a deeplink URI in the app under test so a seed crawl starts on the
+        target screen (mobile: deepLink routes it straight to the bundle)."""
+        try:
+            self._driver.execute_script("mobile: deepLink", {"url": uri, "bundleId": self.bundle_id})
+        except Exception:
+            try:
+                self._driver.get(uri)
+            except Exception:
+                return False
+        self._settle_wait()
+        return True
+
     def quit(self) -> None:
         try:
             self._driver.quit()
