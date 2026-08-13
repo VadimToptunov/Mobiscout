@@ -21,11 +21,12 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Deque, List, Optional, Tuple
+from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
 from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen
+from framework.crawler.obstacles import clear_obstacle, terminal_obstacle
 from framework.crawler.parse import parse_screen
 from framework.utils.logger import get_logger
 
@@ -146,21 +147,32 @@ class AppCrawler:
             blocklist = SESSION_BLOCKLIST if allow_destructive else DEFAULT_BLOCKLIST
         self.blocklist = tuple(b.lower() for b in blocklist)
         # Gate-passing instructions (login, TOTP, biometric, permission dialogs)
-        # applied on first sight of a matching screen so the crawl goes deeper.
+        # applied on sight of a matching screen so the crawl goes deeper. Re-firing
+        # is bounded per screen (not one-shot) so a gate re-appearing mid-crawl —
+        # a session expiring and dropping us back on the login — is passed again,
+        # while a gate the fill can't clear can't loop forever.
         self.waypoints = list(waypoints or [])
-        self._waypointed: set = set()
+        self._waypointed: Dict[str, int] = {}
         # Form fingerprints already probed with invalid input — probe each once.
         self._neg_probed: set = set()
 
+    # A gate screen may be re-fired this many times total — enough to re-auth after
+    # a session drops us back on login a few times, not enough for a fill that never
+    # clears the gate to loop.
+    _MAX_WAYPOINT_FIRES = 3
+
     def _pass_gates(self, screen: CrawlScreen) -> bool:
-        """Apply a matching waypoint once per screen; True if one fired (the
-        caller should re-read the screen since the app moved on)."""
-        if not self.waypoints or screen.fingerprint in self._waypointed:
+        """Apply a matching waypoint on this screen (bounded re-fire per screen);
+        True if one fired (the caller should re-read the screen since the app moved
+        on)."""
+        if not self.waypoints or self._waypointed.get(screen.fingerprint, 0) >= self._MAX_WAYPOINT_FIRES:
             return False
         from framework.crawler.waypoints import apply_first_match
 
-        self._waypointed.add(screen.fingerprint)
-        return apply_first_match(self.waypoints, self.driver, screen)
+        fired = apply_first_match(self.waypoints, self.driver, screen)
+        if fired:
+            self._waypointed[screen.fingerprint] = self._waypointed.get(screen.fingerprint, 0) + 1
+        return fired
 
     def _blocked(self, element: CrawlElement) -> bool:
         label = element.label.lower()
@@ -196,10 +208,15 @@ class AppCrawler:
                 return True
         return False
 
+    # How many stacked non-terminal obstacles (onboarding page, then a consent
+    # banner, then a rate-us nag) to clear before treating a screen as content.
+    _MAX_OBSTACLES = 5
+
     def _read_content_screen(self, tries: int = 4) -> CrawlScreen:
         """Read the current screen, retrying through a blank / still-loading launch
         — a slow cold start on a busy device yields an empty first dump. Uses the
-        driver's refresh() (wait + re-read) when available."""
+        driver's refresh() (wait + re-read) when available. Then auto-clears any
+        built-in obstacles (onboarding / consent / nag) sitting over the content."""
         screen = parse_screen(self.driver.page_source())
         refresh = getattr(self.driver, "refresh", None)
         attempts = 0
@@ -207,6 +224,15 @@ class AppCrawler:
             attempts += 1
             try:
                 screen = parse_screen(refresh())
+            except Exception:
+                break
+        # Dismiss stacked no-input obstacles, re-reading after each, so the screen
+        # the crawler fingerprints and explores is the real content behind them.
+        for _ in range(self._MAX_OBSTACLES):
+            try:
+                if clear_obstacle(self.driver, screen) is None:
+                    break
+                screen = parse_screen(self.driver.page_source())
             except Exception:
                 break
         return screen
@@ -678,16 +704,29 @@ class AppCrawler:
             if new_screen.fingerprint == current_fp:
                 continue  # no navigation; keep trying elements on this screen
 
+            # Pass a gate on this screen — a login/OTP/biometric step, OR a gate
+            # that *re-appears* mid-crawl (a session expiring drops us back on
+            # login). Firing here, before the seen/new split (bounded re-fire in
+            # _pass_gates), is what makes re-auth work: a re-appearing login is
+            # passed again, not written off as "already seen".
+            if self._pass_gates(new_screen):
+                behind = self._read_content_screen()
+                if behind.fingerprint and behind.fingerprint != new_screen.fingerprint:
+                    result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
+                    result.screens.setdefault(behind.fingerprint, behind)
+                    new_screen = behind
+
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
                 result.screens[new_screen.fingerprint] = new_screen
+                # A terminal obstacle (paywall / update wall / CAPTCHA) is mapped
+                # but never explored — don't tap Subscribe/Update (spends money /
+                # leaves the app) or loop on a challenge we must not solve; record
+                # it and back out to the parent.
+                if terminal_obstacle(new_screen) is not None:
+                    result.steps += 1
+                    self._go_back(current_fp)
+                    continue
                 self._handle_form(result, new_screen)  # exercise its form both ways (invalid→error, valid)
-                # Pass a gate on this new screen too (OTP/biometric behind a step).
-                if self._pass_gates(new_screen):
-                    behind = parse_screen(self.driver.page_source())
-                    if behind.fingerprint and behind.fingerprint not in result.screens:
-                        result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
-                        result.screens[behind.fingerprint] = behind
-                        new_screen = behind
                 child = self._own_interactive(new_screen, exclude_nav=exclude_nav)
                 stack.append(_Frame(new_screen.fingerprint, child, {self._element_key(e) for e in child}))
             else:
