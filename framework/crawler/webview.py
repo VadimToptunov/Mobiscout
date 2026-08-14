@@ -197,6 +197,47 @@ def web_snapshot(driver: Any, ready_polls: int = 0, poll_wait: float = 0.4) -> O
     return {"xml": xml, "centers": centers, "ctx": ctx, "focused": None}
 
 
+def neutralize_hidden_webviews(driver: Any) -> int:
+    """Blank any lingering *hidden* WebView by navigating its web context to
+    ``about:blank`` (after ``window.stop()``). A hybrid app that hands a web login
+    off to a native screen often leaves the WebView alive but hidden, still running
+    JS — which keeps the a11y tree busy and makes the native uiautomator dump hang
+    indefinitely (Android's hybrid-crawl "wall"). Blanking it stops that churn so
+    the native dump settles. Idempotent (skips a context already on about:blank),
+    returns how many it blanked, and leaves the driver in NATIVE_APP.
+
+    Android-only by intent (iOS/WDA reads the native tree fine past a hidden
+    WKWebView); the caller decides when to invoke it."""
+    try:
+        contexts = driver.contexts
+    except Exception:
+        return 0
+    blanked = 0
+    for ctx in contexts or []:
+        if not (isinstance(ctx, str) and ctx.upper().startswith("WEBVIEW")):
+            continue
+        try:
+            driver.switch_to.context(ctx)
+            if driver.execute_script("return document.visibilityState") == "visible":
+                continue  # a real, foreground web screen — leave it for web_snapshot
+            try:
+                already_blank = "about:blank" in (driver.current_url or "")
+            except Exception:
+                already_blank = False
+            if already_blank:
+                continue  # already neutralized
+            try:
+                driver.execute_script("window.stop();")
+            except Exception:
+                pass
+            driver.get("about:blank")
+            blanked += 1
+        except Exception:
+            pass
+    _to_native(driver)
+    return blanked
+
+
 def _nearest(centers: Dict[Tuple[int, int], int], x: int, y: int, tol: int = 6) -> Optional[int]:
     """The data-mtr-id of the web node whose center is at (x, y) — exact, or the
     nearest within ``tol`` px (the crawler taps the exact center, so this almost

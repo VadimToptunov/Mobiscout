@@ -139,6 +139,12 @@ class AndroidAppiumDriver:
             self._web_served = True
             return snap["xml"]
         self._web = None
+        # No visible web DOM. If a WebView we've used lingers hidden (a web login
+        # handed off to a native screen), it wedges the native uiautomator dump —
+        # blank it via its web context first so the dump settles. Gated on having
+        # seen a WebView, so a pure-native app never pays for it.
+        if self._web_served:
+            webview.neutralize_hidden_webviews(self._driver)
         return self._native_source()
 
     def _native_source(self) -> str:
