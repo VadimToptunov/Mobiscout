@@ -406,12 +406,17 @@ def write_kit(
     # session (a proxy HAR). The crawl gives the UI tests; the capture adds tests
     # for the endpoints the app actually called — one kit, both facets.
     if har:
-        from framework.crawler.pipeline import emit_api_tests_from_har
+        from framework.crawler.pipeline import emit_api_tests_from_har, emit_mock_from_har
 
         covered = emit_api_tests_from_har(har, out)
         if covered:
             report.info.append(f"API tests from captured traffic ({covered} endpoint(s)): {out / 'test_api.py'}")
         else:
             report.warnings.append(f"No modelled API calls found in {har} — no API tests generated.")
+        # Mock layer: replay the captured responses deterministically (no live/flaky
+        # backend needed to run the tests or re-crawl).
+        mocked = emit_mock_from_har(har, out)
+        if mocked:
+            report.info.append(f"Mock backend from captured traffic ({mocked} route(s)): {out / 'mock' / 'mock_server.py'}")
 
     return report
