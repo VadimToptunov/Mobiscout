@@ -133,18 +133,19 @@ class AndroidAppiumDriver:
         if not self._web_served and self._reads == 0:
             time.sleep(_ATTACH_WAIT_S)  # one-time: let a hybrid launch's WEBVIEW context attach
         self._reads += 1
-        snap = webview.web_snapshot(self._driver, ready_polls=0 if self._web_served else 2)
+        # A lingering hidden WebView (a web login handed off to a native screen)
+        # would wedge the native uiautomator dump — web_snapshot blanks it in the
+        # same context switch it already makes (neutralize_hidden), so there's no
+        # extra contexts round-trip. Gated on having seen a WebView, so a pure-native
+        # app never pays for it.
+        snap = webview.web_snapshot(
+            self._driver, ready_polls=0 if self._web_served else 2, neutralize_hidden=self._web_served
+        )
         if snap:
             self._web = snap
             self._web_served = True
             return snap["xml"]
         self._web = None
-        # No visible web DOM. If a WebView we've used lingers hidden (a web login
-        # handed off to a native screen), it wedges the native uiautomator dump —
-        # blank it via its web context first so the dump settles. Gated on having
-        # seen a WebView, so a pure-native app never pays for it.
-        if self._web_served:
-            webview.neutralize_hidden_webviews(self._driver)
         return self._native_source()
 
     def _native_source(self) -> str:

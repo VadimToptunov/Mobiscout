@@ -160,10 +160,43 @@ def _to_native(driver: Any) -> None:
         pass
 
 
-def web_snapshot(driver: Any, ready_polls: int = 0, poll_wait: float = 0.4) -> Optional[Dict[str, Any]]:
+def _blank_current_if_hidden(driver: Any) -> bool:
+    """With the driver ALREADY switched into a WebView context, blank it
+    (``window.stop()`` + navigate to ``about:blank``) if it's hidden, so it stops
+    churning the a11y tree and wedging the native dump. Idempotent (skips a context
+    already on about:blank). Returns whether it blanked. Does not switch contexts —
+    the caller owns that, which is what lets the hot path reuse a switch it already
+    made instead of paying a second ``contexts`` round-trip."""
+    try:
+        if driver.execute_script("return document.visibilityState") == "visible":
+            return False
+        try:
+            if "about:blank" in (driver.current_url or ""):
+                return False
+        except Exception:
+            pass
+        try:
+            driver.execute_script("window.stop();")
+        except Exception:
+            pass
+        driver.get("about:blank")
+        return True
+    except Exception:
+        return False
+
+
+def web_snapshot(
+    driver: Any, ready_polls: int = 0, poll_wait: float = 0.4, neutralize_hidden: bool = False
+) -> Optional[Dict[str, Any]]:
     """If the current screen hosts a WebView context with interactive DOM, return
     ``{"xml", "centers", "ctx", "focused"}`` and leave the driver in NATIVE_APP;
     else None. The XML is drop-in for ``parse_screen``.
+
+    ``neutralize_hidden`` (Android): when the context is present but has no drivable
+    DOM (a lingering hidden WebView), blank it right here — in the context we've
+    already switched into — so the native dump doesn't wedge. Folding it in avoids a
+    second ``driver.contexts`` call (each is an ``adb shell`` round-trip), which is
+    what stresses adb on a long crawl.
 
     ``ready_polls`` retries a few times (waiting ``poll_wait`` s each) for the
     WebView to become drivable — both for the context to *attach* (Chromedriver /
@@ -184,6 +217,11 @@ def web_snapshot(driver: Any, ready_polls: int = 0, poll_wait: float = 0.4) -> O
                 return None
             if nodes:
                 break
+            # No drivable DOM. On Android, a hidden lingering WebView here would
+            # wedge the native dump — blank it in this same context (no extra
+            # contexts call / switch).
+            if neutralize_hidden:
+                _blank_current_if_hidden(driver)
         if attempt < ready_polls:
             time.sleep(poll_wait)  # wait for the context to attach / the DOM to paint, then re-check
     if not ctx:
@@ -218,20 +256,8 @@ def neutralize_hidden_webviews(driver: Any) -> int:
             continue
         try:
             driver.switch_to.context(ctx)
-            if driver.execute_script("return document.visibilityState") == "visible":
-                continue  # a real, foreground web screen — leave it for web_snapshot
-            try:
-                already_blank = "about:blank" in (driver.current_url or "")
-            except Exception:
-                already_blank = False
-            if already_blank:
-                continue  # already neutralized
-            try:
-                driver.execute_script("window.stop();")
-            except Exception:
-                pass
-            driver.get("about:blank")
-            blanked += 1
+            if _blank_current_if_hidden(driver):
+                blanked += 1
         except Exception:
             pass
     _to_native(driver)
