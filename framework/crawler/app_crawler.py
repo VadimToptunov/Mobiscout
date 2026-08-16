@@ -160,19 +160,39 @@ class AppCrawler:
     # a session drops us back on login a few times, not enough for a fill that never
     # clears the gate to loop.
     _MAX_WAYPOINT_FIRES = 3
+    # One gate-passing pass chains through at most this many *sequential* gates (a
+    # login that reveals an OTP that reveals a passcode) before handing back to
+    # normal exploration.
+    _MAX_GATE_CHAIN = 6
 
     def _pass_gates(self, screen: CrawlScreen) -> bool:
-        """Apply a matching waypoint on this screen (bounded re-fire per screen);
-        True if one fired (the caller should re-read the screen since the app moved
-        on)."""
-        if not self.waypoints or self._waypointed.get(screen.fingerprint, 0) >= self._MAX_WAYPOINT_FIRES:
+        """Apply matching waypoints, chaining through a *sequence* of gates — a login
+        that reveals an OTP that reveals a passcode — until none matches or the screen
+        stops moving. True if any fired (the caller should re-read the screen).
+
+        Chaining matters: without it, passing the login hands the revealed OTP screen
+        straight to normal exploration, which types a sample value into it — and an
+        auto-submitting OTP field then submits a wrong code. Passing each gate in turn
+        with its own waypoint keeps that from happening. Per-screen re-fire stays
+        bounded so a gate a fill can't clear never loops."""
+        if not self.waypoints:
             return False
         from framework.crawler.waypoints import apply_first_match
 
-        fired = apply_first_match(self.waypoints, self.driver, screen)
-        if fired:
-            self._waypointed[screen.fingerprint] = self._waypointed.get(screen.fingerprint, 0) + 1
-        return fired
+        current = screen
+        fired_any = False
+        for _ in range(self._MAX_GATE_CHAIN):
+            if self._waypointed.get(current.fingerprint, 0) >= self._MAX_WAYPOINT_FIRES:
+                break
+            if not apply_first_match(self.waypoints, self.driver, current):
+                break
+            self._waypointed[current.fingerprint] = self._waypointed.get(current.fingerprint, 0) + 1
+            fired_any = True
+            nxt = self._read_content_screen()
+            if not nxt.fingerprint or nxt.fingerprint == current.fingerprint:
+                break  # this gate didn't move us on — stop (a retry is covered by re-fire)
+            current = nxt
+        return fired_any
 
     def _blocked(self, element: CrawlElement) -> bool:
         label = element.label.lower()
