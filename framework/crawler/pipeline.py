@@ -97,6 +97,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         app_activity=config.get("app_activity"),
         launch_args=config.get("process_args"),
         graph=graph,
+        waypoints=config.get("waypoints"),
     )
 
     # Only-new mode: drop cases already covered by the team's existing tests, so a

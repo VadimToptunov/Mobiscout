@@ -155,6 +155,14 @@ class AppCrawler:
         self._waypointed: Dict[str, int] = {}
         # Form fingerprints already probed with invalid input — probe each once.
         self._neg_probed: set = set()
+        # Flips once any gate is passed; screens recorded afterward are "behind auth"
+        # and tagged in result.gated so codegen can prepend the auth steps.
+        self._passed_gate = False
+
+    def _note_screen(self, result: CrawlResult, fingerprint: str) -> None:
+        """Tag a just-recorded screen as behind-auth if a gate has been passed."""
+        if self._passed_gate:
+            result.gated.add(fingerprint)
 
     # A gate screen may be re-fired this many times total — enough to re-auth after
     # a session drops us back on login a few times, not enough for a fill that never
@@ -188,6 +196,7 @@ class AppCrawler:
                 break
             self._waypointed[current.fingerprint] = self._waypointed.get(current.fingerprint, 0) + 1
             fired_any = True
+            self._passed_gate = True  # everything recorded from here on is behind auth
             nxt = self._read_content_screen()
             if not nxt.fingerprint or nxt.fingerprint == current.fingerprint:
                 break  # this gate didn't move us on — stop (a retry is covered by re-fire)
@@ -442,6 +451,7 @@ class AppCrawler:
             if passed.fingerprint:
                 screen = passed
                 result.screens.setdefault(screen.fingerprint, screen)
+                self._note_screen(result, screen.fingerprint)
 
         # Exercise this screen's form both ways (invalid→error, then valid) so
         # form-gated flows are reachable and validation states get discovered.
@@ -504,6 +514,7 @@ class AppCrawler:
                 continue  # two tabs landing on the same screen (e.g. the current one)
             seen_fps.add(section.fingerprint)
             result.screens.setdefault(section.fingerprint, section)
+            self._note_screen(result, section.fingerprint)
             self._handle_form(result, section)  # exercise a section root's form both ways
             roots.append((tab, section))
 
@@ -663,6 +674,7 @@ class AppCrawler:
         result.transitions.append((screen.fingerprint, submit, outcome.fingerprint))
         if outcome.fingerprint != screen.fingerprint:
             result.screens.setdefault(outcome.fingerprint, outcome)  # error / next state
+            self._note_screen(result, outcome.fingerprint)
             self._go_back(screen.fingerprint)  # back to the form for the positive branch
 
     def _within_budget(self, result: CrawlResult) -> bool:
@@ -737,10 +749,12 @@ class AppCrawler:
                 if behind.fingerprint and behind.fingerprint != new_screen.fingerprint:
                     result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
                     result.screens.setdefault(behind.fingerprint, behind)
+                    self._note_screen(result, behind.fingerprint)
                     new_screen = behind
 
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
                 result.screens[new_screen.fingerprint] = new_screen
+                self._note_screen(result, new_screen.fingerprint)
                 # A terminal obstacle (paywall / update wall / CAPTCHA) is mapped
                 # but never explored — don't tap Subscribe/Update (spends money /
                 # leaves the app) or loop on a challenge we must not solve; record

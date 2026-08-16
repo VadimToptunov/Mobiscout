@@ -86,3 +86,6 @@ class CrawlResult:
     # can re-tap it, not just its label.
     transitions: List[Tuple[str, "CrawlElement", str]] = field(default_factory=list)
     steps: int = 0
+    # Fingerprints of screens reached only after passing a gate (login/OTP/...), so
+    # codegen can prepend the auth steps that a generated test needs to get there.
+    gated: set = field(default_factory=set)
