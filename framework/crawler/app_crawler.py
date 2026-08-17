@@ -158,6 +158,9 @@ class AppCrawler:
         # Flips once any gate is passed; screens recorded afterward are "behind auth"
         # and tagged in result.gated so codegen can prepend the auth steps.
         self._passed_gate = False
+        # The waypoints that fired, in execution order (login -> OTP -> passcode),
+        # deduped — codegen emits the auth prefix in this order.
+        self._fired_waypoints: List["Waypoint"] = []
 
     def _note_screen(self, result: CrawlResult, fingerprint: str) -> None:
         """Tag a just-recorded screen as behind-auth if a gate has been passed."""
@@ -185,15 +188,21 @@ class AppCrawler:
         bounded so a gate a fill can't clear never loops."""
         if not self.waypoints:
             return False
-        from framework.crawler.waypoints import apply_first_match
+        from framework.crawler.waypoints import apply, matches
 
         current = screen
         fired_any = False
         for _ in range(self._MAX_GATE_CHAIN):
             if self._waypointed.get(current.fingerprint, 0) >= self._MAX_WAYPOINT_FIRES:
                 break
-            if not apply_first_match(self.waypoints, self.driver, current):
+            # First matching waypoint (specificity order), applied — but recorded in
+            # *fire* order for codegen, so the generated auth prefix runs login ->
+            # OTP -> passcode, not the config's specificity order.
+            fired = next((wp for wp in self.waypoints if matches(wp, current)), None)
+            if fired is None or not apply(fired, self.driver, current):
                 break
+            if fired not in self._fired_waypoints:
+                self._fired_waypoints.append(fired)
             self._waypointed[current.fingerprint] = self._waypointed.get(current.fingerprint, 0) + 1
             fired_any = True
             self._passed_gate = True  # everything recorded from here on is behind auth
@@ -425,6 +434,7 @@ class AppCrawler:
             logger.warning(
                 "crawl ended early on an unexpected driver error (%s); returning partial map", type(exc).__name__
             )
+        result.auth_sequence = list(self._fired_waypoints)  # gates in the order passed, for codegen
         return result
 
     def _explore(self, result: CrawlResult) -> None:
@@ -446,12 +456,22 @@ class AppCrawler:
         result.screens[screen.fingerprint] = screen
 
         # Pass any gate on the entry screen (e.g. a login form) before exploring.
+        entry_fp = screen.fingerprint
+        entry_link = next((e for e in screen.interactive() if self._own(e)), None)
+        if entry_link is None and screen.elements:
+            entry_link = screen.elements[0]
         if self._pass_gates(screen):
             passed = parse_screen(self.driver.page_source())
             if passed.fingerprint:
                 screen = passed
                 result.screens.setdefault(screen.fingerprint, screen)
                 self._note_screen(result, screen.fingerprint)
+                # Connect the entry to the post-auth screen so it — and everything
+                # reachable from it — is nav-reachable in the graph and gets test
+                # cases. The synthetic hop is trimmed by the gated nav re-rooting;
+                # the prepended auth steps reproduce the crossing.
+                if entry_link is not None and passed.fingerprint != entry_fp:
+                    result.transitions.append((entry_fp, entry_link, passed.fingerprint))
 
         # Exercise this screen's form both ways (invalid→error, then valid) so
         # form-gated flows are reachable and validation states get discovered.

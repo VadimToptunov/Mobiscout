@@ -230,13 +230,19 @@ def _slug(text: str, max_len: int = 32) -> str:
 
 
 def _screen_title(owned: List[CrawlElement]) -> str:
-    """The screen's title landmark text (the first meaningful static text), used to
-    name a screen readably ('Markets' -> markets_screen)."""
+    """A readable name for the screen, so a test reads like
+    ``total_balance_screen_shows_expected_controls`` rather than ``screen_1``.
+    Prefer the first meaningful static text (a header/title); failing that — a
+    login or other control-only screen has no static text — name it after its most
+    salient control (a button/input label), which still describes the screen."""
     from framework.crawler.classify import classify
 
     for e in owned:
         if classify(e)[0] == "text" and (e.text or "").strip():
             return e.text.strip()
+    for e in owned:
+        if classify(e)[0] in _MEANINGFUL_TYPES and (e.label or "").strip():
+            return e.label.strip()
     return ""
 
 
@@ -484,7 +490,10 @@ def build_test_model(
     # there instead of stalling on the login. Empty when no waypoints, so a
     # gate-free crawl's output is byte-identical.
     platform_str = next(iter(result.screens.values())).platform if result.screens else "android"
-    auth_steps = waypoints_to_steps(waypoints, platform_str)
+    # Prefer the order the gates were actually passed (login -> OTP -> passcode) over
+    # the config's specificity order, so the emitted auth prefix is executable.
+    auth_order = getattr(result, "auth_sequence", None) or waypoints
+    auth_steps = waypoints_to_steps(auth_order, platform_str)
 
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):

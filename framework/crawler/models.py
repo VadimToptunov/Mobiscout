@@ -89,3 +89,7 @@ class CrawlResult:
     # Fingerprints of screens reached only after passing a gate (login/OTP/...), so
     # codegen can prepend the auth steps that a generated test needs to get there.
     gated: set = field(default_factory=set)
+    # The gate-passing waypoints in the order they actually fired (login -> OTP ->
+    # passcode), deduped — codegen emits the auth prefix in this execution order,
+    # not the (specificity-ordered) config order.
+    auth_sequence: list = field(default_factory=list)
