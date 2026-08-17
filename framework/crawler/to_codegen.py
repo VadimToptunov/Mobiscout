@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from framework.codegen.ir import (
     ActionType,
@@ -26,6 +26,55 @@ from framework.codegen.ir import (
     TestModel,
 )
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
+
+
+def _auth_field_selector(hint: str, platform: str) -> Selector:
+    """A best-effort locator for a login/gate input by its hint (username / password
+    / code) — an id/label/text substring match, the same fuzz the crawl used. Low
+    score: it's a generated-auth convenience, flagged fragile for a human to firm up."""
+    h = hint.strip()
+    if platform == "ios":
+        value = f"//*[contains(@name,'{h}') or contains(@label,'{h}') or contains(@value,'{h}')]"
+    else:
+        value = f"//*[contains(@resource-id,'{h}') or contains(@content-desc,'{h}') or contains(@text,'{h}')]"
+    return Selector(SelectorStrategy.XPATH, value, score=0.4, description=f"{h} field")
+
+
+def waypoints_to_steps(waypoints: Optional[List[Any]], platform: str = "android") -> List[Step]:
+    """Turn the crawl's gate-passing waypoints (login / OTP / passcode / permission)
+    into IR steps, so a generated test reproduces the auth a behind-it screen needs
+    to be reached — without it, that test just stalls on the login. Accepts waypoint
+    dicts (from config) or Waypoint objects."""
+    steps: List[Step] = []
+    for wp in waypoints or []:
+        action = wp.get("action") if isinstance(wp, dict) else getattr(wp, "action", None)
+        data = (wp.get("data") if isinstance(wp, dict) else getattr(wp, "data", None)) or {}
+        if action == "fill":
+            for hint, value in (data.get("fields") or {}).items():
+                steps.append(
+                    Step(
+                        ActionType.TYPE,
+                        selector=_auth_field_selector(str(hint), platform),
+                        text=str(value),
+                        description=f"Enter {hint}",
+                    )
+                )
+            submit = data.get("submit")
+            if submit:
+                steps.append(
+                    Step(
+                        ActionType.TAP,
+                        selector=Selector(SelectorStrategy.TEXT, str(submit), description="submit"),
+                        description=f"Tap {submit}",
+                    )
+                )
+        elif action in ("tap", "grant"):
+            target = data.get("target") or data.get("button") or "Allow"
+            steps.append(
+                Step(ActionType.TAP, selector=Selector(SelectorStrategy.TEXT, str(target)), description=f"Tap {target}")
+            )
+    return steps
+
 
 if TYPE_CHECKING:
     from framework.crawler.graph import InteractionGraph
@@ -225,6 +274,7 @@ def _screen_cases(
     app_package: str,
     nav_prefix: Optional[List[Step]] = None,
     assert_values: bool = False,
+    auth_prefix: Optional[List[Step]] = None,
 ) -> Optional[TestCase]:
     """A per-screen state case — meaningful, not exhaustive: assert the screen's
     landmark and its actionable elements (buttons/inputs/…), not every label.
@@ -237,6 +287,8 @@ def _screen_cases(
     values (TEXT_EQUALS) on top of the VISIBLE checks, so a defect that changes a
     displayed value makes the test fail. Off by default (byte-identical output)."""
     steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+    if auth_prefix:
+        steps.extend(auth_prefix)  # pass the gate(s) before navigating/asserting
     if nav_prefix:
         steps.extend(nav_prefix)
     seen = set()
@@ -364,6 +416,7 @@ def build_test_model(
     launch_args: Optional[List[str]] = None,
     graph: Optional["InteractionGraph"] = None,
     assert_values: bool = False,
+    waypoints: Optional[List[Any]] = None,
 ) -> TestModel:
     """Comprehensive TestModel from a crawl: per-screen state checks (visible +
     enabled) plus navigation flows from the recorded transitions.
@@ -391,12 +444,25 @@ def build_test_model(
     graph = graph if graph is not None else build_graph(result, app_package)
     nav = navigation_steps(result, app_package, graph=graph)
 
+    # Auth steps (login/OTP/passcode) reproduced from the waypoints, prepended to the
+    # cases for screens the crawl reached only past a gate — so those tests can get
+    # there instead of stalling on the login. Empty when no waypoints, so a
+    # gate-free crawl's output is byte-identical.
+    platform_str = next(iter(result.screens.values())).platform if result.screens else "android"
+    auth_steps = waypoints_to_steps(waypoints, platform_str)
+
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
         if screen.fingerprint not in nav:
             continue
+        auth = auth_steps if (auth_steps and screen.fingerprint in result.gated) else None
         case = _screen_cases(
-            index, screen, app_package, nav_prefix=nav[screen.fingerprint], assert_values=assert_values
+            index,
+            screen,
+            app_package,
+            nav_prefix=nav[screen.fingerprint],
+            assert_values=assert_values,
+            auth_prefix=auth,
         )
         if case is not None:
             cases.append(case)
