@@ -108,7 +108,9 @@ def build_web_screen(
     position; the coordinates only need to be internally consistent (tapping goes
     through the DOM, not the device point)."""
     ox, oy = origin
-    parts = ['<hierarchy rotation="0">']
+    # mtr-web marks this as a WebView-served screen so parse_screen tags the toolkit
+    # "webview" and codegen wraps its steps in a native<->web context switch.
+    parts = ['<hierarchy rotation="0" mtr-web="1">']
     centers: Dict[Tuple[int, int], int] = {}
     for n in nodes:
         x1 = ox + int(n["x"])

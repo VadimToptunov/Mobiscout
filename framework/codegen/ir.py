@@ -34,6 +34,7 @@ class ActionType(Enum):
     SCROLL_TO = "scroll_to"  # scroll until an element is on screen
     DEEP_LINK = "deep_link"  # open a deep link / URL scheme (step.text = url)
     PRESS_KEY = "press_key"  # press a hardware/soft key (step.text = key name)
+    SWITCH_CONTEXT = "switch_context"  # switch native<->webview context (step.text = "web" | "native")
 
 
 class AssertionType(Enum):

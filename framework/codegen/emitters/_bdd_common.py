@@ -70,6 +70,7 @@ _CLAUSE = {
     ActionType.SCROLL_TO: "When",
     ActionType.DEEP_LINK: "When",
     ActionType.PRESS_KEY: "When",
+    ActionType.SWITCH_CONTEXT: "When",
 }
 
 
@@ -100,6 +101,8 @@ def phrase(step: Step, type_param: Optional[str] = None) -> str:
         return f'I open the deep link "{gherkin_quote(step.text or "")}"'
     if a is ActionType.PRESS_KEY:
         return f'I press the "{gherkin_quote(step.text or "")}" key'
+    if a is ActionType.SWITCH_CONTEXT:
+        return "I switch to the web context" if step.text == "web" else "I switch to the native context"
     if a is ActionType.WAIT:
         return f"I wait {int(step.timeout or 5)} seconds"
     if a is ActionType.BACK:

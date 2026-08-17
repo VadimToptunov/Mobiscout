@@ -315,6 +315,7 @@ def _screen_cases(
         steps.extend(auth_prefix)  # pass the gate(s) before navigating/asserting
     if nav_prefix:
         steps.extend(nav_prefix)
+    web_prefix_len = len(steps)  # asserts appended below get wrapped in a web context switch
     seen = set()
     owned = _owned(screen, app_package)
     for element in _significant(owned):
@@ -365,6 +366,16 @@ def _screen_cases(
             )
     if not any(step.action == ActionType.ASSERT for step in steps):
         return None
+    # A WebView-served screen's elements live in the web DOM, not the native tree —
+    # wrap its assertions in a native<->web context switch so the generated test can
+    # actually find them (Mode 2). Only for toolkit "webview"; native screens are
+    # untouched.
+    if screen.toolkit == "webview":
+        steps.insert(
+            web_prefix_len,
+            Step(ActionType.SWITCH_CONTEXT, text="web", description="Switch to the WebView context"),
+        )
+        steps.append(Step(ActionType.SWITCH_CONTEXT, text="native", description="Back to the native context"))
     title = _slug(_screen_title(owned))
     name = f"{title}_screen_shows_expected_controls" if title else f"screen_{index + 1}_shows_expected_controls"
     human = title.replace("_", " ") if title else f"screen {index + 1}"

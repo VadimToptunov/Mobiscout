@@ -168,7 +168,9 @@ def parse_screen(xml: str) -> CrawlScreen:
 
     # Detect the UI toolkit so callers know how to test the app.
     classes = " ".join(e.class_name for e in elements)
-    if "WebView" in classes:
+    if root.get("mtr-web") == "1":
+        toolkit = "webview"  # DOM served from a WebView context (Mode 2); drive via a context switch
+    elif "WebView" in classes:
         toolkit = "hybrid"  # native shell hosting web content
     elif "Flutter" in classes:
         toolkit = "flutter"  # canvas-rendered; needs Semantics for good locators
