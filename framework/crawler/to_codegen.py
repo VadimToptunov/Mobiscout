@@ -158,16 +158,38 @@ def _contains(outer: CrawlElement, inner: CrawlElement) -> bool:
     return ox1 <= ix1 and oy1 <= iy1 and ix2 <= ox2 and iy2 <= oy2 and inner.bounds != outer.bounds
 
 
+def _structural_selector(
+    element: CrawlElement, siblings: List[CrawlElement], platform: str
+) -> Optional[Selector]:
+    """A last-resort positional locator — the Nth element of its class on screen —
+    for a control with no id/label/text at all (an icon button, an image). Fragile
+    (score 0.3, flagged) and never good enough to assert on, but it keeps an
+    otherwise-unlocatable element *tappable*, so navigation through it is still
+    generated instead of dropped."""
+    cls = (element.class_name or "").strip()
+    if not cls:
+        return None
+    same = [e for e in siblings if e.class_name == cls]
+    index = next((i for i, e in enumerate(same) if e is element), None)
+    if index is None:
+        return None
+    tag = f"XCUIElementType{cls}" if platform == "ios" else cls
+    return Selector(SelectorStrategy.XPATH, f"(//{tag})[{index + 1}]", score=0.3, description=cls)
+
+
 def selector_for(
     element: CrawlElement, siblings: Optional[List[CrawlElement]] = None, platform: str = "android"
 ) -> Optional[Selector]:
-    """Locator for an element, with a Jetpack Compose fallback.
+    """Locator for an element, with a Jetpack Compose fallback and a positional
+    last resort.
 
     In Compose the clickable node is often an unlabelled wrapper while the
     visible text sits on a non-clickable child, so a direct locator is empty.
     When that happens for a clickable element, borrow the locator of the
     innermost labelled element contained within its bounds — tapping that child
-    (inside the clickable) triggers the same action.
+    (inside the clickable) triggers the same action. If even that finds nothing
+    (a truly label-less icon), fall back to a positional locator so the control is
+    still reachable.
     """
     own = _selector_for(element, platform)
     if own is not None or not element.clickable or not siblings:
@@ -184,7 +206,9 @@ def selector_for(
         area = (x2 - x1) * (y2 - y1)
         if best_area is None or area < best_area:
             best, best_area = sel, area
-    return best
+    if best is not None:
+        return best
+    return _structural_selector(element, siblings, platform)
 
 
 def _owned(screen: CrawlScreen, app_package: str) -> List[CrawlElement]:
