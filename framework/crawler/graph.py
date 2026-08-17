@@ -302,10 +302,19 @@ def navigation_steps(
     if graph.entry is None:
         return reachable  # no navigation model — only the entry screen is testable
 
+    gated = getattr(result, "gated", None) or set()
     for node_id, path in graph.shortest_paths_from_entry().items():
         target_fp = fp_of.get(node_id)
         if target_fp is None or target_fp == entry_fp:
             continue
+        # For a screen behind a gate, codegen prepends the auth steps, which land
+        # the test on the post-auth home — so navigate only the in-app hops from
+        # there, trimming the path (and its synthetic gate-crossing hop) to start at
+        # the first gated node. Without this the nav would re-tap from the launcher.
+        if target_fp in gated:
+            first_gated = next((i for i, n in enumerate(path) if fp_of.get(n) in gated), None)
+            if first_gated:
+                path = path[first_gated:]
         steps: List[Step] = []
         ok = True
         for a, b in zip(path, path[1:]):
