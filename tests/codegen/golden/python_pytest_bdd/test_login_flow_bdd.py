@@ -128,6 +128,16 @@ def _press_key(driver, key):
     driver.press_keycode(codes.get(key.upper(), 0))
 
 
+@when(parsers.parse("I switch to the {ctx} context"))
+def _switch_context(driver, ctx):
+    # Hybrid apps host web content in a WebView; drive it by switching the Appium
+    # context to the WEBVIEW handle and back to native.
+    if ctx == "web":
+        driver.switch_to.context(next(c for c in driver.contexts if "WEBVIEW" in c.upper()))
+    else:
+        driver.switch_to.context("NATIVE_APP")
+
+
 @then(parsers.parse('"{target}" is visible'))
 def _visible(driver, target):
     assert _find(driver, target).is_displayed()
