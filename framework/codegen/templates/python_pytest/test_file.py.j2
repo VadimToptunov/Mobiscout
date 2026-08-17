@@ -158,6 +158,12 @@ def test_{{ case.name }}(driver):
 {% else %}
     driver.press_keycode({{ step.text | keycode }})
 {% endif %}
+{% elif step.action.value == "switch_context" %}
+{% if step.text == "web" %}
+    driver.switch_to.context(next(c for c in driver.contexts if "WEBVIEW" in c.upper()))
+{% else %}
+    driver.switch_to.context("NATIVE_APP")
+{% endif %}
 {% elif step.action.value == "wait" %}
     # Condition-based: wait for the screen to render rather than sleeping a fixed time.
     WebDriverWait(driver, {{ step.timeout or 5 }}).until(lambda d: d.find_elements(AppiumBy.XPATH, "//*"))

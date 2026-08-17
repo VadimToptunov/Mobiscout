@@ -143,6 +143,12 @@ public class {{ class_name }} {
 {% else %}
         ((io.appium.java_client.android.AndroidDriver) driver).pressKey(new io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | java_str }})));
 {% endif %}
+{% elif step.action.value == "switch_context" %}
+{% if step.text == "web" %}
+        ((io.appium.java_client.remote.SupportsContextSwitching) driver).context(((io.appium.java_client.remote.SupportsContextSwitching) driver).getContextHandles().stream().filter(c -> c.toUpperCase().contains("WEBVIEW")).findFirst().orElse("NATIVE_APP"));
+{% else %}
+        ((io.appium.java_client.remote.SupportsContextSwitching) driver).context("NATIVE_APP");
+{% endif %}
 {% elif step.action.value == "wait" %}
         // Condition-based: wait for the screen to render rather than a global implicit wait.
         new WebDriverWait(driver, Duration.ofSeconds({{ step.timeout | int or 5 }})).until(d -> !d.findElements(By.xpath("//*")).isEmpty());

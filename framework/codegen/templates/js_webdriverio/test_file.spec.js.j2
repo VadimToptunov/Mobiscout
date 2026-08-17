@@ -89,6 +89,12 @@ describe({{ model.name | js_str }}, () => {
 {% else %}
         await driver.pressKeyCode({{ step.text | keycode }});
 {% endif %}
+{% elif step.action.value == "switch_context" %}
+{% if step.text == "web" %}
+        await driver.switchContext((await driver.getContexts()).find((c) => String(c).toUpperCase().includes('WEBVIEW')));
+{% else %}
+        await driver.switchContext('NATIVE_APP');
+{% endif %}
 {% elif step.action.value == "wait" %}
         // Condition-based: wait for the screen to render rather than a fixed pause.
         await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: {{ (step.timeout | int or 5) * 1000 }}, interval: 300 });

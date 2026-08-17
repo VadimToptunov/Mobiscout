@@ -58,6 +58,8 @@ def _step(action: ActionType) -> Step:
         return Step(action, text="myapp://home")
     if action is ActionType.PRESS_KEY:
         return Step(action, text="ENTER")
+    if action is ActionType.SWITCH_CONTEXT:
+        return Step(action, text="web")
     if action is ActionType.ASSERT:
         return Step(action, selector=_SEL, assertion=AssertionType.VISIBLE)
     raise AssertionError(f"test fixture missing a Step builder for {action}")
