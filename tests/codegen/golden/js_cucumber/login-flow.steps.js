@@ -84,6 +84,16 @@ When('I press the {string} key', async (key) => {
     await driver.pressKeyCode(codes[key.toUpperCase()] || 0);
 });
 
+When('I switch to the {word} context', async (ctx) => {
+    // Hybrid apps host web content in a WebView; drive it by switching the Appium
+    // context to the WEBVIEW handle and back to native.
+    if (ctx === 'web') {
+        await driver.switchContext((await driver.getContexts()).find((c) => String(c).toUpperCase().includes('WEBVIEW')));
+    } else {
+        await driver.switchContext('NATIVE_APP');
+    }
+});
+
 Then('{string} is visible', async (target) => {
     await expect(await find(target)).toBeDisplayed();
 });

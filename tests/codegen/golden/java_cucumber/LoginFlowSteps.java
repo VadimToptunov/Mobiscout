@@ -142,6 +142,20 @@ public class LoginFlowSteps {
                 io.appium.java_client.android.nativekey.AndroidKey.valueOf(key.toUpperCase())));
     }
 
+    @When("I switch to the {word} context")
+    public void iSwitchContext(String ctx) {
+        // Hybrid apps host web content in a WebView; drive it by switching the
+        // Appium context to the WEBVIEW handle and back to native.
+        io.appium.java_client.remote.SupportsContextSwitching cs =
+            (io.appium.java_client.remote.SupportsContextSwitching) driver;
+        if (ctx.equals("web")) {
+            cs.context(cs.getContextHandles().stream()
+                .filter(c -> c.toUpperCase().contains("WEBVIEW")).findFirst().orElse("NATIVE_APP"));
+        } else {
+            cs.context("NATIVE_APP");
+        }
+    }
+
     @Then("{string} is visible")
     public void isVisible(String target) {
         if (!find(target).isDisplayed()) {
