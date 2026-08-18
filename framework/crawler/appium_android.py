@@ -109,7 +109,12 @@ class AndroidAppiumDriver:
             # client_config falls back to the default (unbounded) connection.
             try:
                 client_config = ClientConfig(remote_server_addr=server, timeout=int(_HTTP_TIMEOUT_S))
-                self._driver = webdriver.Remote(server, options=options, client_config=client_config)
+                # Appium's webdriver.Remote is typed for its own AppiumClientConfig
+                # subclass (not exported in this client version); the base selenium
+                # ClientConfig works at runtime.
+                self._driver = webdriver.Remote(  # type: ignore[arg-type]
+                    server, options=options, client_config=client_config
+                )
             except TypeError:
                 self._driver = webdriver.Remote(server, options=options)
         # Don't block for the full default "idle" timeout after each action — the
