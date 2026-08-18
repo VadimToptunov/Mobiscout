@@ -516,14 +516,21 @@ def multi_step_cases(
         seen_paths.add(node_path)
         label = " → ".join(f"screen {n}" for n in node_path)
         # Name the journey after the controls it taps, so it reads like a story:
-        # journey_from_transfer_to_confirm. Falls back to the path if labels are bare.
-        from framework.crawler.to_codegen import _slug
+        # journey_from_transfer_to_confirm. A label-less Compose wrapper is only a
+        # bare framework class ("android.view.View" -> android_view_view), which
+        # names nothing — drop those and fall back to the destination screen's title
+        # (journey_to_checkout), then the path.
+        from framework.crawler.to_codegen import _screen_title, _slug  # _owned is module-level
 
-        tap_slugs = [s for s in (_slug(t) for t in taps) if s]
+        tap_slugs = [s for s in (_slug(t) for t in taps) if s and not s.startswith("android_")]
+        dest_screen = result.screens.get(fp_of[node_path[-1]])
+        dest_title = _slug(_screen_title(_owned(dest_screen, app_package))) if dest_screen else ""
         if len(tap_slugs) >= 2:
             journey = f"journey_from_{tap_slugs[0]}_to_{tap_slugs[-1]}"
         elif tap_slugs:
             journey = f"journey_via_{tap_slugs[0]}"
+        elif dest_title:
+            journey = f"journey_to_{dest_title}"
         else:
             journey = f"journey_{'_'.join(str(n) for n in node_path)}"
         case = TestCase(
