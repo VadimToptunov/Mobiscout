@@ -39,12 +39,14 @@ def test_non_entry_state_case_navigates_before_asserting():
     model = build_test_model(result, "com.example.app")
 
     # The entry screen's state case launches and asserts, with no navigation tap.
-    entry = _case(model, "screen_1")
+    # (Screens are named after their landmark/control, so the login-form entry is
+    # "login_screen..." and the deeper one "profile_screen...".)
+    entry = _case(model, "login_screen")
     assert entry is not None
     assert not any(s.action == ActionType.TAP for s in entry.steps)
 
     # A non-entry screen's state case taps its way there before any assertion.
-    deeper = _case(model, "screen_2")
+    deeper = _case(model, "profile_screen")
     assert deeper is not None
     first_assert = next(i for i, s in enumerate(deeper.steps) if s.action == ActionType.ASSERT)
     assert any(s.action == ActionType.TAP for s in deeper.steps[:first_assert])
