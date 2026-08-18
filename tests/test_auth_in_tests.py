@@ -9,8 +9,13 @@ from framework.crawler.to_codegen import build_test_model, waypoints_to_steps
 
 APP = "com.example.app"
 
-_WP = [{"when": {"has_input": True}, "action": "fill",
-        "data": {"fields": {"user": "demo", "password": "pw"}, "submit": "Sign in"}}]
+_WP = [
+    {
+        "when": {"has_input": True},
+        "action": "fill",
+        "data": {"fields": {"user": "demo", "password": "pw"}, "submit": "Sign in"},
+    }
+]
 
 
 def test_waypoints_to_steps_fill_makes_type_and_tap():
@@ -42,11 +47,15 @@ def _build_two_screen_result(gated):
     home = _screen(_btn("Accounts", "id/accounts", (0, 0, 200, 50)))
     login_fp, home_fp = login.fingerprint, home.fingerprint
     signin = login.elements[0]
-    return CrawlResult(
-        screens={login_fp: login, home_fp: home},
-        transitions=[(login_fp, signin, home_fp)],
-        gated=({home_fp} if gated else set()),
-    ), home_fp, login_fp
+    return (
+        CrawlResult(
+            screens={login_fp: login, home_fp: home},
+            transitions=[(login_fp, signin, home_fp)],
+            gated=({home_fp} if gated else set()),
+        ),
+        home_fp,
+        login_fp,
+    )
 
 
 def test_auth_prepended_only_to_gated_screen():
@@ -70,6 +79,4 @@ def test_auth_prepended_only_to_gated_screen():
 def test_no_gated_screens_means_no_auth_anywhere():
     result, _, _ = _build_two_screen_result(gated=False)
     model = build_test_model(result, APP, waypoints=_WP)
-    assert all(
-        not any(s.action == ActionType.TYPE and s.text == "demo" for s in c.steps) for c in model.cases
-    )
+    assert all(not any(s.action == ActionType.TYPE and s.text == "demo" for s in c.steps) for c in model.cases)

@@ -1,9 +1,9 @@
 """Batch 3 — anti-crawl / flaky-backend resilience (device-free):
 
-  * root/jailbreak/emulator integrity screens are terminal dead-ends; and
-  * a transient error screen ("no connection / try again") is retried, and the
-    crawler's read recovers to the real content behind it — a persistent error is
-    mapped once, not looped on.
+* root/jailbreak/emulator integrity screens are terminal dead-ends; and
+* a transient error screen ("no connection / try again") is retried, and the
+  crawler's read recovers to the real content behind it — a persistent error is
+  mapped once, not looped on.
 """
 
 from framework.crawler.app_crawler import AppCrawler, parse_screen

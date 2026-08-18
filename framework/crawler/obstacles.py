@@ -31,7 +31,15 @@ from framework.crawler.models import CrawlElement, CrawlScreen
 # Cookie/consent banners. Decline is preferred (privacy-first); accept is the
 # fallback only so the crawl isn't stuck behind a mandatory banner.
 _CONSENT_WORDS = ("cookie", "consent", "gdpr", "we use cookies", "we value your privacy", "your privacy", "tracking")
-_CONSENT_DECLINE = ("reject all", "reject", "decline", "only necessary", "necessary only", "essential only", "no thanks")
+_CONSENT_DECLINE = (
+    "reject all",
+    "reject",
+    "decline",
+    "only necessary",
+    "necessary only",
+    "essential only",
+    "no thanks",
+)
 _CONSENT_ACCEPT = ("accept all", "accept", "agree", "allow all", "i agree", "got it")
 
 # Onboarding / tutorial carousels. Fire only on an explicit skip-like control so
@@ -42,30 +50,82 @@ _ONBOARD_SKIP = ("skip", "get started", "let's go", "lets go", "start now", "don
 # Rate-us / promo / "enable notifications" nags — a dismiss control that keeps us
 # in the app.
 _NAG_WORDS = (
-    "rate us", "rate this app", "rate app", "enjoying", "leave a review", "write a review",
-    "special offer", "limited time", "enable notifications", "allow notifications", "turn on notifications",
+    "rate us",
+    "rate this app",
+    "rate app",
+    "enjoying",
+    "leave a review",
+    "write a review",
+    "special offer",
+    "limited time",
+    "enable notifications",
+    "allow notifications",
+    "turn on notifications",
 )
 _NAG_DISMISS = ("no thanks", "not now", "maybe later", "remind me later", "later", "no, thanks", "dismiss", "skip")
 
 # --- terminal obstacles: dead-ends to record and back out of (never act on).
 
-_CAPTCHA_WORDS = ("captcha", "recaptcha", "hcaptcha", "i'm not a robot", "i am not a robot", "verify you are human", "are you a robot")
-_UPDATE_WORDS = ("update required", "please update", "update to continue", "must update", "update the app", "unsupported version", "outdated version")
-_PAYWALL_WORDS = ("start free trial", "free trial", "subscribe", "unlock premium", "go premium", "upgrade to premium", "restore purchase", "per month", "per year")
+_CAPTCHA_WORDS = (
+    "captcha",
+    "recaptcha",
+    "hcaptcha",
+    "i'm not a robot",
+    "i am not a robot",
+    "verify you are human",
+    "are you a robot",
+)
+_UPDATE_WORDS = (
+    "update required",
+    "please update",
+    "update to continue",
+    "must update",
+    "update the app",
+    "unsupported version",
+    "outdated version",
+)
+_PAYWALL_WORDS = (
+    "start free trial",
+    "free trial",
+    "subscribe",
+    "unlock premium",
+    "go premium",
+    "upgrade to premium",
+    "restore purchase",
+    "per month",
+    "per year",
+)
 # Root / jailbreak / emulator / integrity blocks — a hard dead-end the crawl can't
 # (and shouldn't) get past; record it and move on rather than loop.
 _INTEGRITY_WORDS = (
-    "rooted device", "device is rooted", "jailbroken", "jailbreak detected", "device is not secure",
-    "emulator is not supported", "cannot run on an emulator", "not supported on this device",
-    "integrity check failed", "security check failed", "device not supported",
+    "rooted device",
+    "device is rooted",
+    "jailbroken",
+    "jailbreak detected",
+    "device is not secure",
+    "emulator is not supported",
+    "cannot run on an emulator",
+    "not supported on this device",
+    "integrity check failed",
+    "security check failed",
+    "device not supported",
 )
 
 # --- transient errors: a flaky backend, not a real destination — retry, don't map.
 
 _ERROR_WORDS = (
-    "no internet", "no connection", "check your connection", "network error", "connection lost",
-    "something went wrong", "server error", "unable to load", "failed to load", "request timed out",
-    "try again later", "an error occurred",
+    "no internet",
+    "no connection",
+    "check your connection",
+    "network error",
+    "connection lost",
+    "something went wrong",
+    "server error",
+    "unable to load",
+    "failed to load",
+    "request timed out",
+    "try again later",
+    "an error occurred",
 )
 _RETRY_LABELS = ("retry", "try again", "reload", "refresh")
 

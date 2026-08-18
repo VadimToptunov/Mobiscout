@@ -25,14 +25,19 @@ def _result():
     login = _screen(_btn("Sign in", "id/signin", (0, 0, 100, 40)))
     home = _screen(_btn("Send", "id/send", (0, 0, 100, 40)))
     transfer = _screen(_btn("Confirm", "id/confirm", (0, 0, 100, 40)))
-    return CrawlResult(
-        screens={login.fingerprint: login, home.fingerprint: home, transfer.fingerprint: transfer},
-        transitions=[
-            (login.fingerprint, login.elements[0], home.fingerprint),  # synthetic gate crossing
-            (home.fingerprint, home.elements[0], transfer.fingerprint),  # real in-app tap
-        ],
-        gated={home.fingerprint, transfer.fingerprint},
-    ), login, home, transfer
+    return (
+        CrawlResult(
+            screens={login.fingerprint: login, home.fingerprint: home, transfer.fingerprint: transfer},
+            transitions=[
+                (login.fingerprint, login.elements[0], home.fingerprint),  # synthetic gate crossing
+                (home.fingerprint, home.elements[0], transfer.fingerprint),  # real in-app tap
+            ],
+            gated={home.fingerprint, transfer.fingerprint},
+        ),
+        login,
+        home,
+        transfer,
+    )
 
 
 def test_gated_home_has_no_in_app_nav():

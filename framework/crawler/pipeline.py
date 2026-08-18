@@ -263,9 +263,7 @@ def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
     return into
 
 
-def _seed_deeplinks(
-    config: Dict[str, Any], driver: Any, result: CrawlResult, waypoints: List[Any]
-) -> CrawlResult:
+def _seed_deeplinks(config: Dict[str, Any], driver: Any, result: CrawlResult, waypoints: List[Any]) -> CrawlResult:
     """Open each configured/extracted deeplink as an extra crawl root and merge the
     screens it reaches into ``result`` — coverage a tap-only walk can't reach. No-op
     when there are no deeplinks or the driver can't open one."""

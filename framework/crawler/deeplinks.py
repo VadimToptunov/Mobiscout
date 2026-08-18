@@ -87,7 +87,7 @@ def deeplinks_from_ios_plist(plist: Any) -> List[str]:
         return []
     schemes: List[str] = []
     for entry in data.get("CFBundleURLTypes") or []:
-        for scheme in (entry.get("CFBundleURLSchemes") or []):
+        for scheme in entry.get("CFBundleURLSchemes") or []:
             if scheme:
                 schemes.append(f"{scheme}://")
     return _dedupe(schemes)

@@ -1,9 +1,9 @@
 """Built-in obstacle handling (device-free):
 
-  * unit — the matchers/actions dismiss the right control and don't fire on real
-    content; terminal dead-ends are named; and
-  * integration — a re-appearing login is re-authed (bounded), and a terminal
-    obstacle (paywall) is mapped but never tapped into.
+* unit — the matchers/actions dismiss the right control and don't fire on real
+  content; terminal dead-ends are named; and
+* integration — a re-appearing login is re-authed (bounded), and a terminal
+  obstacle (paywall) is mapped but never tapped into.
 """
 
 from framework.crawler.app_crawler import AppCrawler, parse_screen

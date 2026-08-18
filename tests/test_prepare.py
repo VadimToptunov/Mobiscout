@@ -31,7 +31,9 @@ def test_ios_privacy_grants():
 def test_prepare_commands_dispatches_on_platform():
     android = prepare_commands({"package": PKG, "platform": "android", "prepare": {"grant": True}})
     assert android and android[0][0] == "adb"
-    ios = prepare_commands({"package": PKG, "platform": "ios", "udid": "UDID", "prepare": {"reset": True, "grant": False}})
+    ios = prepare_commands(
+        {"package": PKG, "platform": "ios", "udid": "UDID", "prepare": {"reset": True, "grant": False}}
+    )
     assert ios == [["xcrun", "simctl", "privacy", "UDID", "reset", "all", PKG]]
 
 

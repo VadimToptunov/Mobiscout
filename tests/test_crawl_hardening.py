@@ -1,9 +1,9 @@
 """Crawl-robustness hardening (no device):
 
-  * the wall-clock budget stops a crawl even when the step budget is huge; and
-  * the Android driver bounds the uiautomator source dump, so a WebView-poisoned
-    dump surfaces as a driver error (and a wedged session doesn't block quit)
-    instead of hanging the run.
+* the wall-clock budget stops a crawl even when the step budget is huge; and
+* the Android driver bounds the uiautomator source dump, so a WebView-poisoned
+  dump surfaces as a driver error (and a wedged session doesn't block quit)
+  instead of hanging the run.
 """
 
 import time
