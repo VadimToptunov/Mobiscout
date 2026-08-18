@@ -108,8 +108,15 @@ class AndroidAppiumDriver:
             # _HTTP_TIMEOUT_S). Best-effort: an older client that doesn't accept
             # client_config falls back to the default (unbounded) connection.
             try:
-                client_config = ClientConfig(remote_server_addr=server, timeout=_HTTP_TIMEOUT_S)
-                self._driver = webdriver.Remote(server, options=options, client_config=client_config)
+                client_config = ClientConfig(remote_server_addr=server, timeout=int(_HTTP_TIMEOUT_S))
+                # Appium's webdriver.Remote is typed for its own AppiumClientConfig
+                # subclass (not exported in this client version); the base selenium
+                # ClientConfig works at runtime.
+                self._driver = webdriver.Remote(
+                    server,
+                    options=options,
+                    client_config=client_config,  # type: ignore[arg-type]
+                )
             except TypeError:
                 self._driver = webdriver.Remote(server, options=options)
         # Don't block for the full default "idle" timeout after each action — the
@@ -144,7 +151,7 @@ class AndroidAppiumDriver:
         if snap:
             self._web = snap
             self._web_served = True
-            return snap["xml"]
+            return cast(str, snap["xml"])
         self._web = None
         return self._native_source()
 

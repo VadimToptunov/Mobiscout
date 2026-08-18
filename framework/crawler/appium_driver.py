@@ -18,7 +18,7 @@ the pipeline (inventory, IR, codegen) is unchanged.
 from __future__ import annotations
 
 import time
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, cast
 
 from framework.crawler.settle import settle_until_stable
 
@@ -127,7 +127,7 @@ class IOSCrawlerDriver:
             if snap:
                 self._web = snap
                 self._web_served = True
-                return snap["xml"]
+                return cast(str, snap["xml"])
         self._web = None
         return native
 

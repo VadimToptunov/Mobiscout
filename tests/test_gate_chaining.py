@@ -71,10 +71,12 @@ def test_pass_gates_chains_login_then_otp():
         APP,
         waypoints=[
             # OTP first (specific), login second (general) — apply_first_match order.
-            Waypoint(when={"text_contains": "enter the code"}, action="fill",
-                     data={"fields": {"code": "424242"}, "submit": "verify"}),
-            Waypoint(when={"has_input": True}, action="fill",
-                     data={"fields": {"user": "demo"}, "submit": "log in"}),
+            Waypoint(
+                when={"text_contains": "enter the code"},
+                action="fill",
+                data={"fields": {"code": "424242"}, "submit": "verify"},
+            ),
+            Waypoint(when={"has_input": True}, action="fill", data={"fields": {"user": "demo"}, "submit": "log in"}),
         ],
     )
     login = parse_screen(driver.page_source())

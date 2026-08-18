@@ -417,6 +417,8 @@ def write_kit(
         # backend needed to run the tests or re-crawl).
         mocked = emit_mock_from_har(har, out)
         if mocked:
-            report.info.append(f"Mock backend from captured traffic ({mocked} route(s)): {out / 'mock' / 'mock_server.py'}")
+            report.info.append(
+                f"Mock backend from captured traffic ({mocked} route(s)): {out / 'mock' / 'mock_server.py'}"
+            )
 
     return report

@@ -158,9 +158,7 @@ def _contains(outer: CrawlElement, inner: CrawlElement) -> bool:
     return ox1 <= ix1 and oy1 <= iy1 and ix2 <= ox2 and iy2 <= oy2 and inner.bounds != outer.bounds
 
 
-def _structural_selector(
-    element: CrawlElement, siblings: List[CrawlElement], platform: str
-) -> Optional[Selector]:
+def _structural_selector(element: CrawlElement, siblings: List[CrawlElement], platform: str) -> Optional[Selector]:
     """A last-resort positional locator — the Nth element of its class on screen —
     for a control with no id/label/text at all (an icon button, an image). Fragile
     (score 0.3, flagged) and never good enough to assert on, but it keeps an

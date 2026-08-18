@@ -90,13 +90,7 @@ def _class_for(tag: str, typ: str) -> str:
 
 
 def _esc(s: str) -> str:
-    return (
-        (s or "")
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def build_web_screen(
@@ -301,7 +295,9 @@ def click_web(driver: Any, web: Dict[str, Any], x: int, y: int) -> bool:
             web["focused"] = i
         else:
             web["focused"] = None
-            time.sleep(_WEB_NAV_SETTLE)  # let a submit's JS handler / native transition run before we leave the web context
+            time.sleep(
+                _WEB_NAV_SETTLE
+            )  # let a submit's JS handler / native transition run before we leave the web context
         return True
     except Exception:
         return False

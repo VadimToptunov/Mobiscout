@@ -43,9 +43,7 @@ def test_emit_empty_without_calls():
 
 
 def test_emitted_server_replays_deterministically(tmp_path):
-    files = emit_mock_server(
-        [_call("GET", "http://h/cards", 200, '{"cards":[]}')], base_url="http://localhost:8000"
-    )
+    files = emit_mock_server([_call("GET", "http://h/cards", 200, '{"cards":[]}')], base_url="http://localhost:8000")
     for name, content in files.items():
         (tmp_path / name).write_text(content, encoding="utf-8")
 

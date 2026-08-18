@@ -31,7 +31,9 @@ jobs:
           pip install -r requirements.txt
           # black is pinned in requirements.txt — don't reinstall (would pull
           # the latest, whose formatting differs and breaks --check).
-          pip install flake8 mypy interrogate
+          # mypy is pinned too: an unpinned upgrade silently tightens checks and
+          # reds the job on code that was clean the day before.
+          pip install flake8 mypy==2.3.1 interrogate
 
       - name: Run Black (code formatter check)
         run: black --check framework tests

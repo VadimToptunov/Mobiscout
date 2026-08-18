@@ -15,8 +15,28 @@ from framework.crawler.waypoints import _is_input
 
 # A tiny login DOM: username + password inputs and a submit button.
 _NODES = [
-    {"i": 0, "tag": "input", "type": "text", "text": "username", "name": "username", "x": 20, "y": 100, "w": 280, "h": 44},
-    {"i": 1, "tag": "input", "type": "password", "text": "password", "name": "password", "x": 20, "y": 160, "w": 280, "h": 44},
+    {
+        "i": 0,
+        "tag": "input",
+        "type": "text",
+        "text": "username",
+        "name": "username",
+        "x": 20,
+        "y": 100,
+        "w": 280,
+        "h": 44,
+    },
+    {
+        "i": 1,
+        "tag": "input",
+        "type": "password",
+        "text": "password",
+        "name": "password",
+        "x": 20,
+        "y": 160,
+        "w": 280,
+        "h": 44,
+    },
     {"i": 5, "tag": "button", "type": "submit", "text": "Log in", "name": "", "x": 20, "y": 220, "w": 280, "h": 48},
     {"i": 9, "tag": "a", "type": "", "text": "Forgot password?", "name": "", "x": 20, "y": 290, "w": 160, "h": 20},
 ]

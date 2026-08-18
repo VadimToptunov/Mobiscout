@@ -9,10 +9,10 @@ from framework.crawler.waypoints import Waypoint
 from tests.test_gate_chaining import APP, _ChainDriver
 
 # Config order is specificity order: OTP first (its text match), login last.
-_OTP = Waypoint(when={"text_contains": "enter the code"}, action="fill",
-                data={"fields": {"code": "424242"}, "submit": "verify"})
-_LOGIN = Waypoint(when={"has_input": True}, action="fill",
-                  data={"fields": {"user": "demo"}, "submit": "log in"})
+_OTP = Waypoint(
+    when={"text_contains": "enter the code"}, action="fill", data={"fields": {"code": "424242"}, "submit": "verify"}
+)
+_LOGIN = Waypoint(when={"has_input": True}, action="fill", data={"fields": {"user": "demo"}, "submit": "log in"})
 
 
 def test_auth_sequence_records_fire_order_not_config_order():
