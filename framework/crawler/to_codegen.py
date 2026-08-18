@@ -426,8 +426,11 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
             continue
         seen_taps.add(tap.value)
         tapped = element.label or element.class_name
-        # Name the test after what it does: tap <control> -> reach <destination>.
-        tap_slug = _slug(tapped) or "control"
+        # Name the test after what it does. A label-less Compose wrapper has only a
+        # class name ("android.view.View") — no meaningful "tapping_X", so name it
+        # after the destination instead: navigate_to_<screen>. Use the *real* label
+        # (text/desc/id), not the class-name fallback that element.label provides.
+        tap_slug = _slug((element.text or element.content_desc or element.resource_id or "").strip())
         dest_slug = _slug(_screen_title(target_elements)) or _slug(landmark.description or "") or "the_next_screen"
         steps = [
             Step(ActionType.LAUNCH, description="Open app"),
@@ -439,13 +442,13 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
                 description="Destination screen is shown",
             ),
         ]
-        cases.append(
-            TestCase(
-                name=f"tapping_{tap_slug}_opens_{dest_slug}",
-                steps=steps,
-                description=f"Tapping {tapped} opens the {dest_slug.replace('_', ' ')} screen",
-            )
+        name = f"tapping_{tap_slug}_opens_{dest_slug}" if tap_slug else f"navigate_to_{dest_slug}"
+        human = (
+            f"Tapping {tapped} opens the {dest_slug.replace('_', ' ')} screen"
+            if tap_slug
+            else f"Navigating to the {dest_slug.replace('_', ' ')} screen"
         )
+        cases.append(TestCase(name=name, steps=steps, description=human))
     return cases
 
 
