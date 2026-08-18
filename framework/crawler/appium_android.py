@@ -112,8 +112,10 @@ class AndroidAppiumDriver:
                 # Appium's webdriver.Remote is typed for its own AppiumClientConfig
                 # subclass (not exported in this client version); the base selenium
                 # ClientConfig works at runtime.
-                self._driver = webdriver.Remote(  # type: ignore[arg-type]
-                    server, options=options, client_config=client_config
+                self._driver = webdriver.Remote(
+                    server,
+                    options=options,
+                    client_config=client_config,  # type: ignore[arg-type]
                 )
             except TypeError:
                 self._driver = webdriver.Remote(server, options=options)
