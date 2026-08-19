@@ -76,6 +76,10 @@ class GenerateKitAction : AnAction() {
                     val output = result.get("output")?.asString ?: params["output"]
                     val scaffolded = result.get("scaffolded")?.let { if (it.isJsonNull) null else it.asString }
                     val extra = if (scaffolded != null) " · runnable $scaffolded project" else ""
+                    // A crash the app dropped mid-crawl is captured into crashes/ —
+                    // surface it, it's usually the most valuable thing a crawl finds.
+                    val crashes = result.get("crashes")?.asInt ?: 0
+                    val crashNote = if (crashes > 0) " · ⚠️ $crashes crash(es) → crashes/" else ""
 
                     // 3. Cleanup: uninstall the app if asked. Best-effort — a crawl
                     //    that succeeded should still be reported, so note but don't fail.
@@ -105,7 +109,7 @@ class GenerateKitAction : AnAction() {
                         notify(
                             project,
                             "Test kit generated",
-                            "$screens screen(s), $cases test case(s)$extra\nWritten to: $output$cleanupNote$tierNote",
+                            "$screens screen(s), $cases test case(s)$extra$crashNote\nWritten to: $output$cleanupNote$tierNote",
                             NotificationType.INFORMATION,
                         )
                     }

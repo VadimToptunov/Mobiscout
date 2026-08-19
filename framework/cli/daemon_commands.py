@@ -4,6 +4,7 @@ import json
 import logging
 import subprocess
 import sys
+import threading
 from typing import Dict, Any, Optional
 
 import click
@@ -136,6 +137,11 @@ class JSONRPCServer:
         self.device_manager = DeviceManager()
         self.sessions: Dict[str, Dict[str, Any]] = {}  # session_id -> {backend, backend_session_id, ...}
         self.backends: Dict[str, Any] = {}  # backend_name -> backend_instance
+        # Serialize every write to the stdio transport: the log-stream pump runs on
+        # a background thread and emits notifications while the main loop writes
+        # responses, so their lines must not interleave.
+        self._io_lock = threading.Lock()
+        self._log_stream: Optional[subprocess.Popen] = None  # active `simctl log stream`
 
         self.handlers = {
             "health/check": self.handle_health_check,
@@ -161,6 +167,8 @@ class JSONRPCServer:
             "license/status": self.handle_license_status,
             "deeplinks/extract": self.handle_deeplinks_extract,
             "device/prepare": self.handle_device_prepare,
+            "logs/start": self.handle_logs_start,
+            "logs/stop": self.handle_logs_stop,
         }
 
     def handle_deeplinks_extract(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -612,6 +620,100 @@ class JSONRPCServer:
         """The JSON line announcing the server is ready, sent on connect."""
         return json.dumps({"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": "0.5.0"}})
 
+    def _emit(self, obj: Dict[str, Any]) -> None:
+        """Write one JSON-RPC message to stdout under the io lock. Used for
+        server-initiated notifications (the log stream) so their lines never
+        interleave with the main loop's responses."""
+        with self._io_lock:
+            sys.stdout.write(json.dumps(obj) + "\n")
+            sys.stdout.flush()
+
+    def handle_logs_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Stream the app-under-test's device logs into the IDE's Logs tab.
+
+        Platform-aware: iOS uses ``simctl spawn <udid> log stream`` filtered to the
+        app process; Android uses ``adb -s <serial> logcat`` scoped to the app's PID.
+        Each line is pumped back as a ``logs/message`` notification (the Logs panel
+        already renders those). Replaces any stream already running.
+
+        params: {udid | session_id, platform?, process? | bundle_id?}
+        """
+        udid = params.get("udid")
+        bundle_id = params.get("bundle_id")
+        platform = params.get("platform")
+        if params.get("session_id") in self.sessions:
+            session = self.sessions[params["session_id"]]
+            udid = udid or session.get("device_id")
+            bundle_id = bundle_id or session.get("bundle_id")
+            platform = platform or session.get("platform")
+        if not udid:
+            raise ValueError("logs/start requires 'udid' or a live 'session_id'")
+        platform = str(platform or "ios").lower()
+
+        self._stop_log_stream()
+        if platform == "android":
+            # Scope logcat to the app's PID when it's running; otherwise stream the
+            # whole buffer (better a noisy stream than silence). `process` overrides
+            # the package used to resolve the PID.
+            package = params.get("process") or bundle_id
+            process = package
+            cmd = ["adb", "-s", udid, "logcat", "-v", "brief"]
+            pid = self._android_pid(udid, package) if package else None
+            if pid:
+                cmd += ["--pid", pid]
+        else:
+            # iOS: predicate on the app's process name; default it to the last
+            # bundle-id component (e.g. com.acme.ChaosBank -> ChaosBank).
+            process = params.get("process") or (str(bundle_id).rsplit(".", 1)[-1] if bundle_id else None)
+            cmd = ["xcrun", "simctl", "spawn", udid, "log", "stream", "--style", "compact", "--color", "none"]
+            if process:
+                cmd += ["--predicate", f'process == "{process}"']
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1)
+        self._log_stream = proc
+
+        def _pump(p: subprocess.Popen) -> None:
+            assert p.stdout is not None
+            for line in p.stdout:
+                line = line.rstrip("\n")
+                if line:
+                    self._emit(
+                        {
+                            "jsonrpc": "2.0",
+                            "method": "logs/message",
+                            "params": {"message": line, "level": "APP", "source": "device"},
+                        }
+                    )
+
+        threading.Thread(target=_pump, args=(proc,), daemon=True).start()
+        return {"streaming": True, "udid": udid, "platform": platform, "process": process}
+
+    @staticmethod
+    def _android_pid(serial: str, package: str) -> Optional[str]:
+        """The running PID of ``package`` on the device, or None if not running."""
+        try:
+            r = subprocess.run(
+                ["adb", "-s", serial, "shell", "pidof", "-s", package],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            return r.stdout.strip() or None
+        except (subprocess.SubprocessError, OSError):
+            return None
+
+    def handle_logs_stop(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Stop the app-log stream started by :meth:`handle_logs_start`."""
+        self._stop_log_stream()
+        return {"streaming": False}
+
+    def _stop_log_stream(self) -> None:
+        proc, self._log_stream = self._log_stream, None
+        if proc is not None:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+
     def _process_line(self, line: str) -> Optional[str]:
         """Handle one newline-delimited JSON-RPC request and return its response
         as a JSON string (``None`` for a blank line). Shared by the stdio and TCP
@@ -637,12 +739,16 @@ class JSONRPCServer:
         """Run server using stdin/stdout."""
         logger.info("Starting JSON-RPC server (stdio mode)")
 
-        print(self._ready_notification(), flush=True)
+        with self._io_lock:
+            print(self._ready_notification(), flush=True)
 
         for line in sys.stdin:
             response = self._process_line(line)
             if response is not None:
-                print(response, flush=True)
+                # Under the io lock so a concurrent log-stream notification can't
+                # interleave mid-line with this response.
+                with self._io_lock:
+                    print(response, flush=True)
 
     def run_tcp(self, port: int, host: str = "127.0.0.1") -> None:
         """Serve JSON-RPC over TCP, one client at a time — enough for the IDE

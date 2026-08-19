@@ -103,6 +103,16 @@ class MTRDaemonService {
         val params = mapOf("platform" to platform)
         return client?.call("device/list", params)?.getResultOrThrow()
     }
+
+    /** Start streaming the app-under-test's device logs; each line arrives as a
+     *  `logs/message` notification the Logs panel renders. iOS uses `simctl log
+     *  stream`, Android `adb logcat` scoped to the app's PID. */
+    fun startAppLogs(udid: String, bundleId: String, platform: String): JsonObject? {
+        val params = mapOf("udid" to udid, "bundle_id" to bundleId, "platform" to platform)
+        return client?.call("logs/start", params)?.getResultOrThrow()
+    }
+
+    fun stopAppLogs(): JsonObject? = client?.call("logs/stop", emptyMap<String, Any>())?.getResultOrThrow()
     
     fun getUiTree(sessionId: String): JsonObject? {
         val params = mapOf("session_id" to sessionId)
