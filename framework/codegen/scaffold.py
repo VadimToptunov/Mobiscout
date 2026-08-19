@@ -291,7 +291,11 @@ def _kotlin_gradle(model: TestModel, server: str, target: str) -> Dict[str, str]
         f"Tests are in `{target}/`. Sessions target `{server}`. "
         "Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
     )
-    return {"build.gradle.kts": build, "settings.gradle.kts": 'rootProject.name = "mobile-tests"\n', "README.md": readme}
+    return {
+        "build.gradle.kts": build,
+        "settings.gradle.kts": 'rootProject.name = "mobile-tests"\n',
+        "README.md": readme,
+    }
 
 
 def _kotlin_espresso(model: TestModel, server: str, target: str) -> Dict[str, str]:
