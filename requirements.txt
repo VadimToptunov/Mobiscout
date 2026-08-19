@@ -11,7 +11,7 @@ types-requests>=2.33.0.20260712
 argon2-cffi>=23.1.0  # Secure password hashing
 
 # Mobile testing - Updated for Appium 3.x support
-appium-python-client>=4.0.0,<6.0.0  # Appium 3.x client
+appium-python-client>=4.0.0,<7.0.0  # Appium 3.x client
 selenium>=4.15.0  # Required for W3C WebDriver protocol
 
 # Testing framework
