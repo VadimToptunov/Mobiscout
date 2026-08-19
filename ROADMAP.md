@@ -72,19 +72,23 @@ What keeps people using it and protects the rating.
 
 ## Phase R2 — PRO (open-core monetization)
 
-Turn the private layer into a paid offering **once the free funnel shows demand** —
-monetization is deliberately last.
+Turn premium features into a paid tier **once the free funnel shows demand** —
+monetization is deliberately last. Sold as a **JetBrains freemium** plugin so there
+is **no backend to run** — JetBrains handles billing, trials, and licence delivery.
 
 - [ ] Decide the free / PRO feature line (kept out of this public repo) and enforce it
       via the licensing seam (`framework.licensing`: `cap_*` / `allow_targets` /
       `has_feature`) — no-ops in the OSS engine, honoured only when the PRO provider
       installs limits.
-- [ ] Ship PRO as a paid **service**: the plugin stays free; PRO capabilities (cloud
-      grid execution, in-run network mocking, team/CI features) unlock with a licence
-      the private entitlement server issues. Keeps the OSS engine whole.
-- [ ] (Optional, later) Add a JetBrains **freemium** listing (Product Code,
-      `optional=true`, `LicensingFacade`) if in-IDE-only paid features + Marketplace
-      billing/discoverability are worth the 15% fee and seller onboarding.
+- [ ] Convert the listing to **freemium**: one plugin, free base + paid features
+      unlocked by a JetBrains-managed licence (Product Code with `optional=true`,
+      verified in-plugin via `LicensingFacade`). JetBrains runs billing / the 30-day
+      trial / licence issuance and takes its fee; requires verified-seller onboarding.
+- [ ] Keep PRO features **local / in-IDE** so no server is needed — multi-target
+      export, lifted scale caps, in-run network mocking, advanced codegen. The OSS
+      engine stays whole.
+- [ ] Cloud-grid execution needs a backend and is **out of scope** while we avoid
+      running servers — deferred (a much-later optional add-on, if ever).
 
 ---
 
