@@ -126,7 +126,9 @@ def test_imperative_targets_settle_after_actions_not_asserts(target_id: str, log
     src = next(c for p, c in out.items() if p.endswith((".py", ".java", ".kt", ".js")))
     assert "settle" in src
     lines = src.splitlines()
-    settle_calls = [i for i, ln in enumerate(lines) if ln.strip() in ("settle()", "settle();", "await settle();", "_settle(driver)")]
+    settle_calls = [
+        i for i, ln in enumerate(lines) if ln.strip() in ("settle()", "settle();", "await settle();", "_settle(driver)")
+    ]
     assert settle_calls, f"{target_id}: no settle() call emitted"
     # A settle() must never sit directly after an assertion line.
     for i in settle_calls:
