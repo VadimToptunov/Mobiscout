@@ -211,9 +211,7 @@ def test_android_crash_collected_from_logcat_buffer(monkeypatch):
         return SimpleNamespace(stdout=logcat, returncode=0)
 
     monkeypatch.setattr(subprocess, "run", fake_run)
-    got = pipeline._collect_crashes(
-        {"platform": "android", "package": "com.acme.app", "udid": "emulator-5554"}, 0.0
-    )
+    got = pipeline._collect_crashes({"platform": "android", "package": "com.acme.app", "udid": "emulator-5554"}, 0.0)
     assert len(got) == 1
     name, data = got[0]
     assert name == "com.acme.app-logcat-crash.txt"

@@ -693,7 +693,9 @@ class JSONRPCServer:
         try:
             r = subprocess.run(
                 ["adb", "-s", serial, "shell", "pidof", "-s", package],
-                capture_output=True, text=True, timeout=5,
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             return r.stdout.strip() or None
         except (subprocess.SubprocessError, OSError):

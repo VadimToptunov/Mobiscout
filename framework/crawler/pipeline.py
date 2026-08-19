@@ -342,8 +342,16 @@ def _ios_crashes(config: Dict[str, Any], since: float) -> "List[tuple[str, bytes
     udid = config.get("udid")
     if udid:
         roots.append(
-            home / "Library" / "Developer" / "CoreSimulator" / "Devices" / udid
-            / "data" / "Library" / "Logs" / "DiagnosticReports"
+            home
+            / "Library"
+            / "Developer"
+            / "CoreSimulator"
+            / "Devices"
+            / udid
+            / "data"
+            / "Library"
+            / "Logs"
+            / "DiagnosticReports"
         )
     cutoff = since - 5.0  # the report lands a beat after the crash
     out: "List[tuple[str, bytes]]" = []
@@ -374,7 +382,9 @@ def _android_crashes(config: Dict[str, Any], since: float) -> "List[tuple[str, b
     try:
         r = subprocess.run(
             ["adb", "-s", serial, "logcat", "-b", "crash", "-d", "-v", "time", "-t", since_arg],
-            capture_output=True, text=True, timeout=15,
+            capture_output=True,
+            text=True,
+            timeout=15,
         )
     except (subprocess.SubprocessError, OSError):
         return []

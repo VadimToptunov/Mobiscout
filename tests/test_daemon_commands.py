@@ -411,9 +411,7 @@ def test_logs_start_android_uses_adb_logcat_scoped_to_pid(server, monkeypatch):
     fake_proc.stdout = iter([])
     with mock.patch(_SUB) as sub:
         sub.Popen.return_value = fake_proc
-        res = server.handle_logs_start(
-            {"udid": "emulator-5554", "bundle_id": "com.acme.app", "platform": "android"}
-        )
+        res = server.handle_logs_start({"udid": "emulator-5554", "bundle_id": "com.acme.app", "platform": "android"})
         assert res["platform"] == "android"
         cmd = sub.Popen.call_args[0][0]
         assert cmd[:3] == ["adb", "-s", "emulator-5554"]
