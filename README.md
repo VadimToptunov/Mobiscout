@@ -215,7 +215,8 @@ cd jetbrains-plugin
 - Flow analysis
 - Multi-language code generation
 
-See [Plugin Documentation](jetbrains-plugin/README.md) and [Roadmap](JETBRAINS_PLUGIN_ROADMAP.md) for details.
+See the [Release Roadmap](ROADMAP.md) for where the product is headed, and the
+[Plugin Documentation](jetbrains-plugin/README.md) / [engineering roadmap](JETBRAINS_PLUGIN_ROADMAP.md) for details.
 
 ### CLI Installation
 
