@@ -148,10 +148,20 @@ def _parse_ios(root: ET.Element) -> List[CrawlElement]:
     return elements
 
 
+def _fp_token(e: CrawlElement) -> str:
+    # content-desc often carries volatile per-row data ("Post by Alice, 3 likes")
+    # that makes identical feed rows look like distinct screens and defeats dedup —
+    # an endless feed then reads as endless screens. So use content-desc only when
+    # there's no resource-id to key on (Compose / iOS), and blank digits either way
+    # so counts/prices ("3 likes", "$4.99") don't fork one screen into many.
+    desc = re.sub(r"\d+", "", e.content_desc) if not e.resource_id else ""
+    return f"{e.class_name}:{e.resource_id}:{desc}:{int(e.clickable)}"
+
+
 def _fingerprint(elements: List[CrawlElement]) -> str:
     # Structural signature, ignoring volatile text so the same screen with
     # different data matches.
-    sig = "|".join(sorted(f"{e.class_name}:{e.resource_id}:{e.content_desc}:{int(e.clickable)}" for e in elements))
+    sig = "|".join(sorted(_fp_token(e) for e in elements))
     return hashlib.md5(sig.encode()).hexdigest() if elements else ""
 
 
