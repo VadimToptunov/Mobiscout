@@ -117,6 +117,25 @@ def test_emitter_golden(target_id: str, login_model: TestModel):
         _check_golden(f"{target_id}/{path}", content)
 
 
+@pytest.mark.parametrize("target_id", ["python_pytest", "java_testng", "kotlin_appium", "js_webdriverio"])
+def test_imperative_targets_settle_after_actions_not_asserts(target_id: str, login_model: TestModel):
+    """The 3-beat wait: each imperative Appium target emits a settle() helper and
+    calls it after transition actions (tap/type/back), but never after an assert —
+    so a test waits out a transition instead of reading a mid-transition screen."""
+    out = get_emitter(target_id).emit(login_model)
+    src = next(c for p, c in out.items() if p.endswith((".py", ".java", ".kt", ".js")))
+    assert "settle" in src
+    lines = src.splitlines()
+    settle_calls = [
+        i for i, ln in enumerate(lines) if ln.strip() in ("settle()", "settle();", "await settle();", "_settle(driver)")
+    ]
+    assert settle_calls, f"{target_id}: no settle() call emitted"
+    # A settle() must never sit directly after an assertion line.
+    for i in settle_calls:
+        prev = lines[i - 1].strip().lower()
+        assert not prev.startswith(("assert", "expect", "assertions.", "assert.")), f"{target_id}: settle after assert"
+
+
 @pytest.mark.parametrize("target_id", TARGET_IDS)
 def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_path):
     """Every generated code file must be syntactically valid for its language.

@@ -92,6 +92,22 @@ public class {{ class_name }} {
         }
     }
 
+    /** A generic loading indicator (no app-specific knowledge) — used by settle(). */
+    private static final String BUSY_XPATH = {% if model.platform.value == "ios" %}"//XCUIElementTypeActivityIndicator"{% else %}"//android.widget.ProgressBar"{% endif %};
+
+    /**
+     * Middle beat of {@code act -> wait-busy-clears -> assert}: after an action that
+     * triggers a transition, wait for a loading/activity indicator to disappear so the
+     * next step doesn't act on a mid-transition screen. A no-op when nothing is
+     * spinning; a stuck indicator is tolerated, not failed.
+     */
+    private void settle() {
+        try {
+            new WebDriverWait(driver, TIMEOUT).until(d -> d.findElements(By.xpath(BUSY_XPATH)).isEmpty());
+        } catch (TimeoutException ignored) {
+        }
+    }
+
 {% for case in model.cases %}
     @Test
     public void {{ case.name | camel }}() {
@@ -160,6 +176,9 @@ public class {{ class_name }} {
 {% elif step.assertion.value == "enabled" %}
         Assert.assertTrue(find({{ step.selector | by_expr }}, {{ step.selector | by_array }}).isEnabled());
 {% endif %}
+{% endif %}
+{% if step.action.value in ("tap", "type", "swipe", "back", "long_press", "deep_link", "press_key") %}
+        settle();
 {% endif %}
 {% endfor %}
     }

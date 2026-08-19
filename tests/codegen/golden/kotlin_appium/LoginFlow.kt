@@ -67,14 +67,30 @@ class LoginFlow {
         }
     }
 
+    // A generic loading indicator (no app-specific knowledge) — used by settle().
+    private val BUSY_XPATH: String = "//android.widget.ProgressBar"
+    /**
+     * Middle beat of act -> wait-busy-clears -> assert: after an action that triggers
+     * a transition, wait for a loading/activity indicator to disappear so the next step
+     * doesn't act on a mid-transition screen. No-op when nothing is spinning.
+     */
+    private fun settle() {
+        try {
+            WebDriverWait(driver, TIMEOUT).until { d -> d.findElements(By.xpath(BUSY_XPATH)).isEmpty() }
+        } catch (ignored: TimeoutException) {
+        }
+    }
+
     @Test
     fun login() {
         // Open app
         driver.activateApp("com.example.app")
         // Enter email
         find(AppiumBy.id("user_field"), arrayOf(AppiumBy.xpath("//input[1]"))).sendKeys("alice@example.com")
+        settle()
         // Tap login
         find(AppiumBy.accessibilityId("login_btn"), arrayOf()).click()
+        settle()
         // Wait for home
         // Condition-based: wait for the screen to render rather than a global implicit wait.
         WebDriverWait(driver, Duration.ofSeconds(3)).until { d -> d.findElements(By.xpath("//*")).isNotEmpty() }
@@ -83,8 +99,10 @@ class LoginFlow {
             val swipeSize = driver.manage().window().size
             driver.executeScript("mobile: swipeGesture", mapOf<String, Any>("left" to (swipeSize.width * 0.1).toInt(), "top" to (swipeSize.height * 0.1).toInt(), "width" to (swipeSize.width * 0.8).toInt(), "height" to (swipeSize.height * 0.8).toInt(), "direction" to "up", "percent" to 0.75))
         }
+        settle()
         // Dismiss a dialog
         driver.navigate().back()
+        settle()
         // Welcome message shown
         Assertions.assertTrue(find(AppiumBy.androidUIAutomator("new UiSelector().text(\"Welcome\")"), arrayOf()).isDisplayed)
     }

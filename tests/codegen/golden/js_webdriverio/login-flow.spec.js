@@ -34,14 +34,31 @@ async function find(selectors) {
     return found;
 }
 
+// A generic loading indicator (no app-specific knowledge) — used by settle().
+const BUSY = '//android.widget.ProgressBar';
+
+// Middle beat of act -> wait-busy-clears -> assert: after an action that triggers a
+// transition, wait for a loading/activity indicator to disappear so the next step
+// doesn't act on a mid-transition screen. A no-op when nothing is spinning; a stuck
+// indicator is tolerated rather than failing the spec.
+async function settle() {
+    try {
+        await driver.waitUntil(async () => (await driver.$$(BUSY)).length === 0, { timeout: TIMEOUT, interval: 300 });
+    } catch (e) {
+        // tolerate a persistent indicator
+    }
+}
+
 describe('LoginFlow', () => {
     it('login', async () => {
         // Open app
         await driver.activateApp(APP_PACKAGE);
         // Enter email
         await (await find(['android=new UiSelector().resourceId("user_field")', '//input[1]'])).setValue('alice@example.com');
+        await settle();
         // Tap login
         await (await find(['~login_btn'])).click();
+        await settle();
         // Wait for home
         // Condition-based: wait for the screen to render rather than a fixed pause.
         await driver.waitUntil(async () => (await driver.$$('//*')).length > 0, { timeout: 3000, interval: 300 });
@@ -50,8 +67,10 @@ describe('LoginFlow', () => {
             const swipeSize = await driver.getWindowSize();
             await driver.execute('mobile: swipeGesture', { left: Math.round(swipeSize.width * 0.1), top: Math.round(swipeSize.height * 0.1), width: Math.round(swipeSize.width * 0.8), height: Math.round(swipeSize.height * 0.8), direction: 'up', percent: 0.75 });
         }
+        await settle();
         // Dismiss a dialog
         await driver.back();
+        await settle();
         // Welcome message shown
         await expect(await find(['android=new UiSelector().text("Welcome")'])).toBeDisplayed();
     });

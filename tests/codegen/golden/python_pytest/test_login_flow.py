@@ -20,6 +20,23 @@ from selenium.webdriver.support.ui import WebDriverWait
 # so tests stay in sync with async UI without paying a worst-case sleep every step.
 _TIMEOUT = 10
 
+# A generic "busy" indicator per platform — used by _settle to wait out a
+# transition. Not app-specific, so it's a no-op on screens that show no spinner.
+_BUSY_XPATH = "//android.widget.ProgressBar"
+
+
+def _settle(driver, timeout=_TIMEOUT):
+    """Middle beat of ``act -> wait-busy-clears -> assert``: after an action that
+    triggers a transition, wait for a loading/activity indicator to disappear so the
+    next step doesn't act on a mid-transition screen or read a stale result. A no-op
+    when nothing is spinning; a stuck indicator is tolerated, not failed."""
+    try:
+        WebDriverWait(driver, timeout, poll_frequency=0.3).until(
+            lambda d: not d.find_elements(AppiumBy.XPATH, _BUSY_XPATH)
+        )
+    except TimeoutException:
+        pass
+
 
 def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
     """Locate an element, waiting for it to appear and self-healing through ranked
@@ -81,16 +98,20 @@ def test_login(driver):
     driver.activate_app("com.example.app")
     # Enter email
     _find(driver, (AppiumBy.ID, "user_field"), [(AppiumBy.XPATH, "//input[1]")]).send_keys(TEST_DATA["user_field"])
+    _settle(driver)
     # Tap login
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "login_btn"), []).click()
+    _settle(driver)
     # Wait for home
     # Condition-based: wait for the screen to render rather than sleeping a fixed time.
     WebDriverWait(driver, 3).until(lambda d: d.find_elements(AppiumBy.XPATH, "//*"))
     # Swipe up to reveal content
     _size = driver.get_window_size()
     driver.execute_script("mobile: swipeGesture", {"left": int(_size["width"] * 0.1), "top": int(_size["height"] * 0.1), "width": int(_size["width"] * 0.8), "height": int(_size["height"] * 0.8), "direction": "up", "percent": 0.75})
+    _settle(driver)
     # Dismiss a dialog
     driver.back()
+    _settle(driver)
     # Welcome message shown
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Welcome\")"), []).is_displayed()
 
