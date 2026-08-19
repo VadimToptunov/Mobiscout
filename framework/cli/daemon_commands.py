@@ -466,6 +466,8 @@ class JSONRPCServer:
 
         if session_id not in self.sessions:
             raise Exception(f"Session not found: {session_id}")
+        if x is None or y is None:
+            raise Exception("tap requires x and y coordinates")
 
         session = self.sessions[session_id]
         platform = str(session.get("platform") or "android").lower()
