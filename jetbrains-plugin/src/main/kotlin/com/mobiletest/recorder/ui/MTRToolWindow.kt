@@ -1,7 +1,13 @@
 package com.mobiletest.recorder.ui
 
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.application.ApplicationManager
@@ -9,6 +15,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBTabbedPane
+import com.intellij.util.ui.JBUI
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
 import com.mobiletest.recorder.ui.panels.DevicesPanel
@@ -31,7 +38,18 @@ class MTRToolWindow(private val project: Project) {
     private val proPanel = ProPanel(project, daemonService)
     
     private val mainPanel = JPanel(BorderLayout())
-    
+
+    // Theme-aware status colours (a hardcoded Color.GREEN/RED washes out in the
+    // Darcula/dark themes); JBColor picks the right shade per theme.
+    private val runningColor = JBColor(0x2E7D32, 0x6A8759)
+    private val stoppedColor = JBColor(0x9E9E9E, 0x808080)
+    private val statusLabel = JLabel("● Stopped").apply { foreground = stoppedColor }
+
+    // Single source of truth for the daemon state so the toolbar actions can
+    // enable/disable themselves in update() and the status label stays in sync.
+    private var daemonRunning = false
+    private var daemonStarting = false
+
     init {
         // Publish the panels so toolbar/menu actions (which the platform creates
         // without a panel reference) can drive them — e.g. RefreshDevicesAction.
@@ -44,40 +62,74 @@ class MTRToolWindow(private val project: Project) {
     }
     
     private fun createToolbar() {
-        val toolbar = JPanel()
-        toolbar.layout = BoxLayout(toolbar, BoxLayout.X_AXIS)
-        
-        // Theme-aware status colours (a hardcoded Color.GREEN/RED washes out in the
-        // Darcula/dark themes); JBColor picks the right shade per theme.
-        val runningColor = JBColor(0x2E7D32, 0x6A8759)
-        val stoppedColor = JBColor(0x9E9E9E, 0x808080)
+        // A native ActionToolbar (icons, tooltips, theme, keyboard) instead of a
+        // hand-rolled row of JButtons: it renders like the rest of the IDE and the
+        // actions enable/disable themselves via update() off `daemonRunning`.
+        val group = DefaultActionGroup().apply {
+            add(GenerateKitAction())
+            add(Separator.getInstance())
+            add(StartDaemonAction())
+            add(StopDaemonAction())
+        }
+        val actionToolbar = ActionManager.getInstance()
+            .createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, group, true)
+        actionToolbar.targetComponent = mainPanel
 
-        val startButton = JButton("Start Daemon")
-        val stopButton = JButton("Stop Daemon")
-        val statusLabel = JLabel("● Stopped").apply { foreground = stoppedColor }
-        // The primary action — surfaced right in the tool window instead of only
-        // living under Tools ▸ Mobiscout Framework.
-        val generateButton = JButton("Generate Test Kit…")
+        // The live daemon status dot sits at the trailing edge, outside the action
+        // group (ActionToolbar hosts actions, not stateful labels).
+        val bar = JPanel(BorderLayout()).apply {
+            border = JBUI.Borders.empty(2, 4)
+            add(actionToolbar.component, BorderLayout.WEST)
+            add(statusLabel, BorderLayout.EAST)
+        }
+        mainPanel.add(bar, BorderLayout.NORTH)
+    }
 
-        startButton.addActionListener {
-            startButton.isEnabled = false
+    /** The primary action — also registered under Tools ▸ Mobiscout Framework. */
+    private inner class GenerateKitAction : AnAction(
+        "Generate Test Kit…",
+        "Generate a runnable test project from a crawl or app",
+        AllIcons.Actions.Execute,
+    ) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) {
+            // ActionUtil.invokeAction is the sanctioned way to fire a registered
+            // action programmatically — don't call actionPerformed() directly.
+            ActionManager.getInstance().getAction("MTR.GenerateKit")?.let { action ->
+                val ctx = SimpleDataContext.getProjectContext(project)
+                ActionUtil.invokeAction(action, ctx, ActionPlaces.TOOLWINDOW_CONTENT, null, null)
+            }
+        }
+    }
+
+    private inner class StartDaemonAction : AnAction(
+        "Start Engine",
+        "Start the Mobiscout engine (downloaded automatically on first use)",
+        AllIcons.Actions.Execute,
+    ) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = !daemonRunning && !daemonStarting
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            daemonStarting = true
             statusLabel.text = "● Starting…"
             statusLabel.foreground = stoppedColor
             (object : SwingWorker<Boolean, Void>() {
                 override fun doInBackground(): Boolean = daemonService.start()
 
                 override fun done() {
-                    val started = get()
-                    if (started) {
+                    daemonStarting = false
+                    if (get()) {
+                        daemonRunning = true
                         statusLabel.text = "● Running"
                         statusLabel.foreground = runningColor
-                        stopButton.isEnabled = true
                         devicesPanel.refreshDevices()
                         proPanel.refreshTier()
                     } else {
                         statusLabel.text = "● Stopped"
                         statusLabel.foreground = stoppedColor
-                        startButton.isEnabled = true
                         Messages.showErrorDialog(
                             project,
                             "The engine is downloaded automatically on first use. Check your internet " +
@@ -88,46 +140,35 @@ class MTRToolWindow(private val project: Project) {
                 }
             }).execute()
         }
+    }
 
-        stopButton.addActionListener {
+    private inner class StopDaemonAction : AnAction(
+        "Stop Engine",
+        "Stop the Mobiscout engine",
+        AllIcons.Actions.Suspend,
+    ) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = daemonRunning
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
             daemonService.stop()
+            daemonRunning = false
             statusLabel.text = "● Stopped"
             statusLabel.foreground = stoppedColor
-            startButton.isEnabled = true
-            stopButton.isEnabled = false
         }
-
-        // Run the registered "Generate Test Kit" action (starts the daemon if
-        // needed). ActionUtil.invokeAction is the sanctioned way to fire an action
-        // programmatically — don't call actionPerformed() directly (override-only).
-        generateButton.addActionListener {
-            ActionManager.getInstance().getAction("MTR.GenerateKit")?.let { action ->
-                val ctx = SimpleDataContext.getProjectContext(project)
-                ActionUtil.invokeAction(action, ctx, ActionPlaces.TOOLWINDOW_CONTENT, null, null)
-            }
-        }
-
-        stopButton.isEnabled = false
-
-        toolbar.add(generateButton)
-        toolbar.add(Box.createHorizontalStrut(12))
-        toolbar.add(startButton)
-        toolbar.add(Box.createHorizontalStrut(5))
-        toolbar.add(stopButton)
-        toolbar.add(Box.createHorizontalStrut(10))
-        toolbar.add(statusLabel)
-        toolbar.add(Box.createHorizontalGlue())
-
-        mainPanel.add(toolbar, BorderLayout.NORTH)
     }
-    
+
     private fun createTabs() {
-        tabbedPane.addTab("Devices", devicesPanel.getPanel())
-        tabbedPane.addTab("Screen", screenPanel.getPanel())
-        tabbedPane.addTab("Inspector", inspectorPanel.getPanel())
-        tabbedPane.addTab("Logs", logsPanel.getPanel())
-        tabbedPane.addTab("PRO", proPanel.getPanel())
-        
+        // Per-tab icons give the tool window a scannable information architecture
+        // instead of a row of bare words.
+        tabbedPane.addTab("Devices", AllIcons.Nodes.PpLib, devicesPanel.getPanel())
+        tabbedPane.addTab("Screen", AllIcons.Actions.PreviewDetails, screenPanel.getPanel())
+        tabbedPane.addTab("Inspector", AllIcons.Toolwindows.ToolWindowStructure, inspectorPanel.getPanel())
+        tabbedPane.addTab("Logs", AllIcons.Debugger.Console, logsPanel.getPanel())
+        tabbedPane.addTab("PRO", AllIcons.Nodes.Favorite, proPanel.getPanel())
+
         mainPanel.add(tabbedPane, BorderLayout.CENTER)
     }
     
