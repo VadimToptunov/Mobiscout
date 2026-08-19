@@ -74,5 +74,64 @@ def test_js_webdriverio_scaffold_stays_mocha_in_own_dir():
 
 
 def test_unknown_target_has_no_scaffold():
-    assert scaffold_files(_model(Platform.ANDROID), "kotlin_espresso") == {}
+    assert scaffold_files(_model(Platform.ANDROID), "ruby_rspec") == {}
     assert "js_webdriverio" in available_scaffolds() and "python_pytest" in available_scaffolds()
+
+
+def test_every_plugin_target_is_scaffoldable():
+    """Regression: the "Create a runnable project" checkbox was a silent no-op for
+    Java and Kotlin (only Python/JS had scaffolders). All four languages the plugin
+    offers must now produce a project shell."""
+    for target in (
+        "python_pytest",
+        "python_pytest_bdd",
+        "java_testng",
+        "java_cucumber",
+        "kotlin_appium",
+        "kotlin_espresso",
+        "js_webdriverio",
+        "js_cucumber",
+    ):
+        assert scaffold_files(_model(Platform.ANDROID), target), f"{target} has no scaffold"
+
+
+def test_java_testng_scaffold_runs_via_testng_xml():
+    files = scaffold_files(_model(Platform.IOS, pkg="com.example.ios", activity=None), "java_testng")
+    pom = files["pom.xml"]
+    assert "<artifactId>java-client</artifactId>" in pom  # Appium
+    assert "<artifactId>testng</artifactId>" in pom
+    assert "<testSourceDirectory>${project.basedir}/java_testng</testSourceDirectory>" in pom
+    assert "<suiteXmlFile>testng.xml</suiteXmlFile>" in pom
+    # The flat file declares `package generated`, so the suite must name the class
+    # by FQN (path→FQN inference would look for a default-package class and miss it).
+    assert '<class name="generated.Flow"/>' in files["testng.xml"]
+    assert "mvn test" in files["README.md"]
+
+
+def test_java_cucumber_scaffold_has_runner_and_cucumber_deps():
+    files = scaffold_files(_model(Platform.ANDROID), "java_cucumber")
+    assert "<artifactId>cucumber-testng</artifactId>" in files["pom.xml"]
+    runner = files["java_cucumber/RunCucumberTest.java"]
+    assert 'features = "java_cucumber", glue = "generated"' in runner
+    assert "AbstractTestNGCucumberTests" in runner
+    assert '<class name="generated.RunCucumberTest"/>' in files["testng.xml"]
+
+
+def test_kotlin_appium_scaffold_is_gradle_jvm_junit5():
+    files = scaffold_files(_model(Platform.IOS, activity=None), "kotlin_appium")
+    build = files["build.gradle.kts"]
+    assert 'kotlin("jvm")' in build
+    assert '"io.appium:java-client' in build
+    assert 'kotlin.srcDir("kotlin_appium")' in build
+    assert "useJUnitPlatform()" in build
+    assert files["settings.gradle.kts"].strip() == 'rootProject.name = "mobile-tests"'
+
+
+def test_kotlin_espresso_scaffold_is_androidtest_snippet_not_standalone():
+    """Espresso runs inside the app's own module, so the scaffold is an androidTest
+    dependency snippet + instructions — not a standalone runnable project."""
+    files = scaffold_files(_model(Platform.ANDROID), "kotlin_espresso")
+    assert "pom.xml" not in files and "build.gradle.kts" not in files
+    snippet = files["espresso.gradle.kts"]
+    assert "androidTestImplementation" in snippet and "espresso-core" in snippet
+    assert "connectedAndroidTest" in files["README.md"]
