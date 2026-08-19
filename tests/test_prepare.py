@@ -1,41 +1,83 @@
-"""Opt-in device prep (device-free): the adb/simctl command builders."""
+"""Pre-crawl device preparation: opt-in permission grants + state reset, so a
+system dialog can't stall the crawl. Commands are mocked — no device needed."""
 
-from framework.devices.prepare import (
-    android_prepare_commands,
-    ios_prepare_commands,
-    prepare_commands,
-)
+import plistlib
 
-PKG = "com.example.app"
+import framework.devices.prepare as P
 
 
-def test_android_grant_only_by_default():
-    cmds = android_prepare_commands(PKG, serial="emulator-5554", grant=True, reset=False)
-    assert all(c[:3] == ["adb", "-s", "emulator-5554"] for c in cmds)
-    assert all("grant" in c for c in cmds)
-    assert not any("clear" in c for c in cmds)  # reset off -> no pm clear
+def test_android_keeps_dangerous_drops_normal():
+    manifest = """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:name="android.permission.CAMERA"/>
+      <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+      <uses-permission android:name="android.permission.INTERNET"/>
+    </manifest>"""
+    assert P.android_permissions_from_manifest(manifest) == [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+    ]
 
 
-def test_android_reset_runs_before_grants():
-    cmds = android_prepare_commands(PKG, grant=True, reset=True, permissions=["android.permission.CAMERA"])
-    assert cmds[0] == ["adb", "shell", "pm", "clear", PKG]  # reset first, so grants survive it
-    assert cmds[1] == ["adb", "shell", "pm", "grant", PKG, "android.permission.CAMERA"]
+def test_android_manifest_malformed_is_empty():
+    assert P.android_permissions_from_manifest("<broken") == []
 
 
-def test_ios_privacy_grants():
-    cmds = ios_prepare_commands("com.example.app", udid=None, grant=True, reset=True, services=["camera"])
-    assert cmds[0] == ["xcrun", "simctl", "privacy", "booted", "reset", "all", "com.example.app"]
-    assert cmds[1] == ["xcrun", "simctl", "privacy", "booted", "grant", "camera", "com.example.app"]
-
-
-def test_prepare_commands_dispatches_on_platform():
-    android = prepare_commands({"package": PKG, "platform": "android", "prepare": {"grant": True}})
-    assert android and android[0][0] == "adb"
-    ios = prepare_commands(
-        {"package": PKG, "platform": "ios", "udid": "UDID", "prepare": {"reset": True, "grant": False}}
+def test_ios_usage_keys_map_to_services_camera_has_none():
+    plist = plistlib.dumps(
+        {
+            "NSPhotoLibraryUsageDescription": "x",
+            "NSLocationWhenInUseUsageDescription": "x",
+            "NSMicrophoneUsageDescription": "x",
+            "NSCameraUsageDescription": "x",  # no simctl service -> dropped
+        }
     )
-    assert ios == [["xcrun", "simctl", "privacy", "UDID", "reset", "all", PKG]]
+    assert P.ios_privacy_services_from_plist(plist) == ["location", "microphone", "photos"]
 
 
-def test_no_prepare_block_is_noop():
-    assert prepare_commands({"package": PKG, "platform": "android"}) == []
+def test_prepare_is_a_noop_without_flags():
+    assert P.prepare_device({"platform": "ios", "udid": "x", "package": "y"}) == {
+        "platform": "ios",
+        "granted": [],
+        "reset": False,
+    }
+
+
+def test_prepare_ios_resets_before_granting(monkeypatch):
+    plist = plistlib.dumps({"NSPhotoLibraryUsageDescription": "x", "NSMicrophoneUsageDescription": "x"})
+    monkeypatch.setattr(P, "_ios_app_plist", lambda config: plist)
+    calls = []
+    monkeypatch.setattr(P, "_run", lambda cmd: calls.append(cmd) or True)
+
+    result = P.prepare_device(
+        {"platform": "ios", "udid": "U1", "package": "com.acme", "grant_permissions": True, "reset_state": True}
+    )
+    assert result["reset"] is True
+    assert result["granted"] == ["microphone", "photos"]
+    # reset first, then a grant per service
+    assert calls[0] == ["xcrun", "simctl", "privacy", "U1", "reset", "all", "com.acme"]
+    assert ["xcrun", "simctl", "privacy", "U1", "grant", "photos", "com.acme"] in calls
+    assert ["xcrun", "simctl", "privacy", "U1", "grant", "microphone", "com.acme"] in calls
+
+
+def test_prepare_android_grants_each_dangerous_permission(monkeypatch):
+    manifest = """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:name="android.permission.CAMERA"/>
+      <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    </manifest>"""
+    monkeypatch.setattr(P, "_android_manifest", lambda config: manifest)
+    calls = []
+    monkeypatch.setattr(P, "_run", lambda cmd: calls.append(cmd) or True)
+
+    result = P.prepare_device(
+        {"platform": "android", "udid": "emulator-5554", "package": "com.acme", "grant_permissions": True}
+    )
+    assert set(result["granted"]) == {"android.permission.CAMERA", "android.permission.RECORD_AUDIO"}
+    assert ["adb", "-s", "emulator-5554", "shell", "pm", "grant", "com.acme", "android.permission.CAMERA"] in calls
+
+
+def test_prepare_android_reset_uses_pm_clear(monkeypatch):
+    calls = []
+    monkeypatch.setattr(P, "_run", lambda cmd: calls.append(cmd) or True)
+    result = P.prepare_device({"platform": "android", "udid": "s1", "package": "com.acme", "reset_state": True})
+    assert result["reset"] is True
+    assert calls == [["adb", "-s", "s1", "shell", "pm", "clear", "com.acme"]]

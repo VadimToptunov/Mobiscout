@@ -1,118 +1,87 @@
-"""Deeplink seeding (device-free): extraction from manifest/plist, config merge,
-result merge, and the pipeline opening a seed + folding its screens in."""
+"""Deeplink discovery: parse the URIs an app declares (iOS Info.plist schemes,
+Android browsable VIEW intent-filters) so the crawler can list — and open — the
+shortcuts a tap-walk may never reach. Also covers the explicit-config sources
+(a ``deeplinks`` list, or an explicit manifest/plist path) folded in alongside
+the discovered ones."""
 
-from framework.crawler.app_crawler import parse_screen
-from framework.crawler.deeplinks import (
-    deeplinks_from_android_manifest,
-    deeplinks_from_ios_plist,
-    extract_deeplinks,
-)
-from framework.crawler.models import CrawlResult
-from framework.crawler.pipeline import _merge_results, _seed_deeplinks
+import plistlib
 
-APP = "com.example.app"
+import framework.crawler.deeplinks as dl
 
-_MANIFEST = """<?xml version="1.0"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.app">
-  <application>
-    <activity android:name=".Deep">
-      <intent-filter android:autoVerify="true">
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="https" android:host="example.com" android:pathPrefix="/app"/>
-      </intent-filter>
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
-        <data android:scheme="myapp" android:host="promo"/>
-      </intent-filter>
-    </activity>
-    <activity android:name=".Internal">
-      <intent-filter>
-        <action android:name="android.intent.action.VIEW"/>
-        <data android:scheme="internal" android:host="secret"/>
-      </intent-filter>
-    </activity>
-  </application>
+
+def test_ios_plist_schemes_ignore_http():
+    plist = plistlib.dumps(
+        {"CFBundleURLTypes": [{"CFBundleURLSchemes": ["chaosbank", "cbank"]}, {"CFBundleURLSchemes": ["https"]}]}
+    )
+    assert dl.deeplinks_from_ios_plist(plist) == ["cbank://", "chaosbank://"]
+
+
+def test_ios_plist_malformed_is_empty():
+    assert dl.deeplinks_from_ios_plist(b"not a plist") == []
+
+
+_MANIFEST = """<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.acme.app">
+  <application><activity>
+    <intent-filter>
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="chaosbank" android:host="open" android:pathPrefix="/trip"/>
+    </intent-filter>
+    <intent-filter>
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="https" android:host="app.acme.com"/>
+    </intent-filter>
+    <intent-filter>
+      <action android:name="android.intent.action.MAIN"/>
+    </intent-filter>
+  </activity></application>
 </manifest>"""
 
 
-def test_android_manifest_browsable_deeplinks_only():
-    uris = deeplinks_from_android_manifest(_MANIFEST)
-    assert "https://example.com/app" in uris
-    assert "myapp://promo" in uris
-    # The non-browsable VIEW filter (.Internal) is an internal intent, not a deeplink.
-    assert all("internal" not in u for u in uris)
+def test_android_manifest_browsable_view_only():
+    # custom scheme kept, https app-link and non-browsable filter dropped
+    assert dl.deeplinks_from_android_manifest(_MANIFEST) == ["chaosbank://open/trip"]
 
 
-def test_ios_plist_url_schemes():
-    plist = {"CFBundleURLTypes": [{"CFBundleURLSchemes": ["myapp", "myapp-dev"]}, {"CFBundleURLSchemes": ["other"]}]}
-    assert deeplinks_from_ios_plist(plist) == ["myapp://", "myapp-dev://", "other://"]
+def test_android_manifest_malformed_is_empty():
+    assert dl.deeplinks_from_android_manifest("<broken") == []
 
 
-def test_extract_deeplinks_explicit_list_first_and_deduped():
-    config = {"deeplinks": ["myapp://home", "myapp://home", "myapp://cart"]}
-    assert extract_deeplinks(config) == ["myapp://home", "myapp://cart"]
+def test_extract_deeplinks_android_from_source_dir(tmp_path):
+    manifest = tmp_path / "src" / "main" / "AndroidManifest.xml"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(_MANIFEST, encoding="utf-8")
+    got = dl.extract_deeplinks({"platform": "android", "package": "com.acme.app", "source": str(tmp_path)})
+    assert got == ["chaosbank://open/trip"]
 
 
-def test_merge_results_unions_screens_and_transitions():
-    a = CrawlResult(screens={"h": parse_screen("<hierarchy/>")}, transitions=[], steps=2)
-    b = CrawlResult(screens={"p": parse_screen("<hierarchy/>")}, transitions=[], steps=3)
-    merged = _merge_results(a, b)
-    assert set(merged.screens) == {"h", "p"}
-    assert merged.steps == 5
+def test_extract_deeplinks_ios_from_plist(monkeypatch):
+    plist = plistlib.dumps({"CFBundleURLTypes": [{"CFBundleURLSchemes": ["cbank"]}]})
+    monkeypatch.setattr(dl, "_ios_app_plist", lambda config: plist)
+    assert dl.extract_deeplinks({"platform": "ios", "udid": "x", "package": "com.acme"}) == ["cbank://"]
 
 
-def _promo_screen():
-    return (
-        '<hierarchy rotation="0">'
-        '<node class="android.widget.Button" resource-id="id/buy" text="Buy" content-desc="" '
-        'clickable="true" bounds="[0,0][100,50]"/></hierarchy>'
-    )
+def test_extract_deeplinks_never_raises_without_source():
+    assert dl.extract_deeplinks({"platform": "android", "package": "com.x"}) == []
 
 
-class _SeedDriver:
-    """A deeplink-only screen: unreachable by tapping, reached via open_url."""
-
-    def __init__(self):
-        self.opened = []
-
-    def open_url(self, uri, package=None):
-        self.opened.append((uri, package))
-        return True
-
-    def page_source(self):
-        return _promo_screen()
-
-    def current_package(self):
-        return APP
-
-    def back(self):
-        pass
-
-    def tap(self, x, y):
-        pass
+def test_extract_deeplinks_includes_explicit_list():
+    # An explicit ``deeplinks`` config list is always folded in (and merged with
+    # any discovered ones), deduped and sorted.
+    got = dl.extract_deeplinks({"platform": "android", "package": "com.x", "deeplinks": ["myapp://home", "myapp://a"]})
+    assert got == ["myapp://a", "myapp://home"]
 
 
-def test_seed_deeplinks_opens_and_merges():
-    driver = _SeedDriver()
-    config = {"package": APP, "deeplinks": ["myapp://promo"], "seed_max_steps": 4, "seed_max_seconds": 5}
-    result = CrawlResult(screens={"home": parse_screen("<hierarchy/>")}, transitions=[], steps=0)
-    merged = _seed_deeplinks(config, driver, result, [])
-    # The deeplink was opened (scoped to the app under test)...
-    assert driver.opened == [("myapp://promo", APP)]
-    # ...and the promo screen it reached is now in the map alongside home.
-    blobs = [" ".join(e.label for e in s.elements).lower() for s in merged.screens.values()]
-    assert any("buy" in b for b in blobs)
+def test_extract_deeplinks_from_explicit_manifest_path(tmp_path):
+    # An explicit ``android_manifest`` path is read directly (no source-dir walk).
+    p = tmp_path / "AndroidManifest.xml"
+    p.write_text(_MANIFEST, encoding="utf-8")
+    got = dl.extract_deeplinks({"platform": "android", "package": "com.acme.app", "android_manifest": str(p)})
+    assert got == ["chaosbank://open/trip"]
 
 
-def test_seed_deeplinks_noop_without_open_url():
-    # A driver lacking open_url (e.g. a minimal stub) must not break seeding.
-    class _NoUrl:
-        def page_source(self):
-            return "<hierarchy/>"
-
-    result = CrawlResult(screens={"home": parse_screen("<hierarchy/>")}, transitions=[], steps=0)
-    out = _seed_deeplinks({"package": APP, "deeplinks": ["myapp://x"]}, _NoUrl(), result, [])
-    assert set(out.screens) == {"home"}
+def test_markdown_lists_uris_and_empty_case():
+    assert "No browsable deeplinks" in dl.deeplinks_markdown([], "com.x")
+    md = dl.deeplinks_markdown(["cbank://open"], "com.x")
+    assert "cbank://open" in md and "simctl openurl" in md
