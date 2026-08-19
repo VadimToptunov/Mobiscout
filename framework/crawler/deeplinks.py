@@ -1,113 +1,124 @@
 """
-Deeplink seeding — reach screens a UI walk can't.
+Deeplink discovery — the URIs an app declares it can be opened with.
 
-A depth-first crawl from the launcher only sees what's reachable by tapping. Many
-screens are reachable *only* by a deeplink — a push-notification target, a
-share/return URL, a checkout entered from the web. Seeding opens each deeplink as
-an extra crawl root and merges what it finds into the same graph.
+A crawler that only taps reaches only what's reachable by tapping; deeplinks are
+the app's own shortcuts into deep screens (a trip, a payment, a settings page)
+that a tap-walk may never reach. This module *extracts* the declared deeplinks so
+they can be listed in the kit and opened as extra crawl seeds.
 
-This module is the device-free part: pull candidate deeplinks out of an Android
-manifest or an iOS Info.plist, or take them verbatim from config. Opening a URI
-and crawling from it is the pipeline's job (``driver.open_url`` + merge).
+    Android — AndroidManifest.xml ``<intent-filter>`` with action VIEW + category
+              BROWSABLE, over its ``<data>`` scheme/host/path.
+    iOS     — Info.plist ``CFBundleURLTypes`` custom schemes.
+
+Pure parsers (bytes/str in, list out) so they're testable without a device; the
+``extract_deeplinks`` resolver best-effort finds the manifest/plist for a config
+(and always includes any deeplinks listed explicitly in the config).
 """
 
 from __future__ import annotations
 
 import plistlib
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from typing import Any, Dict, List
 
-_ANDROID_NS = "http://schemas.android.com/apk/res/android"
+from framework.devices.app_metadata import ANDROID_NS as _ANDROID_NS
+from framework.devices.app_metadata import android_manifest as _android_manifest
+from framework.devices.app_metadata import ios_app_plist as _ios_app_plist
 
 
-def _attr(el: ET.Element, name: str) -> str:
-    return el.get(f"{{{_ANDROID_NS}}}{name}", "")
-
-
-def _dedupe(items: List[str]) -> List[str]:
-    seen: set = set()
+def deeplinks_from_ios_plist(plist: bytes) -> List[str]:
+    """Custom URL schemes from an Info.plist's ``CFBundleURLTypes`` as ``scheme://``
+    sample URIs. Ignores the http/https universal-link schemes (not app-openable on
+    their own). Returns [] on a malformed plist."""
+    try:
+        data = plistlib.loads(plist)
+    except Exception:
+        return []
     out: List[str] = []
-    for i in items:
-        if i and i not in seen:
-            seen.add(i)
-            out.append(i)
-    return out
+    for entry in data.get("CFBundleURLTypes", []) or []:
+        for scheme in entry.get("CFBundleURLSchemes", []) or []:
+            s = str(scheme).strip()
+            if s and s not in ("http", "https"):
+                out.append(f"{s}://")
+    return sorted(set(out))
 
 
 def deeplinks_from_android_manifest(manifest_xml: str) -> List[str]:
-    """Sample deeplink URIs from a decoded AndroidManifest.xml — one per
-    ``<intent-filter>`` that is a browsable VIEW filter (a real deeplink, not an
-    internal intent). Splits scheme/host/path that Android allows across sibling
-    ``<data>`` tags and rebuilds a usable ``scheme://host/path``."""
+    """Deeplink URIs from an AndroidManifest's browsable VIEW intent-filters.
+
+    For each ``<intent-filter>`` that has both ``action VIEW`` and ``category
+    BROWSABLE``, expand its ``<data>`` entries into ``scheme://host/path`` URIs
+    (a scheme alone yields ``scheme://``). Returns [] on unparseable XML.
+    """
     try:
         root = ET.fromstring(manifest_xml)
     except ET.ParseError:
         return []
+
+    def attr(el: ET.Element, name: str) -> str:
+        return el.get(f"{{{_ANDROID_NS}}}{name}") or el.get(name) or ""
+
     uris: List[str] = []
     for intent in root.iter("intent-filter"):
-        actions = {_attr(a, "name") for a in intent.findall("action")}
+        actions = {attr(a, "name") for a in intent.findall("action")}
+        categories = {attr(c, "name") for c in intent.findall("category")}
         if "android.intent.action.VIEW" not in actions:
             continue
-        cats = {_attr(c, "name") for c in intent.findall("category")}
-        if "android.intent.category.BROWSABLE" not in cats:
-            continue  # a non-browsable VIEW filter isn't an externally-openable deeplink
-        schemes, hosts, paths = [], [], []
-        for data in intent.findall("data"):
-            if _attr(data, "scheme"):
-                schemes.append(_attr(data, "scheme"))
-            if _attr(data, "host"):
-                hosts.append(_attr(data, "host"))
-            path = _attr(data, "pathPrefix") or _attr(data, "path") or _attr(data, "pathPattern")
-            if path:
-                paths.append(path)
-        host = hosts[0] if hosts else ""
-        path = paths[0].replace(".*", "").replace("(", "").replace(")", "") if paths else ""
-        for scheme in schemes:
+        if "android.intent.category.BROWSABLE" not in categories:
+            continue
+        schemes = [attr(d, "scheme") for d in intent.findall("data") if attr(d, "scheme")]
+        hosts = [attr(d, "host") for d in intent.findall("data") if attr(d, "host")]
+        paths = [
+            attr(d, "path") or attr(d, "pathPrefix") or attr(d, "pathPattern")
+            for d in intent.findall("data")
+            if (attr(d, "path") or attr(d, "pathPrefix") or attr(d, "pathPattern"))
+        ]
+        for scheme in schemes or []:
             if scheme in ("http", "https"):
-                if host:
-                    uris.append(f"{scheme}://{host}{path}")
-            elif host:
-                uris.append(f"{scheme}://{host}{path}")
-            else:
-                uris.append(f"{scheme}://{path.lstrip('/') or 'home'}")
-    return _dedupe(uris)
-
-
-def deeplinks_from_ios_plist(plist: Any) -> List[str]:
-    """Custom-scheme deeplinks from an iOS Info.plist — ``scheme://`` for every
-    scheme under CFBundleURLTypes. Accepts a parsed dict or raw plist bytes/str."""
-    data = plist
-    if isinstance(plist, (str, bytes)):
-        try:
-            data = plistlib.loads(plist.encode() if isinstance(plist, str) else plist)
-        except Exception:
-            return []
-    if not isinstance(data, dict):
-        return []
-    schemes: List[str] = []
-    for entry in data.get("CFBundleURLTypes") or []:
-        for scheme in entry.get("CFBundleURLSchemes") or []:
-            if scheme:
-                schemes.append(f"{scheme}://")
-    return _dedupe(schemes)
+                continue  # app links; not a custom app-openable scheme on their own
+            host = hosts[0] if hosts else ""
+            path = paths[0].lstrip("/") if paths else ""
+            uri = f"{scheme}://{host}" + (f"/{path}" if path else "")
+            uris.append(uri)
+    return sorted(set(uris))
 
 
 def extract_deeplinks(config: Dict[str, Any]) -> List[str]:
-    """The deeplink seeds for a crawl: an explicit ``deeplinks`` list from config,
-    plus any parsed from an ``android_manifest`` / ``ios_plist`` path. The explicit
-    list is always included and comes first."""
-    seeds: List[str] = list(config.get("deeplinks") or [])
-    manifest = config.get("android_manifest")
-    if manifest:
-        try:
-            seeds += deeplinks_from_android_manifest(Path(manifest).read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    plist = config.get("ios_plist")
-    if plist:
-        try:
-            seeds += deeplinks_from_ios_plist(Path(plist).read_bytes())
-        except Exception:
-            pass
-    return _dedupe(seeds)
+    """Declared deeplinks for the app in ``config`` — best-effort, never raises.
+
+    Always includes any URIs listed explicitly under ``deeplinks``; then, by
+    platform, the discovered ones (iOS reads the app's Info.plist, Android its
+    manifest). Returns a sorted, de-duplicated list of URI templates (possibly
+    empty)."""
+    explicit = [str(u).strip() for u in (config.get("deeplinks") or []) if str(u).strip()]
+    discovered: List[str] = []
+    platform = config.get("platform", "android")
+    try:
+        if platform == "ios":
+            discovered = deeplinks_from_ios_plist(_ios_app_plist(config))
+        elif platform == "android":
+            discovered = deeplinks_from_android_manifest(_android_manifest(config))
+    except Exception:
+        discovered = []
+    return sorted(set(explicit) | set(discovered))
+
+
+def deeplinks_markdown(uris: List[str], package: str) -> str:
+    """The ``deeplinks.md`` kit artifact."""
+    if not uris:
+        return f"# Deeplinks — {package}\n\nNo browsable deeplinks were declared by the app.\n"
+    lines = [f"# Deeplinks — {package}", "", f"{len(uris)} declared deeplink(s):", ""]
+    lines += [f"- `{u}`" for u in uris]
+    lines += [
+        "",
+        "Open one with:",
+        "",
+        "```bash",
+        "# Android",
+        "adb shell am start -W -a android.intent.action.VIEW -d '<uri>' " + package,
+        "# iOS simulator",
+        "xcrun simctl openurl booted '<uri>'",
+        "```",
+        "",
+    ]
+    return "\n".join(lines)

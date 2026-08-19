@@ -1,100 +1,141 @@
 """
-Opt-in device prep before a crawl — clear obstacles the crawl can't tap past.
+Pre-crawl device preparation — grant the permissions the app declares and,
+optionally, reset its state, so the crawler starts clean and isn't stopped by a
+system permission dialog it can't see past.
 
-Two knobs, both destructive so both opt-in:
-  * **grant** runtime permissions up front, so a permission dialog never gates a
-    flow (and the generated tests start from a granted state); and
-  * **reset** app state (wipe data), so a stale session / half-finished onboarding
-    from a previous run doesn't skew the crawl.
+Both are **opt-in** (config flags ``grant_permissions`` / ``reset_state``); the
+default does nothing, because a reset wipes app data. Best-effort throughout — a
+missing tool or a permission that can't be granted is skipped, never fatal.
 
-Command building is pure and unit tested; only :func:`prepare_device` shells out,
-best-effort (a permission the app doesn't declare just fails harmlessly).
+    Android — ``pm grant`` each dangerous ``<uses-permission>``; ``pm clear`` to reset.
+    iOS     — ``simctl privacy grant`` each service the Info.plist asks for;
+              ``simctl privacy reset all`` to reset.
 """
 
 from __future__ import annotations
 
 import subprocess
-from typing import Any, Dict, List, Optional
+import xml.etree.ElementTree as ET
+from typing import Any, Dict, List
 
-# Dangerous (runtime) Android permissions worth granting up front — pm grant only
-# applies to declared runtime permissions, so granting one the app doesn't request
-# is a harmless no-op.
-_ANDROID_GRANTABLE = (
+from framework.devices.app_metadata import ANDROID_NS as _ANDROID_NS
+from framework.devices.app_metadata import android_manifest as _android_manifest
+from framework.devices.app_metadata import ios_app_plist as _ios_app_plist
+
+# Runtime (dangerous) permissions — the only ones `pm grant` accepts; granting a
+# normal/signature permission errors, so we filter the manifest to this set.
+_DANGEROUS_ANDROID = {
+    "android.permission.READ_CALENDAR",
+    "android.permission.WRITE_CALENDAR",
     "android.permission.CAMERA",
+    "android.permission.READ_CONTACTS",
+    "android.permission.WRITE_CONTACTS",
+    "android.permission.GET_ACCOUNTS",
     "android.permission.ACCESS_FINE_LOCATION",
     "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_BACKGROUND_LOCATION",
     "android.permission.RECORD_AUDIO",
-    "android.permission.READ_CONTACTS",
+    "android.permission.READ_PHONE_STATE",
+    "android.permission.CALL_PHONE",
+    "android.permission.READ_CALL_LOG",
+    "android.permission.WRITE_CALL_LOG",
+    "android.permission.BODY_SENSORS",
+    "android.permission.SEND_SMS",
+    "android.permission.RECEIVE_SMS",
+    "android.permission.READ_SMS",
     "android.permission.READ_EXTERNAL_STORAGE",
     "android.permission.WRITE_EXTERNAL_STORAGE",
-    "android.permission.POST_NOTIFICATIONS",
     "android.permission.READ_MEDIA_IMAGES",
-    "android.permission.READ_CALENDAR",
-)
+    "android.permission.READ_MEDIA_VIDEO",
+    "android.permission.READ_MEDIA_AUDIO",
+    "android.permission.POST_NOTIFICATIONS",
+    "android.permission.ACTIVITY_RECOGNITION",
+}
 
-# iOS privacy services simctl can pre-grant.
-_IOS_SERVICES = ("location", "photos", "camera", "microphone", "contacts", "calendar")
-
-
-def android_prepare_commands(
-    package: str,
-    serial: Optional[str] = None,
-    grant: bool = True,
-    reset: bool = False,
-    permissions: Optional[List[str]] = None,
-) -> List[List[str]]:
-    """The adb commands to prep an Android app: optional ``pm clear`` (reset) then
-    ``pm grant`` for each permission. Reset first so grants survive it."""
-    base = ["adb"] + (["-s", serial] if serial else [])
-    cmds: List[List[str]] = []
-    if reset:
-        cmds.append(base + ["shell", "pm", "clear", package])
-    if grant:
-        for perm in permissions or _ANDROID_GRANTABLE:
-            cmds.append(base + ["shell", "pm", "grant", package, perm])
-    return cmds
-
-
-def ios_prepare_commands(
-    bundle_id: str,
-    udid: Optional[str] = None,
-    grant: bool = True,
-    reset: bool = False,
-    services: Optional[List[str]] = None,
-) -> List[List[str]]:
-    """The simctl commands to prep an iOS app: optional privacy reset then a
-    privacy grant per service."""
-    device = udid or "booted"
-    cmds: List[List[str]] = []
-    if reset:
-        cmds.append(["xcrun", "simctl", "privacy", device, "reset", "all", bundle_id])
-    if grant:
-        for service in services or _IOS_SERVICES:
-            cmds.append(["xcrun", "simctl", "privacy", device, "grant", service, bundle_id])
-    return cmds
+# iOS Info.plist usage key -> the `simctl privacy` service that grants it. Keys
+# with no corresponding simctl service (camera, Face ID, Bluetooth, …) are omitted
+# — simctl simply can't preset those.
+_IOS_PRIVACY = {
+    "NSPhotoLibraryUsageDescription": "photos",
+    "NSPhotoLibraryAddUsageDescription": "photos-add",
+    "NSLocationWhenInUseUsageDescription": "location",
+    "NSLocationAlwaysAndWhenInUseUsageDescription": "location-always",
+    "NSLocationAlwaysUsageDescription": "location-always",
+    "NSContactsUsageDescription": "contacts",
+    "NSMicrophoneUsageDescription": "microphone",
+    "NSCalendarsUsageDescription": "calendar",
+    "NSRemindersUsageDescription": "reminders",
+    "NSMotionUsageDescription": "motion",
+    "NSAppleMusicUsageDescription": "media-library",
+    "NSSiriUsageDescription": "siri",
+}
 
 
-def prepare_commands(config: Dict[str, Any]) -> List[List[str]]:
-    """Build the prep commands for a crawl config's ``prepare`` block (pure)."""
-    prep = config.get("prepare") or {}
-    if not prep:
+def android_permissions_from_manifest(manifest_xml: str) -> List[str]:
+    """Dangerous ``<uses-permission>`` names from a manifest (the ones ``pm grant``
+    accepts). Returns [] on unparseable XML."""
+    try:
+        root = ET.fromstring(manifest_xml)
+    except ET.ParseError:
         return []
-    grant = bool(prep.get("grant", True))
-    reset = bool(prep.get("reset", False))
-    perms = prep.get("permissions")
-    if config.get("platform") == "ios":
-        return ios_prepare_commands(config["package"], config.get("udid"), grant, reset, perms)
-    return android_prepare_commands(config["package"], config.get("serial"), grant, reset, perms)
+    out: List[str] = []
+    for el in root.iter("uses-permission"):
+        name = el.get(f"{{{_ANDROID_NS}}}name") or el.get("name") or ""
+        if name in _DANGEROUS_ANDROID:
+            out.append(name)
+    return sorted(set(out))
 
 
-def prepare_device(config: Dict[str, Any]) -> int:
-    """Run the opt-in prep for ``config['prepare']``; returns how many commands ran.
-    Best-effort — a grant the app doesn't declare fails harmlessly."""
-    ran = 0
-    for cmd in prepare_commands(config):
-        try:
-            subprocess.run(cmd, capture_output=True, timeout=15)
-            ran += 1
-        except Exception:
-            pass
-    return ran
+def ios_privacy_services_from_plist(plist: bytes) -> List[str]:
+    """`simctl privacy` services for the usage keys an Info.plist declares. Returns
+    [] on a malformed plist."""
+    import plistlib
+
+    try:
+        data = plistlib.loads(plist)
+    except Exception:
+        return []
+    services = {svc for key, svc in _IOS_PRIVACY.items() if key in data}
+    return sorted(services)
+
+
+def _run(cmd: List[str]) -> bool:
+    """Run a prep command, True on success. Best-effort: never raises."""
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=30).returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
+def prepare_device(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply the opt-in pre-crawl preset for ``config``; returns what it did.
+
+    Honours ``grant_permissions`` and ``reset_state`` (both default off). Reset runs
+    before grant, since a reset clears previously granted permissions. Never raises.
+    Returns ``{platform, granted: [...], reset: bool}``.
+    """
+    platform = config.get("platform", "android")
+    grant = bool(config.get("grant_permissions"))
+    reset = bool(config.get("reset_state"))
+    result: Dict[str, Any] = {"platform": platform, "granted": [], "reset": False}
+    if not grant and not reset:
+        return result
+
+    if platform == "ios":
+        udid, bundle = config.get("udid"), config.get("package")
+        if reset and udid:
+            cmd = ["xcrun", "simctl", "privacy", udid, "reset", "all"] + ([bundle] if bundle else [])
+            result["reset"] = _run(cmd)
+        if grant and udid and bundle:
+            for svc in ios_privacy_services_from_plist(_ios_app_plist(config)):
+                if _run(["xcrun", "simctl", "privacy", udid, "grant", svc, bundle]):
+                    result["granted"].append(svc)
+    elif platform == "android":
+        serial, pkg = (config.get("udid") or config.get("serial")), config.get("package")
+        if reset and serial and pkg:
+            result["reset"] = _run(["adb", "-s", serial, "shell", "pm", "clear", pkg])
+        if grant and serial and pkg:
+            for perm in android_permissions_from_manifest(_android_manifest(config)):
+                if _run(["adb", "-s", serial, "shell", "pm", "grant", pkg, perm]):
+                    result["granted"].append(perm)
+    return result

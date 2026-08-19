@@ -151,6 +151,12 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # Mock layer: replay the same captured traffic deterministically, so the
     # generated tests (and a re-crawl) don't depend on a live/flaky backend.
     mocks = emit_mock_from_har(config.get("har"), out)
+    # Deeplinks the app declares — listed in the kit so a tester knows the
+    # shortcuts into deep screens (the crawl also seeds from them, see _seed_deeplinks).
+    from framework.crawler.deeplinks import deeplinks_markdown, extract_deeplinks
+
+    deeplinks = extract_deeplinks(config)
+    _write(out / "deeplinks.md", deeplinks_markdown(deeplinks, package))
 
     return {
         "package": package,
@@ -160,6 +166,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "cases": len(model.cases),
         "api_tests": api_tests,
         "mocks": mocks,
+        "deeplinks": len(deeplinks),
         "targets": written,
         "scaffolded": scaffolded,
         "gap": gap,
@@ -301,11 +308,11 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
 
     waypoints = [Waypoint(**w) for w in config.get("waypoints") or []]
     try:
-        # Opt-in device prep (grant permissions / reset state) before exploring.
-        if config.get("prepare"):
-            from framework.devices.prepare import prepare_device
+        # Opt-in device prep (grant permissions / reset state) before exploring;
+        # self-gates on ``grant_permissions`` / ``reset_state`` and no-ops otherwise.
+        from framework.devices.prepare import prepare_device
 
-            prepare_device(config)
+        prepare_device(config)
         result = AppCrawler(
             driver,
             config["package"],
