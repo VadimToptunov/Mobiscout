@@ -108,6 +108,23 @@ def apply(waypoint: Waypoint, driver: Any, screen: CrawlScreen) -> bool:
     return False
 
 
+def _submit_button(els: List[CrawlElement], hint: str, filled: List[CrawlElement]) -> Optional[CrawlElement]:
+    """The submit control for a form. A login gate often repeats the same label on
+    the launching screen *and* inside the form ("Log in" on the welcome screen AND
+    on the sign-in form); a plain first-match taps the welcome button and never
+    submits. So prefer a match *below* the inputs we just filled — the form's own
+    submit — else fall back to the lowest match on screen."""
+    matches = [e for e in els if hint.lower() in _haystack(e)]
+    if not matches:
+        return None
+    if filled:
+        floor = max(e.bounds[3] for e in filled)  # bottom edge of the filled inputs
+        below = [e for e in matches if e.bounds[1] >= floor]
+        if below:
+            return min(below, key=lambda e: e.bounds[1])  # topmost below = the form's own submit
+    return max(matches, key=lambda e: e.bounds[1])  # lowest match on screen
+
+
 def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     """Fill inputs by field hint, then tap the submit control."""
     fields: Dict[str, str] = data.get("fields", {})
@@ -126,7 +143,8 @@ def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
         if hasattr(driver, "type_text"):
             driver.type_text(value)
             did = True
-    submit = _find(els, data["submit"]) if data.get("submit") else None
+    filled = [e for e in inputs if id(e) in used_ids]
+    submit = _submit_button(els, data["submit"], filled) if data.get("submit") else None
     if submit is not None:
         _tap(driver, submit)
         did = True

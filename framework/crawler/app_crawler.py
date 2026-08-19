@@ -129,6 +129,7 @@ class AppCrawler:
         waypoints: Optional[List["Waypoint"]] = None,
         allow_destructive: bool = False,
         max_seconds: float = 0.0,
+        max_novelty_gap: int = 25,
     ) -> None:
         self.driver = driver
         self.app_package = app_package
@@ -139,6 +140,14 @@ class AppCrawler:
         # uiautomator dump crawls) — the deadline caps total run time regardless.
         self.max_seconds = max_seconds
         self._deadline = float("inf")
+        # Plateau / novelty stop (0 = disabled). The crawl ends once it goes this
+        # many steps without discovering a new screen template — coverage has
+        # saturated, so it stops instead of re-treading known ground to the hard
+        # step cap (an endless feed or deep search would otherwise wander to it). A
+        # newly-seen screen re-anchors the counter.
+        self.max_novelty_gap = max_novelty_gap
+        self._screens_high = 0
+        self._step_at_last_new = 0
         # By default block both session-enders and destructive/financial actions.
         # ``allow_destructive`` (for throwaway sandbox/test apps) keeps only the
         # session-enders blocked, so the crawl can tap Pay/Buy/Delete/Confirm and
@@ -698,9 +707,18 @@ class AppCrawler:
             self._go_back(screen.fingerprint)  # back to the form for the positive branch
 
     def _within_budget(self, result: CrawlResult) -> bool:
-        """Both budgets: the step count and (when set) the wall clock. Checked at
-        every loop boundary so a slow device caps total run time, not just steps."""
-        return result.steps < self.max_steps and time.monotonic() < self._deadline
+        """All three budgets: the step count, the wall clock (when set), and the
+        novelty plateau (when set). Checked at every loop boundary so a slow device
+        caps total run time and a saturated crawl stops instead of re-treading."""
+        if result.steps >= self.max_steps or time.monotonic() >= self._deadline:
+            return False
+        # Re-anchor the plateau counter whenever the map grew a new screen template.
+        if len(result.screens) > self._screens_high:
+            self._screens_high = len(result.screens)
+            self._step_at_last_new = result.steps
+        if self.max_novelty_gap > 0 and result.steps - self._step_at_last_new >= self.max_novelty_gap:
+            return False
+        return True
 
     def _dfs(
         self, result: CrawlResult, root_fp: str, root_todo: Deque[CrawlElement], exclude_nav: bool = False
