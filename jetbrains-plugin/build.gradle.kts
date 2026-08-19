@@ -73,8 +73,15 @@ intellijPlatform {
             // plugin 2.18.1 dropped the explicit ide("IC", …) pins; `select {}`
             // with the RELEASE channel and a build range is the current way to pin
             // a known set (here IC 2024.2–2024.3, builds 242–243).
+            // The plugin depends only on com.intellij.modules.platform, so it runs
+            // in every JetBrains IDE — verify the mobile-relevant ones, not just
+            // IntelliJ IDEA: Android Studio (Android), PyCharm (Python tests) too.
             select {
-                types = listOf(IntelliJPlatformType.IntellijIdeaCommunity)
+                types = listOf(
+                    IntelliJPlatformType.IntellijIdeaCommunity,
+                    IntelliJPlatformType.AndroidStudio,
+                    IntelliJPlatformType.PyCharmCommunity,
+                )
                 channels = listOf(ProductRelease.Channel.RELEASE)
                 sinceBuild = "242"
                 untilBuild = "243.*"

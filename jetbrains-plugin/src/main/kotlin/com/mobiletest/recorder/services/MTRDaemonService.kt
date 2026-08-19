@@ -132,6 +132,15 @@ class MTRDaemonService {
         return client?.call("device/start", params)?.getResultOrThrow()
     }
 
+    /** Shut down a running emulator/simulator. */
+    fun stopDevice(platform: String, deviceId: String): JsonObject? {
+        val params = mapOf("platform" to platform, "device_id" to deviceId)
+        return client?.call("device/stop", params)?.getResultOrThrow()
+    }
+
+    /** Installed Android AVDs that can be booted (`emulator -list-avds`). */
+    fun listAvds(): JsonObject? = client?.call("device/listAvds", emptyMap<String, Any>())?.getResultOrThrow()
+
     /** Install a build (.apk / .app) onto a device before crawling. */
     fun installApp(platform: String, deviceId: String, appPath: String): JsonObject? {
         val params = mapOf("platform" to platform, "device_id" to deviceId, "app_path" to appPath)
