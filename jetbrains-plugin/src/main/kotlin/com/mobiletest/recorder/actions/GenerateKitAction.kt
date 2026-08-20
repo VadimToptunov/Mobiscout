@@ -7,10 +7,10 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.ui.Messages
 import com.intellij.notification.NotificationGroupManager
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.ui.GenerateKitDialog
+import com.mobiletest.recorder.ui.Notifier
 
 /**
  * "Generate Test Kit" — opens a parameter form, then runs the engine's
@@ -36,17 +36,17 @@ class GenerateKitAction : AnAction() {
         val platform = dialog.platform()
 
         if (buildPath.isNotEmpty() && deviceId.isEmpty()) {
-            Messages.showErrorDialog(
+            Notifier.error(
                 project,
-                "Set the Device UDID (Appium) to install the build on — install needs a target device.",
                 "Install build",
+                "Set the Device UDID (Appium) to install the build on — install needs a target device.",
             )
             return
         }
 
         val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
         if (daemonService.getClient() == null && !daemonService.start()) {
-            Messages.showErrorDialog(project, "Could not start the mobiscout daemon. Is the CLI installed?", "Error")
+            Notifier.error(project, "Error", "Could not start the mobiscout daemon. Is the CLI installed?")
             return
         }
 

@@ -1,11 +1,11 @@
 package com.mobiletest.recorder.ui.panels
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBScrollPane
 import com.mobiletest.recorder.services.MTRDaemonService
 import java.awt.BorderLayout
 import javax.swing.*
+import com.mobiletest.recorder.ui.Notifier
 
 class LogsPanel(
     private val project: Project,
@@ -106,7 +106,7 @@ class LogsPanel(
         val bundle = appField.text.trim()
         val platform = selected?.let { devicePlatform[it] } ?: "ios"
         if (udid.isEmpty() || bundle.isEmpty()) {
-            Messages.showWarningDialog(project, "Pick a device and enter the app bundle id / package first.", "App Logs")
+            Notifier.warn(project, "App Logs", "Pick a device and enter the app bundle id / package first.")
             return
         }
         (object : SwingWorker<Boolean, Void>() {
@@ -122,7 +122,7 @@ class LogsPanel(
                     stopButton.isEnabled = true
                     logsTextArea.append("— streaming device logs for $bundle —\n")
                 } else {
-                    Messages.showErrorDialog(project, "Couldn't start the log stream. Is the engine running?", "App Logs")
+                    Notifier.error(project, "App Logs", "Couldn't start the log stream. Is the engine running?")
                 }
             }
         }).execute()

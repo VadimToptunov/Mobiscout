@@ -9,7 +9,6 @@ import com.intellij.openapi.actionSystem.ActionUiKind
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBScrollPane
@@ -18,6 +17,7 @@ import com.mobiletest.recorder.services.MTRDaemonService
 import java.awt.BorderLayout
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
+import com.mobiletest.recorder.ui.Notifier
 
 class DevicesPanel(
     private val project: Project,
@@ -85,11 +85,11 @@ class DevicesPanel(
                 if (get()) {
                     refreshDevices()
                 } else {
-                    Messages.showErrorDialog(
+                    Notifier.error(
                         project,
+                        "Couldn't Start the Mobiscout Engine",
                         "The engine is downloaded automatically on first use. Check your internet " +
                             "connection, or install the 'mobiscout' CLI on PATH.",
-                        "Couldn't Start the Mobiscout Engine",
                     )
                 }
             }
@@ -128,7 +128,7 @@ class DevicesPanel(
                 if (result != null) {
                     updateTable(result)
                 } else {
-                    Messages.showErrorDialog(project, "Failed to list devices. Is the engine running?", "Devices")
+                    Notifier.error(project, "Devices", "Failed to list devices. Is the engine running?")
                 }
             }
         }).execute()
@@ -164,7 +164,7 @@ class DevicesPanel(
     private fun installBuild() {
         val row = table.selectedRow
         if (row < 0) {
-            Messages.showWarningDialog(project, "Select a device first.", "Install Build")
+            Notifier.warn(project, "Install Build", "Select a device first.")
             return
         }
         val deviceId = tableModel.getValueAt(row, 0)?.toString().orEmpty()
@@ -192,9 +192,9 @@ class DevicesPanel(
                 val ok = result?.get("ok")?.asBoolean ?: false
                 val detail = result?.get("detail")?.asString ?: "No response from the engine."
                 if (ok) {
-                    Messages.showInfoMessage(project, "Installed on $deviceId.", "Install Build")
+                    Notifier.info(project, "Install Build", "Installed on $deviceId.")
                 } else {
-                    Messages.showErrorDialog(project, "Install failed: $detail", "Install Build")
+                    Notifier.error(project, "Install Build", "Install failed: $detail")
                 }
             }
         }).execute()
@@ -236,10 +236,10 @@ class DevicesPanel(
             override fun done() {
                 val (labels, targets) = get()
                 if (labels.isEmpty()) {
-                    Messages.showInfoMessage(
+                    Notifier.info(
                         project,
-                        "No bootable AVDs or shut-down simulators found. Is the engine running?",
                         "Boot Device",
+                        "No bootable AVDs or shut-down simulators found. Is the engine running?",
                     )
                     return
                 }
@@ -270,13 +270,13 @@ class DevicesPanel(
             override fun done() {
                 val started = get()?.get("started")?.asBoolean ?: false
                 if (started) {
-                    Messages.showInfoMessage(
-                        project, "Booting $label — it'll appear here once ready (hit Refresh).", "Boot Device"
+                    Notifier.info(
+                        project, "Boot Device", "Booting $label — it'll appear here once ready (hit Refresh)."
                     )
                     refreshDevices()
                 } else {
                     val err = get()?.get("error")?.asString ?: "no response from the engine"
-                    Messages.showErrorDialog(project, "Couldn't boot $label: $err", "Boot Device")
+                    Notifier.error(project, "Boot Device", "Couldn't boot $label: $err")
                 }
             }
         }).execute()
@@ -286,7 +286,7 @@ class DevicesPanel(
     private fun shutdownDevice() {
         val row = table.selectedRow
         if (row < 0) {
-            Messages.showWarningDialog(project, "Select a running device first.", "Shutdown")
+            Notifier.warn(project, "Shutdown", "Select a running device first.")
             return
         }
         val deviceId = tableModel.getValueAt(row, 0)?.toString().orEmpty()
@@ -298,8 +298,8 @@ class DevicesPanel(
             override fun done() {
                 val stopped = get()?.get("stopped")?.asBoolean ?: false
                 if (stopped) refreshDevices()
-                else Messages.showErrorDialog(
-                    project, "Couldn't shut down $deviceId: ${get()?.get("error")?.asString ?: "no response"}", "Shutdown"
+                else Notifier.error(
+                    project, "Shutdown", "Couldn't shut down $deviceId: ${get()?.get("error")?.asString ?: "no response"}"
                 )
             }
         }).execute()

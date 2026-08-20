@@ -3,7 +3,6 @@ package com.mobiletest.recorder.wizard
 import com.intellij.ide.wizard.AbstractWizard
 import com.intellij.ide.wizard.StepAdapter
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.mobiletest.recorder.settings.MTRSettings
 import javax.swing.JComponent
 

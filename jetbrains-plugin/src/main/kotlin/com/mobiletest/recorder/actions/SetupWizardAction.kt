@@ -2,7 +2,7 @@ package com.mobiletest.recorder.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.ui.Messages
+import com.mobiletest.recorder.ui.Notifier
 import com.mobiletest.recorder.wizard.SetupWizard
 
 /**
@@ -17,11 +17,11 @@ class SetupWizardAction : AnAction() {
         val completed = SetupWizard.showWizard(project)
 
         if (completed) {
-            Messages.showInfoMessage(
+            Notifier.info(
                 project,
+                "Setup Complete",
                 "Mobiscout has been configured successfully!\n\n" +
-                "Open View → Tool Windows → Mobiscout to get started.",
-                "Setup Complete"
+                    "Open View → Tool Windows → Mobiscout to get started.",
             )
         }
     }
