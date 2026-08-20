@@ -17,7 +17,10 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from framework.codegen.ir import TestModel
 
-_TEMPLATE_ROOT = os.path.join(os.path.dirname(__file__), "..", "templates")
+# normpath collapses the ``emitters/../templates`` hop to ``codegen/templates`` — a
+# real directory. Without it, a frozen/onefile build (PyInstaller) can't resolve the
+# ``..`` because ``emitters/`` isn't an on-disk dir there, and template lookup fails.
+_TEMPLATE_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "templates"))
 
 
 class Emitter(ABC):
