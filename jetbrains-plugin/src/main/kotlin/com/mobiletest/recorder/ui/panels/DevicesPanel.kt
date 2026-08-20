@@ -136,16 +136,24 @@ class DevicesPanel(
     
     private fun updateTable(result: JsonObject) {
         tableModel.rowCount = 0
-        
+
         val devices = result.getAsJsonArray("devices") ?: JsonArray()
-        for (element in devices) {
-            val device = element.asJsonObject
-            tableModel.addRow(arrayOf(
-                device.get("id")?.asString ?: "",
-                device.get("name")?.asString ?: "",
-                device.get("platform")?.asString ?: "",
-                device.get("status")?.asString ?: ""
-            ))
+        // Show the running/connected devices, running first. Drop the wall of shut-down
+        // iOS simulators — those are started from "Boot device…", not this list — so the
+        // one device you're actually using isn't buried under 30 idle simulators. Any
+        // connected-but-not-ready adb device (offline / unauthorized) still shows.
+        val rows = devices.mapNotNull { it.asJsonObject }
+            .filter { (it.get("status")?.asString ?: "") != "shutdown" }
+            .sortedBy { if ((it.get("status")?.asString ?: "") in setOf("booted", "device")) 0 else 1 }
+        for (device in rows) {
+            tableModel.addRow(
+                arrayOf(
+                    device.get("id")?.asString ?: "",
+                    device.get("name")?.asString ?: "",
+                    device.get("platform")?.asString ?: "",
+                    device.get("status")?.asString ?: "",
+                ),
+            )
         }
     }
     
