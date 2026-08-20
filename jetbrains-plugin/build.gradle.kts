@@ -29,7 +29,7 @@ dependencies {
 
     intellijPlatform {
         // Build against IntelliJ IDEA Community 2024.2 (the 2.x baseline).
-        create("IC", "2024.2")
+        create("IC", "2024.3")
         testFramework(TestFrameworkType.Platform)
     }
 }
@@ -39,7 +39,7 @@ intellijPlatform {
         // Name/description/change-notes come from META-INF/plugin.xml — kept honest
         // there, so we don't override them here.
         ideaVersion {
-            sinceBuild = "242"          // 2024.2+
+            sinceBuild = "243"          // 2024.3+ (floor bumped so codegen can use non-deprecated platform APIs)
             untilBuild = provider { null }  // no upper bound — support current & future IDEs
         }
     }
@@ -89,7 +89,7 @@ intellijPlatform {
                     IntelliJPlatformType.AndroidStudio,
                 )
                 channels = listOf(ProductRelease.Channel.RELEASE)
-                sinceBuild = "242"
+                sinceBuild = "243"
                 untilBuild = "243.*"
             }
         }
@@ -104,7 +104,7 @@ kotlin {
         // ToolWindowFactory.getAnchor()) makes Kotlin generate a synthetic override
         // that delegates to it — which the plugin verifier flags as "overrides an
         // internal API". With -Xjvm-default=all no such override is generated.
-        freeCompilerArgs.add("-Xjvm-default=all")
+        freeCompilerArgs.add("-jvm-default=no-compatibility")
     }
 }
 

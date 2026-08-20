@@ -61,10 +61,10 @@ class SourceCodeStep(model: SetupWizardModel) : SetupWizardStep(model) {
         val sourcePanel = JPanel(BorderLayout(5, 0))
         sourcePanel.add(JBLabel("Source directory:"), BorderLayout.WEST)
         sourcePathField.addBrowseFolderListener(
-            "Select Source Code Directory",
-            "Choose the root directory of your mobile app source code",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Source Code Directory")
+                .withDescription("Choose the root directory of your mobile app source code")
         )
         sourcePanel.add(sourcePathField, BorderLayout.CENTER)
         gbc.insets = JBUI.insets(5, 30, 5, 10)
@@ -159,10 +159,10 @@ class BuildConfigStep(model: SetupWizardModel) : SetupWizardStep(model) {
         val buildPanel = JPanel(BorderLayout(5, 0))
         buildPanel.add(JBLabel("Build directory:"), BorderLayout.WEST)
         buildPathField.addBrowseFolderListener(
-            "Select Build Directory",
-            "Choose the directory containing .apk or .ipa files",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Build Directory")
+                .withDescription("Choose the directory containing .apk or .ipa files")
         )
         buildPanel.add(buildPathField, BorderLayout.CENTER)
         panel.add(buildPanel, gbc)
@@ -341,10 +341,10 @@ class FrameworkSelectionStep(model: SetupWizardModel) : SetupWizardStep(model) {
         val existingPanel = JPanel(BorderLayout(5, 0))
         existingPanel.add(JBLabel("Framework path:"), BorderLayout.WEST)
         existingPathField.addBrowseFolderListener(
-            "Select Existing Framework",
-            "Choose the root directory of your existing test framework",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Existing Framework")
+                .withDescription("Choose the root directory of your existing test framework")
         )
         existingPanel.add(existingPathField, BorderLayout.CENTER)
         gbc.insets = JBUI.insets(5, 30, 10, 10)

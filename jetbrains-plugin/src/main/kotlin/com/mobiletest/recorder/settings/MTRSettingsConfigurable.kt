@@ -169,38 +169,38 @@ class MTRSettingsConfigurable : Configurable {
 
     private fun setupBrowseButtons() {
         sourceCodePathField.addBrowseFolderListener(
-            "Select Source Code Directory",
-            "Choose the root directory of your mobile app source code",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Source Code Directory")
+                .withDescription("Choose the root directory of your mobile app source code")
         )
 
         buildPathField.addBrowseFolderListener(
-            "Select Build Directory",
-            "Choose the directory containing .apk or .ipa files",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Build Directory")
+                .withDescription("Choose the directory containing .apk or .ipa files")
         )
 
         existingFrameworkPathField.addBrowseFolderListener(
-            "Select Existing Framework",
-            "Choose the root directory of your existing test framework",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Existing Framework")
+                .withDescription("Choose the root directory of your existing test framework")
         )
 
         adbPathField.addBrowseFolderListener(
-            "Select ADB Executable",
-            "Choose the path to adb executable",
             null,
             FileChooserDescriptorFactory.createSingleFileDescriptor()
+                .withTitle("Select ADB Executable")
+                .withDescription("Choose the path to adb executable")
         )
 
         androidSdkPathField.addBrowseFolderListener(
-            "Select Android SDK",
-            "Choose the Android SDK root directory",
             null,
             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select Android SDK")
+                .withDescription("Choose the Android SDK root directory")
         )
     }
 
