@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.mobiletest.recorder</id>
     <name>Mobiscout</name>
-    <vendor email="support@mobile-mobiscout.dev" url="https://github.com/VadimToptunov/Mobiscout">
+    <vendor url="https://github.com/VadimToptunov/Mobiscout">
         Mobiscout
     </vendor>
 
@@ -28,22 +28,35 @@
     
     <h2>Requirements:</h2>
     <ul>
-        <li>Python 3.13+ installed</li>
-        <li><code>mobile-mobiscout-test</code> CLI: <code>pip install mobile-mobiscout-test</code></li>
+        <li>Python 3.13+ (the local engine runs on it)</li>
+        <li>The Mobiscout engine, installed from source (see Quick Start)</li>
         <li>For Android: Android SDK with adb</li>
         <li>For iOS: Xcode with simctl</li>
     </ul>
-    
+
     <h2>Quick Start:</h2>
     <ol>
-        <li>Install <code>mobile-mobiscout-test</code> CLI</li>
+        <li>Install the engine: clone <code>https://github.com/VadimToptunov/Mobiscout</code>, then <code>pip install -e .</code></li>
         <li>Open View → Tool Windows → Mobiscout</li>
-        <li>Click "Start Daemon" button</li>
-        <li>Select your device and start testing!</li>
+        <li>Click "Start Daemon"</li>
+        <li>Pick a device, point it at your app, and generate a test kit</li>
     </ol>
-    
-    <p>See <a href="https://github.com/VadimToptunov/Mobiscout">documentation</a> for more details.</p>
+
+    <p>Docs at <a href="https://github.com/VadimToptunov/Mobiscout">the repository</a>; questions and bugs via
+    <a href="https://github.com/VadimToptunov/Mobiscout/issues">GitHub Issues</a>.</p>
     ]]>    </description>
+
+    <change-notes><![CDATA[
+    <h3>0.9.0 — public beta</h3>
+    <ul>
+        <li>First public beta. Point the IDE at a running app and get an element inventory, an
+        interaction graph, and runnable tests, without leaving the IDE.</li>
+        <li>Runnable-project scaffolds for Java (Maven) and Kotlin (Gradle).</li>
+        <li>Anti-flake generated tests: a settle() wait after each transition.</li>
+        <li>Stream app logs and capture crashes into the kit.</li>
+        <li>Native tool-window toolbar and actionable empty states.</li>
+    </ul>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
 
