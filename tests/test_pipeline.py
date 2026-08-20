@@ -78,8 +78,12 @@ def _limited(monkeypatch):
     """Install a limited entitlements provider for the duration of one test."""
     from framework.licensing import Entitlements, Tier, reset_provider, set_provider
 
-    def _install(*, max_screens=None, max_tests=None):
-        set_provider(lambda: Entitlements(tier=Tier.FREE, max_screens=max_screens, max_tests=max_tests))
+    def _install(*, max_screens=None, max_tests=None, features=frozenset()):
+        set_provider(
+            lambda: Entitlements(
+                tier=Tier.FREE, max_screens=max_screens, max_tests=max_tests, features=frozenset(features)
+            )
+        )
 
     yield _install
     reset_provider()
@@ -140,6 +144,29 @@ def test_run_kit_with_har_also_emits_api_tests(tmp_path):
     assert summary["api_tests"] == 2  # both captured endpoints
     assert (tmp_path / "test_api.py").exists()
     assert summary["cases"] >= 1  # UI tests still produced
+
+
+def test_api_contract_tests_gated_off_without_feature(_limited, tmp_path):
+    # A tier without the 'api_contract_tests' feature gets no API tests, even with a HAR —
+    # proves has_feature is actually wired into build_kit (the premium the PRO layer sells).
+    _limited()  # FREE, no features unlocked
+    summary = run_kit(
+        {"package": APP, "targets": ["python_pytest"], "output": str(tmp_path), "har": _write_har(tmp_path)},
+        driver=FakeDriver(),
+    )
+    assert summary["api_tests"] == 0
+    assert not (tmp_path / "test_api.py").exists()
+    assert summary["cases"] >= 1  # the free UI tests still generate
+
+
+def test_api_contract_tests_unlocked_by_feature(_limited, tmp_path):
+    _limited(features={"api_contract_tests"})
+    summary = run_kit(
+        {"package": APP, "targets": ["python_pytest"], "output": str(tmp_path), "har": _write_har(tmp_path)},
+        driver=FakeDriver(),
+    )
+    assert summary["api_tests"] == 2
+    assert (tmp_path / "test_api.py").exists()
 
 
 def test_write_kit_with_har_emits_api_tests(tmp_path):

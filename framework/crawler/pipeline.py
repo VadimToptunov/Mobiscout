@@ -101,9 +101,13 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     # Only-new mode: drop cases already covered by the team's existing tests, so a
-    # crawl of a new feature yields tests for just that feature.
+    # crawl of a new feature yields tests for just that feature. A premium (team/CI)
+    # feature — gated by ``has_feature`` so a limited tier falls back to the full kit;
+    # a no-op on the open-core (unlimited) tier, which has every feature.
+    from framework.licensing import has_feature
+
     gap = None
-    if config.get("only_new"):
+    if config.get("only_new") and has_feature("incremental"):
         from framework.crawler.coverage import existing_test_text, filter_to_new
 
         covered = existing_test_text(Path(config.get("existing_tests", "")))
@@ -146,8 +150,9 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
 
     # API tests from network traffic captured during the same session (a proxy
     # HAR — mitmproxy/Charles). The crawl produces the UI tests; the capture adds
-    # contract tests for the endpoints the app actually called, in one kit.
-    api_tests = emit_api_tests_from_har(config.get("har"), out)
+    # contract tests for the endpoints the app actually called, in one kit. A premium
+    # feature — gated by ``has_feature`` (no-op on the unlimited open-core tier).
+    api_tests = emit_api_tests_from_har(config.get("har"), out) if has_feature("api_contract_tests") else 0
     # Mock layer: replay the same captured traffic deterministically, so the
     # generated tests (and a re-crawl) don't depend on a live/flaky backend.
     mocks = emit_mock_from_har(config.get("har"), out)
