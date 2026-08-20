@@ -11,7 +11,6 @@ import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
@@ -130,11 +129,11 @@ class MTRToolWindow(private val project: Project) {
                     } else {
                         statusLabel.text = "● Stopped"
                         statusLabel.foreground = stoppedColor
-                        Messages.showErrorDialog(
+                        Notifier.error(
                             project,
+                            "Couldn't Start the Mobiscout Engine",
                             "The engine is downloaded automatically on first use. Check your internet " +
                                 "connection, or install the 'mobiscout' CLI on PATH.",
-                            "Couldn't Start the Mobiscout Engine",
                         )
                     }
                 }

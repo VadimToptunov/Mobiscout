@@ -5,11 +5,11 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
-import com.intellij.openapi.ui.Messages
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
 import java.io.File
 import java.util.Base64
+import com.mobiletest.recorder.ui.Notifier
 
 class CaptureScreenshotAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
@@ -20,10 +20,10 @@ class CaptureScreenshotAction : AnAction() {
         // device to screenshot, so tell the user how to get one.
         val sessionId = project.getService(MTRToolWindowService::class.java).screenPanel?.activeSessionId()
         if (sessionId == null) {
-            Messages.showInfoMessage(
+            Notifier.info(
                 project,
-                "No active device session. Open the Mobiscout tool window → Screen tab → Start Session first.",
                 "No Session",
+                "No active device session. Open the Mobiscout tool window → Screen tab → Start Session first.",
             )
             return
         }
@@ -43,11 +43,11 @@ class CaptureScreenshotAction : AnAction() {
                 if (fileWrapper != null) {
                     val file = fileWrapper.file
                     file.writeBytes(imageBytes)
-                    Messages.showInfoMessage(project, "Screenshot saved to ${file.absolutePath}", "Success")
+                    Notifier.info(project, "Success", "Screenshot saved to ${file.absolutePath}")
                 }
             }
         } catch (ex: Exception) {
-            Messages.showErrorDialog(project, "Failed to capture screenshot: ${ex.message}", "Error")
+            Notifier.error(project, "Error", "Failed to capture screenshot: ${ex.message}")
         }
     }
     
