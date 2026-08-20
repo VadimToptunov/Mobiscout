@@ -2,12 +2,15 @@ package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUiKind
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
-import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
@@ -96,8 +99,17 @@ class DevicesPanel(
     /** Fire a registered plugin action by id (e.g. the Setup Wizard). */
     private fun runAction(id: String) {
         ActionManager.getInstance().getAction(id)?.let { action ->
-            val ctx = SimpleDataContext.getProjectContext(project)
-            ActionUtil.invokeAction(action, ctx, ActionPlaces.TOOLWINDOW_CONTENT, null, null)
+            // Build an event from the panel's data context and fire it via the current
+            // non-deprecated invokeAction(action, event, onDone) form.
+            val dataContext = DataManager.getInstance().getDataContext(panel)
+            val event = AnActionEvent.createEvent(
+                dataContext,
+                action.templatePresentation.clone(),
+                ActionPlaces.TOOLWINDOW_CONTENT,
+                ActionUiKind.NONE,
+                null,
+            )
+            ActionUtil.invokeAction(action, event, null)
         }
     }
     
@@ -223,12 +235,21 @@ class DevicesPanel(
                     )
                     return
                 }
-                val choice = Messages.showChooseDialog(
-                    project, "Pick a device to boot:", "Boot Device", null, labels.toTypedArray(), labels[0]
-                )
-                if (choice < 0) return
-                val (platform, target) = targets[choice]
-                startBoot(platform, target, labels[choice])
+                // A lightweight list popup (the non-deprecated replacement for the old
+                // Messages.showChooseDialog combo). Async: boot the chosen device in the
+                // item-chosen callback; dismissing it (Esc / click away) boots nothing.
+                JBPopupFactory.getInstance()
+                    .createPopupChooserBuilder(labels)
+                    .setTitle("Pick a device to boot")
+                    .setItemChosenCallback { chosen ->
+                        val idx = labels.indexOf(chosen)
+                        if (idx >= 0) {
+                            val (platform, target) = targets[idx]
+                            startBoot(platform, target, labels[idx])
+                        }
+                    }
+                    .createPopup()
+                    .showCenteredInCurrentWindow(project)
             }
         }).execute()
     }

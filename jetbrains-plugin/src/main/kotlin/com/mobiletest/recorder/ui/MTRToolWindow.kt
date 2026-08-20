@@ -9,7 +9,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.actionSystem.ex.ActionUtil
-import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -96,8 +95,9 @@ class MTRToolWindow(private val project: Project) {
             // ActionUtil.invokeAction is the sanctioned way to fire a registered
             // action programmatically — don't call actionPerformed() directly.
             ActionManager.getInstance().getAction("MTR.GenerateKit")?.let { action ->
-                val ctx = SimpleDataContext.getProjectContext(project)
-                ActionUtil.invokeAction(action, ctx, ActionPlaces.TOOLWINDOW_CONTENT, null, null)
+                // Fire it with this action's own event (its data context), the current
+                // non-deprecated invokeAction(action, event, onDone) form.
+                ActionUtil.invokeAction(action, e, null)
             }
         }
     }

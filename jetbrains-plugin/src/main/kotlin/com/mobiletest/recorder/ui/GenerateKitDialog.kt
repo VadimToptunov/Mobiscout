@@ -81,14 +81,13 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
             applyPlatform()
         }
 
-        // .apk is a file, .app is a bundle directory — allow either. (Same
-        // addBrowseFolderListener overload the setup-wizard steps use; the 2-arg
-        // (project, descriptor) form isn't in this platform build.)
+        // .apk is a file, .app is a bundle directory — allow either. Title/description
+        // ride on the descriptor (the non-deprecated 2-arg overload, 2024.3+).
         buildPathField.addBrowseFolderListener(
-            "Select a Build (.apk / .app)",
-            "The build is installed on the device (UDID) before crawling",
             project,
             FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor()
+                .withTitle("Select a Build (.apk / .app)")
+                .withDescription("The build is installed on the device (UDID) before crawling")
         )
         init()
     }
