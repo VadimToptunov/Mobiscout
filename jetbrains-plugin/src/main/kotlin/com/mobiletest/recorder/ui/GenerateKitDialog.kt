@@ -6,6 +6,7 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.ValidationInfo
+import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
@@ -156,17 +157,19 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
     }
 
     override fun createCenterPanel(): JComponent {
+        // Essentials up top (what you set every run), then everything else under an
+        // "Advanced" heading whose defaults are fine for the common case — so the form
+        // reads as "app, device, language → Generate" without hiding any knob.
         val panel: JPanel = FormBuilder.createFormBuilder()
             .addLabeledComponent("App package / bundle id:", packageField)
             .addLabeledComponent("Platform:", platformCombo)
-            .addLabeledComponent("Android backend:", driverCombo)
+            .addLabeledComponent("Device:", udidCombo)
             .addLabeledComponent("Language:", languageCombo)
             .addLabeledComponent("Framework:", frameworkCombo)
-            .addSeparator()
             .addLabeledComponent("Output directory:", outputField)
             .addComponent(newProjectCheck)
-            .addSeparator()
-            .addLabeledComponent("Device:", udidCombo)
+            .addComponent(TitledSeparator("Advanced"))
+            .addLabeledComponent("Android backend:", driverCombo)
             .addLabeledComponent("Appium server:", serverField)
             .addLabeledComponent("iOS launch args (space-separated):", launchArgsField)
             .addSeparator()
