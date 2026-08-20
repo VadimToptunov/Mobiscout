@@ -106,12 +106,26 @@ class GenerateKitAction : AnAction() {
                     val tierNote = tierNote(daemonService, screens, cases)
 
                     ApplicationManager.getApplication().invokeLater {
-                        notify(
-                            project,
-                            "Test kit generated",
-                            "$screens screen(s), $cases test case(s)$extra$crashNote\nWritten to: $output$cleanupNote$tierNote",
-                            NotificationType.INFORMATION,
-                        )
+                        if (screens == 0) {
+                            // 0 screens means the crawl never reached the app — a failure,
+                            // not a success. Say so, with the usual causes.
+                            notify(
+                                project,
+                                "No screens crawled",
+                                "The crawl reached 0 screens, so no tests were generated. Common causes: the " +
+                                    "device/emulator isn't connected, Appium isn't running at the configured " +
+                                    "server, or the app package / UDID is wrong. See the Logs tab for details.",
+                                NotificationType.WARNING,
+                            )
+                        } else {
+                            notify(
+                                project,
+                                "Test kit generated",
+                                "$screens screen(s), $cases test case(s)$extra$crashNote" +
+                                    "\nWritten to: $output$cleanupNote$tierNote",
+                                NotificationType.INFORMATION,
+                            )
+                        }
                     }
                 } catch (ex: Exception) {
                     ApplicationManager.getApplication().invokeLater {
