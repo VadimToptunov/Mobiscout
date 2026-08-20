@@ -43,14 +43,17 @@ jobs:
           python-version: '3.13'
           cache: 'pip'
 
-      - name: Install engine + build tooling
-        # Full requirements so PyInstaller can import every framework submodule
-        # (the classifier imports sklearn at module top, etc.), plus the package
-        # itself and PyInstaller.
+      - name: Install engine (lean core) + build tooling
+        # Core install only — NOT requirements.txt (which pulls the ~436 MB ML/viz
+        # stack) and NOT editable. The default crawl -> classify -> codegen path is
+        # heuristic-first and needs none of that, so the frozen binary stays lean
+        # (~25 MB, vs ~460 MB with the full stack). A non-editable install also
+        # copies `framework` into site-packages so PyInstaller can collect it (an
+        # editable install leaves it a .pth shim that collect_submodules misses).
+        # The ML/visual/viz upgrades remain available via `mobiscout[ml|visual|viz]`.
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
+          pip install .
           pip install pyinstaller
 
       - name: Freeze

@@ -95,9 +95,15 @@ Issues = "https://github.com/vadimtoptunov/mobile-test-recorder/issues"
 include = ["framework*"]
 
 [tool.setuptools.package-data]
-# Ship the curated real-app training data so the classifier blends it in on first
-# train, not just synthetic samples.
-framework = ["ml/data/*.json"]
+# Ship the runtime data files the engine loads by path (not importable modules):
+#  - ml/data/*.json — curated real-app training data blended in on first train;
+#  - codegen/templates/**/*.j2 — the Jinja emitter templates. Without these a real
+#    `pip install` (or a bundled build) has no templates and codegen fails; only
+#    editable/source installs worked because they read them from the source tree.
+framework = [
+    "ml/data/*.json",
+    "codegen/templates/**/*.j2",
+]
 
 [tool.black]
 line-length = 120

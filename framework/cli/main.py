@@ -4,6 +4,8 @@ Main CLI entry point for Mobiscout
 Simplified main module that imports command groups from separate modules.
 """
 
+import importlib
+
 import click
 
 from framework import __version__
@@ -16,7 +18,6 @@ from framework.cli.verify_commands import verify
 from framework.cli.ci_commands import ci
 from framework.cli.config_commands import config
 from framework.cli.daemon_commands import daemon_command
-from framework.cli.dashboard_commands import dashboard
 from framework.cli.data_commands import data
 from framework.cli.device_commands import devices
 from framework.cli.docs_commands import docs
@@ -27,9 +28,7 @@ from framework.cli.crawl_commands import crawl
 from framework.cli.api_commands import api
 from framework.cli.events_commands import events
 from framework.cli.source_commands import source
-from framework.cli.healing_commands import heal
 from framework.cli.load_commands import load
-from framework.cli.ml_commands import ml
 from framework.cli.mock_commands import mock
 from framework.cli.notify_commands import notify
 from framework.cli.observability_commands import observe_ as observability
@@ -63,10 +62,7 @@ cli.add_command(project)
 cli.add_command(record)
 cli.add_command(generate)
 cli.add_command(crawl)
-cli.add_command(dashboard)
-cli.add_command(heal)
 cli.add_command(devices)
-cli.add_command(ml)
 cli.add_command(security)
 cli.add_command(perf)
 cli.add_command(select)
@@ -91,6 +87,20 @@ cli.add_command(verify)
 cli.add_command(api)
 cli.add_command(events)
 cli.add_command(source)
+
+# Optional command groups — they pull deps that live in extras (mobiscout[backend]
+# for the dashboard / self-heal server, mobiscout[ml] for the classifier). Register
+# each only if its extra is installed, so the CLI and daemon still start on a lean
+# (e.g. bundled) engine without them.
+for _module_path, _attr in (
+    ("framework.cli.dashboard_commands", "dashboard"),
+    ("framework.cli.healing_commands", "heal"),
+    ("framework.cli.ml_commands", "ml"),
+):
+    try:
+        cli.add_command(getattr(importlib.import_module(_module_path), _attr))
+    except ImportError:
+        pass  # extra not installed — command unavailable on this install
 
 
 @cli.command()
