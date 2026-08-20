@@ -10,12 +10,15 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
+import com.intellij.ui.JBColor
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.table.JBTable
 import com.mobiletest.recorder.services.MTRDaemonService
 import java.awt.BorderLayout
+import java.awt.Component
 import javax.swing.*
+import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.DefaultTableModel
 import com.mobiletest.recorder.ui.Notifier
 
@@ -53,6 +56,29 @@ class DevicesPanel(
 
         // Table
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+
+        // Platform glyph (display only — the model keeps the raw "android"/"ios" that
+        // install/boot logic reads).
+        table.columnModel.getColumn(2).cellRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(
+                t: JTable, value: Any?, selected: Boolean, focus: Boolean, row: Int, col: Int
+            ): Component = super.getTableCellRendererComponent(
+                t, platformLabel(value?.toString().orEmpty()), selected, focus, row, col
+            )
+        }
+
+        // Colour the Status cell so a running device reads at a glance — green when
+        // it's ready (booted / adb 'device'), amber when connected-but-not-ready
+        // (offline / unauthorized), grey otherwise.
+        table.columnModel.getColumn(3).cellRenderer = object : DefaultTableCellRenderer() {
+            override fun getTableCellRendererComponent(
+                t: JTable, value: Any?, selected: Boolean, focus: Boolean, row: Int, col: Int
+            ): Component {
+                val c = super.getTableCellRendererComponent(t, value, selected, focus, row, col)
+                if (!selected) c.foreground = statusColor(value?.toString().orEmpty())
+                return c
+            }
+        }
 
         // Actionable empty state instead of a blank grid: tell the user what to do
         // and give one-click ways to do it (the #1 friction on first run is "I see
@@ -155,6 +181,20 @@ class DevicesPanel(
                 ),
             )
         }
+    }
+
+    /** A platform glyph so Android vs iOS reads at a glance. */
+    private fun platformLabel(platform: String): String = when (platform.lowercase()) {
+        "android" -> "🤖 android"
+        "ios" -> "🍎 ios"
+        else -> platform
+    }
+
+    /** Status → colour: ready is green, connected-but-not-ready is amber, else grey. */
+    private fun statusColor(status: String): java.awt.Color = when (status.lowercase()) {
+        "booted", "device" -> JBColor(0x2E7D32, 0x6A8759)
+        "offline", "unauthorized" -> JBColor(0xB8860B, 0xBF8B00)
+        else -> JBColor.GRAY
     }
     
     /**
