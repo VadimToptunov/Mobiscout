@@ -433,6 +433,12 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     """
     import time
 
+    # Resolve the Android SDK onto PATH (a GUI-launched engine gets a minimal PATH
+    # without adb/emulator); a no-op when already present or on iOS-only setups.
+    from framework.devices.android_sdk import ensure_tooling_on_path
+
+    ensure_tooling_on_path()
+
     started = time.time()
     summary = build_kit(_crawl(config, driver), config)
 

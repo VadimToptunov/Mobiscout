@@ -133,6 +133,11 @@ class JSONRPCServer:
     """JSON-RPC 2.0 server for IDE plugin communication."""
 
     def __init__(self) -> None:
+        # A GUI-launched IDE gives the engine a minimal PATH (no adb/emulator), so
+        # Android would silently show no devices. Resolve the SDK and fix PATH first.
+        from framework.devices.android_sdk import ensure_tooling_on_path
+
+        ensure_tooling_on_path()
         self.health_checker = HealthChecker()
         self.device_manager = DeviceManager()
         self.sessions: Dict[str, Dict[str, Any]] = {}  # session_id -> {backend, backend_session_id, ...}
