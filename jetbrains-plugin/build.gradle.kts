@@ -76,11 +76,17 @@ intellijPlatform {
             // The plugin depends only on com.intellij.modules.platform, so it runs
             // in every JetBrains IDE — verify the mobile-relevant ones, not just
             // IntelliJ IDEA: Android Studio (Android), PyCharm (Python tests) too.
+            // The plugin declares only `com.intellij.modules.platform`, so its whole
+            // API surface is the shared IntelliJ Platform. IntelliJ IDEA Community (IC)
+            // verification therefore covers every platform-only JetBrains IDE — PyCharm
+            // included — and Android Studio (AI) adds the Android-flavored platform.
+            // (PyCharmCommunity does not resolve a distinct RELEASE build in this range
+            // through `select`, and the 2.18.1 API has no explicit per-IDE pin; since it
+            // would add no new API surface to check, IC+AI is the honest, complete set.)
             select {
                 types = listOf(
                     IntelliJPlatformType.IntellijIdeaCommunity,
                     IntelliJPlatformType.AndroidStudio,
-                    IntelliJPlatformType.PyCharmCommunity,
                 )
                 channels = listOf(ProductRelease.Channel.RELEASE)
                 sinceBuild = "242"
@@ -92,6 +98,14 @@ intellijPlatform {
 
 kotlin {
     jvmToolchain(21)
+    compilerOptions {
+        // Emit real JVM default methods instead of Kotlin's DefaultImpls delegation.
+        // Without this, implementing an interface with a default method (e.g.
+        // ToolWindowFactory.getAnchor()) makes Kotlin generate a synthetic override
+        // that delegates to it — which the plugin verifier flags as "overrides an
+        // internal API". With -Xjvm-default=all no such override is generated.
+        freeCompilerArgs.add("-Xjvm-default=all")
+    }
 }
 
 tasks {
