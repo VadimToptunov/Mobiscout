@@ -45,7 +45,11 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
     private val frameworkCombo = ComboBox<String>()
     private val outputField = JBTextField(30)
     private val newProjectCheck = JBCheckBox("Create a new runnable project (scaffold)", settings.createNewFramework)
-    private val udidField = JBTextField(20)
+    // Device is a dropdown of the currently running/connected devices (shown by name),
+    // populated from the engine — so you pick "iPhone 17" instead of hunting for a UDID.
+    // Still editable, so a device the engine can't see yet can be typed in.
+    private val udidCombo = ComboBox<String>().apply { isEditable = true }
+    private val deviceNames = HashMap<String, String>() // udid -> friendly name
     private val serverField = JBTextField("http://localhost:4723", 24)
     private val maxStepsField = JBTextField("40", 5)
     private val maxDepthField = JBTextField("8", 5)
@@ -89,8 +93,40 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
                 .withTitle("Select a Build (.apk / .app)")
                 .withDescription("The build is installed on the device (UDID) before crawling")
         )
+        loadDevices()
         init()
     }
+
+    /** Populate the Device dropdown from the engine's running/connected devices, shown
+     *  by friendly name. Best-effort: if the engine isn't running the combo stays empty
+     *  and editable, so a UDID can still be typed. Auto-selects the only device. */
+    private fun loadDevices() {
+        udidCombo.renderer = com.intellij.ui.SimpleListCellRenderer.create("") { udid ->
+            val name = deviceNames[udid]
+            if (name.isNullOrBlank()) udid else "$name — $udid"
+        }
+        try {
+            val daemon = com.intellij.openapi.application.ApplicationManager.getApplication()
+                .getService(com.mobiletest.recorder.services.MTRDaemonService::class.java)
+            val client = daemon.getClient() ?: return
+            val result = client.call("device/list", mapOf("platform" to "all")).getResultOrThrow() ?: return
+            val devices = result.getAsJsonArray("devices") ?: return
+            for (el in devices) {
+                val d = el.asJsonObject
+                if ((d.get("status")?.asString ?: "") == "shutdown") continue // running/connected only
+                val udid = d.get("id")?.asString ?: continue
+                deviceNames[udid] = d.get("name")?.asString ?: ""
+                udidCombo.addItem(udid)
+            }
+            if (udidCombo.itemCount == 1) udidCombo.selectedIndex = 0 else udidCombo.selectedItem = ""
+        } catch (_: Exception) {
+            // engine down / no devices — leave the combo empty and editable
+        }
+    }
+
+    /** The chosen device UDID — the selected dropdown item or a manually typed value. */
+    private fun selectedUdid(): String =
+        (udidCombo.editor.item ?: udidCombo.selectedItem)?.toString()?.trim().orEmpty()
 
     private fun comboBox(vararg items: String): ComboBox<String> = ComboBox(items.toList().toTypedArray())
 
@@ -130,7 +166,7 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
             .addLabeledComponent("Output directory:", outputField)
             .addComponent(newProjectCheck)
             .addSeparator()
-            .addLabeledComponent("Device UDID (Appium):", udidField)
+            .addLabeledComponent("Device:", udidCombo)
             .addLabeledComponent("Appium server:", serverField)
             .addLabeledComponent("iOS launch args (space-separated):", launchArgsField)
             .addSeparator()
@@ -164,7 +200,7 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         params["output"] = outputField.text.trim().ifEmpty { "mobile-tests" }
         params["scaffold"] = newProjectCheck.isSelected
         params["server"] = serverField.text.trim()
-        if (udidField.text.isNotBlank()) params["udid"] = udidField.text.trim()
+        selectedUdid().takeIf { it.isNotBlank() }?.let { params["udid"] = it }
         params["max_steps"] = maxStepsField.text.trim().toIntOrNull() ?: 40
         params["max_depth"] = maxDepthField.text.trim().toIntOrNull() ?: 8
         // iOS launch arguments (e.g. -MyAppStartUnlocked 1) — passed to the app on
@@ -210,7 +246,7 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
     fun uninstallAfter(): Boolean = uninstallAfterCheck.isSelected
 
     /** The device the build installs on / the app uninstalls from — the Appium UDID, or "" if unset. */
-    fun deviceId(): String = udidField.text.trim()
+    fun deviceId(): String = selectedUdid()
 
     /** The app package / bundle id — the uninstall target. */
     fun appPackage(): String = packageField.text.trim()
