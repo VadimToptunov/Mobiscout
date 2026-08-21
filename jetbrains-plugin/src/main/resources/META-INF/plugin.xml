@@ -28,18 +28,17 @@
     
     <h2>Requirements:</h2>
     <ul>
-        <li>Python 3.13+ (the local engine runs on it)</li>
-        <li>The Mobiscout engine, installed from source (see Quick Start)</li>
-        <li>For Android: Android SDK with adb</li>
-        <li>For iOS: Xcode with simctl</li>
+        <li>For Android: Android Studio's SDK and an emulator or a connected device</li>
+        <li>For iOS (macOS): Xcode and a simulator</li>
     </ul>
+    <p>No separate engine to install — Mobiscout sets up its local engine automatically
+    on first use.</p>
 
-    <h2>Quick Start:</h2>
+    <h2>Getting started:</h2>
     <ol>
-        <li>Install the engine: clone <code>https://github.com/VadimToptunov/Mobiscout</code>, then <code>pip install -e .</code></li>
-        <li>Open View → Tool Windows → Mobiscout</li>
-        <li>Click "Start Daemon"</li>
-        <li>Pick a device, point it at your app, and generate a test kit</li>
+        <li>Open View → Tool Windows → Mobiscout.</li>
+        <li>Connect a device or boot an emulator.</li>
+        <li>Point it at your app and generate a test kit.</li>
     </ol>
 
     <p>Docs at <a href="https://github.com/VadimToptunov/Mobiscout">the repository</a>; questions and bugs via
@@ -98,10 +97,10 @@
     <actions>
         <!-- Main Toolbar Actions -->
         <group id="MTR.ToolbarActions" text="Mobiscout" popup="false">
-            <action id="MTR.StartDaemon" class="com.mobiletest.recorder.actions.StartDaemonAction" text="Start Daemon"
-                    description="Start mobiscout daemon" icon="AllIcons.Actions.Execute"/>
-            <action id="MTR.StopDaemon" class="com.mobiletest.recorder.actions.StopDaemonAction" text="Stop Daemon"
-                    description="Stop daemon" icon="AllIcons.Actions.Suspend"/>
+            <action id="MTR.StartDaemon" class="com.mobiletest.recorder.actions.StartDaemonAction" text="Restart Engine"
+                    description="Restart the Mobiscout engine" icon="AllIcons.Actions.Execute"/>
+            <action id="MTR.StopDaemon" class="com.mobiletest.recorder.actions.StopDaemonAction" text="Stop Engine"
+                    description="Stop the Mobiscout engine" icon="AllIcons.Actions.Suspend"/>
             <separator/>
             <action id="MTR.RefreshDevices" class="com.mobiletest.recorder.actions.RefreshDevicesAction"
                     text="Refresh Devices" description="Refresh device list" icon="AllIcons.Actions.Refresh"/>
@@ -145,10 +144,10 @@
             <separator/>
 
             <action id="MTR.StartDaemon2" class="com.mobiletest.recorder.actions.StartDaemonAction"
-                    text="Start Mobiscout Daemon" description="Start the Mobiscout framework daemon"
+                    text="Restart Mobiscout Engine" description="Restart the Mobiscout engine"
                     icon="AllIcons.Actions.Execute"/>
             <action id="MTR.StopDaemon2" class="com.mobiletest.recorder.actions.StopDaemonAction"
-                    text="Stop Mobiscout Daemon" description="Stop the Mobiscout framework daemon"
+                    text="Stop Mobiscout Engine" description="Stop the Mobiscout engine"
                     icon="AllIcons.Actions.Suspend"/>
         </group>
 

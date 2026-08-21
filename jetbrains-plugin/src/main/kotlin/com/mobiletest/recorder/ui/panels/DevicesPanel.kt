@@ -2,12 +2,6 @@ package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
-import com.intellij.ide.DataManager
-import com.intellij.openapi.actionSystem.ActionManager
-import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.ActionUiKind
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
@@ -83,17 +77,17 @@ class DevicesPanel(
         // Actionable empty state instead of a blank grid: tell the user what to do
         // and give one-click ways to do it (the #1 friction on first run is "I see
         // nothing"). The links appear only while the table is empty.
-        table.emptyText.text = "No devices yet"
+        table.emptyText.text = "No device connected"
         table.emptyText.appendSecondaryText(
-            "Start the engine, then boot a simulator or connect a device.",
+            "Connect a device or boot an emulator.",
             SimpleTextAttributes.GRAYED_ATTRIBUTES,
             null,
         )
-        table.emptyText.appendLine("Start engine and refresh", SimpleTextAttributes.LINK_ATTRIBUTES) {
-            startEngineAndRefresh()
+        table.emptyText.appendLine("Boot an emulator…", SimpleTextAttributes.LINK_ATTRIBUTES) {
+            bootDevice()
         }
-        table.emptyText.appendLine("Open Setup Wizard", SimpleTextAttributes.LINK_ATTRIBUTES) {
-            runAction("MTR.SetupWizard")
+        table.emptyText.appendLine("Refresh", SimpleTextAttributes.LINK_ATTRIBUTES) {
+            refreshDevices()
         }
 
         val scrollPane = JBScrollPane(table)
@@ -102,43 +96,6 @@ class DevicesPanel(
         panel.add(scrollPane, BorderLayout.CENTER)
     }
 
-    /** Start the engine (if needed) then list devices — the empty-state action. */
-    private fun startEngineAndRefresh() {
-        (object : SwingWorker<Boolean, Void>() {
-            override fun doInBackground(): Boolean = daemonService.start()
-
-            override fun done() {
-                if (get()) {
-                    refreshDevices()
-                } else {
-                    Notifier.error(
-                        project,
-                        "Couldn't Start the Mobiscout Engine",
-                        "The engine is downloaded automatically on first use. Check your internet " +
-                            "connection, or install the 'mobiscout' CLI on PATH.",
-                    )
-                }
-            }
-        }).execute()
-    }
-
-    /** Fire a registered plugin action by id (e.g. the Setup Wizard). */
-    private fun runAction(id: String) {
-        ActionManager.getInstance().getAction(id)?.let { action ->
-            // Build an event from the panel's data context and fire it via the current
-            // non-deprecated invokeAction(action, event, onDone) form.
-            val dataContext = DataManager.getInstance().getDataContext(panel)
-            val event = AnActionEvent.createEvent(
-                dataContext,
-                action.templatePresentation.clone(),
-                ActionPlaces.TOOLWINDOW_CONTENT,
-                ActionUiKind.NONE,
-                null,
-            )
-            ActionUtil.invokeAction(action, event, null)
-        }
-    }
-    
     fun refreshDevices() {
         (object : SwingWorker<JsonObject?, Void>() {
             override fun doInBackground(): JsonObject? {

@@ -588,7 +588,7 @@ class EnvironmentCheckStep(model: SetupWizardModel) : SetupWizardStep(model) {
         val service = daemon()
         if (!service.isRunning()) {
             statusLabel.text = "<html><font color='gray'>Start the Mobiscout daemon " +
-                "(Tools ▸ Mobiscout ▸ Start Daemon) and click <b>Re-check</b> to inspect the " +
+                "(Tools ▸ Mobiscout ▸ Restart Engine) and click <b>Re-check</b> to inspect the " +
                 "Appium / Android SDK / driver setup.</font></html>"
             return
         }

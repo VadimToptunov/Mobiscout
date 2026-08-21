@@ -26,7 +26,7 @@ class ProPanel(
     private val daemonService: MTRDaemonService,
 ) {
     private val panel = JPanel(BorderLayout())
-    private val tierLabel = JBLabel("Tier: start the engine to detect")
+    private val tierLabel = JBLabel("Tier: detecting…")
 
     private val features = listOf(
         "Cloud device grid" to "Run generated suites on BrowserStack / Sauce Labs / LambdaTest.",
@@ -74,7 +74,7 @@ class ProPanel(
                     daemonService.licenseStatus()
                 } catch (e: Exception) {
                     null
-                } ?: return "Tier: start the engine to detect"
+                } ?: return "Tier: detecting…"
                 val features = status.getAsJsonArray("features")?.map { it.asString } ?: emptyList()
                 return when {
                     features.any { it != "*" } -> "Tier: PRO — licensed ✓"
