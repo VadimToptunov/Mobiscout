@@ -172,6 +172,7 @@ class JSONRPCServer:
             "license/status": self.handle_license_status,
             "deeplinks/extract": self.handle_deeplinks_extract,
             "device/prepare": self.handle_device_prepare,
+            "project/detect": self.handle_project_detect,
             "logs/start": self.handle_logs_start,
             "logs/stop": self.handle_logs_stop,
         }
@@ -183,6 +184,15 @@ class JSONRPCServer:
         from framework.crawler.deeplinks import extract_deeplinks
 
         return {"deeplinks": extract_deeplinks(params)}
+
+    def handle_project_detect(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Detect the app(s) in a project directory — platform, package/bundle id, source
+        module and a build artifact if present — so the IDE can fill the crawl config from
+        the project instead of hand-typed values. A repo may hold several apps (Android +
+        iOS, or a monorepo), so this returns a list. params: {path}."""
+        from framework.devices.project_scan import detect_apps
+
+        return {"apps": detect_apps(params.get("path", ""))}
 
     def handle_device_prepare(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Opt-in pre-crawl preset: grant the app's declared permissions and/or reset
