@@ -16,6 +16,7 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
+import com.mobiletest.recorder.settings.MTRSettings
 import com.mobiletest.recorder.ui.panels.DevicesPanel
 import com.mobiletest.recorder.ui.panels.InspectorPanel
 import com.mobiletest.recorder.ui.panels.LogsPanel
@@ -57,6 +58,45 @@ class MTRToolWindow(private val project: Project) {
         }
         createToolbar()
         createTabs()
+
+        // The engine should just run — start it silently when the tool window opens, so
+        // the user never has to "start" anything. A failure here stays quiet (the empty
+        // state guides), not a pop-up.
+        if (MTRSettings.getInstance().daemonAutoStart) startDaemon(showErrorOnFail = false)
+    }
+
+    /** Start the engine in the background and reflect it in the status dot; refresh the
+     *  device list and tier on success. Shared by the auto-start on open and the manual
+     *  action. No-op if it's already running or starting. */
+    private fun startDaemon(showErrorOnFail: Boolean) {
+        if (daemonRunning || daemonStarting) return
+        daemonStarting = true
+        statusLabel.text = "● Starting…"
+        statusLabel.foreground = stoppedColor
+        (object : SwingWorker<Boolean, Void>() {
+            override fun doInBackground(): Boolean = daemonService.start()
+
+            override fun done() {
+                daemonStarting = false
+                if (get()) {
+                    daemonRunning = true
+                    statusLabel.text = "● Running"
+                    statusLabel.foreground = runningColor
+                    devicesPanel.refreshDevices()
+                    proPanel.refreshTier()
+                } else {
+                    statusLabel.text = "● Stopped"
+                    statusLabel.foreground = stoppedColor
+                    if (showErrorOnFail) {
+                        Notifier.error(
+                            project,
+                            "Couldn't start the engine",
+                            "Check your internet connection and try again.",
+                        )
+                    }
+                }
+            }
+        }).execute()
     }
     
     private fun createToolbar() {
@@ -101,44 +141,19 @@ class MTRToolWindow(private val project: Project) {
         }
     }
 
+    // Manual restart, for when the auto-start on open didn't catch (offline, then back
+    // online). Rarely needed — the engine starts itself.
     private inner class StartDaemonAction : AnAction(
-        "Start Engine",
-        "Start the Mobiscout engine (downloaded automatically on first use)",
-        AllIcons.Actions.Execute,
+        "Restart Engine",
+        "Restart the Mobiscout engine",
+        AllIcons.Actions.Restart,
     ) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
         override fun update(e: AnActionEvent) {
             e.presentation.isEnabled = !daemonRunning && !daemonStarting
         }
 
-        override fun actionPerformed(e: AnActionEvent) {
-            daemonStarting = true
-            statusLabel.text = "● Starting…"
-            statusLabel.foreground = stoppedColor
-            (object : SwingWorker<Boolean, Void>() {
-                override fun doInBackground(): Boolean = daemonService.start()
-
-                override fun done() {
-                    daemonStarting = false
-                    if (get()) {
-                        daemonRunning = true
-                        statusLabel.text = "● Running"
-                        statusLabel.foreground = runningColor
-                        devicesPanel.refreshDevices()
-                        proPanel.refreshTier()
-                    } else {
-                        statusLabel.text = "● Stopped"
-                        statusLabel.foreground = stoppedColor
-                        Notifier.error(
-                            project,
-                            "Couldn't Start the Mobiscout Engine",
-                            "The engine is downloaded automatically on first use. Check your internet " +
-                                "connection, or install the 'mobiscout' CLI on PATH.",
-                        )
-                    }
-                }
-            }).execute()
-        }
+        override fun actionPerformed(e: AnActionEvent) = startDaemon(showErrorOnFail = true)
     }
 
     private inner class StopDaemonAction : AnAction(
