@@ -1,19 +1,25 @@
 package com.mobiletest.recorder.ui
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.ValidationInfo
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.TitledSeparator
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
 import com.mobiletest.recorder.settings.MTRSettings
+import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JFileChooser
 import javax.swing.JPanel
+import javax.swing.SwingWorker
 
 /**
  * Parameter form for "Generate Test Kit" — you configure *what you want*
@@ -26,7 +32,7 @@ import javax.swing.JPanel
  * options are hidden/disabled where they don't apply (Espresso is Android-only;
  * the Android backend is irrelevant for iOS).
  */
-class GenerateKitDialog(project: Project) : DialogWrapper(project) {
+class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
 
     private val settings = MTRSettings.getInstance()
 
@@ -39,6 +45,9 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         "javascript" to listOf("WebdriverIO" to "js_webdriverio", "Cucumber (Gherkin)" to "js_cucumber"),
     )
 
+    // Point at a project folder and fill package/platform/build automatically — the
+    // config becomes "confirm what was detected" rather than "type it all".
+    private val detectButton = JButton("Detect from project…")
     private val packageField = JBTextField(30)
     private val platformCombo = comboBox("android", "ios")
     private val driverCombo = comboBox("adb", "appium")
@@ -95,7 +104,65 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
                 .withDescription("The build is installed on the device (UDID) before crawling")
         )
         loadDevices()
+        detectButton.addActionListener { detectFromProject() }
         init()
+    }
+
+    /** Pick a project folder, detect its app(s) via the engine, and fill the form. */
+    private fun detectFromProject() {
+        val chooser = JFileChooser().apply {
+            dialogTitle = "Select the project folder"
+            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+        }
+        if (chooser.showOpenDialog(rootPane) != JFileChooser.APPROVE_OPTION) return
+        val path = chooser.selectedFile?.absolutePath ?: return
+        detectButton.isEnabled = false
+        setErrorText(null)
+        (object : SwingWorker<JsonArray?, Void>() {
+            override fun doInBackground(): JsonArray? = try {
+                com.intellij.openapi.application.ApplicationManager.getApplication()
+                    .getService(com.mobiletest.recorder.services.MTRDaemonService::class.java)
+                    .getClient()?.call("project/detect", mapOf("path" to path))
+                    ?.getResultOrThrow()?.getAsJsonArray("apps")
+            } catch (e: Exception) {
+                null
+            }
+
+            override fun done() {
+                detectButton.isEnabled = true
+                val apps = get()
+                when {
+                    apps == null || apps.size() == 0 -> setErrorText("No Android or iOS app found in that folder.")
+                    apps.size() == 1 -> fillFromApp(apps[0].asJsonObject)
+                    else -> chooseApp(apps)
+                }
+            }
+        }).execute()
+    }
+
+    /** Several apps in the project — let the user pick which one to configure. */
+    private fun chooseApp(apps: JsonArray) {
+        val labels = apps.map {
+            val a = it.asJsonObject
+            "${a.get("package").asString} (${a.get("platform").asString})"
+        }
+        JBPopupFactory.getInstance()
+            .createPopupChooserBuilder(labels)
+            .setTitle("Which app?")
+            .setItemChosenCallback { chosen ->
+                val idx = labels.indexOf(chosen)
+                if (idx >= 0) fillFromApp(apps[idx].asJsonObject)
+            }
+            .createPopup()
+            .showInCenterOf(rootPane)
+    }
+
+    /** Fill package / platform / build from a detected app. */
+    private fun fillFromApp(app: JsonObject) {
+        packageField.text = app.get("package")?.asString ?: ""
+        app.get("platform")?.asString?.let { platformCombo.selectedItem = it }
+        val build = app.get("build_path")
+        if (build != null && !build.isJsonNull) buildPathField.text = build.asString
     }
 
     /** Populate the Device dropdown from the engine's running/connected devices, shown
@@ -161,6 +228,7 @@ class GenerateKitDialog(project: Project) : DialogWrapper(project) {
         // "Advanced" heading whose defaults are fine for the common case — so the form
         // reads as "app, device, language → Generate" without hiding any knob.
         val panel: JPanel = FormBuilder.createFormBuilder()
+            .addComponent(detectButton)
             .addLabeledComponent("App package / bundle id:", packageField)
             .addLabeledComponent("Platform:", platformCombo)
             .addLabeledComponent("Device:", udidCombo)
