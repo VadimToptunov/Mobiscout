@@ -60,6 +60,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     // Still editable, so a device the engine can't see yet can be typed in.
     private val udidCombo = ComboBox<String>().apply { isEditable = true }
     private val deviceNames = HashMap<String, String>() // udid -> friendly name
+    private val devicePlatforms = HashMap<String, String>() // udid -> platform
     private val serverField = JBTextField("http://localhost:4723", 24)
     private val maxStepsField = JBTextField("40", 5)
     private val maxDepthField = JBTextField("8", 5)
@@ -157,10 +158,15 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             .showInCenterOf(rootPane)
     }
 
-    /** Fill package / platform / build from a detected app. */
+    /** Fill package / platform / build from a detected app, and auto-pick a connected
+     *  device of that platform so an Android app lands on an Android device, not an iOS one. */
     private fun fillFromApp(app: JsonObject) {
         packageField.text = app.get("package")?.asString ?: ""
-        app.get("platform")?.asString?.let { platformCombo.selectedItem = it }
+        val platform = app.get("platform")?.asString
+        if (platform != null) {
+            platformCombo.selectedItem = platform
+            devicePlatforms.entries.firstOrNull { it.value == platform }?.let { udidCombo.selectedItem = it.key }
+        }
         val build = app.get("build_path")
         if (build != null && !build.isJsonNull) buildPathField.text = build.asString
     }
@@ -184,6 +190,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                 if ((d.get("status")?.asString ?: "") == "shutdown") continue // running/connected only
                 val udid = d.get("id")?.asString ?: continue
                 deviceNames[udid] = d.get("name")?.asString ?: ""
+                devicePlatforms[udid] = d.get("platform")?.asString ?: ""
                 udidCombo.addItem(udid)
             }
             if (udidCombo.itemCount == 1) udidCombo.selectedIndex = 0 else udidCombo.selectedItem = ""
