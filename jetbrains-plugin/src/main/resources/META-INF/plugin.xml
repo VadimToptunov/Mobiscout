@@ -46,6 +46,19 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.10.0 — one path, zero setup</h3>
+    <ul>
+        <li>Generate now leads with "Detect from project…": point at your repo and it finds the
+        app(s) — Android applicationId, iOS bundle id — and fills the form for you.</li>
+        <li>A project with more than one app (Android + iOS) can be generated in one action,
+        crawled in parallel, each on its own device.</li>
+        <li>No device running? The flow boots one for you — an installed Android emulator or a
+        shut-down iOS simulator — and waits for it, instead of returning an empty crawl. You're
+        only asked when there's genuinely nothing to boot.</li>
+        <li>The device picker auto-matches a running device to the app's platform.</li>
+        <li>The old setup wizard is gone: the engine installs and starts itself in the
+        background, so there's nothing to set up before the first run.</li>
+    </ul>
     <h3>0.9.1</h3>
     <ul>
         <li>Android now works when the IDE is launched from Finder/Dock — the engine resolves
