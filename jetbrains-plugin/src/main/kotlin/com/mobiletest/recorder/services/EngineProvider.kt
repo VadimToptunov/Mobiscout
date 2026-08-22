@@ -93,19 +93,23 @@ object EngineProvider {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    /** Release asset name for the current OS/arch, or null if unsupported. */
-    private fun assetName(): String? {
-        val os = System.getProperty("os.name").lowercase()
-        val arch = System.getProperty("os.arch").lowercase()
+    /** Release asset name for the given OS/arch (defaults to the running JVM's), or null
+     *  if unsupported. Parameters are injectable so the platform mapping is unit-testable. */
+    internal fun assetName(
+        os: String = System.getProperty("os.name"),
+        arch: String = System.getProperty("os.arch"),
+    ): String? {
+        val o = os.lowercase()
+        val a = arch.lowercase()
         return when {
-            os.contains("mac") || os.contains("darwin") ->
-                if (arch.contains("aarch64") || arch.contains("arm")) {
+            o.contains("mac") || o.contains("darwin") ->
+                if (a.contains("aarch64") || a.contains("arm")) {
                     "mobiscout-engine-macos-arm64"
                 } else {
                     "mobiscout-engine-macos-x64"
                 }
-            os.contains("win") -> "mobiscout-engine-windows-x64.exe"
-            os.contains("nux") || os.contains("nix") -> "mobiscout-engine-linux-x64"
+            o.contains("win") -> "mobiscout-engine-windows-x64.exe"
+            o.contains("nux") || o.contains("nix") -> "mobiscout-engine-linux-x64"
             else -> null
         }
     }

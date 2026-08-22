@@ -1,5 +1,4 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
-import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.intellij.platform.gradle.models.ProductRelease
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
 
@@ -26,11 +25,15 @@ dependencies {
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.mockito:mockito-core:5.23.0")
+    // Gradle 9 no longer bundles the launcher on the test runtime classpath.
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // The bundled IntelliJ distribution registers test listeners that reference JUnit 4;
+    // provide it so the test executor can start, even though our tests are JUnit 5.
+    testRuntimeOnly("junit:junit:4.13.2")
 
     intellijPlatform {
         // Build against IntelliJ IDEA Community 2024.2 (the 2.x baseline).
         create("IC", "2024.3")
-        testFramework(TestFrameworkType.Platform)
     }
 }
 
