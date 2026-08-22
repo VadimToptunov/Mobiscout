@@ -17,14 +17,16 @@ crippled — that's the top of the funnel.
 ## Where we are
 
 - **Engine — mature.** Autonomous crawl → kit (inventory + interaction graph +
-  runnable tests), 10 codegen targets (pytest / Espresso / XCUITest-Kotlin /
-  TestNG / WebdriverIO / Cucumber ×2 / page-object / api), WebView (context-switch)
+  runnable tests), 8 codegen targets (pytest / Espresso / XCUITest-Kotlin /
+  TestNG / WebdriverIO / Cucumber ×2), plus page-object and api-test scaffolds,
+  WebView (context-switch)
   crawling, obstacle handling, gate chaining (login/OTP/biometric), deeplink
   seeding, opt-in device prep, mock-layer generation, auth-in-tests. 185 test
   files; CI green across Linux/macOS/Windows + Rust core + plugin build + security
   scan. Proven live (AntennaPod ran green; Compose apps built from source).
-- **Plugin — pre-1.0.** `0.5.0-SNAPSHOT`. Shell, devices, screenshot + click-to-tap,
-  session, wizard, JSON-RPC bridge all work; first-run UX and packaging are the gap.
+- **Plugin — pre-1.0.** `0.10.0`. Shell, devices, screenshot + click-to-tap,
+  session, JSON-RPC bridge all work; the engine self-installs and the Generate
+  flow autodetects the app(s) and boots a device when none is running.
 
 The gap to a public release is **packaging, activation, and go-to-market — not more
 engine cleverness.** Finish and ship the current depth (principles: simplicity,
@@ -37,15 +39,15 @@ depth-before-breadth).
 The one job: a stranger installs it and gets a runnable test kit in minutes.
 
 **Activation & first-run**
-- [ ] Actionable empty states / onboarding in the tool window (PR #323).
-- [ ] Native `ActionToolbar` + tabbed IA — a plugin that looks native (PR #325).
-- [ ] Runnable-project scaffolders (Java, Kotlin) so output is a project you can run,
+- [x] Actionable empty states / onboarding in the tool window (PR #323).
+- [x] Native `ActionToolbar` + tabbed IA — a plugin that looks native (PR #325).
+- [x] Runnable-project scaffolders (Java, Kotlin) so output is a project you can run,
       not loose files (PR #327).
 - [ ] A 5-minute quick start that goes install → point at an app → green kit, using
       the AntennaPod / a bundled sample story as the tutorial.
 
 **Release engineering**
-- [ ] Bump `0.5.0-SNAPSHOT` → `1.0.0`; produce a real release build.
+- [ ] Bump `0.10.0` → `1.0.0`; produce a real release build.
 - [ ] `verifyPlugin` = Compatible on IntelliJ IDEA + Android Studio + PyCharm.
 - [ ] Marketplace listing: name, description, screenshots, a short demo GIF, correct
       categories, and a **working** support channel (live email or GitHub Issues).
@@ -63,9 +65,9 @@ seller onboarding, so the release isn't blocked on it). Monetization comes in R2
 
 What keeps people using it and protects the rating.
 
-- [ ] 3-beat `settle()` wait after each transition — fewer flaky generated tests
+- [x] 3-beat `settle()` wait after each transition — fewer flaky generated tests
       (PR #331). "Our generated tests actually pass in CI" is the core promise.
-- [ ] Stream app logs + capture crashes into the kit (PR #328) — debugging value.
+- [x] Stream app logs + capture crashes into the kit (PR #328) — debugging value.
 - [ ] Triage the incoming Marketplace reviews/issues; fix the top activation snags.
 
 ---
@@ -109,7 +111,7 @@ Where durable advantage compounds.
 ## Release checklist (free 1.0)
 
 ```
-[ ] R0 activation PRs merged (#323, #325, #327)
+[x] R0 activation PRs merged (#323, #325, #327)
 [ ] 5-minute quick start written + verified
 [ ] version 1.0.0, release build produced
 [ ] verifyPlugin Compatible on IntelliJ + Android Studio + PyCharm

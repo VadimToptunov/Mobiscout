@@ -44,8 +44,8 @@ GoLand, …) via the platform SDK — one plugin, all IDEs.
 │   ┌───────────────┐   Tap / swipe / type on the live screen right     │
 │   │  [ live app   │   here; the tree updates on the Inspector tab.    │
 │   │   screenshot  │                                                    │
-│   │   click-to-   │   Actions ▸  Setup Wizard · Generate Test ·        │
-│   │     tap ]     │              Heal Selector · Fuzz · Security Scan  │
+│   │   click-to-   │   Actions ▸  Generate Test · Heal Selector ·      │
+│   │     tap ]     │              Fuzz · Security Scan                 │
 │   └───────────────┘                                                    │
 └────────────────────────────────────────────────────────────────────────┘
 ```
@@ -59,9 +59,10 @@ GoLand, …) via the platform SDK — one plugin, all IDEs.
 
 ---
 
-## The Setup Wizard collects exactly what you have
+## The Generate dialog collects exactly what you have
 
-No config files. A guided wizard captures your context once and remembers it:
+No config files, no setup step. "Detect from project…" reads your repo and fills
+in the app(s) for you; you confirm the rest once and it's remembered:
 
 | You provide | Used for |
 |---|---|
@@ -112,8 +113,8 @@ Plus API contract tests, an accessibility audit, and an APK/IPA security scan.
 - ✅ Device management (Android emulators via adb, iOS simulators via simctl)
 - ✅ Live screenshot with **click-to-tap**, session management
 - ✅ UI inspector & streamed logs
-- ✅ Setup Wizard + persistent settings (source, platform, language, framework, credentials, output)
-- ✅ In-IDE actions: Setup Wizard · Generate Test · Heal Selector · Fuzz · Security Scan · Start/Stop Daemon
+- ✅ Project autodetect + persistent settings (source, platform, language, framework, credentials, output)
+- ✅ In-IDE actions: Generate Test · Heal Selector · Fuzz · Security Scan · Restart Engine
 - ✅ JSON-RPC bridge to the CLI engine (`mobiscout daemon`)
 
 **Powered by the engine** (via the CLI, wiring into the daemon in progress)
@@ -149,7 +150,7 @@ cd jetbrains-plugin
 JetBrains IDE plugin (Kotlin)                 CLI engine (Python + rust_core)
   ToolWindow: Devices · Screen                  mobiscout daemon  (JSON-RPC 2.0)
              · Inspector · Logs      ⇄  stdio  ├─ device mgmt · screenshots
-  Setup Wizard · Settings · Actions             ├─ autonomous crawl → kit
+  Settings · Actions                            ├─ autonomous crawl → kit
   JsonRpcClient                                 ├─ codegen (8 targets)
                                                 └─ security · a11y · ML typing
 ```
