@@ -28,7 +28,7 @@
 
 Mobiscout is a **hybrid Python + Rust system** designed for:
 
-- **High Performance**: CPU-intensive operations in Rust (16x speedup)
+- **High Performance**: CPU-intensive operations available via an optional Rust accelerator (run `scripts/bench_native.py` for measured numbers)
 - **Flexibility**: Application logic, ML, integrations in Python
 - **Intelligence**: Self-learning ML system for element classification
 - **Reliability**: Self-healing tests with 92% success rate
@@ -139,7 +139,7 @@ fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
 
 - **Purpose:** Parse Python code and extract complexity metrics
 - **Algorithm:** Keyword detection with word boundary checks
-- **Performance:** 18x faster than pure Python
+- **Performance:** measured by `scripts/bench_native.py` (Rust core vs. pure-Python fallback)
 - **Metrics:**
     - Cyclomatic Complexity
     - Cognitive Complexity
@@ -191,8 +191,7 @@ impl RustAstAnalyzer {
 
 - **Purpose:** Correlate UI interactions with API calls and navigation
 - **Algorithm:** Time-based correlation with confidence scoring
-- **Performance:** 20x faster than Python
-- **Throughput:** 2M events/second
+- **Performance:** measured by `scripts/bench_native.py` (Rust core vs. pure-Python fallback)
 
 **Data Structures:**
 
@@ -249,7 +248,7 @@ pub fn find_correlations(&self) -> Vec<Correlation> {
 
 - **Purpose:** Extract business logic patterns from source code
 - **Algorithm:** Regex-based pattern matching with categorization
-- **Performance:** 11x faster than Python
+- **Performance:** measured by `scripts/bench_native.py` (Rust core vs. pure-Python fallback)
 - **Categories:** 8 (Validation, Auth, State, Error Handling, etc.)
 
 **Pattern Detection:**
@@ -291,8 +290,7 @@ fn analyze_line(&mut self, file_path: &str, line_num: usize, line: &str) {
 #### File I/O (`io.rs`)
 
 - **Purpose:** High-performance file operations
-- **Performance:** 16x faster than Python
-- **Throughput:** 1.5 GB/s
+- **Performance:** measured by `scripts/bench_native.py` (Rust core vs. pure-Python fallback)
 - **Functions:** 15 utility functions
 
 **Parallel File Reading:**
@@ -838,7 +836,7 @@ files_content = mobiscout_core.read_files_parallel(["file1.py", "file2.py"])
 
 ### 1. Rust Core Migration
 
-**Impact:** 16x average speedup
+**Impact:** optional Rust accelerator for CPU-heavy paths; run `scripts/bench_native.py` for measured numbers on your machine
 
 **Before (Python):**
 
@@ -1098,7 +1096,7 @@ cargo test
 
 Mobiscout is architected for:
 
-✅ **Performance** - Rust core for 16x speedup  
+✅ **Performance** - optional Rust accelerator for CPU-heavy paths (benchmark with `scripts/bench_native.py`)  
 ✅ **Intelligence** - ML-powered self-healing  
 ✅ **Reliability** - 92% auto-fix success rate  
 ✅ **Privacy** - No sensitive data collection  

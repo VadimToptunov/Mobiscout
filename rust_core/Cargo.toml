@@ -54,14 +54,11 @@ criterion = "0.5"  # Benchmarking
 proptest = "1.4"   # Property testing
 tempfile = "3.8"   # Temporary files for testing
 
-# Benchmarks (commented out until implemented)
-# [[bench]]
-# name = "ast_bench"
-# harness = false
-#
-# [[bench]]
-# name = "correlator_bench"
-# harness = false
+# Native criterion benches aren't practical here: the pyo3 `extension-module` build
+# doesn't link libpython, so a standalone bench binary can't resolve Python symbols
+# (the same reason CI omits `cargo test` — see .github/workflows/ci.yml). The complexity
+# accelerator is benchmarked at the Python level instead, against the pure-Python
+# fallback on identical inputs — see scripts/bench_native.py.
 
 [profile.release]
 opt-level = 3

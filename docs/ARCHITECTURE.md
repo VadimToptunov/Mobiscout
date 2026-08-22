@@ -68,8 +68,8 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
 ┌───────────────────────────────▼─────────────────────────────────────┐
 │                    Rust Core (mobiscout_core)                          │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │ • AST Analysis (18x)      • Event Correlation (20x)           │ │
-│  │ • Business Logic (11x)    • File I/O Parallel (16x)           │ │
+│  │ • AST Analysis            • Event Correlation                 │ │
+│  │ • Business Logic          • File I/O Parallel                 │ │
 │  │ • Selector Generation     • Performance Profiling             │ │
 │  │ • Test Execution Engine   • Device Manager                    │ │
 │  └────────────────────────────────────────────────────────────────┘ │
@@ -106,11 +106,12 @@ Mobiscout is a **next-generation intelligent mobile testing framework** that com
 
 **Three-Layer Architecture:**
 
-1. **Rust Core (90%)** - All performance-critical operations
+1. **Rust Core** - optional accelerator for performance-critical operations
     - AST parsing, event correlation, file I/O
     - Compiled to native binary (no runtime)
     - C ABI for multi-language support
-    - faster on CPU-heavy paths
+    - Used via the `framework/analyzers/native.py` seam with a pure-Python
+      fallback; run `scripts/bench_native.py` for measured numbers
 
 2. **Python ML Layer (5%)** - Machine learning only
     - Element classification (scikit-learn)
@@ -204,35 +205,31 @@ language-agnostic IR, which many emitters render.
 
 ### 2. 🦀 Rust Core (`mobiscout_core`)
 
-**Purpose:** High-performance CPU-intensive operations
+**Purpose:** Optional accelerator for CPU-intensive operations. Used via the
+`framework/analyzers/native.py` seam when the wheel is installed, with a
+pure-Python fallback otherwise. Run `scripts/bench_native.py` for measured
+numbers on your machine.
 
 **Modules:**
 
 #### AST Analyzer
 
-- **Performance:** 18x faster than Python
 - **Complexity Metrics:** Cyclomatic, Cognitive, Nesting Depth
-- **File Processing:** 250 MB/s
 
 #### Event Correlator
 
-- **Performance:** 20x faster than Python
 - **Correlations:** UI ↔ API ↔ Navigation
-- **Throughput:** 2M events/second
 - **Algorithm:** O(n log n) with confidence scoring
 
 #### Business Logic Analyzer
 
-- **Performance:** 11x faster than Python
 - **Pattern Categories:** 8 (Validation, Auth, State, etc.)
 - **Detection:** Regex-based with confidence scoring
 
 #### File I/O Utilities
 
-- **Performance:** faster on CPU-heavy paths
 - **Parallel Reading:** Rayon-powered
 - **Functions:** 15 utility functions
-- **Throughput:** 1.5 GB/s
 
 **Technology:**
 
@@ -511,14 +508,12 @@ language-agnostic IR, which many emitters render.
 
 #### 1. Hybrid Python + Rust
 
-**Strategy:** Move CPU-intensive operations to Rust
+**Strategy:** Offer CPU-intensive operations (AST analysis, event correlation,
+file I/O, business-logic extraction) as an optional Rust accelerator, selected
+via the `framework/analyzers/native.py` seam with a pure-Python fallback.
 
-**Results:**
-
-- AST Analysis: 18x faster
-- Event Correlation: 20x faster
-- File I/O: 16x faster
-- Business Logic: 11x faster
+**Results:** run `scripts/bench_native.py` to measure the Rust core against the
+pure-Python fallback on identical inputs on your machine.
 
 #### 2. Parallel Processing
 
@@ -554,14 +549,9 @@ language-agnostic IR, which many emitters render.
 
 ### Performance Benchmarks
 
-| Operation              | Python (ms) | Rust (ms) | Speedup |
-|------------------------|-------------|-----------|---------|
-| Parse 1000 files (AST) | 45,000      | 2,500     | 18x     |
-| Correlate 10K events   | 8,000       | 400       | 20x     |
-| Read 100 files         | 5,000       | 300       | 16x     |
-| Analyze business logic | 12,000      | 1,100     | 11x     |
-| Element classification | 50          | 5         | 10x     |
-| Selector generation    | 20          | 2         | 10x     |
+The Rust core is benchmarked against the pure-Python fallback on identical
+inputs by `scripts/bench_native.py` — run it for measured numbers on your
+machine.
 
 ---
 
