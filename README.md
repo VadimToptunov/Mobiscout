@@ -77,12 +77,15 @@ def test_path_1_2_3_4(driver):
     ...
 ```
 
-**Framework structure, not loose files** (`--style pom`): the same crawl produces a
+**Framework structure, not loose files** (`--style pom`): the same crawl also produces a
 proper layout —
 [Page Objects](examples/shop_demo/framework/pages) +
 [`conftest.py`](examples/shop_demo/framework/conftest.py) +
 [POM-style tests](examples/shop_demo/framework/tests/test_navigation.py) that read
-like intent:
+like intent. Today the POM style emits the **structural scaffold** — the Page Objects
+and navigation-level tests; the full behavioural suite (form-filling, multi-step
+journeys, negative cases) currently comes from `--style flat`. Pick `flat` for coverage,
+`pom` for a maintainable layout to grow into:
 
 ```python
 def test_navigate_1(driver):
