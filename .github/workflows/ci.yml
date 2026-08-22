@@ -306,6 +306,10 @@ jobs:
         # requires (it refuses anything below 9.0). Invoke it via ./gradlew.
         uses: gradle/actions/setup-gradle@v6.3.0
 
+      - name: Run plugin unit tests
+        working-directory: jetbrains-plugin
+        run: ./gradlew test
+
       - name: Build plugin
         working-directory: jetbrains-plugin
         run: ./gradlew buildPlugin
