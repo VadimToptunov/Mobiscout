@@ -18,10 +18,17 @@ import re
 from typing import Dict, List
 
 from framework.codegen.emitters._naming import pascal, snake
-from framework.codegen.ir import Platform, TestModel
+from framework.codegen.ir import ActionType, AssertionType, Platform, Selector, TestModel
 from framework.codegen.page_object import PageObject, PageObjectField, _env
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.to_codegen import _owned, selector_for
+
+
+def _sel_key(selector: Selector) -> tuple:
+    """A stable key linking a model step's selector to a Page Object accessor. Both the
+    page objects and the model's steps come from ``selector_for`` on the same crawl
+    elements, so the (strategy, value) of the primary locator matches on both sides."""
+    return (selector.strategy.value, selector.value)
 
 
 def _screen_name(index: int, screen: CrawlScreen, app_package: str) -> str:
@@ -44,10 +51,13 @@ def _accessor(element: CrawlElement) -> str:
     return name or "element"
 
 
-def _page_objects(result: CrawlResult, app_package: str) -> Dict[str, str]:
-    """One Page Object module per screen (reusing the page-object template)."""
+def _page_objects(result: CrawlResult, app_package: str) -> tuple:
+    """One Page Object module per screen (reusing the page-object template). Returns
+    ``(files, page_of)`` where ``page_of`` maps a selector key to ``(PageClass, accessor)``
+    so the flow tests can drive elements through the page objects."""
     template = _env().get_template("page_object.py.j2")
     out: Dict[str, str] = {}
+    page_of: Dict[tuple, tuple] = {}
     names: List[str] = []
     for i, screen in enumerate(result.screens.values(), 1):
         owned = _owned(screen, app_package)
@@ -68,8 +78,10 @@ def _page_objects(result: CrawlResult, app_package: str) -> Dict[str, str]:
         base = page_name if page_name not in names else f"{page_name}{i}"
         names.append(base)
         po = PageObject(class_name=f"{base}Page", screen_name=base, fields=fields)
+        for f in fields:
+            page_of.setdefault(_sel_key(f.selector), (po.class_name, f.name))
         out[f"pages/{snake(po.class_name)}.py"] = template.render(po=po)
-    return out
+    return out, page_of
 
 
 def _conftest(model: TestModel) -> str:
@@ -161,17 +173,78 @@ def _navigation_tests(result: CrawlResult, app_package: str, pages: Dict[str, st
     return "\n".join(lines)
 
 
+def _flow_tests(model: TestModel, page_of: Dict[tuple, tuple]) -> str:
+    """Behavioural tests driven through the Page Objects — the same coverage the flat
+    style emits (form-filling, multi-step journeys, negative cases), rendered as page
+    method calls instead of raw locators. One test per model case; steps whose element
+    isn't a page field (system keys, waits, swipes) are skipped."""
+    used: set = set()
+    seen_names: set = set()
+    bodies: List[str] = []
+    for case in model.cases:
+        rendered: List[str] = []
+        for step in case.steps:
+            loc = page_of.get(_sel_key(step.selector)) if step.selector is not None else None
+            if loc is None:
+                continue
+            cls, acc = loc
+            call = f"{cls}(driver).{acc}()"
+            if step.action == ActionType.TYPE:
+                used.add(cls)
+                rendered.append(f"    {call}.send_keys({(step.text or '')!r})")
+            elif step.action == ActionType.TAP:
+                used.add(cls)
+                rendered.append(f"    {call}.click()")
+            elif step.action == ActionType.ASSERT:
+                used.add(cls)
+                if step.assertion == AssertionType.NOT_VISIBLE:
+                    rendered.append(f"    assert not {call}.is_displayed()")
+                elif step.assertion == AssertionType.ENABLED:
+                    rendered.append(f"    assert {call}.is_enabled()")
+                elif step.assertion == AssertionType.TEXT_EQUALS and step.expected is not None:
+                    rendered.append(f"    assert {call}.text == {step.expected!r}")
+                else:  # VISIBLE (and any unmapped assertion) — the landmark check
+                    rendered.append(f"    assert {call}.is_displayed()")
+        if not rendered:
+            continue
+        name = snake(case.name) or "case"
+        if name in seen_names:
+            name = f"{name}_{len(seen_names)}"
+        seen_names.add(name)
+        desc = (case.description or case.name).replace('"', "'")
+        bodies += [f"def test_{name}(driver):", f'    """{desc}"""', *rendered, ""]
+
+    if not bodies:
+        return ""
+    lines = ['"""Flow tests — form-filling, journeys and negative cases, through the Page Objects."""', ""]
+    for cls in sorted(used):
+        lines.append(f"from pages.{snake(cls)} import {cls}")
+    lines.append("")
+    lines += bodies
+    return "\n".join(lines)
+
+
 def build_framework_kit(result: CrawlResult, model: TestModel, app_package: str) -> Dict[str, str]:
     """A proper pytest framework layout from a crawl (relative_path -> content)."""
     files: Dict[str, str] = {}
-    pages = _page_objects(result, app_package)
+    pages, page_of = _page_objects(result, app_package)
     if not pages:
         return files
     files["pages/__init__.py"] = ""
     files.update(pages)
     files["conftest.py"] = _conftest(model)
+
+    tests_written = False
     nav = _navigation_tests(result, app_package, pages)
     if nav:
         files["tests/test_navigation.py"] = nav
+        tests_written = True
+    # Behavioural parity with the flat style: form-filling, journeys, negative cases —
+    # driven through the page objects, not just navigation smoke.
+    flows = _flow_tests(model, page_of)
+    if flows:
+        files["tests/test_flows.py"] = flows
+        tests_written = True
+    if tests_written:
         files["tests/__init__.py"] = ""
     return files
