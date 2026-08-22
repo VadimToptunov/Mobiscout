@@ -94,3 +94,15 @@ def test_navigation_test_uses_page_objects():
     nav = _kit()["tests/test_navigation.py"]
     assert "from pages." in nav
     assert "(driver)." in nav and ".click()" in nav  # drives via the page object
+
+
+def test_flow_tests_add_behavioural_coverage_through_page_objects():
+    # POM parity with the flat style: not just navigation, but form-filling / journeys /
+    # negative cases — rendered as page-object method calls, not raw locators.
+    files = _kit()
+    assert "tests/test_flows.py" in files
+    flows = files["tests/test_flows.py"]
+    assert "from pages." in flows  # driven through the page objects, not raw find_element
+    assert ".send_keys(" in flows  # form-filling, the flat style's coverage
+    assert flows.count("def test_") >= 2  # a real suite, not one smoke test
+    ast.parse(flows)
