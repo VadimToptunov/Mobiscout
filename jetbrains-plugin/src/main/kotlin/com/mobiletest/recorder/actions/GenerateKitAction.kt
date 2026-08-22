@@ -7,6 +7,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.project.Project
 import com.intellij.notification.NotificationGroupManager
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.ui.GenerateKitDialog
@@ -46,7 +47,15 @@ class GenerateKitAction : AnAction() {
 
         val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
         if (daemonService.getClient() == null && !daemonService.start()) {
-            Notifier.error(project, "Error", "Could not start the mobiscout daemon. Is the CLI installed?")
+            Notifier.error(project, "Couldn't start the engine", "Check your internet connection and try again.")
+            return
+        }
+
+        // Multi-app: "generate all detected apps" builds one config per app (each on its
+        // own device) and generates them in parallel via kit/generateMany.
+        val multiConfigs = dialog.multiAppConfigs()
+        if (multiConfigs.isNotEmpty()) {
+            generateMany(project, daemonService, multiConfigs)
             return
         }
 
@@ -126,6 +135,46 @@ class GenerateKitAction : AnAction() {
                                 NotificationType.INFORMATION,
                             )
                         }
+                    }
+                } catch (ex: Exception) {
+                    ApplicationManager.getApplication().invokeLater {
+                        notify(project, "Generation failed", ex.message ?: "Unknown error", NotificationType.ERROR)
+                    }
+                }
+            }
+        })
+    }
+
+    /** Generate a kit for several apps at once (a project's Android + iOS apps) via the
+     *  engine's kit/generateMany — crawled in parallel, each on its own device — and report
+     *  a per-app summary in one notification. */
+    private fun generateMany(project: Project, daemonService: MTRDaemonService, configs: List<Map<String, Any>>) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating ${configs.size} kits", true) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "Crawling ${configs.size} apps in parallel…"
+                try {
+                    val result = daemonService.getClient()
+                        ?.call("kit/generateMany", mapOf("configs" to configs, "parallel" to true))
+                        ?.getResultOrThrow() ?: throw IllegalStateException("No response from daemon")
+                    val results = result.getAsJsonArray("results")
+                    val failed = results.count { r ->
+                        r.asJsonObject.get("error")?.takeIf { !it.isJsonNull } != null
+                    }
+                    val lines = results.joinToString("\n") { el ->
+                        val r = el.asJsonObject
+                        val pkg = r.get("package")?.asString ?: "?"
+                        val err = r.get("error")?.takeIf { !it.isJsonNull }?.asString
+                        if (err != null) "• $pkg — failed: $err"
+                        else "• $pkg — ${r.get("screens")?.asInt ?: 0} screen(s), ${r.get("cases")?.asInt ?: 0} case(s)"
+                    }
+                    ApplicationManager.getApplication().invokeLater {
+                        notify(
+                            project,
+                            "Generated ${configs.size - failed}/${configs.size} kits",
+                            lines,
+                            if (failed == configs.size) NotificationType.WARNING else NotificationType.INFORMATION,
+                        )
                     }
                 } catch (ex: Exception) {
                     ApplicationManager.getApplication().invokeLater {

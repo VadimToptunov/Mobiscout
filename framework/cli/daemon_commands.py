@@ -160,6 +160,7 @@ class JSONRPCServer:
             "action/swipe": self.handle_swipe,
             "action/type": self.handle_type,
             "kit/generate": self.handle_kit_generate,
+            "kit/generateMany": self.handle_kit_generate_many,
             "codegen/generate": self.handle_kit_generate,  # alias: same parameterized pipeline
             "flow/getGraph": self.handle_flow_get_graph,
             "environment/detect": self.handle_environment_detect,
@@ -310,6 +311,21 @@ class JSONRPCServer:
         if not params.get("package"):
             raise ValueError("kit/generate requires 'package'")
         return run_kit(params)
+
+    def handle_kit_generate_many(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Crawl → kit for several apps in one call — a project's Android and iOS apps, or
+        a monorepo — each on its own device. params: {configs: [<kit/generate params>, ...],
+        parallel?: bool}. Every config must carry its own ``package`` (and normally a device).
+        Returns {results: [summary|{error} per config]}; one app's failure doesn't sink the rest."""
+        from framework.crawler.pipeline import run_kits
+
+        configs = params.get("configs") or []
+        if not configs:
+            raise ValueError("kit/generateMany requires a non-empty 'configs'")
+        for config in configs:
+            if not config.get("package"):
+                raise ValueError("each config in kit/generateMany requires 'package'")
+        return {"results": run_kits(configs, parallel=bool(params.get("parallel", True)))}
 
     def handle_health_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """

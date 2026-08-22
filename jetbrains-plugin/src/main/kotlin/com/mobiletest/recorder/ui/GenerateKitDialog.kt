@@ -61,6 +61,12 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     private val udidCombo = ComboBox<String>().apply { isEditable = true }
     private val deviceNames = HashMap<String, String>() // udid -> friendly name
     private val devicePlatforms = HashMap<String, String>() // udid -> platform
+
+    // The apps the last "Detect from project…" found. When there's more than one, the
+    // checkbox offers to generate a kit for each in parallel (each on its own device).
+    private var detectedApps: List<JsonObject> = emptyList()
+    private val generateAllCheck = JBCheckBox("Generate all detected apps in parallel", false)
+        .apply { isVisible = false }
     private val serverField = JBTextField("http://localhost:4723", 24)
     private val maxStepsField = JBTextField("40", 5)
     private val maxDepthField = JBTextField("8", 5)
@@ -132,6 +138,9 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             override fun done() {
                 detectButton.isEnabled = true
                 val apps = get()
+                detectedApps = apps?.map { it.asJsonObject } ?: emptyList()
+                generateAllCheck.isVisible = detectedApps.size > 1
+                generateAllCheck.text = "Generate all ${detectedApps.size} detected apps in parallel"
                 when {
                     apps == null || apps.size() == 0 -> setErrorText("No Android or iOS app found in that folder.")
                     apps.size() == 1 -> fillFromApp(apps[0].asJsonObject)
@@ -236,6 +245,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         // reads as "app, device, language → Generate" without hiding any knob.
         val panel: JPanel = FormBuilder.createFormBuilder()
             .addComponent(detectButton)
+            .addComponent(generateAllCheck)
             .addLabeledComponent("App package / bundle id:", packageField)
             .addLabeledComponent("Platform:", platformCombo)
             .addLabeledComponent("Device:", udidCombo)
@@ -325,6 +335,27 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
 
     /** The device the build installs on / the app uninstalls from — the Appium UDID, or "" if unset. */
     fun deviceId(): String = selectedUdid()
+
+    /** When "generate all detected apps" is on, a kit/generate config per detected app —
+     *  each with its own package/platform, a device of that platform, and its own output
+     *  subdir — sharing the stack/output/budget/login from the form. Empty otherwise (the
+     *  caller then does the normal single-app generate). */
+    fun multiAppConfigs(): List<Map<String, Any>> {
+        if (!generateAllCheck.isVisible || !generateAllCheck.isSelected || detectedApps.size < 2) return emptyList()
+        val base = params()
+        val baseOutput = (base["output"] as? String) ?: "mobile-tests"
+        return detectedApps.map { app ->
+            val pkg = app.get("package")?.asString ?: ""
+            val platform = app.get("platform")?.asString ?: "android"
+            val cfg = LinkedHashMap(base)
+            cfg["package"] = pkg
+            cfg["platform"] = platform
+            cfg["output"] = "$baseOutput/$pkg"
+            val device = devicePlatforms.entries.firstOrNull { it.value == platform }?.key
+            if (device != null) cfg["udid"] = device else cfg.remove("udid")
+            cfg
+        }
+    }
 
     /** The app package / bundle id — the uninstall target. */
     fun appPackage(): String = packageField.text.trim()
