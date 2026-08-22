@@ -108,10 +108,11 @@ Where durable advantage compounds.
 
 ---
 
-## Scope for 1.0 — what is "the product" (proposal)
+## Scope for 1.0 — what is "the product"
 
-The `docs/AUDIT_2026-08.md` §6 observation, turned into a proposed line. Nothing is
-moved yet — this is for a deliberate decision, not a refactor.
+The `docs/AUDIT_2026-08.md` §6 observation, turned into a scope line. The optional-lane
+boundary below is now **wired** through the licensing seam (no-op on the open-core engine);
+what stays a deliberate call is the positioning — what the 1.0 listing pitches.
 
 The plugin's one path — **crawl → kit** — is the value, and the two packages on it are
 small: `crawler/` (~5.6k LOC) and `codegen/` (~3.1k). The mass sits off that path:
@@ -125,8 +126,11 @@ Proposed disposition (approve / adjust before acting):
   the plugin uses, and the anti-flake/scaffold story. This is what the listing sells and
   the dogfood gate tests.
 - **Optional lanes (kept, not headline):** `security/`, `a11y`, `fuzzing`, load/profile.
-  Real and working, but not on the one path — present them as opt-in extras (and natural
-  **PRO** candidates, see R2), not part of the 1.0 pitch. No deletion.
+  Real and working, but not on the one path — opt-in extras (and natural **PRO**
+  candidates, see R2), not part of the 1.0 pitch. No deletion. **Wired:** each lane's CLI
+  group is now gated through the licensing seam (`framework/cli/_gating.py` →
+  `has_feature`), a no-op on the open-core engine and enforced only when a PRO provider
+  sets limits — so the boundary is real without touching the free build.
 - **Trim the surface, not the capability:** the ~38 CLI groups are an engine detail; the
   plugin should keep exposing only the ~6 the one path needs. Document the rest as
   "engine/CLI power-user" features rather than growing the plugin around them.
