@@ -25,7 +25,7 @@ class GenerateKitAction : AnAction() {
         val project = e.project ?: return
         val dialog = GenerateKitDialog(project)
         if (!dialog.showAndGet()) return
-        val params = dialog.params()
+        val params = HashMap(dialog.params()) // mutable: auto-degradation may inject the booted device
 
         // One-click orchestration hints (install → crawl → cleanup), collected once
         // on the EDT before the background task — install a build first, then
@@ -63,11 +63,17 @@ class GenerateKitAction : AnAction() {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
                 try {
+                    // 0. Auto-degrade: make sure a device is available before crawling. If
+                    //    none is running for this platform, boot a candidate (an AVD, or a
+                    //    shut-down simulator) instead of failing on an empty crawl.
+                    val device = ensureDevice(daemonService, platform, deviceId, indicator)
+                    params["udid"] = device
+
                     // 1. Install the build on the device, if one was given. Fail the
                     //    whole run on an install failure — there is nothing to crawl.
                     if (buildPath.isNotEmpty()) {
-                        indicator.text = "Installing $buildPath on $deviceId…"
-                        val install = daemonService.installApp(platform, deviceId, buildPath)
+                        indicator.text = "Installing $buildPath on $device…"
+                        val install = daemonService.installApp(platform, device, buildPath)
                         val ok = install?.get("ok")?.asBoolean ?: false
                         if (!ok) {
                             val detail = install?.get("detail")?.asString ?: "No response from the daemon."
@@ -93,10 +99,10 @@ class GenerateKitAction : AnAction() {
                     // 3. Cleanup: uninstall the app if asked. Best-effort — a crawl
                     //    that succeeded should still be reported, so note but don't fail.
                     var cleanupNote = ""
-                    if (uninstallAfter && appPackage.isNotEmpty() && deviceId.isNotEmpty()) {
-                        indicator.text = "Uninstalling $appPackage from $deviceId…"
+                    if (uninstallAfter && appPackage.isNotEmpty() && device.isNotEmpty()) {
+                        indicator.text = "Uninstalling $appPackage from $device…"
                         val uninstall = try {
-                            daemonService.uninstallApp(platform, deviceId, appPackage)
+                            daemonService.uninstallApp(platform, device, appPackage)
                         } catch (ex: Exception) {
                             null
                         }
@@ -143,6 +149,55 @@ class GenerateKitAction : AnAction() {
                 }
             }
         })
+    }
+
+    /** Return a device id to crawl on. Auto-degradation: use the given one, else a running
+     *  device of this platform, else boot a candidate (an AVD / a shut-down simulator) and
+     *  wait for it. Throws a friendly message only when there's nothing to boot. */
+    private fun ensureDevice(
+        daemonService: MTRDaemonService,
+        platform: String,
+        deviceId: String,
+        indicator: ProgressIndicator,
+    ): String {
+        if (deviceId.isNotEmpty()) return deviceId
+        runningDeviceFor(daemonService, platform)?.let { return it }
+
+        val target = firstBootCandidate(daemonService, platform)
+            ?: throw IllegalStateException(
+                "No $platform device or emulator available. Connect a device or create an emulator, then try again.",
+            )
+        indicator.text = "No device running — booting $target…"
+        daemonService.startDevice(platform, target)
+        val deadline = System.currentTimeMillis() + 120_000
+        while (System.currentTimeMillis() < deadline) {
+            if (indicator.isCanceled) throw IllegalStateException("Cancelled.")
+            runningDeviceFor(daemonService, platform)?.let { return it }
+            Thread.sleep(3_000)
+        }
+        throw IllegalStateException("Timed out waiting for $target to boot.")
+    }
+
+    /** A running/connected device of the platform, or null. */
+    private fun runningDeviceFor(daemonService: MTRDaemonService, platform: String): String? {
+        val devices = daemonService.listDevices(platform)?.getAsJsonArray("devices") ?: return null
+        return devices.firstNotNullOfOrNull {
+            val d = it.asJsonObject
+            val running = (d.get("status")?.asString ?: "") in setOf("online", "booted")
+            if (running && (d.get("platform")?.asString ?: "") == platform) d.get("id")?.asString else null
+        }
+    }
+
+    /** A bootable target: the first AVD (Android) or shut-down simulator (iOS), or null. */
+    private fun firstBootCandidate(daemonService: MTRDaemonService, platform: String): String? {
+        if (platform == "android") {
+            return daemonService.listAvds()?.getAsJsonArray("avds")?.firstOrNull()?.asString
+        }
+        val sims = daemonService.listDevices("ios")?.getAsJsonArray("devices") ?: return null
+        return sims.firstNotNullOfOrNull {
+            val d = it.asJsonObject
+            if ((d.get("status")?.asString ?: "") == "shutdown") d.get("id")?.asString else null
+        }
     }
 
     /** Generate a kit for several apps at once (a project's Android + iOS apps) via the
