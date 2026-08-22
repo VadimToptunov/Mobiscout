@@ -22,6 +22,13 @@ def runner():
     return CliRunner()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_pool_store(tmp_path, monkeypatch):
+    """Redirect the persisted device-pool store to a per-test temp file, so pool CLI
+    tests never read or write the real ~/.mobiscout/pools.json."""
+    monkeypatch.setenv("MOBISCOUT_POOLS_PATH", str(tmp_path / "pools.json"))
+
+
 def _no_crash(result):
     assert result.exception is None or isinstance(
         result.exception, SystemExit

@@ -9,7 +9,7 @@ from rich.table import Table
 
 from framework.cli.rich_output import print_header, print_info, print_success, print_error, console
 from framework.devices.device_manager import DeviceManager
-from framework.devices.device_pool import PoolManager, PoolStrategy
+from framework.devices.device_pool import PoolManager, PoolStrategy, device_from_info
 
 
 @click.group(name="devices")
@@ -216,22 +216,22 @@ def pool_create(name: str, devices: str, strategy: str) -> None:
         pool_strategy = strategy_map[strategy]
 
         # Create pool
-        manager.create_pool(name, pool_strategy)
+        new_pool = manager.create_pool(name, pool_strategy)
 
-        # Add devices
+        # Add devices — build a real Device for each id and register it in the pool,
+        # then persist so `pool list` and later allocation actually see the members.
         device_manager = DeviceManager()
         added = 0
 
         for device_id in device_ids:
             device_info = device_manager.get_device(device_id)
             if device_info:
-                # Note: Device pool expects Device objects, but DeviceManager returns dicts
-                # For now, we track the device IDs - full Device objects require active connections
-                print_info(f"  Added device: {device_info.get('name', device_id)}")
+                new_pool.add_device(device_from_info(device_info))
                 added += 1
             else:
                 print_error(f"  Warning: Device {device_id} not found")
 
+        manager.save()
         print_success(f"✅ Created pool '{name}' with {added} devices")
 
     except Exception as e:

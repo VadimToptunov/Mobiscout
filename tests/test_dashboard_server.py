@@ -52,13 +52,13 @@ def _seed_result(server, name, status, duration=1.0, offset_min=0, rid=None):
     )
 
 
-def _seed_selector(server, sid, status=HealingStatus.PENDING, confidence=0.9):
+def _seed_selector(server, sid, status=HealingStatus.PENDING, confidence=0.9, file_path="pages/login.py"):
     server.db.add_healed_selector(
         HealedSelector(
             id=sid,
             test_name="test_login",
             element_name="login_btn",
-            file_path="pages/login.py",
+            file_path=file_path,
             old_selector_type="id",
             old_selector_value="old_id",
             new_selector_type="accessibility_id",
@@ -69,6 +69,15 @@ def _seed_selector(server, sid, status=HealingStatus.PENDING, confidence=0.9):
             timestamp=datetime.now(),
         )
     )
+
+
+def _seed_page_file(server, rel_path="pages/login.py"):
+    """Write a Page Object file under the server's repo root carrying the seeded
+    selector's old locator, so approve has a real file to rewrite."""
+    path = server.repo_path / rel_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('login_btn = ("id", "old_id")\n', encoding="utf-8")
+    return path
 
 
 # --- HTML rendering ----------------------------------------------------------
@@ -178,11 +187,26 @@ def test_get_single_selector_404(server):
 # --- approve / reject --------------------------------------------------------
 
 
-def test_approve_selector_updates_status(server):
-    _seed_selector(server, "s1", HealingStatus.PENDING)
+def test_approve_selector_applies_to_file_then_marks_approved(server):
+    # Approve must rewrite the source file, not just flip a DB flag.
+    page = _seed_page_file(server, "pages/login.py")
+    _seed_selector(server, "s1", HealingStatus.PENDING, file_path="pages/login.py")
     body = _body(_call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1")))
-    assert body == {"status": "approved", "selector_id": "s1"}
+    assert body["status"] == "approved" and body["selector_id"] == "s1"
+    assert body["file_updated"] is True
+    updated = page.read_text(encoding="utf-8")
+    assert "new_id" in updated  # the healed value was written into the file
     assert server.db.get_selector("s1").status == HealingStatus.APPROVED
+
+
+def test_approve_does_not_mark_approved_when_file_update_fails(server):
+    # No file on disk → approval cannot be applied → 422, and the DB stays PENDING
+    # instead of reporting a success that never touched a file.
+    _seed_selector(server, "s1", HealingStatus.PENDING, file_path="pages/missing.py")
+    with pytest.raises(HTTPException) as exc:
+        _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1"))
+    assert exc.value.status_code == 422
+    assert server.db.get_selector("s1").status == HealingStatus.PENDING
 
 
 def test_reject_selector_updates_status(server):

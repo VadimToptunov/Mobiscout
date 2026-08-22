@@ -2,12 +2,17 @@
 Device pool management for parallel test execution
 """
 
+import json
+import os
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import List, Dict, Optional, Any
 
-from .device_layer import Device, DeviceStatus, DeviceType
+from framework.domain import Platform
+
+from .device_layer import Device, DeviceCapabilities, DeviceStatus, DeviceType
 
 
 class PoolStrategy(Enum):
@@ -44,14 +49,15 @@ class DevicePool:
     # strategy helpers while already holding it.
     _lock: threading.RLock = field(default_factory=threading.RLock)
 
-    def add_device(self, device: Device) -> None:
+    def add_device(self, device: Device, verbose: bool = True) -> None:
         """Add device to pool"""
         with self._lock:
             if device.id not in [d.id for d in self.devices]:
                 self.devices.append(device)
                 self._locks[device.id] = threading.Lock()
                 self._reserved[device.id] = False
-                print(f"  Added {device.name} to pool '{self.name}'")
+                if verbose:
+                    print(f"  Added {device.name} to pool '{self.name}'")
 
     def remove_device(self, device_id: str) -> None:
         """Remove device from pool"""
@@ -268,11 +274,78 @@ class DevicePool:
         }
 
 
-class PoolManager:
-    """Manages multiple device pools"""
+def _enum(enum_cls: Any, value: Any, default: Any) -> Any:
+    """Resolve an enum from its wire value, falling back to a default on anything unknown."""
+    try:
+        return enum_cls(value)
+    except ValueError:
+        return default
 
-    def __init__(self) -> None:
+
+def device_from_info(info: Dict[str, Any]) -> Device:
+    """Build a driver-less :class:`Device` from a device dict (as returned by
+    :class:`DeviceManager` or by :meth:`Device.to_dict`), for pool membership. It carries
+    identity, platform and status for allocation bookkeeping; a live driver is attached
+    later, when a test actually acquires the device."""
+    platform = _enum(Platform, str(info.get("platform", "android")).lower(), Platform.ANDROID)
+    default_type = DeviceType.SIMULATOR if platform == Platform.IOS else DeviceType.EMULATOR
+    device_type = _enum(DeviceType, str(info.get("type", "")).lower(), default_type)
+    version = str(info.get("platform_version") or info.get("api_level") or info.get("ios_version") or "")
+    udid = str(info.get("id") or info.get("device_id") or "")
+    caps = DeviceCapabilities(
+        platform=platform,
+        platform_version=version,
+        device_name=str(info.get("name") or udid),
+        udid=udid,
+        device_type=device_type,
+    )
+    device = Device(caps, driver=None)
+    device.status = _enum(DeviceStatus, str(info.get("status", "")).lower(), DeviceStatus.AVAILABLE)
+    return device
+
+
+def _pool_to_dict(pool: DevicePool) -> Dict[str, Any]:
+    return {
+        "name": pool.name,
+        "strategy": pool.strategy.value,
+        "devices": [d.to_dict() for d in pool.devices],
+    }
+
+
+class PoolManager:
+    """Manages multiple device pools, persisted to disk so pools created by one command
+    (``pool create``) are visible to the next (``pool list``, allocation)."""
+
+    def __init__(self, storage_path: Optional[Path] = None) -> None:
         self.pools: Dict[str, DevicePool] = {}
+        self.storage_path = Path(storage_path) if storage_path else self._default_path()
+        self._load()
+
+    @staticmethod
+    def _default_path() -> Path:
+        env = os.environ.get("MOBISCOUT_POOLS_PATH")
+        return Path(env) if env else Path.home() / ".mobiscout" / "pools.json"
+
+    def _load(self) -> None:
+        """Load persisted pools; a missing or unreadable store just starts empty."""
+        if not self.storage_path.exists():
+            return
+        try:
+            data = json.loads(self.storage_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return
+        for pd in data.get("pools", []):
+            strategy = _enum(PoolStrategy, pd.get("strategy", "round_robin"), PoolStrategy.ROUND_ROBIN)
+            pool = DevicePool(name=pd["name"], strategy=strategy)
+            for dd in pd.get("devices", []):
+                pool.add_device(device_from_info(dd), verbose=False)
+            self.pools[pool.name] = pool
+
+    def save(self) -> None:
+        """Persist every pool's membership + strategy to the JSON store."""
+        self.storage_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"pools": [_pool_to_dict(p) for p in self.pools.values()]}
+        self.storage_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def create_pool(self, name: str, strategy: PoolStrategy = PoolStrategy.ROUND_ROBIN) -> DevicePool:
         """Create a new device pool"""
@@ -281,6 +354,7 @@ class PoolManager:
 
         pool = DevicePool(name=name, strategy=strategy)
         self.pools[name] = pool
+        self.save()
         print(f"Created device pool: '{name}' with strategy: {strategy.value}")
         return pool
 
@@ -292,6 +366,7 @@ class PoolManager:
         """Delete a pool"""
         if name in self.pools:
             del self.pools[name]
+            self.save()
             print(f"Deleted pool: '{name}'")
 
     def list_pools(self) -> None:
