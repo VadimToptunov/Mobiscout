@@ -120,3 +120,6 @@ def security() -> None:
 
     Automated security testing following OWASP Mobile guidelines.
     """
+    from framework.cli._gating import SECURITY_SCAN, require_feature
+
+    require_feature(SECURITY_SCAN, "Security scanning")

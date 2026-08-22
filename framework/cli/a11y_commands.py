@@ -56,6 +56,9 @@ def a11y() -> None:
 
     Automated WCAG 2.1 compliance checking.
     """
+    from framework.cli._gating import A11Y_AUDIT, require_feature
+
+    require_feature(A11Y_AUDIT, "Accessibility auditing")
 
 
 @a11y.command()

@@ -30,6 +30,9 @@ def fuzz() -> None:
 
     Automated testing with random and edge case inputs.
     """
+    from framework.cli._gating import FUZZING, require_feature
+
+    require_feature(FUZZING, "Fuzz testing")
 
 
 @fuzz.command()

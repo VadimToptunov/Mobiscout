@@ -33,6 +33,9 @@ def _pct(part: int, whole: int) -> float:
 @click.group()
 def load() -> None:
     """Load testing and performance profiling"""
+    from framework.cli._gating import LOAD_TESTING, require_feature
+
+    require_feature(LOAD_TESTING, "Load testing & profiling")
 
 
 @load.command()
