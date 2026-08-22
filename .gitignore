@@ -170,3 +170,7 @@ ml_models/
 
 coverage.xml
 htmlcov/
+
+# Local crawl/generate artifacts (CLAUDE.md: never commit these to the repo)
+features/
+test_scenarios.yaml
