@@ -455,6 +455,30 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     return summary
 
 
+def run_kits(configs: List[Dict[str, Any]], parallel: bool = True) -> List[Dict[str, Any]]:
+    """Build a kit for each config — one crawl per app, so a project's Android and iOS
+    apps (or several apps in a monorepo) generate in a single action. Each config targets
+    its own device, so the crawls are independent; ``parallel`` runs them at once (bounded
+    pool), else one after another. A config that fails yields an error entry instead of
+    sinking the whole batch, so a bad app doesn't lose the others' kits."""
+    if not configs:
+        return []
+
+    def _one(config: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            return run_kit(config)
+        except Exception as exc:  # one app's failure must not kill the rest of the batch
+            return {"package": config.get("package", ""), "error": str(exc), "screens": 0, "cases": 0}
+
+    if not parallel or len(configs) == 1:
+        return [_one(c) for c in configs]
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=min(4, len(configs))) as pool:
+        return list(pool.map(_one, configs))
+
+
 def crawl_graph(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     """Crawl and return just the interaction graph as a dict — the IDE plugin's
     ``flow/getGraph``, with no files written."""
