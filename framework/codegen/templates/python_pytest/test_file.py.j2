@@ -85,13 +85,13 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
         )
 
 
-{% set ns = namespace(inputs=[]) %}
-{% for case in model.cases %}{% for step in case.steps %}{% if step.action.value == "type" %}{% set ns.inputs = ns.inputs + [step] %}{% endif %}{% endfor %}{% endfor %}
-{% if ns.inputs %}
+{% if test_data %}
 # Test input data, kept out of the test body so it changes in one place (and can be
-# parameterised or pulled from a fixture later) instead of being coupled inline.
+# parameterised or pulled from a fixture later) instead of being coupled inline. Each
+# (field, value) a case types gets a unique key, so a positive and a negative case on
+# the same field both survive here instead of one overwriting the other.
 TEST_DATA = {
-{% for step in ns.inputs %}    {{ step.selector | data_key | py_str }}: {{ step.text | py_str }},
+{% for key, value in test_data %}    {{ key | py_str }}: {{ value | py_str }},
 {% endfor %}}
 
 
@@ -144,7 +144,7 @@ def test_{{ case.name }}(driver):
 {% elif step.action.value == "tap" %}
     _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).click()
 {% elif step.action.value == "type" %}
-    _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys(TEST_DATA[{{ step.selector | data_key | py_str }}])
+    _find(driver, {{ step.selector | by_value }}, [{% for fb in step.selector.fallbacks %}{{ fb | by_value }}{% if not loop.last %}, {% endif %}{% endfor %}]).send_keys(TEST_DATA[{{ step | data_key | py_str }}])
 {% elif step.action.value == "swipe" %}
 {% if model.platform.value == "ios" %}
     driver.execute_script("mobile: swipe", {"direction": {{ (step.direction or "up") | py_str }}})

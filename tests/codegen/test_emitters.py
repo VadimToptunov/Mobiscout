@@ -210,6 +210,51 @@ def test_python_pytest_isolates_test_data_and_state(login_model: TestModel):
     assert 'noReset", False' in src  # fresh app state per test
 
 
+def test_python_pytest_test_data_keeps_positive_and_negative_values(login_model: TestModel):
+    """Regression: a positive and a negative case typing into the SAME field must both
+    survive in TEST_DATA — the negative value must not overwrite the positive one, and
+    each case's send_keys must reference the key holding its own value. The old emitter
+    keyed TEST_DATA by field alone, so the last (negative) binding silently won and the
+    positive journeys typed invalid input."""
+    import ast
+
+    from framework.codegen.ir import ActionType, AssertionType, Selector, SelectorStrategy, Step, TestCase
+
+    email = Selector(SelectorStrategy.ACCESSIBILITY_ID, "Email", description="Email")
+    model = TestModel(
+        name="LoginData",
+        app_package="com.example.shop",
+        cases=[
+            TestCase(
+                name="Sign in - valid",
+                steps=[
+                    Step(ActionType.TYPE, selector=email, text="test@example.com"),
+                    Step(ActionType.ASSERT, assertion=AssertionType.VISIBLE, selector=email),
+                ],
+            ),
+            TestCase(
+                name="Sign in - invalid email",
+                steps=[
+                    Step(ActionType.TYPE, selector=email, text="not-an-email"),
+                    Step(ActionType.ASSERT, assertion=AssertionType.VISIBLE, selector=email),
+                ],
+            ),
+        ],
+    )
+    src = "\n".join(get_emitter("python_pytest").emit(model).values())
+
+    block = re.search(r"TEST_DATA = \{.*?\n\}", src, re.S).group(0)
+    data = ast.literal_eval(block.split("=", 1)[1])
+    # Both distinct values are present — no collision lost the positive one.
+    assert set(data.values()) == {"test@example.com", "not-an-email"}
+    assert len(data) == 2  # as many entries as distinct (field, value) pairs
+    # Each case references a key that resolves to its own value.
+    pos_keys = {k for k, v in data.items() if v == "test@example.com"}
+    neg_keys = {k for k, v in data.items() if v == "not-an-email"}
+    assert any(f'send_keys(TEST_DATA["{k}"])' in src for k in pos_keys)
+    assert any(f'send_keys(TEST_DATA["{k}"])' in src for k in neg_keys)
+
+
 @pytest.mark.parametrize(
     "toolkit,needle",
     [("native", None), ("compose", "Jetpack Compose"), ("flutter", "Flutter"), ("hybrid", "WebView")],

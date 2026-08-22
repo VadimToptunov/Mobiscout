@@ -66,7 +66,9 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
 
 
 # Test input data, kept out of the test body so it changes in one place (and can be
-# parameterised or pulled from a fixture later) instead of being coupled inline.
+# parameterised or pulled from a fixture later) instead of being coupled inline. Each
+# (field, value) a case types gets a unique key, so a positive and a negative case on
+# the same field both survive here instead of one overwriting the other.
 TEST_DATA = {
     "user_field": "alice@example.com",
 }
