@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Dict, Optional, Any, Union
 
+from framework.analyzers.native import SourceComplexity, analyze_source_complexity, backend_name
+
 logger = logging.getLogger(__name__)
 
 
@@ -99,8 +101,19 @@ class ASTAnalyzer:
                 "average_complexity": (
                     sum(f.cyclomatic_complexity for f in self.functions) / len(self.functions) if self.functions else 0
                 ),
+                # Which complexity backend is active: "rust" when the mobiscout_core
+                # accelerator wheel is installed, else "python".
+                "complexity_backend": backend_name(),
             },
         }
+
+    def module_complexity(self, source: str, language: str = "python") -> SourceComplexity:
+        """Whole-source complexity for a single file's text, in any supported language.
+
+        Routed through the optional Rust accelerator (`mobiscout_core`) when installed,
+        with a pure-Python fallback otherwise — so this works with or without the native
+        build, and gains multi-language precision + speed when it's present."""
+        return analyze_source_complexity(source, language)
 
     @staticmethod
     def _is_test_file(py_file: Path) -> bool:

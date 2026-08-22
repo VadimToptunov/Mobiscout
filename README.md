@@ -303,7 +303,7 @@ measurement.
 ### Universal Element Classifier
 
 - **What it does:** labels each element's semantic type (button / input / checkbox / text / …)
-- **Model:** scikit-learn RandomForest, trained on ~2,500 synthetic samples across
+- **Model:** scikit-learn RandomForest, trained on ~2.5K synthetic samples across
   Android (native + Compose), iOS (UIKit + SwiftUI), Flutter and React Native
 - **Accuracy:** ~95% on a held-out synthetic split; paired with a class-name
   heuristic in a hybrid that beats either alone (the heuristic covers inputs/toggles
@@ -562,8 +562,12 @@ mobiscout load compare baseline.json current.json
 - 📊 **Observable** - metrics & tracing commands
 - 🔒 **Privacy-first** - the ML model trains locally; no data leaves the machine
 
-The Rust core is exposed to Python via PyO3. Generated **tests** target Python,
-Java, Kotlin and JavaScript — 8 codegen targets (imperative + BDD).
+The Rust core is an optional accelerator: it ships as a wheel (built with
+`maturin`) with PyO3 bindings, and Python reaches it through the
+`framework/analyzers/native.py` seam, which falls back to pure Python when the
+wheel isn't installed. Run `scripts/bench_native.py` for measured numbers on
+your machine. Generated **tests** target Python, Java, Kotlin and JavaScript —
+8 codegen targets (imperative + BDD).
 
 ---
 

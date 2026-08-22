@@ -6,7 +6,8 @@
 
 ## 🎯 Goal
 
-Rewrite CPU-intensive components in Rust for **10-100x** performance improvement while keeping Python's rich ML
+Provide CPU-intensive components as an optional Rust accelerator (run
+`scripts/bench_native.py` for measured numbers) while keeping Python's rich ML
 ecosystem.
 
 ---
@@ -48,7 +49,7 @@ ecosystem.
 
 - Use `syn` crate for parsing
 - Parallel file processing with `rayon`
-- **Expected speedup:** 50-100x
+- **Speedup:** run `scripts/bench_native.py` for measured numbers on your machine
 
 **Python Interface:**
 
@@ -56,7 +57,7 @@ ecosystem.
 from mobiscout_core import RustAstAnalyzer
 
 analyzer = RustAstAnalyzer()
-results = analyzer.analyze_directory("./src")  # 100x faster!
+results = analyzer.analyze_directory("./src")
 ```
 
 ---
@@ -73,7 +74,7 @@ results = analyzer.analyze_directory("./src")  # 100x faster!
 
 - Optimized correlation algorithms
 - Concurrent processing
-- **Expected speedup:** 10-20x
+- **Speedup:** run `scripts/bench_native.py` for measured numbers on your machine
 
 **Python Interface:**
 
@@ -99,7 +100,7 @@ result = correlator.correlate_events(ui_events, api_events)
 - Compiled regex (faster)
 - Memory-mapped file I/O
 - Parallel file processing
-- **Expected speedup:** 20-30x
+- **Speedup:** run `scripts/bench_native.py` for measured numbers on your machine
 
 ---
 
@@ -301,14 +302,11 @@ mobile_test_recorder/
 
 ---
 
-## 📊 Expected Performance Improvements
+## 📊 Performance
 
-| Component                      | Python (current) | Rust (expected) | Speedup |
-|--------------------------------|------------------|-----------------|---------|
-| AST Analysis (1000 files)      | 45s              | 0.5s            | **90x** |
-| Event Correlation (10K events) | 8s               | 0.5s            | **16x** |
-| Business Logic (100 files)     | 12s              | 0.5s            | **24x** |
-| Total Pipeline                 | 65s              | 1.5s            | **43x** |
+The Rust core is benchmarked against the pure-Python fallback on identical
+inputs by `scripts/bench_native.py` — run it for measured numbers on your
+machine.
 
 ---
 
@@ -343,14 +341,14 @@ cargo bench -- ast_analyzer
 Benchmark Results:
 ==================
 AST Analysis (1000 files):
-  Python:  45.2s
-  Rust:    0.48s
-  Speedup: 94.2x ✅
+  Python:  <time>
+  Rust:    <time>
+  Speedup: <measured by scripts/bench_native.py>
 
 Memory Usage:
-  Python:  450MB
-  Rust:    45MB
-  Reduction: 10x ✅
+  Python:  <mem>
+  Rust:    <mem>
+  Reduction: <measured>
 ```
 
 ---
@@ -455,8 +453,7 @@ fn analyze_file(path: String) -> PyResult<ComplexityMetrics> {
 
 ✅ **Performance:**
 
-- 10x faster minimum
-- 50x faster target
+- Faster than the pure-Python fallback, verified with `scripts/bench_native.py`
 - No performance regression
 
 ✅ **Compatibility:**
