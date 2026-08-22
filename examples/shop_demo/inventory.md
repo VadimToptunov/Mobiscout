@@ -12,7 +12,7 @@ _6 element(s) · fingerprint `login`_
 | Password | input | `accessibility_id=Password` | ✓ |
 | Remember me | checkbox | `id=com.example.shop:id/remember` | ✓ |
 | Sign in | button | `id=com.example.shop:id/signin` | ✓ |
-| Forgot password? | text | `id=com.example.shop:id/forgot` | ✓ |
+| Forgot password? | button | `id=com.example.shop:id/forgot` | ✓ |
 
 ## Screen 2 · native · android
 _4 element(s) · fingerprint `catalog`_

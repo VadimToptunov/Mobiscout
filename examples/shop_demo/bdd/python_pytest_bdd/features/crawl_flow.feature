@@ -1,7 +1,7 @@
 Feature: CrawlFlow
   Auto-generated from an autonomous crawl (state + navigation).
 
-  Scenario Outline: State checks for discovered screen 1
+  Scenario Outline: The welcome back screen shows its expected controls
     Given the app is launched
     Then "<element>" is visible
 
@@ -12,37 +12,37 @@ Feature: CrawlFlow
       | Password |
       | Remember me |
       | Sign in |
+      | Forgot password? |
 
-  Scenario Outline: State checks for discovered screen 2
+  Scenario: The search products screen shows its expected controls
     Given the app is launched
-    Then "<element>" is visible
+    When I tap "Sign in"
+    Then "Search products" is visible
+    And "Search products" is enabled
+    And "Running Shoes" is visible
+    And "Running Shoes" is enabled
+    And "Backpack" is visible
+    And "Backpack" is enabled
+    And "Cart" is visible
+    And "Cart" is enabled
 
-    Examples:
-      | element |
-      | Search products |
-      | Running Shoes |
-      | Backpack |
-      | Cart |
-
-  Scenario Outline: State checks for discovered screen 3
+  Scenario: The running shoes screen shows its expected controls
     Given the app is launched
-    Then "<element>" is visible
+    When I tap "Sign in"
+    And I tap "Running Shoes"
+    Then "Running Shoes" is visible
+    And "Add to cart" is visible
+    And "Add to cart" is enabled
 
-    Examples:
-      | element |
-      | Running Shoes |
-      | Add to cart |
-
-  Scenario Outline: State checks for discovered screen 4
+  Scenario: The your cart screen shows its expected controls
     Given the app is launched
-    Then "<element>" is visible
+    When I tap "Sign in"
+    And I tap "Cart"
+    Then "Your cart" is visible
+    And "Place order" is visible
+    And "Place order" is enabled
 
-    Examples:
-      | element |
-      | Your cart |
-      | Place order |
-
-  Scenario: Tapping Sign in navigates onward
+  Scenario: Tapping Sign in opens the search products screen
     Given the app is launched
     When I tap "Sign in"
     Then "Search products" is visible
@@ -80,4 +80,16 @@ Feature: CrawlFlow
       | email | password | search_products |
       | test@example.com | Password123! | test |
       | user2@example.com | Secret123! | test 2 |
+
+  Scenario Outline: Submitting invalid data on the welcome back form is rejected
+    Given the app is launched
+    When I enter "<email>" into "Email"
+    And I enter "<password>" into "Password"
+    And I tap "Sign in"
+    Then "Sign in" is visible
+
+    Examples:
+      | email | password |
+      | not-an-email | 1 |
+      | user2@example.com | Secret123! |
 
