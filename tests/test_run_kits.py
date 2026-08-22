@@ -42,6 +42,43 @@ def test_parallel_runs_all_configs(monkeypatch):
     assert {r["package"] for r in results} == {c["package"] for c in configs}
 
 
+def _echo_output(config):
+    # echo the output dir run_kit was handed, so isolation is checkable
+    return {"package": config.get("package", ""), "output": config.get("output", "crawl-kit"), "screens": 1, "cases": 1}
+
+
+def test_colliding_default_outputs_are_isolated_per_package(monkeypatch):
+    # Two apps with no explicit output both default to "crawl-kit"; without isolation
+    # their kits would overwrite each other. Each must get its own subdir.
+    monkeypatch.setattr(pipeline, "run_kit", _echo_output)
+    results = run_kits([{"package": "com.a"}, {"package": "com.b"}], parallel=False)
+    outputs = [r["output"] for r in results]
+    assert outputs[0] != outputs[1]
+    assert outputs[0].endswith("com.a") and outputs[1].endswith("com.b")
+
+
+def test_same_explicit_output_is_isolated(monkeypatch):
+    monkeypatch.setattr(pipeline, "run_kit", _echo_output)
+    results = run_kits(
+        [{"package": "com.a", "output": "kits"}, {"package": "com.b", "output": "kits"}],
+        parallel=True,
+    )
+    outs = {r["package"]: r["output"] for r in results}
+    assert outs["com.a"] != outs["com.b"]
+    assert outs["com.a"].startswith("kits") and outs["com.b"].startswith("kits")
+
+
+def test_distinct_outputs_are_left_untouched(monkeypatch):
+    # The IDE already gives each app its own subdir — those must pass through unchanged.
+    monkeypatch.setattr(pipeline, "run_kit", _echo_output)
+    results = run_kits(
+        [{"package": "com.a", "output": "out/a"}, {"package": "com.b", "output": "out/b"}],
+        parallel=False,
+    )
+    outs = {r["package"]: r["output"] for r in results}
+    assert outs == {"com.a": "out/a", "com.b": "out/b"}
+
+
 def test_daemon_rpc_generate_many(monkeypatch):
     from framework.cli.daemon_commands import JSONRPCServer
 

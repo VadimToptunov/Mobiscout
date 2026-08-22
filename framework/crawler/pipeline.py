@@ -24,6 +24,8 @@ Config keys (all but ``package`` optional):
 
 from __future__ import annotations
 
+import re
+from collections import Counter
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -464,6 +466,8 @@ def run_kits(configs: List[Dict[str, Any]], parallel: bool = True) -> List[Dict[
     if not configs:
         return []
 
+    configs = _isolate_colliding_outputs(configs)
+
     def _one(config: Dict[str, Any]) -> Dict[str, Any]:
         try:
             return run_kit(config)
@@ -477,6 +481,28 @@ def run_kits(configs: List[Dict[str, Any]], parallel: bool = True) -> List[Dict[
 
     with ThreadPoolExecutor(max_workers=min(4, len(configs))) as pool:
         return list(pool.map(_one, configs))
+
+
+def _isolate_colliding_outputs(configs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Give each config its own output dir when several would otherwise write to the same
+    one. ``run_kit`` writes a kit's files into ``config["output"]`` (default ``crawl-kit``),
+    so two configs sharing an output dir would overwrite each other — silently interleaved
+    when run in parallel, last-wins when sequential. Configs that already have distinct
+    outputs (the usual case — the IDE gives each app its own subdir) are returned unchanged."""
+    outputs = [str(c.get("output", "crawl-kit")) for c in configs]
+    clashing = {out for out, count in Counter(outputs).items() if count > 1}
+    if not clashing:
+        return configs
+
+    isolated: List[Dict[str, Any]] = []
+    for i, config in enumerate(configs):
+        out = str(config.get("output", "crawl-kit"))
+        if out in clashing:
+            pkg = str(config.get("package") or f"app{i}")
+            safe = re.sub(r"[^A-Za-z0-9._-]", "_", pkg)
+            config = {**config, "output": str(Path(out) / safe)}
+        isolated.append(config)
+    return isolated
 
 
 def crawl_graph(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
