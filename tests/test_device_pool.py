@@ -205,8 +205,8 @@ def test_to_dict_shape():
     assert len(d["devices"]) == 1
 
 
-def test_pool_manager_lifecycle():
-    mgr = PoolManager()
+def test_pool_manager_lifecycle(tmp_path):
+    mgr = PoolManager(storage_path=tmp_path / "pools.json")
     pool = mgr.create_pool("main", strategy=PoolStrategy.RANDOM)
     assert isinstance(pool, DevicePool)
     assert mgr.get_pool("main") is pool
@@ -214,3 +214,35 @@ def test_pool_manager_lifecycle():
         mgr.create_pool("main")
     mgr.delete_pool("main")
     assert mgr.get_pool("main") is None
+
+
+def test_pool_manager_persists_across_instances(tmp_path):
+    # A pool created + populated by one manager must be visible, with its devices and
+    # strategy, to a fresh manager reading the same store — this is what makes the
+    # `pool create` / `pool list` CLI pair actually work across invocations.
+    store = tmp_path / "pools.json"
+    mgr = PoolManager(storage_path=store)
+    pool = mgr.create_pool("ci", strategy=PoolStrategy.LEAST_BUSY)
+    pool.add_device(_device("emulator-5554", name="Pixel"))
+    pool.add_device(_device("emulator-5556", name="Nexus"))
+    mgr.save()
+
+    reloaded = PoolManager(storage_path=store)
+    got = reloaded.get_pool("ci")
+    assert got is not None
+    assert got.strategy is PoolStrategy.LEAST_BUSY
+    assert {d.id for d in got.devices} == {"emulator-5554", "emulator-5556"}
+
+
+def test_device_from_info_round_trips_identity_and_platform():
+    from framework.devices.device_pool import device_from_info
+
+    ios = device_from_info({"id": "UDID-1", "name": "iPhone 15", "platform": "ios", "status": "booted"})
+    assert ios.id == "UDID-1" and ios.name == "iPhone 15"
+    assert ios.platform is Platform.IOS and ios.type is DeviceType.SIMULATOR
+    assert ios.status is DeviceStatus.AVAILABLE  # "booted" isn't a pool status → default
+
+    android = device_from_info({"id": "emulator-5554", "platform": "android", "status": "offline"})
+    assert android.platform is Platform.ANDROID and android.type is DeviceType.EMULATOR
+    assert android.name == "emulator-5554"  # falls back to id when no name
+    assert android.status is DeviceStatus.OFFLINE

@@ -1,7 +1,7 @@
 """Behaviour tests for the ``load`` CLI group (load testing + profiling).
 
 ``load profiles`` and ``load compare`` are pure and run for real. ``load profile``
-executes the real in-process profiler over a dummy function. ``load run`` drives
+runs the user's actual test(s) in-process under the real profiler. ``load run`` drives
 real devices/threads, so only ``LoadTester.run`` is stubbed to a canned result —
 the command's own config-building, results table and JSON persistence run for real.
 This also guards the ZeroDivisionError regression when a run executed 0 tests.
@@ -112,14 +112,22 @@ def test_run_overrides_are_applied(runner, tmp_path, monkeypatch):
     assert captured == {"users": 9, "duration": 3}
 
 
-def test_profile_runs_real_profiler(runner, tmp_path):
+def test_profile_executes_the_users_tests(runner, tmp_path):
+    # The profiler must run the user's actual test(s), not a placeholder sleep. The
+    # test writes a sentinel when it runs; if the sentinel exists afterwards, the
+    # reported figures describe a real run.
+    marker = tmp_path / "ran.txt"
     test_file = tmp_path / "test_x.py"
-    test_file.write_text("def test_x():\n    assert True\n", encoding="utf-8")
+    test_file.write_text(
+        "def test_x():\n" f"    open({str(marker)!r}, 'w').write('ran')\n" "    assert True\n",
+        encoding="utf-8",
+    )
     out = tmp_path / "profile.json"
 
     result = runner.invoke(load, ["profile", str(test_file), "--output", str(out)])
     _no_crash(result)
     assert result.exit_code == 0
+    assert marker.exists()  # the user's test actually executed under the profiler
     assert "Profile Results" in result.output
     assert out.exists()
     saved = json.loads(out.read_text(encoding="utf-8"))

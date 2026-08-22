@@ -215,16 +215,23 @@ def profile(
     console.print(f"CPU: {'✅' if cpu else '❌'} | Memory: {'✅' if memory else '❌'}")
     console.print()
 
-    def test_function() -> None:
-        """Dummy test function - replace with actual test execution"""
-        import time
+    try:
+        import pytest
+    except ImportError as exc:  # pragma: no cover - environment without pytest
+        raise click.ClickException("pytest is required to profile tests: pip install pytest") from exc
 
-        time.sleep(0.1)  # Simulate test execution
+    def run_tests() -> None:
+        """Run the user's test(s) at test_path under the profiler, so the reported CPU /
+        memory / duration describe the real run. pytest's 'no tests collected' (exit 5)
+        is not a profiling failure; any other non-zero exit marks the run as failed."""
+        exit_code = int(pytest.main([str(test_path), "-q", "-p", "no:cacheprovider"]))
+        if exit_code not in (0, 5):
+            raise RuntimeError(f"pytest exited with code {exit_code}")
 
-    with console.status("[bold green]Running profiler..."):
+    with console.status(f"[bold green]Running {test_path} under the profiler..."):
         result = profiler.profile_test(
             Path(test_path),
-            test_function,
+            run_tests,
         )
 
     # Display results

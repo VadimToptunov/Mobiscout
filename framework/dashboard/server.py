@@ -11,6 +11,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from framework.healing.file_updater import FileUpdater
+from framework.healing.git_integration import GitIntegration
+
 from .database import DashboardDB
 from .models import TestStatus, HealingStatus, DashboardStats
 
@@ -92,20 +95,62 @@ class DashboardServer:
             return JSONResponse([s.to_dict() for s in selectors])
 
         @self.app.post("/api/selectors/{selector_id}/approve")
-        async def approve_selector(selector_id: str) -> JSONResponse:
-            """Approve healed selector"""
+        async def approve_selector(selector_id: str, commit: bool = False) -> JSONResponse:
+            """Approve a healed selector: write the new locator into the source file and
+            (optionally, ``?commit=true``) git-commit that change. The DB is only marked
+            approved once the file has actually been updated — approval used to flip the
+            flag and report success without touching the file."""
             selector = self.db.get_selector(selector_id)
             if not selector:
                 raise HTTPException(status_code=404, detail="Selector not found")
 
-            # Update status
-            success = self.db.update_selector_status(selector_id, HealingStatus.APPROVED)
-            if not success:
+            # Apply the healed selector to the source file — the substantive part of
+            # approval. Resolve relative paths against the dashboard's repo root.
+            file_path = Path(selector.file_path)
+            if not file_path.is_absolute():
+                file_path = self.repo_path / file_path
+            result = FileUpdater().update_selector(
+                file_path,
+                selector.element_name,
+                selector.old_selector,
+                selector.new_selector,
+                selector.confidence,
+            )
+            if not result.success:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Could not apply healed selector to {file_path}: {result.error_message}",
+                )
+
+            # Record approval only after the file was updated.
+            if not self.db.update_selector_status(selector_id, HealingStatus.APPROVED):
                 raise HTTPException(status_code=500, detail="Failed to update status")
 
-            # In real implementation, this would trigger actual file update and git commit
-            # For now, just return success
-            return JSONResponse({"status": "approved", "selector_id": selector_id})
+            committed = None
+            if commit:
+                info = GitIntegration(self.repo_path).commit_healing(
+                    [file_path],
+                    [
+                        {
+                            "element": selector.element_name,
+                            "old": list(selector.old_selector),
+                            "new": list(selector.new_selector),
+                            "confidence": selector.confidence,
+                        }
+                    ],
+                )
+                committed = info.commit_hash if info else None
+
+            return JSONResponse(
+                {
+                    "status": "approved",
+                    "selector_id": selector_id,
+                    "file_updated": True,
+                    "file_path": str(result.file_path),
+                    "backup_path": str(result.backup_path) if result.backup_path else None,
+                    "committed": committed,
+                }
+            )
 
         @self.app.post("/api/selectors/{selector_id}/reject")
         async def reject_selector(selector_id: str) -> JSONResponse:
