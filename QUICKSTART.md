@@ -1,4 +1,4 @@
-# Mobile Test Recorder - Quick Start Guide
+# Mobiscout — Quick Start Guide
 
 > Get up and running in 10 minutes ⏱️
 
@@ -9,7 +9,7 @@
 ```bash
 # Clone repository
 git clone https://github.com/VadimToptunov/Mobiscout.git
-cd mobile_test_recorder
+cd Mobiscout
 
 # Create virtual environment
 python3.13 -m venv .venv

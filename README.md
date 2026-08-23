@@ -25,7 +25,10 @@ mobiscout crawl --package com.example.shop --targets python_pytest,java_testng,j
 ```
 
 A full generated example lives in [`examples/shop_demo/`](examples/shop_demo)
-(reproduce with `python examples/generate.py`). Here's what comes out.
+(reproduce with `python examples/generate.py`). Here's what comes out. It's
+**illustrative** — `generate.py` runs the real emitters over a representative,
+device-free crawl fixture so the output is deterministic in the repo; a live crawl of an
+app produces the same shapes from that app's screens.
 
 ### 1. Element inventory — what's on each screen, with a semantic type and a ready locator
 
@@ -200,22 +203,17 @@ cd jetbrains-plugin
     - Click "Start Session"
     - Click on device screen to interact!
 
-**Current Features** (Phase 0-2):
+**Live control (the tool window):**
 
 - ✅ Device list (Android via adb, iOS via simctl)
-- ✅ Session management
-- ✅ Screenshot capture
-- ✅ Click-to-tap interaction
-- ✅ Real-time logs
-- ✅ JSON-RPC protocol
+- ✅ Session management, screenshot capture, click-to-tap interaction
+- ✅ Real-time logs, JSON-RPC protocol
 
-**Coming Soon** (Phase 3+):
+**Delivered by the engine (the crawl → kit flow):**
 
-- Multi-backend support (Appium, Espresso, XCTest)
-- UI Tree inspector
-- Smart selector generation
-- Flow analysis
-- Multi-language code generation
+- ✅ Multi-backend crawling (Android over adb + Appium/UiAutomator2, iOS over Appium/XCUITest)
+- ✅ UI-tree inspection, smart ranked-fallback selector generation
+- ✅ Interaction-graph flow analysis, and code generation across 8 targets (Python/Java/Kotlin/JS, imperative + BDD)
 
 See the [Release Roadmap](ROADMAP.md) for where the product is headed, and the
 [Plugin Documentation](jetbrains-plugin/README.md) / [engineering roadmap](JETBRAINS_PLUGIN_ROADMAP.md) for details.
@@ -717,12 +715,12 @@ Contributions are welcome! Please read the [User Guide](USER_GUIDE.md) first.
     - SQLite database, REST API endpoints
 - ✅ **Rich CLI** - Beautiful terminal output with progress bars
 
-**🚧 In Development:**
+**🚧 In development:**
 
 - Live session recording (SDK implemented, CLI integration pending)
-- Full end-to-end automation (connect all pieces)
 
-**All core modules are implemented and tested!** See [QUICKSTART.md](QUICKSTART.md) to start using.
+The crawl → kit path is end-to-end and covered by tests (including an emitted kit executed
+against a device-free fake Appium in CI). See [QUICKSTART.md](QUICKSTART.md) to start.
 
 ---
 
