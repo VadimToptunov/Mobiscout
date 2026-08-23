@@ -622,6 +622,41 @@ def _fuzz_form_steps(screen: CrawlScreen, app_package: str, payload: str) -> Lis
     return steps
 
 
+def _form_nav_context(
+    result: CrawlResult, app_package: str, graph: InteractionGraph
+) -> Tuple[Dict[str, List[Step]], List[Step]]:
+    """Compute, once per builder, the two ingredients of a form's reach prefix: the
+    per-screen gate/probe-aware nav steps (:func:`navigation_steps`) and the auth prefix for
+    gated screens (from the crawl's ``auth_sequence``)."""
+    nav_by_fp = navigation_steps(result, app_package, graph=graph)
+    from framework.crawler.to_codegen import waypoints_to_steps  # lazy: graph <- to_codegen cycle
+
+    platform_str = next(iter(result.screens.values())).platform if result.screens else "android"
+    auth_steps = waypoints_to_steps(getattr(result, "auth_sequence", None), platform_str)
+    return nav_by_fp, auth_steps
+
+
+def _launch_nav_prefix(
+    result: CrawlResult, nav_by_fp: Dict[str, List[Step]], auth_steps: List[Step], target_fp: str
+) -> Optional[List[Step]]:
+    """A fresh ``LAUNCH`` + (auth prefix when the screen is gated) + gate/probe-aware nav
+    step list reaching ``target_fp``. None when the screen is unreachable from the entry.
+
+    Form-case builders use this instead of re-deriving a nav prefix from raw transitions —
+    which would replay a probe/gate edge as a real tap and walk *through* a login screen
+    without credentials (a guaranteed red test). It reproduces the exact prefix the positive
+    per-screen cases use, so every path shares one gate/probe/auth implementation."""
+    nav = nav_by_fp.get(target_fp)
+    if nav is None:
+        return None
+    steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+    gated = getattr(result, "gated", None) or set()
+    if auth_steps and target_fp in gated:
+        steps.extend(auth_steps)
+    steps.extend(nav)
+    return steps
+
+
 def fuzz_form_cases(
     result: CrawlResult, app_package: str = "", max_cases: int = 18, graph: Optional[InteractionGraph] = None
 ) -> List[TestCase]:
@@ -633,16 +668,7 @@ def fuzz_form_cases(
     team may not want fuzz cases in every kit. Complements :func:`negative_form_cases`
     (which uses type-specific invalid data) with input-robustness coverage."""
     graph = graph if graph is not None else build_graph(result, app_package)
-    paths = graph.shortest_paths_from_entry()
-    if not paths:
-        return []
-    fps = list(result.screens)
-    fp_of = {i + 1: fp for i, fp in enumerate(fps)}
-    id_of = {fp: i + 1 for i, fp in enumerate(fps)}
-
-    by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
-    for from_fp, elem, to_fp in result.transitions:
-        by_pair[(from_fp, to_fp)].append(elem)
+    nav_by_fp, auth_steps = _form_nav_context(result, app_package, graph)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
@@ -657,25 +683,9 @@ def fuzz_form_cases(
         submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
         if submit_sel is None:
             continue
-        node_path = paths.get(id_of.get(target_fp, -1))
-        if node_path is None:
-            continue
-
-        nav: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
-        ok = True
-        for src_id, dst_id in zip(node_path, node_path[1:]):
-            from_fp, to_fp = fp_of[src_id], fp_of[dst_id]
-            candidates = by_pair.get((from_fp, to_fp), [])
-            if not candidates:
-                ok = False
-                break
-            from_screen = result.screens[from_fp]
-            tap = selector_for(candidates[0], _owned(from_screen, app_package), from_screen.platform)
-            if tap is None:
-                ok = False
-                break
-            nav.append(Step(ActionType.TAP, selector=tap, description=f"Tap {candidates[0].label}"))
-        if not ok:
+        # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
+        nav = _launch_nav_prefix(result, nav_by_fp, auth_steps, target_fp)
+        if nav is None:
             continue
 
         title = _slug(_screen_title(_owned(screen, app_package))) or _slug(submit.label or "") or "form"
@@ -719,16 +729,7 @@ def negative_form_cases(
     given (deterministic, so output is identical) instead of rebuilt.
     """
     graph = graph if graph is not None else build_graph(result, app_package)
-    paths = graph.shortest_paths_from_entry()
-    if not paths:
-        return []
-    fps = list(result.screens)
-    fp_of = {i + 1: fp for i, fp in enumerate(fps)}
-    id_of = {fp: i + 1 for i, fp in enumerate(fps)}
-
-    by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
-    for from_fp, elem, to_fp in result.transitions:
-        by_pair[(from_fp, to_fp)].append(elem)
+    nav_by_fp, auth_steps = _form_nav_context(result, app_package, graph)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
@@ -743,26 +744,9 @@ def negative_form_cases(
         submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
         if submit_sel is None:
             continue
-        node_path = paths.get(id_of.get(target_fp, -1))
-        if node_path is None:
-            continue  # form screen unreachable from entry
-
-        # Reconstruct the navigation taps to reach the form screen.
-        steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
-        ok = True
-        for src_id, dst_id in zip(node_path, node_path[1:]):
-            from_fp, to_fp = fp_of[src_id], fp_of[dst_id]
-            candidates = by_pair.get((from_fp, to_fp), [])
-            if not candidates:
-                ok = False
-                break
-            from_screen = result.screens[from_fp]
-            tap = selector_for(candidates[0], _owned(from_screen, app_package), from_screen.platform)
-            if tap is None:
-                ok = False
-                break
-            steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {candidates[0].label}"))
-        if not ok:
+        # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
+        steps = _launch_nav_prefix(result, nav_by_fp, auth_steps, target_fp)
+        if steps is None:
             continue
 
         steps.extend(invalid_steps)
