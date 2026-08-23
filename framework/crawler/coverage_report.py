@@ -55,11 +55,14 @@ def _element_identity(el: CrawlElement) -> List[str]:
 
 
 def _element_covered(el: CrawlElement, used: set) -> bool:
+    """True if any identity string of ``el`` appears among the used locator values."""
     return any(v.strip() in used for v in _element_identity(el))
 
 
 @dataclass
 class ScreenCoverage:
+    """Reach and test-coverage facts for one crawled screen."""
+
     screen_id: int  # graph node id, or -1 if the screen isn't in the graph
     fingerprint: str
     depth: int  # BFS distance from entry; -1 = unreachable
@@ -73,13 +76,16 @@ class ScreenCoverage:
 
     @property
     def reachable(self) -> bool:
+        """True if the screen has a modelled path from the entry (or is the entry)."""
         return self.depth >= 0 or self.is_entry
 
     @property
     def tested(self) -> bool:
+        """True if at least one interactive element here is exercised by a generated case."""
         return self.covered_elements > 0
 
     def to_dict(self) -> Dict[str, object]:
+        """Serialize this screen's coverage facts to a JSON-safe dict."""
         return {
             "screen_id": self.screen_id,
             "fingerprint": self.fingerprint,
@@ -98,59 +104,74 @@ class ScreenCoverage:
 
 @dataclass
 class CoverageReport:
+    """Reach + test coverage for a whole crawl, with per-screen detail and gap views."""
+
     screens: List[ScreenCoverage] = field(default_factory=list)
     cases: int = 0
 
     # ---- headline aggregates ------------------------------------------------
     @property
     def screens_total(self) -> int:
+        """Every screen discovered by the crawl (reachable or not)."""
         return len(self.screens)
 
     @property
     def screens_reachable(self) -> int:
+        """Screens with a modelled path from the entry."""
         return sum(1 for s in self.screens if s.reachable)
 
     @property
     def screens_tested(self) -> int:
+        """Reachable screens exercised by at least one generated case."""
         return sum(1 for s in self.screens if s.reachable and s.tested)
 
     @property
     def screens_untested(self) -> List[ScreenCoverage]:
+        """Reachable screens no generated case touches — the coverage gaps."""
         return [s for s in self.screens if s.reachable and not s.tested]
 
     @property
     def unreachable(self) -> List[ScreenCoverage]:
+        """Screens discovered but with no modelled path from the entry."""
         return [s for s in self.screens if not s.reachable]
 
     @property
     def dead_ends(self) -> List[ScreenCoverage]:
+        """Screens with no outgoing transition — where exploration stopped."""
         return [s for s in self.screens if s.dead_end]
 
     @property
     def gated(self) -> List[ScreenCoverage]:
+        """Screens reached only after passing an auth gate."""
         return [s for s in self.screens if s.gated]
 
     @property
     def edge_cases(self) -> List[ScreenCoverage]:
+        """Error/loading/permission screens the crawl walked into."""
         return [s for s in self.screens if s.edge_case]
 
     @property
     def elements_total(self) -> int:
+        """Total interactive elements discovered across all screens."""
         return sum(s.interactive for s in self.screens)
 
     @property
     def elements_covered(self) -> int:
+        """Interactive elements exercised by a generated case."""
         return sum(s.covered_elements for s in self.screens)
 
     def screen_coverage_pct(self) -> int:
+        """Percent of reachable screens that at least one case tests (0 if none)."""
         base = self.screens_reachable
         return round(100 * self.screens_tested / base) if base else 0
 
     def element_coverage_pct(self) -> int:
+        """Percent of interactive elements a generated case covers (0 if none)."""
         base = self.elements_total
         return round(100 * self.elements_covered / base) if base else 0
 
     def to_dict(self) -> Dict[str, object]:
+        """Serialize the whole report (headline aggregates + per-screen list) to a dict."""
         return {
             "cases": self.cases,
             "screens_total": self.screens_total,
@@ -167,9 +188,11 @@ class CoverageReport:
         }
 
     def to_json(self) -> str:
+        """The report as pretty-printed JSON (CI-friendly, e.g. gate on coverage %)."""
         return json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n"
 
     def to_markdown(self, app_package: str = "") -> str:
+        """The report as human-readable Markdown: headline, gaps, and a per-screen table."""
         head = f"# Crawl coverage{f' — {app_package}' if app_package else ''}\n\n"
         summary = (
             f"- Screens: **{self.screens_tested}/{self.screens_reachable}** reachable screens tested "
@@ -184,6 +207,7 @@ class CoverageReport:
 
     # ---- markdown sections --------------------------------------------------
     def _gaps_markdown(self) -> str:
+        """Render the gap sections (untested / unreachable / gated / dead-end / edge-case)."""
         out = ""
         if self.screens_untested:
             out += (
@@ -221,6 +245,7 @@ class CoverageReport:
         return out
 
     def _table_markdown(self) -> str:
+        """Render the per-screen table (depth, interactive/covered counts, tested, notes)."""
         rows = [
             "\n## All screens\n",
             "| Screen | Depth | Interactive | Covered | Tested | Notes |",
@@ -247,6 +272,7 @@ class CoverageReport:
 
 
 def _of_total(total: int, reachable: int) -> str:
+    """A trailing clause noting screens discovered but unreachable, or '' when none."""
     extra = total - reachable
     return f"; {extra} more discovered but unreachable" if extra > 0 else ""
 
