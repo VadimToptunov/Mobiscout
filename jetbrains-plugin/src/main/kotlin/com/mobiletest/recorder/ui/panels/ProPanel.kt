@@ -28,8 +28,15 @@ class ProPanel(
     private val panel = JPanel(BorderLayout())
     private val tierLabel = JBLabel("Tier: detecting…")
 
+    // Available now (bring your own account): cloud grid ships in the engine.
+    private val available = listOf(
+        "Cloud device grid" to
+            "Run a generated kit on BrowserStack / Sauce Labs / LambdaTest with your own account: " +
+            "`mobiscout grid run <kit> --provider … --device …` (credentials from env vars, nothing stored).",
+    )
+
+    // The premium layer (Mobiscout-PRO).
     private val features = listOf(
-        "Cloud device grid" to "Run generated suites on BrowserStack / Sauce Labs / LambdaTest.",
         "TestRail reporting" to "Push a run's results into TestRail, one result per case.",
         "Crawl dashboards" to "A shareable, self-contained HTML report of a crawl.",
         "Network mocking" to "Deterministic offline responses (WireMock) — no flaky backend.",
@@ -51,14 +58,24 @@ class ProPanel(
         content.add(left(tierLabel))
         content.add(Box.createVerticalStrut(12))
 
+        content.add(left(JBLabel("<html><b>Available now</b></html>")))
+        content.add(Box.createVerticalStrut(6))
+        for ((name, desc) in available) {
+            content.add(left(JBLabel("<html><b>$name</b> — $desc</html>")))
+            content.add(Box.createVerticalStrut(6))
+        }
+        content.add(Box.createVerticalStrut(8))
+
+        content.add(left(JBLabel("<html><b>Mobiscout PRO (planned)</b></html>")))
+        content.add(Box.createVerticalStrut(6))
         for ((name, desc) in features) {
             content.add(left(JBLabel("<html><b>$name</b> — $desc</html>")))
             content.add(Box.createVerticalStrut(6))
         }
 
         content.add(Box.createVerticalStrut(8))
-        content.add(left(ActionLink("Learn more / upgrade to PRO") {
-            BrowserUtil.browse("https://github.com/VadimToptunov/Mobiscout-PRO")
+        content.add(left(ActionLink("Learn more") {
+            BrowserUtil.browse("https://github.com/VadimToptunov/Mobiscout")
         }))
 
         panel.add(content, BorderLayout.NORTH)

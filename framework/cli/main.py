@@ -24,6 +24,7 @@ from framework.cli.docs_commands import docs
 from framework.cli.doctor_command import doctor
 from framework.cli.execute_commands import execute
 from framework.cli.generate_commands import generate
+from framework.cli.grid_commands import grid
 from framework.cli.crawl_commands import crawl
 from framework.cli.api_commands import api
 from framework.cli.events_commands import events
@@ -87,6 +88,7 @@ cli.add_command(verify)
 cli.add_command(api)
 cli.add_command(events)
 cli.add_command(source)
+cli.add_command(grid)
 
 # Optional command groups — they pull deps that live in extras (mobiscout[backend]
 # for the dashboard / self-heal server, mobiscout[ml] for the classifier). Register

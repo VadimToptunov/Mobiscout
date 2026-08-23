@@ -89,8 +89,11 @@ is **no backend to run** — JetBrains handles billing, trials, and licence deli
 - [ ] Keep PRO features **local / in-IDE** so no server is needed — multi-target
       export, lifted scale caps, in-run network mocking, advanced codegen. The OSS
       engine stays whole.
-- [ ] Cloud-grid execution needs a backend and is **out of scope** while we avoid
-      running servers — deferred (a much-later optional add-on, if ever).
+- [x] Cloud-grid execution — **shipped as bring-your-own-account** (`mobiscout grid`,
+      BrowserStack / Sauce Labs / LambdaTest). No Mobiscout backend: the user's provider
+      credentials come from env vars and drive the (unchanged) generated kit via the
+      `MOBISCOUT_APPIUM_SERVER` / `MOBISCOUT_EXTRA_CAPS` seam. (Supersedes the earlier
+      "needs a backend / out of scope" line.)
 
 ---
 
