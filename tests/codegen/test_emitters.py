@@ -159,6 +159,12 @@ def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_p
         elif path.endswith(".kt"):
             _kotlin_syntax_ok(f)
             checked += 1
+        elif path.endswith((".yaml", ".yml")):
+            # Declarative flows (Maestro): every document must parse as valid YAML.
+            import yaml
+
+            list(yaml.safe_load_all(content))
+            checked += 1
     assert checked, f"{target_id} produced no source to validate"
 
 

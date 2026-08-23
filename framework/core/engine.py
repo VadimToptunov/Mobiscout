@@ -22,6 +22,7 @@ class Language(Enum):
     CSHARP = "csharp"
     GO = "go"
     SWIFT = "swift"
+    YAML = "yaml"  # declarative flow formats (e.g. Maestro)
 
 
 @dataclass
