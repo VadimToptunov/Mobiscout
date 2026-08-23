@@ -59,3 +59,36 @@ def test_probe_edge_produces_no_navigation_case():
     # No emitted case should assert the error screen's landmark.
     joined = " ".join(step.description or "" for c in cases for step in c.steps)
     assert "Invalid credentials" not in joined
+
+
+def _gated_result():
+    signin = _el("android.widget.Button", "Sign in", rid="signin")
+    login = CrawlScreen(
+        "login",
+        [_el("android.widget.EditText", rid="user", desc="Username"), signin],
+        platform="android",
+    )
+    home = CrawlScreen("home", [_el("android.widget.TextView", "Dashboard", clk=False)], platform="android")
+    res = CrawlResult(screens={"login": login, "home": home})
+    res.transitions = [Transition("login", signin, "home", kind="gate")]  # synthetic auth crossing
+    res.gated = {"home"}
+    res.auth_sequence = [
+        {"action": "fill", "data": {"fields": {"username": "u", "password": "p"}, "submit": "Sign in"}}
+    ]
+    return res
+
+
+def test_gate_edge_is_not_a_navigation_case():
+    # The synthetic "tap Sign in -> home" gate edge must not become a positive nav
+    # (that test would tap submit without filling the form and never reach home).
+    assert _navigation_cases(_gated_result(), "com.x") == []
+
+
+def test_gated_screen_case_carries_the_auth_prefix():
+    from framework.crawler.to_codegen import build_test_model
+
+    model = build_test_model(_gated_result(), app_package="com.x")
+    descriptions = [s.description or "" for c in model.cases for s in c.steps]
+    # The gated home screen is still covered — with the auth steps prepended so the
+    # test actually gets there (login form filled), not a bare launch-and-assert.
+    assert any("Enter username" in d for d in descriptions), "gated screen lost its auth prefix"

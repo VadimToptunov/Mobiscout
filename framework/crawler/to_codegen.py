@@ -398,8 +398,11 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
     from_elements = _owned(from_screen, app_package) if from_screen else []
     from_platform = from_screen.platform if from_screen else "android"
     for t in result.transitions:
-        if getattr(t, "kind", "tap") == "probe":
-            continue  # a negative-data probe is not a real navigation
+        if getattr(t, "kind", "tap") in ("probe", "gate"):
+            # a negative-data probe isn't a navigation; a synthetic gate edge (e.g.
+            # tap-email -> home) isn't a real tap — reaching a gated screen needs the
+            # auth prefix, handled by the per-screen cases.
+            continue
         from_fp, element, to_fp = t
         if from_fp != start_fp or to_fp == start_fp:
             continue  # only depth-1, real navigations (path reconstruction is future work)
