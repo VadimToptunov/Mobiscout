@@ -2,90 +2,163 @@ package com.mobiletest.recorder.rpc
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.IOException
+import java.io.BufferedReader
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.io.OutputStream
+import java.io.PipedInputStream
+import java.io.PipedOutputStream
+import java.io.PrintWriter
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * A fake [Process] whose stdout serves canned response line(s) and whose stdin captures
- * everything the client writes — so the JSON-RPC framing can be asserted without a real
- * daemon. `getOutputStream()` is the process's stdin (where the client writes requests);
- * `getInputStream()` is the process's stdout (where the client reads responses).
+ * A fake JSON-RPC daemon over pipes: it reads request lines the client writes and, on its
+ * own thread, replies — so responses arrive AFTER their request (as a real daemon does),
+ * which is what lets id-correlation be tested. This models a [Process] for the client.
  */
-private class FakeProcess(responseLines: String) : Process() {
-    val stdin = ByteArrayOutputStream()
-    private val stdout = ByteArrayInputStream(responseLines.toByteArray())
+private class FakeDaemon(
+    private val respond: (JsonObject, PrintWriter) -> Unit,
+) : Process() {
+    private val gson = Gson()
+    private val clientToDaemon = PipedInputStream(1 shl 16)
+    private val daemonToClient = PipedOutputStream()
+    private val clientStdin = PipedOutputStream(clientToDaemon) // client writes requests here
+    private val clientStdout = PipedInputStream(daemonToClient, 1 shl 16) // client reads responses here
+    private val toClient = PrintWriter(daemonToClient, true)
+    @Volatile
+    var running = true
+    val requests = mutableListOf<JsonObject>()
 
-    override fun getOutputStream(): OutputStream = stdin
-    override fun getInputStream(): InputStream = stdout
-    override fun getErrorStream(): InputStream = ByteArrayInputStream(ByteArray(0))
+    private val thread = Thread {
+        val reader = BufferedReader(InputStreamReader(clientToDaemon))
+        try {
+            while (running) {
+                val line = reader.readLine() ?: break
+                val req = gson.fromJson(line, JsonObject::class.java)
+                synchronized(requests) { requests.add(req) }
+                respond(req, toClient)
+            }
+        } catch (e: Exception) {
+            // pipe closed
+        }
+    }.apply { isDaemon = true; start() }
+
+    fun pushNotification(json: String) = toClient.println(json)
+
+    fun closeStream() {
+        running = false
+        toClient.close()
+    }
+
+    override fun getOutputStream(): OutputStream = clientStdin
+    override fun getInputStream(): InputStream = clientStdout
+    override fun getErrorStream(): InputStream = PipedInputStream()
     override fun waitFor(): Int = 0
     override fun waitFor(timeout: Long, unit: TimeUnit): Boolean = true
     override fun exitValue(): Int = 0
-    override fun destroy() {}
-    override fun isAlive(): Boolean = false
+    override fun destroy() {
+        running = false
+    }
+    override fun isAlive(): Boolean = running
 }
 
 class JsonRpcClientTest {
     private val gson = Gson()
+    private var client: JsonRpcClient? = null
 
-    private fun sentRequests(proc: FakeProcess): List<JsonObject> =
-        proc.stdin.toString().trim().lines().filter { it.isNotBlank() }.map {
-            gson.fromJson(it, JsonObject::class.java)
-        }
+    @AfterEach
+    fun tearDown() {
+        client?.close()
+    }
+
+    /** Reply to every request by echoing its method back in the result, id preserved. */
+    private fun echoingDaemon(): FakeDaemon = FakeDaemon { req, out ->
+        val id = req.get("id").asInt
+        val method = req.get("method").asString
+        out.println("""{"jsonrpc":"2.0","id":$id,"result":{"method":"$method"}}""")
+    }
 
     @Test
-    fun `call writes a JSON-RPC 2_0 request and parses the result`() {
-        val proc = FakeProcess("""{"jsonrpc":"2.0","id":1,"result":{"ok":true}}""" + "\n")
-        val client = JsonRpcClient(proc)
+    fun `call sends a JSON-RPC 2_0 request and returns the id-matched result`() {
+        val daemon = echoingDaemon()
+        val c = JsonRpcClient(daemon).also { client = it }
 
-        val resp = client.call("device/list", mapOf("platform" to "android"))
-
-        val sent = sentRequests(proc).single()
-        assertEquals("2.0", sent.get("jsonrpc").asString)
-        assertEquals("device/list", sent.get("method").asString)
-        assertEquals(1, sent.get("id").asInt)
-        assertEquals("android", sent.getAsJsonObject("params").get("platform").asString)
+        val resp = c.call("device/list", mapOf("platform" to "android"))
 
         assertFalse(resp.isError())
-        assertTrue(resp.getResultOrThrow().get("ok").asBoolean)
+        assertEquals("device/list", resp.getResultOrThrow().get("method").asString)
+        val sent = synchronized(daemon.requests) { daemon.requests.single() }
+        assertEquals("2.0", sent.get("jsonrpc").asString)
+        assertEquals("device/list", sent.get("method").asString)
+        assertEquals("android", sent.getAsJsonObject("params").get("platform").asString)
     }
 
     @Test
-    fun `call increments the request id on each call`() {
-        val proc = FakeProcess(
-            """{"jsonrpc":"2.0","id":1,"result":{}}""" + "\n" +
-                """{"jsonrpc":"2.0","id":2,"result":{}}""" + "\n",
-        )
-        val client = JsonRpcClient(proc)
+    fun `concurrent calls each receive their own response (no stolen lines)`() {
+        // Many client threads call at once; the single daemon thread echoes each request's
+        // method in its id-matched result. Every call must get the result for ITS method —
+        // the core of id-correlation (the old two-reader client stole lines here).
+        val daemon = echoingDaemon()
+        val c = JsonRpcClient(daemon).also { client = it }
 
-        client.call("a")
-        client.call("b")
-
-        assertEquals(listOf(1, 2), sentRequests(proc).map { it.get("id").asInt })
+        val n = 20
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(n)
+        val mismatches = AtomicInteger(0)
+        for (i in 0 until n) {
+            Thread {
+                start.await()
+                val method = "m$i"
+                val got = c.call(method).getResultOrThrow().get("method").asString
+                if (got != method) mismatches.incrementAndGet()
+                done.countDown()
+            }.start()
+        }
+        start.countDown()
+        assertTrue(done.await(30, TimeUnit.SECONDS), "calls did not all complete")
+        assertEquals(0, mismatches.get(), "a call received another call's response")
     }
 
     @Test
-    fun `call throws when the daemon sends no response`() {
-        val client = JsonRpcClient(FakeProcess("")) // empty stdout -> readLine() == null
-        val ex = assertThrows(IOException::class.java) { client.call("x") }
-        assertTrue(ex.message!!.contains("No response"))
+    fun `a notification streamed mid-flight goes to the listener, not to a call`() {
+        val delivered = CountDownLatch(1)
+        val daemon = FakeDaemon { req, out ->
+            val id = req.get("id").asInt
+            out.println("""{"jsonrpc":"2.0","id":$id,"result":{"method":"ok"}}""")
+        }
+        val c = JsonRpcClient(daemon).also { client = it }
+        c.startListening { note -> if (note.method == "logs/message") delivered.countDown() }
+
+        daemon.pushNotification("""{"jsonrpc":"2.0","method":"logs/message","params":{"line":"x"}}""")
+        // the call still gets its own result, unpolluted by the notification
+        assertEquals("ok", c.call("kit/generate").getResultOrThrow().get("method").asString)
+        assertTrue(delivered.await(5, TimeUnit.SECONDS), "notification not delivered to listener")
+    }
+
+    @Test
+    fun `call fails when the daemon closes the stream without responding`() {
+        val daemon = FakeDaemon { _, _ -> } // never replies
+        val c = JsonRpcClient(daemon).also { client = it }
+        Thread { Thread.sleep(50); daemon.closeStream() }.start()
+        assertThrows(Exception::class.java) { c.call("x", emptyMap(), timeoutMs = 5_000) }
     }
 
     @Test
     fun `getResultOrThrow raises JsonRpcException on an error response`() {
-        val client = JsonRpcClient(
-            FakeProcess("""{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"boom"}}""" + "\n"),
-        )
-        val resp = client.call("x")
+        val daemon = FakeDaemon { req, out ->
+            val id = req.get("id").asInt
+            out.println("""{"jsonrpc":"2.0","id":$id,"error":{"code":-32000,"message":"boom"}}""")
+        }
+        val c = JsonRpcClient(daemon).also { client = it }
+        val resp = c.call("x")
         assertTrue(resp.isError())
         val ex = assertThrows(JsonRpcException::class.java) { resp.getResultOrThrow() }
         assertEquals(-32000, ex.code)
@@ -93,12 +166,15 @@ class JsonRpcClientTest {
 
     @Test
     fun `notify writes a request with a method but no id`() {
-        val proc = FakeProcess("")
-        val client = JsonRpcClient(proc)
-
-        client.notify("logs/subscribe", mapOf("k" to "v"))
-
-        val sent = sentRequests(proc).single()
+        val daemon = FakeDaemon { _, _ -> }
+        val c = JsonRpcClient(daemon).also { client = it }
+        c.notify("logs/subscribe", mapOf("k" to "v"))
+        // give the daemon thread a moment to read the line
+        val deadline = System.currentTimeMillis() + 2_000
+        while (System.currentTimeMillis() < deadline && synchronized(daemon.requests) { daemon.requests.isEmpty() }) {
+            Thread.sleep(10)
+        }
+        val sent = synchronized(daemon.requests) { daemon.requests.single() }
         assertEquals("logs/subscribe", sent.get("method").asString)
         assertEquals("2.0", sent.get("jsonrpc").asString)
         assertFalse(sent.has("id"))

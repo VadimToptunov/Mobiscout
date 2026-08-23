@@ -1,72 +1,95 @@
 package com.mobiletest.recorder.services
 
 import com.google.gson.JsonObject
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.mobiletest.recorder.rpc.JsonRpcClient
 import com.mobiletest.recorder.rpc.JsonRpcNotification
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * Application-level service for managing the mobiscout daemon.
+ *
+ * As an application service it is a [Disposable] tied to the IDE lifecycle, so the engine
+ * process is stopped on shutdown instead of being orphaned. [start] is synchronized so a
+ * tool-window auto-start and a Generate click can't race into two daemons.
  */
 @Service
-class MTRDaemonService {
+class MTRDaemonService : Disposable {
     private var process: Process? = null
+    @Volatile
     private var client: JsonRpcClient? = null
-    private val listeners = mutableListOf<(JsonRpcNotification) -> Unit>()
-    
+    // Notified from the RPC reader thread while listeners are added/removed on the EDT —
+    // a copy-on-write list makes that iteration/mutation safe.
+    private val listeners = CopyOnWriteArrayList<(JsonRpcNotification) -> Unit>()
+
     @Volatile
     private var isRunning = false
-    
+
+    private companion object {
+        private val LOG = logger<MTRDaemonService>()
+    }
+
     /**
-     * Start the daemon process.
+     * Start the daemon process. Synchronized so concurrent callers (tool-window
+     * auto-start + a Generate action) don't each spawn a daemon.
      */
+    @Synchronized
     fun start(): Boolean {
-        if (isRunning) {
+        if (isRunning && client != null) {
             return true
         }
-        
+
         try {
             // Resolve the engine: a self-contained standalone binary (downloaded on
             // first use, no user Python) or a PATH `mobiscout` CLI for development.
             val command = EngineProvider.resolveDaemonCommand()
 
-            // Start daemon
+            // Start daemon. The engine's stderr goes to the IDE log dir (not the IDE's
+            // working directory, which may be read-only or unfindable to the user).
             val processBuilder = ProcessBuilder(command)
-            processBuilder.redirectError(ProcessBuilder.Redirect.to(File("mtr-daemon.log")))
-            
-            process = processBuilder.start()
-            client = JsonRpcClient(process!!)
-            
-            // Start listening for notifications
-            client?.startListening { notification ->
-                listeners.forEach { it(notification) }
-            }
-            
+            val logFile = File(PathManager.getLogPath(), "mobiscout-daemon.log")
+            processBuilder.redirectError(ProcessBuilder.Redirect.to(logFile))
+
+            val proc = processBuilder.start()
+            val rpc = JsonRpcClient(proc)
+            rpc.startListening { notification -> listeners.forEach { it(notification) } }
+
             // Test connection with health check
-            val response = client?.call("health/check")
-            if (response?.isError() == false) {
+            val response = rpc.call("health/check")
+            if (response.isError() == false) {
+                process = proc
+                client = rpc
                 isRunning = true
                 return true
             }
-            
+            rpc.close()
             return false
         } catch (e: Exception) {
-            println("Failed to start daemon: ${e.message}")
+            LOG.warn("Failed to start mobiscout daemon", e)
             stop()
             return false
         }
     }
-    
+
     /**
      * Stop the daemon.
      */
+    @Synchronized
     fun stop() {
         isRunning = false
         client?.close()
         client = null
         process = null
+    }
+
+    /** Stop the engine when the IDE (and thus this application service) is disposed. */
+    override fun dispose() {
+        stop()
     }
     
     /**
