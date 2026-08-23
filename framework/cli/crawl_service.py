@@ -287,6 +287,9 @@ def write_kit(
     assert_values: bool = False,
     har: Optional[str] = None,
     fuzz: bool = False,
+    diff: bool = False,
+    baseline: Optional[str] = None,
+    only_changed: bool = False,
 ) -> KitReport:
     """Write every artifact of a crawl kit to ``output`` and report what was written.
 
@@ -353,6 +356,23 @@ def write_kit(
         assert_values=assert_values,
         fuzz=fuzz,
     )
+    # Diff-aware regeneration: compare against a baseline manifest (a prior kit's
+    # manifest.json) and write CHANGES.md; with only_changed, keep just the added+changed
+    # cases so re-crawling an evolving app yields the delta, not the whole app regenerated.
+    # The full case set is always recorded as manifest.json so the next run can diff. Same
+    # premium family as only-new — a no-op filter on the unlimited open-core tier.
+    if diff:
+        from framework.crawler.diff import diff_models, filter_to_changed, load_manifest, write_manifest
+        from framework.licensing import has_feature
+
+        if has_feature("incremental"):
+            report_diff = diff_models(load_manifest(baseline or out), model)
+            (out / "CHANGES.md").write_text(report_diff.to_markdown(package), encoding="utf-8", newline="\n")
+            write_manifest(out, model)  # baseline for the next crawl — the FULL case set
+            report.info.append(f"Changes: {report_diff.summary()} (see {out / 'CHANGES.md'})")
+            if only_changed:
+                model = filter_to_changed(model, report_diff)
+
     if not model.cases:
         report.no_tests = True
         report.info.append("No locatable elements — no tests generated (see inventory.md).")

@@ -118,6 +118,22 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         gap = report.summary()
         _write(out / "coverage_gap.txt", gap + "\n" + "\n".join(f"- {n}" for n in report.new_case_names) + "\n")
 
+    # Diff-aware regeneration: compare this crawl's cases against a baseline manifest
+    # (a prior kit's manifest.json) and write a CHANGES.md of what was added/changed/
+    # removed. With ``only_changed``, keep just the added+changed cases so re-crawling an
+    # evolving app yields tests for the delta, not the whole app regenerated. The baseline
+    # is always recorded (manifest.json) so the *next* run can diff. Same premium family as
+    # only-new — a no-op filter on the unlimited open-core tier.
+    if config.get("diff") and has_feature("incremental"):
+        from framework.crawler.diff import diff_models, filter_to_changed, load_manifest, write_manifest
+
+        baseline = load_manifest(config.get("baseline") or out)
+        diff = diff_models(baseline, model)
+        _write(out / "CHANGES.md", diff.to_markdown(model.app_package))
+        write_manifest(out, model)  # baseline for the next crawl — the FULL case set
+        if config.get("only_changed"):
+            model = filter_to_changed(model, diff)
+
     # Entitlement quota: cap generated test cases for the free tier (after only-new
     # filtering, so the final kit carries at most N cases). No-op when unlimited.
     model.cases = model.cases[: cap_tests(len(model.cases))]
