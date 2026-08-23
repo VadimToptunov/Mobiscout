@@ -45,38 +45,58 @@ object EngineProvider {
     private fun ensureEngineBinary(): File? {
         val asset = assetName() ?: return null
         val target = File(cacheDir(), asset)
-        if (target.exists() && target.length() > 0) return target
+        val localDigest = File(cacheDir(), "$asset.sha256")
+
+        // Cache hit: only trust a binary whose bytes STILL match the digest we verified at
+        // download time. A truncated (interrupted copy) or tampered file is re-fetched
+        // rather than executed on size alone.
+        if (target.exists() && localDigest.exists()) {
+            val expected = runCatching { localDigest.readText().trim().lowercase() }.getOrNull()
+            if (expected != null && expected == sha256Hex(target)) {
+                target.setExecutable(true)
+                return target
+            }
+            target.delete()
+            localDigest.delete()
+        }
+
+        // Download to a .part file, verify, then atomically publish — so a crash mid-copy
+        // can never leave a half-written binary that a later launch would trust and run.
+        val part = File(cacheDir(), "$asset.part")
         return try {
             val conn = URI("$RELEASE_BASE/$ENGINE_VERSION/$asset").toURL().openConnection().apply {
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
             }
-            conn.getInputStream().use { input -> target.outputStream().use { input.copyTo(it) } }
-            // Never run an unverified downloaded executable: the release publishes a
-            // <asset>.sha256; fail closed (delete + fall back) if it's missing or wrong.
-            if (target.length() == 0L || !checksumMatches(target, asset)) {
-                target.delete()
+            conn.getInputStream().use { input -> part.outputStream().use { input.copyTo(it) } }
+            val digest = sha256Hex(part)
+            if (part.length() == 0L || digest != publishedChecksum(asset)) {
+                part.delete()
                 return null
             }
+            if (!part.renameTo(target)) {
+                part.copyTo(target, overwrite = true)
+                part.delete()
+            }
+            localDigest.writeText(digest) // record for the cache-hit re-verify above
             target.setExecutable(true)
             target
         } catch (e: Exception) {
-            if (target.exists()) target.delete() // don't leave a half-written binary behind
+            part.delete() // don't leave a half-written binary behind
             null
         }
     }
 
-    /** Verify the binary against the published `<asset>.sha256`. */
-    private fun checksumMatches(binary: File, asset: String): Boolean {
+    /** The published `<asset>.sha256` digest, or null if unavailable/malformed. */
+    private fun publishedChecksum(asset: String): String? {
         return try {
             val published = URI("$RELEASE_BASE/$ENGINE_VERSION/$asset.sha256").toURL().openConnection().apply {
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = CONNECT_TIMEOUT_MS
             }.getInputStream().use { it.readBytes().decodeToString() }
-            val expected = published.trim().split(Regex("\\s+")).firstOrNull()?.lowercase() ?: return false
-            expected == sha256Hex(binary)
+            published.trim().split(Regex("\\s+")).firstOrNull()?.lowercase()
         } catch (e: Exception) {
-            false
+            null
         }
     }
 
