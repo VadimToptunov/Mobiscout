@@ -397,7 +397,10 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
     from_screen = result.screens.get(start_fp)
     from_elements = _owned(from_screen, app_package) if from_screen else []
     from_platform = from_screen.platform if from_screen else "android"
-    for from_fp, element, to_fp in result.transitions:
+    for t in result.transitions:
+        if getattr(t, "kind", "tap") == "probe":
+            continue  # a negative-data probe is not a real navigation
+        from_fp, element, to_fp = t
         if from_fp != start_fp or to_fp == start_fp:
             continue  # only depth-1, real navigations (path reconstruction is future work)
         tap = selector_for(element, from_elements, from_platform)

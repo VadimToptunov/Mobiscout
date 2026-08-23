@@ -9,7 +9,7 @@ without pulling in the crawler engine.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Protocol, Tuple
+from typing import Any, Dict, Iterator, List, Protocol, Tuple
 
 
 class CrawlerDriver(Protocol):
@@ -78,13 +78,36 @@ class CrawlScreen:
 
 
 @dataclass
+class Transition:
+    """One recorded navigation edge.
+
+    ``kind`` distinguishes a real tap from synthetic edges so codegen can treat them
+    differently: a ``probe`` edge (a form submitted with invalid data to reach its error
+    state) must never become a positive journey, and a ``gate`` edge is the synthetic
+    auth crossing. Iterable and indexable as the legacy ``(src, element, dst)`` triple, so
+    existing ``for a, b, c in transitions`` / ``t[0]`` consumers keep working unchanged.
+    """
+
+    src: str
+    element: "CrawlElement"
+    dst: str
+    kind: str = "tap"  # "tap" | "gate" | "probe"
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter((self.src, self.element, self.dst))
+
+    def __getitem__(self, index: int) -> Any:
+        return (self.src, self.element, self.dst)[index]
+
+
+@dataclass
 class CrawlResult:
     """Outcome of a crawl: unique screens, transitions, and steps taken."""
 
     screens: Dict[str, CrawlScreen] = field(default_factory=dict)
-    # (from_fp, tapped element, to_fp) — the element is kept so navigation tests
-    # can re-tap it, not just its label.
-    transitions: List[Tuple[str, "CrawlElement", str]] = field(default_factory=list)
+    # Recorded navigation edges (see Transition). Kept as objects so codegen can tell a
+    # real tap from a gate/probe; still unpacks as (from_fp, element, to_fp).
+    transitions: List["Transition"] = field(default_factory=list)
     steps: int = 0
     # Fingerprints of screens reached only after passing a gate (login/OTP/...), so
     # codegen can prepend the auth steps that a generated test needs to get there.

@@ -295,7 +295,10 @@ def navigation_steps(
     entry_fp = fp_of.get(graph.entry if graph.entry is not None else 1, fps[0])
 
     by_pair: Dict[Tuple[str, str], List[CrawlElement]] = defaultdict(list)
-    for from_fp, elem, to_fp in result.transitions:
+    for t in result.transitions:
+        if getattr(t, "kind", "tap") == "probe":
+            continue  # a negative-data probe is not a real navigation
+        from_fp, elem, to_fp = t
         by_pair[(from_fp, to_fp)].append(elem)
 
     reachable: Dict[str, List[Step]] = {entry_fp: []}
@@ -365,7 +368,10 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
 
     edges: List[GraphEdge] = []
     seen = set()
-    for from_fp, element, to_fp in result.transitions:
+    for t in result.transitions:
+        if getattr(t, "kind", "tap") == "probe":
+            continue  # negative-data probes never become graph edges / positive journeys
+        from_fp, element, to_fp = t
         if from_fp not in id_of or to_fp not in id_of:
             continue
         src, dst = id_of[from_fp], id_of[to_fp]
