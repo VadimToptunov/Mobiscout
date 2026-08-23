@@ -103,6 +103,14 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         fuzz=bool(config.get("fuzz")),  # opt-in: adversarial-input tests per form
     )
 
+    # Coverage artifact — what the crawl reached vs what the kit tests. Full model, before
+    # any diff/only-new filtering, so it describes the whole crawl.
+    from framework.crawler.coverage_report import build_coverage
+
+    coverage = build_coverage(result, graph, model)
+    _write(out / "coverage.md", coverage.to_markdown(package))
+    _write(out / "coverage.json", coverage.to_json())
+
     # Only-new mode: drop cases already covered by the team's existing tests, so a
     # crawl of a new feature yields tests for just that feature. A premium (team/CI)
     # feature — gated by ``has_feature`` so a limited tier falls back to the full kit;

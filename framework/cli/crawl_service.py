@@ -356,6 +356,20 @@ def write_kit(
         assert_values=assert_values,
         fuzz=fuzz,
     )
+
+    # Coverage artifact — an honest map of what the crawl reached vs what the kit tests
+    # (screens reachable/gated/dead-end/unreachable, element + screen test coverage, gaps).
+    # Computed from the FULL model, before any diff filtering, so it describes the whole crawl.
+    from framework.crawler.coverage_report import build_coverage
+
+    coverage = build_coverage(result, graph, model)
+    (out / "coverage.md").write_text(coverage.to_markdown(package), encoding="utf-8", newline="\n")
+    (out / "coverage.json").write_text(coverage.to_json(), encoding="utf-8", newline="\n")
+    report.info.append(
+        f"Coverage: {coverage.screens_tested}/{coverage.screens_reachable} screens, "
+        f"{coverage.element_coverage_pct()}% of elements (see {out / 'coverage.md'})"
+    )
+
     # Diff-aware regeneration: compare against a baseline manifest (a prior kit's
     # manifest.json) and write CHANGES.md; with only_changed, keep just the added+changed
     # cases so re-crawling an evolving app yields the delta, not the whole app regenerated.
