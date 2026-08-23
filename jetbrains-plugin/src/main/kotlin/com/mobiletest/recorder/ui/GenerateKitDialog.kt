@@ -83,6 +83,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     // if a build is given it is installed on the device (UDID) before crawling.
     private val buildPathField = TextFieldWithBrowseButton()
     private val uninstallAfterCheck = JBCheckBox("Uninstall the app after crawling", false)
+    private val fuzzCheck = JBCheckBox("Also generate fuzz tests (adversarial inputs per form)", false)
 
     init {
         title = "Generate Test Kit"
@@ -271,6 +272,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             .addSeparator()
             .addLabeledComponent("Install build first (.apk / .app):", buildPathField)
             .addComponent(uninstallAfterCheck)
+            .addComponent(fuzzCheck)
             .addSeparator()
             .addLabeledComponent("Max crawl steps:", maxStepsField)
             .addLabeledComponent("Max crawl depth:", maxDepthField)
@@ -294,6 +296,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         params["targets"] = listOf(selectedTarget())
         params["output"] = outputField.text.trim().ifEmpty { "mobile-tests" }
         params["scaffold"] = newProjectCheck.isSelected
+        params["fuzz"] = fuzzCheck.isSelected  // opt-in: adversarial-input tests per form
         params["server"] = serverField.text.trim()
         selectedUdid().takeIf { it.isNotBlank() }?.let { params["udid"] = it }
         params["max_steps"] = maxStepsField.text.trim().toIntOrNull() ?: 40

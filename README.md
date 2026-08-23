@@ -111,6 +111,12 @@ and [JavaScript + WebdriverIO](examples/shop_demo/flat/js_webdriverio) — one I
 targets. iOS suites are generated too, with the correct XCUITest capabilities and
 locators.
 
+**Opt-in fuzz tests** (`mobiscout crawl … --fuzz`, or the "Also generate fuzz tests"
+checkbox in the IDE): for each form, generate tests that submit adversarial inputs —
+empty, 5k-char overflow, unicode + emoji, SQL/XSS injection, format strings — and assert
+the app handles each without crashing or advancing. Off by default; you choose whether a
+kit carries them.
+
 ### 4. API contract tests
 
 Get contract tests (pytest + requests) from any of three inputs — the app's own

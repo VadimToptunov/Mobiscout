@@ -592,6 +592,117 @@ def _invalid_form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
     return steps
 
 
+# Curated, deterministic fuzz payloads — one per adversarial category, drawn from the
+# framework.fuzzing corpus (special chars, overflow, unicode/emoji, injection, format
+# strings). A robust app rejects or safely ignores each and stays on the form; one that
+# crashes or advances fails the generated test.
+_FUZZ_PAYLOADS: List[Tuple[str, str]] = [
+    ("", "empty"),
+    ("A" * 5000, "overflow"),
+    ("éèê€£¥™😀🔥", "unicode"),
+    ("' OR '1'='1", "sql_injection"),
+    ("<script>alert(1)</script>", "xss"),
+    ("%s%n%x%s%n", "format_string"),
+]
+
+
+def _fuzz_form_steps(screen: CrawlScreen, app_package: str, payload: str) -> List[Step]:
+    """TYPE steps that fill every input on a screen with the same fuzz ``payload``."""
+    steps: List[Step] = []
+    owned = _owned(screen, app_package)
+    seen = set()
+    for e in owned:
+        if classify(e)[0] != "input":
+            continue
+        sel = selector_for(e, owned, screen.platform)
+        if sel is None or sel.value in seen:
+            continue
+        seen.add(sel.value)
+        steps.append(Step(ActionType.TYPE, selector=sel, text=payload, description=f"Fuzz {e.label or 'input'}"))
+    return steps
+
+
+def fuzz_form_cases(
+    result: CrawlResult, app_package: str = "", max_cases: int = 18, graph: Optional[InteractionGraph] = None
+) -> List[TestCase]:
+    """OPT-IN fuzz tests: for each reachable form, submit a spectrum of adversarial inputs
+    (empty / overflow / unicode+emoji / injection / format-string) and assert the app
+    handles each without advancing or crashing — the submit control is still visible.
+
+    Off by default; generated only when the caller opts in (config ``fuzz``), because a
+    team may not want fuzz cases in every kit. Complements :func:`negative_form_cases`
+    (which uses type-specific invalid data) with input-robustness coverage."""
+    graph = graph if graph is not None else build_graph(result, app_package)
+    paths = graph.shortest_paths_from_entry()
+    if not paths:
+        return []
+    fps = list(result.screens)
+    fp_of = {i + 1: fp for i, fp in enumerate(fps)}
+    id_of = {fp: i + 1 for i, fp in enumerate(fps)}
+
+    by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
+    for from_fp, elem, to_fp in result.transitions:
+        by_pair[(from_fp, to_fp)].append(elem)
+
+    from framework.crawler.to_codegen import _screen_title, _slug
+
+    cases: List[TestCase] = []
+    for target_fp, screen in result.screens.items():
+        submit = _submit_element(screen, app_package)
+        if submit is None:
+            continue
+        # Skip a form with no locatable input to fuzz.
+        if not _fuzz_form_steps(screen, app_package, "x"):
+            continue
+        submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
+        if submit_sel is None:
+            continue
+        node_path = paths.get(id_of.get(target_fp, -1))
+        if node_path is None:
+            continue
+
+        nav: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
+        ok = True
+        for src_id, dst_id in zip(node_path, node_path[1:]):
+            from_fp, to_fp = fp_of[src_id], fp_of[dst_id]
+            candidates = by_pair.get((from_fp, to_fp), [])
+            if not candidates:
+                ok = False
+                break
+            from_screen = result.screens[from_fp]
+            tap = selector_for(candidates[0], _owned(from_screen, app_package), from_screen.platform)
+            if tap is None:
+                ok = False
+                break
+            nav.append(Step(ActionType.TAP, selector=tap, description=f"Tap {candidates[0].label}"))
+        if not ok:
+            continue
+
+        title = _slug(_screen_title(_owned(screen, app_package))) or _slug(submit.label or "") or "form"
+        for payload, kind in _FUZZ_PAYLOADS:
+            steps = list(nav)
+            steps.extend(_fuzz_form_steps(screen, app_package, payload))
+            steps.append(Step(ActionType.TAP, selector=submit_sel, description=f"Submit {submit.label or 'form'}"))
+            steps.append(
+                Step(
+                    ActionType.ASSERT,
+                    selector=submit_sel,
+                    assertion=AssertionType.VISIBLE,
+                    description=f"App handles {kind} input without advancing or crashing",
+                )
+            )
+            cases.append(
+                TestCase(
+                    name=f"fuzz_{kind}_on_{title}",
+                    steps=steps,
+                    description=f"Fuzz the {title.replace('_', ' ')} form with {kind} input",
+                )
+            )
+            if len(cases) >= max_cases:
+                return cases
+    return cases
+
+
 def negative_form_cases(
     result: CrawlResult, app_package: str = "", max_cases: int = 12, graph: Optional[InteractionGraph] = None
 ) -> List[TestCase]:

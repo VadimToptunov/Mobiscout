@@ -286,6 +286,7 @@ def write_kit(
     launch_args: Tuple[str, ...],
     assert_values: bool = False,
     har: Optional[str] = None,
+    fuzz: bool = False,
 ) -> KitReport:
     """Write every artifact of a crawl kit to ``output`` and report what was written.
 
@@ -350,6 +351,7 @@ def write_kit(
         launch_args=list(launch_args) or None,
         graph=graph,
         assert_values=assert_values,
+        fuzz=fuzz,
     )
     if not model.cases:
         report.no_tests = True
