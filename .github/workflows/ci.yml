@@ -266,26 +266,19 @@ jobs:
       - name: Install Rust core
         run: pip install wheels/*.whl || echo "Rust core optional"
 
-      - name: Run integration tests
+      - name: End-to-end (device-free): crawl -> kit -> the emitted kit runs green
         run: |
-          # Start mock backend
-          cd demo-app/mock-backend
-          uvicorn main:app --port 8000 &
-          MOCK_PID=$!
-          cd ../..
-          
-          # Wait for backend to start
-          sleep 5
-          
-          # Smoke-test the CLI: both load every command group (catching import
-          # regressions) and exit 0. `mobiscout health` never existed (the real
-          # health command is `mobiscout doctor`, which intentionally exits non-zero
-          # when host tooling like adb/appium is absent, so it's unsuitable here).
+          # The real integration: the whole crawl->model->codegen pipeline against a
+          # fake UI graph, AND an emitted python_pytest kit executed through pytest
+          # against a device-free fake Appium — so "generated tests pass" is checked by
+          # execution, not by py_compile. (The old job started a mock backend it never
+          # called and ran `mobiscout --help`; that proved nothing.)
+          pytest tests/test_pipeline.py tests/codegen/test_kit_execution.py -v
+
+      - name: CLI does-not-crash smoke
+        run: |
           mobiscout info
           mobiscout --help
-          
-          # Cleanup
-          kill $MOCK_PID || true
 
   build-plugin:
     name: Build JetBrains Plugin
