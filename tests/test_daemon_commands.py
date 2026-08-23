@@ -136,6 +136,13 @@ def test_handler_exception_becomes_internal_error(server):
     assert resp["error"]["code"] == -32603
 
 
+def test_health_check_reports_the_native_backend(server):
+    # The frozen-engine build gate reads this field to assert the Rust core was bundled;
+    # it must always be present and one of the two known values.
+    health = server.handle_request({"jsonrpc": "2.0", "id": 6, "method": "health/check", "params": {}})
+    assert health["result"]["native_backend"] in ("rust", "python")
+
+
 def test_health_and_backend_list(server):
     health = server.handle_request({"jsonrpc": "2.0", "id": 4, "method": "health/check", "params": {}})
     assert health["result"]["status"] == "ok"
