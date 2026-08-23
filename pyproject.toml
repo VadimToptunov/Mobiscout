@@ -44,6 +44,7 @@ dev = [
     "mypy>=1.5.0",
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.1.0",
 ]
 analyzer = [
     "tree-sitter>=0.20.0",
@@ -151,6 +152,10 @@ verbose = 1
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra -q --strict-markers"
+# Per-test wall-clock cap so a hung test (a wedged socket/subprocess) can't stall CI;
+# the thread method works under pytest-xdist. No-op if pytest-timeout isn't installed.
+timeout = 300
+timeout_method = "thread"
 testpaths = [
     "tests",
 ]

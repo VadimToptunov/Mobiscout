@@ -150,9 +150,9 @@ class TestMutationFuzzer:
     """Test MutationFuzzer"""
 
     def test_create_mutation_fuzzer(self):
-        """Test creating mutation fuzzer"""
+        """MutationFuzzer exposes its mutate entry point."""
         fuzzer = MutationFuzzer(seed=42)
-        assert fuzzer is not None
+        assert callable(fuzzer.mutate)
 
     def test_mutate_string(self):
         """Test string mutation"""

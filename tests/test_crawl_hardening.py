@@ -93,4 +93,4 @@ def test_native_source_dump_timeout_raises_and_does_not_wedge_quit(monkeypatch):
     # quit() must return immediately even though the dump/quit calls still hang.
     started = time.time()
     drv.quit()
-    assert time.time() - started < 1.0
+    assert time.time() - started < 5.0  # the point is "not the 30s hang", CI-load-tolerant

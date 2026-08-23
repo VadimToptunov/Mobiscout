@@ -203,9 +203,9 @@ class TestDASTAnalyzer:
     """Tests for Dynamic Application Security Testing analyzer"""
 
     def test_analyzer_initialization(self):
-        """Test DASTAnalyzer can be initialized"""
+        """DASTAnalyzer exposes its host/api/traffic analysis entry points."""
         analyzer = DASTAnalyzer()
-        assert analyzer is not None
+        assert callable(analyzer.analyze_host) and callable(analyzer.analyze_traffic)
 
     def test_analyze_returns_result(self):
         """Test analyze method returns DASTResult"""
@@ -243,9 +243,9 @@ class TestSupplyChainAnalyzer:
     """Tests for Supply Chain analyzer"""
 
     def test_analyzer_initialization(self):
-        """Test SupplyChainAnalyzer can be initialized"""
+        """SupplyChainAnalyzer exposes its scan_directory entry point."""
         analyzer = SupplyChainAnalyzer()
-        assert analyzer is not None
+        assert callable(analyzer.scan_directory)
 
     def test_analyze_returns_result(self):
         """Test analyze method returns SupplyChainResult"""
@@ -277,9 +277,9 @@ class TestRuntimeProtectionAnalyzer:
     """Tests for Runtime Protection analyzer"""
 
     def test_analyzer_initialization(self):
-        """Test RuntimeProtectionAnalyzer can be initialized"""
+        """RuntimeProtectionAnalyzer exposes its analyze entry point."""
         analyzer = RuntimeProtectionAnalyzer()
-        assert analyzer is not None
+        assert callable(analyzer.analyze)
 
     def test_analyze_returns_result(self):
         """Test analyze method returns RuntimeProtectionResult"""
@@ -324,9 +324,9 @@ class TestDecompiler:
     """Tests for Decompiler"""
 
     def test_decompiler_initialization(self):
-        """Test Decompiler can be initialized"""
+        """Decompiler exposes its decompile entry point."""
         decompiler = Decompiler()
-        assert decompiler is not None
+        assert callable(decompiler.decompile)
 
     def test_decompile_result_properties(self):
         """Test DecompileResult property aliases"""
