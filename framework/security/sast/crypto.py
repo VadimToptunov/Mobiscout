@@ -59,9 +59,34 @@ class CryptoAnalyzer:
         r'nonce\s*=\s*["\'][0-9a-fA-F]+["\']',
     ]
 
+    # Patterns compiled ONCE, not per line: the per-line `re.escape(algo)` + string-pattern
+    # compilation were the dominant cost (tens of thousands of re.escape / re._compile calls
+    # over a modest repo). Lazily built and cached on the class the first time analyze runs.
+    _algo_compiled: "List[tuple] | None" = None
+    _key_compiled: "List | None" = None
+
+    @classmethod
+    def _compiled(cls) -> "tuple[list, list]":
+        """(algo rules, key patterns) as compiled regexes, built once and cached."""
+        algo, keys = cls._algo_compiled, cls._key_compiled
+        if algo is None or keys is None:
+            algo = [
+                (
+                    a,
+                    re.compile(cls.ALGO_PATTERN_OVERRIDES.get(a, rf"\b{re.escape(a)}\b"), re.IGNORECASE),
+                    cwe,
+                    desc,
+                )
+                for a, (cwe, desc) in cls.WEAK_ALGORITHMS.items()
+            ]
+            keys = [re.compile(p, re.IGNORECASE) for p in cls.KEY_PATTERNS]
+            cls._algo_compiled, cls._key_compiled = algo, keys
+        return algo, keys
+
     def analyze(self, file_path: Path) -> List[SASTFinding]:
         """Analyze file for cryptographic weaknesses"""
         findings = []
+        algo_rules, key_patterns = self._compiled()
 
         try:
             content = file_path.read_text(encoding="utf-8")
@@ -73,9 +98,8 @@ class CryptoAnalyzer:
                 # Check weak algorithms. Match on word boundaries, not as a
                 # substring: "DES" must not fire on "describe"/"nodes"/"used",
                 # nor "ECB"/"RC2" inside unrelated identifiers.
-                for algo, (cwe, desc) in self.WEAK_ALGORITHMS.items():
-                    algo_pattern = self.ALGO_PATTERN_OVERRIDES.get(algo, rf"\b{re.escape(algo)}\b")
-                    if re.search(algo_pattern, line, re.IGNORECASE):
+                for algo, algo_re, cwe, desc in algo_rules:
+                    if algo_re.search(line):
                         # Skip if it's a comment
                         stripped = line.strip()
                         if stripped.startswith(("#", "//", "/*", "*")):
@@ -114,8 +138,8 @@ class CryptoAnalyzer:
                         )
 
                 # Check hardcoded keys
-                for pattern in self.KEY_PATTERNS:
-                    if re.search(pattern, line, re.IGNORECASE):
+                for key_re in key_patterns:
+                    if key_re.search(line):
                         findings.append(
                             SASTFinding(
                                 vulnerability_type=VulnerabilityType.HARDCODED_KEY,

@@ -73,9 +73,32 @@ class InsecureAPIAnalyzer:
         "evaluateJavaScript": (VT.INSECURE_WEBVIEW, Severity.MEDIUM, "CWE-79", "JavaScript evaluation in WebView"),
     }
 
+    # Per-pattern (regex-vs-substring decision + escaping + compile) computed ONCE, not per
+    # line: for a wildcard pattern we cache a compiled regex, else the raw substring.
+    _apis_compiled: "List[tuple] | None" = None
+
+    @classmethod
+    def _compiled_apis(cls) -> "List[tuple]":
+        """[(pattern, meta, compiled_regex_or_None)] — built once and cached on the class."""
+        cached = cls._apis_compiled
+        if cached is None:
+            cached = []
+            for pattern, meta in cls.INSECURE_APIS.items():
+                rx = None
+                if "*" in pattern or "?" in pattern or "[" in pattern:
+                    escaped = pattern.replace("(", r"\(").replace(")", r"\)")
+                    try:
+                        rx = re.compile(escaped)
+                    except re.error:
+                        rx = None  # fall back to substring
+                cached.append((pattern, meta, rx))
+            cls._apis_compiled = cached
+        return cached
+
     def analyze(self, file_path: Path) -> List[SASTFinding]:
         """Analyze file for insecure API usage"""
         findings = []
+        apis = self._compiled_apis()
 
         try:
             content = file_path.read_text(encoding="utf-8")
@@ -87,20 +110,8 @@ class InsecureAPIAnalyzer:
                 if stripped.startswith(("#", "//", "/*", "*", '"""', "'''")):
                     continue
 
-                for pattern, (vuln_type, severity_override, cwe_override, desc) in self.INSECURE_APIS.items():
-                    # Use simple string matching for patterns without regex special chars
-                    # or regex for patterns with wildcards
-                    matched = False
-                    if "*" in pattern or "?" in pattern or "[" in pattern:
-                        # Escape parentheses for regex matching
-                        escaped_pattern = pattern.replace("(", r"\(").replace(")", r"\)")
-                        try:
-                            matched = bool(re.search(escaped_pattern, line))
-                        except re.error:
-                            matched = pattern in line
-                    else:
-                        # Simple substring match
-                        matched = pattern in line
+                for pattern, (vuln_type, severity_override, cwe_override, desc), rx in apis:
+                    matched = (rx.search(line) is not None) if rx is not None else (pattern in line)
 
                     if matched:
                         default_severity, default_cwe = default_severity_and_cwe(vuln_type)
