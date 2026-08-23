@@ -132,9 +132,31 @@ def _emit_kit(result: CrawlResult, tmp: Path, fuzz: bool = False) -> Path:
 def _run_pytest(kit: Path, model: dict) -> subprocess.CompletedProcess:
     model_file = kit / "_fake_app.json"
     model_file.write_text(json.dumps(model), encoding="utf-8")
-    env = {**os.environ, "MOBISCOUT_FAKE_APP": str(model_file), "MOBISCOUT_APPIUM_SERVER": "http://fake"}
+    # Run the emitted kit in a CLEAN pytest environment. Inheriting the outer run's
+    # PYTEST_ADDOPTS and pytest-cov subprocess vars (COV_CORE_*/COVERAGE_*) makes the child
+    # pytest try to load the parent's config / coverage data file — a temp path the parent
+    # may already have cleaned, which crashes the child at collection (a Windows-CI flake).
+    env = {
+        k: v
+        for k, v in os.environ.items()
+        if not k.startswith(("PYTEST_", "COV_")) and k not in ("COVERAGE_FILE", "COVERAGE_PROCESS_START")
+    }
+    env["MOBISCOUT_FAKE_APP"] = str(model_file)
+    env["MOBISCOUT_APPIUM_SERVER"] = "http://fake"
     return subprocess.run(
-        [sys.executable, "-m", "pytest", str(kit), "-q", "-p", "no:cacheprovider"],
+        # --basetemp under the kit keeps the child's temp isolated from the parent's, so a
+        # cleaned parent tmp can't be referenced during the child's collection.
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(kit),
+            "-q",
+            "-p",
+            "no:cacheprovider",
+            "--basetemp",
+            str(kit / ".pytest_tmp"),
+        ],
         capture_output=True,
         text=True,
         env=env,
