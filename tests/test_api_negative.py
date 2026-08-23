@@ -28,6 +28,8 @@ def test_bola_case_swaps_a_numeric_object_id():
     assert "_rejects_foreign_object_id" in src
     assert "/v1/users/43/profile" in src  # id bumped 42 -> 43
     assert "!= 200" in src
+    # Without a token this authz check would pass vacuously (401 != 200) — it must skip instead.
+    assert "pytest.skip" in src
 
 
 def test_missing_field_case_for_json_post():
@@ -36,12 +38,35 @@ def test_missing_field_case_for_json_post():
             "POST",
             "https://api.x.com/v1/login",
             headers={"Authorization": "t"},
-            body='{"username": "u", "password": "p"}',
+            body='{"username": "alice_user", "password": "hunter2secret"}',
         )
     ]
     src = emit_api_negative_tests(calls)["test_api_security.py"]
     assert "rejects_missing_username" in src
     assert "400 <= r.status_code < 500" in src
+    # The captured body values must NEVER be baked into the generated test — a real password
+    # would otherwise be committed. The kept field carries a type-shaped sample instead.
+    assert "hunter2secret" not in src
+    assert "alice_user" not in src
+    assert "'password': 'sample'" in src
+    # And the check skips (not passes vacuously) when no token is configured.
+    assert "pytest.skip" in src
+    ast.parse(src)
+
+
+def test_captured_body_values_are_never_emitted():
+    # A regression guard for the exact leak: a password in a POST body reaching the file.
+    calls = [
+        _call(
+            "PUT",
+            "https://api.x.com/v1/account",
+            headers={"Authorization": "t"},
+            body='{"email": "a@b.com", "secret_key": "sk_live_DEADBEEF"}',
+        )
+    ]
+    src = emit_api_negative_tests(calls)["test_api_security.py"]
+    assert "sk_live_DEADBEEF" not in src
+    assert "a@b.com" not in src
     ast.parse(src)
 
 
