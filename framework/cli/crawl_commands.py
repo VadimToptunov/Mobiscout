@@ -100,6 +100,15 @@ logger = get_logger(__name__)
     help="Proxy capture (HAR) from the same session: also generate API contract tests for the "
     "endpoints the app called, alongside the UI tests.",
 )
+@click.option(
+    "--fuzz",
+    "fuzz",
+    is_flag=True,
+    default=False,
+    help="Also generate opt-in fuzz tests: submit adversarial inputs (empty / overflow / "
+    "unicode+emoji / injection / format-string) to each form and assert the app handles "
+    "them without crashing or advancing. Off by default.",
+)
 def crawl(
     package: str,
     platform: str,
@@ -122,6 +131,7 @@ def crawl(
     record_events: Optional[str],
     uninstall_after: bool,
     har: Optional[str],
+    fuzz: bool,
 ) -> None:
     """
     Crawl a running app and export an element inventory + tests.
@@ -218,6 +228,7 @@ def crawl(
         launch_args=launch_args,
         assert_values=assert_values,
         har=har,
+        fuzz=fuzz,
     )
     for line in report.info:
         print_info(line)

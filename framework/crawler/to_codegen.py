@@ -465,6 +465,7 @@ def build_test_model(
     graph: Optional["InteractionGraph"] = None,
     assert_values: bool = False,
     waypoints: Optional[List[Any]] = None,
+    fuzz: bool = False,
 ) -> TestModel:
     """Comprehensive TestModel from a crawl: per-screen state checks (visible +
     enabled) plus navigation flows from the recorded transitions.
@@ -530,6 +531,13 @@ def build_test_model(
     # rejected — the counterpart to the valid-data filling multi_step_cases does,
     # so both branches of every form are exercised.
     cases.extend(negative_form_cases(result, app_package, graph=graph))
+
+    # Opt-in fuzz coverage: adversarial-input tests per form, only when the caller asked
+    # for them (the user chooses whether they want fuzz tests in the kit).
+    if fuzz:
+        from framework.crawler.graph import fuzz_form_cases
+
+        cases.extend(fuzz_form_cases(result, app_package, graph=graph))
 
     # Human-readable names can collide (two screens titled the same, two taps on
     # the same control) — keep every test method name unique.

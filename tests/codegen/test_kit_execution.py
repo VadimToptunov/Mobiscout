@@ -119,8 +119,8 @@ def _shop() -> CrawlResult:
     return res
 
 
-def _emit_kit(result: CrawlResult, tmp: Path) -> Path:
-    model = build_test_model(result, app_package="com.x", app_activity=".Main")
+def _emit_kit(result: CrawlResult, tmp: Path, fuzz: bool = False) -> Path:
+    model = build_test_model(result, app_package="com.x", app_activity=".Main", fuzz=fuzz)
     kit = tmp / "kit"
     kit.mkdir()
     for name, content in get_emitter("python_pytest").emit(model).items():
@@ -160,6 +160,16 @@ def test_find_scrolls_to_reach_a_below_fold_element(tmp_path):
     model.setdefault("reveals", []).append([0, hidden[0], hidden[1]])
     proc = _run_pytest(kit, model)
     assert proc.returncode == 0, f"_find did not scroll to the below-fold element:\n{proc.stdout}\n{proc.stderr}"
+
+
+def test_fuzz_kit_runs_green_against_fake_app(tmp_path):
+    # Opt-in fuzz tests (adversarial inputs → assert the form doesn't advance) must be
+    # valid, runnable code that passes against an app whose form validation rejects them.
+    result = _shop()
+    kit = _emit_kit(result, tmp_path, fuzz=True)
+    assert any("fuzz_" in p.name or "fuzz_" in p.read_text() for p in kit.glob("*.py"))
+    proc = _run_pytest(kit, _fake_app(result, "com.x"))
+    assert proc.returncode == 0, f"fuzz kit did not pass:\n{proc.stdout}\n{proc.stderr}"
 
 
 def test_harness_has_teeth_broken_navigation_fails(tmp_path):
