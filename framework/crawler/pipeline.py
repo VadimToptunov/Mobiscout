@@ -156,6 +156,10 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # contract tests for the endpoints the app actually called, in one kit. A premium
     # feature — gated by ``has_feature`` (no-op on the unlimited open-core tier).
     api_tests = emit_api_tests_from_har(config.get("har"), out) if has_feature("api_contract_tests") else 0
+    # Opt-in negative-security API tests (missing-token / BOLA-IDOR / missing-field) from
+    # the same capture — the user chooses via `fuzz`.
+    if config.get("fuzz"):
+        emit_api_negative_from_har(config.get("har"), out)
     # Mock layer: replay the same captured traffic deterministically, so the
     # generated tests (and a re-crawl) don't depend on a live/flaky backend.
     mocks = emit_mock_from_har(config.get("har"), out)
@@ -204,6 +208,23 @@ def emit_api_tests_from_har(har: Optional[str], out: Path) -> int:
     for name, content in emit_api_tests(app_model, base_url=base_url_from_har(har_calls)).items():
         _write(out / name, content)
     return len(api_calls)
+
+
+def emit_api_negative_from_har(har: Optional[str], out: Path) -> int:
+    """Write ``test_api_security.py`` (negative-security API cases: missing-token,
+    BOLA/IDOR, missing-field) from a captured HAR, returning the number of cases. Opt-in
+    (the caller gates on ``config['fuzz']``); 0 when no HAR or no applicable case."""
+    if not har:
+        return 0
+    from framework.api_analyzer.har import load_har_calls
+    from framework.codegen.api_negative import emit_api_negative_tests
+    from framework.codegen.source_api_adapter import base_url_from_har
+
+    har_calls = load_har_calls(Path(har))
+    files = emit_api_negative_tests(har_calls, base_url=base_url_from_har(har_calls))
+    for name, content in files.items():
+        _write(out / name, content)
+    return len(files)
 
 
 def emit_mock_from_har(har: Optional[str], out: Path) -> int:
