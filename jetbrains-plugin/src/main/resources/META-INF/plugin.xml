@@ -52,6 +52,20 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.11.0 — Maestro, MCP, and crawl intelligence</h3>
+    <ul>
+        <li>New codegen target: <b>Maestro</b> declarative YAML flows (cross-platform, no Appium) —
+        a 9th target alongside Python/Java/Kotlin/JS, imperative and BDD.</li>
+        <li><b>MCP server</b> (<code>mobiscout mcp</code>): drive the engine from an AI agent
+        (Claude, etc.) over the Model Context Protocol — list targets, generate tests from an IR,
+        crawl an app. The engine stays deterministic and offline; no runtime LLM.</li>
+        <li><b>Coverage artifact</b>: every kit now includes coverage.md + coverage.json — what the
+        crawl reached vs what the generated kit tests (reachable / unreachable / gated / dead-end
+        screens, element and screen coverage).</li>
+        <li><b>Diff-aware regeneration</b> (<code>crawl --diff</code> / <code>--only-changed</code>):
+        re-crawl an evolving app and get a CHANGES.md of added/changed/removed tests — regenerate
+        only the delta, not the whole app.</li>
+    </ul>
     <h3>0.10.0 — one path, zero setup</h3>
     <ul>
         <li>Generate now leads with "Detect from project…": point at your repo and it finds the
