@@ -23,6 +23,33 @@ class GenerateKitAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
+        val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
+        if (daemonService.getClient() != null) {
+            openDialogAndRun(project, daemonService) // engine already up
+            return
+        }
+        // First use: start the engine (which may download an ~85 MB binary) OFF the EDT
+        // with a progress indicator, then open the dialog — instead of freezing the IDE.
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Starting the Mobiscout engine", false) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "Preparing the engine (first run may download it)…"
+                daemonService.start()
+            }
+
+            override fun onFinished() {
+                ApplicationManager.getApplication().invokeLater {
+                    if (daemonService.getClient() != null) {
+                        openDialogAndRun(project, daemonService)
+                    } else {
+                        Notifier.error(project, "Couldn't start the engine", "Check your internet connection and try again.")
+                    }
+                }
+            }
+        })
+    }
+
+    private fun openDialogAndRun(project: Project, daemonService: MTRDaemonService) {
         val dialog = GenerateKitDialog(project)
         if (!dialog.showAndGet()) return
         val params = HashMap(dialog.params()) // mutable: auto-degradation may inject the booted device
@@ -42,12 +69,6 @@ class GenerateKitAction : AnAction() {
                 "Install build",
                 "Set the Device UDID (Appium) to install the build on — install needs a target device.",
             )
-            return
-        }
-
-        val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
-        if (daemonService.getClient() == null && !daemonService.start()) {
-            Notifier.error(project, "Couldn't start the engine", "Check your internet connection and try again.")
             return
         }
 
