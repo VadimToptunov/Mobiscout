@@ -109,6 +109,31 @@ logger = get_logger(__name__)
     "unicode+emoji / injection / format-string) to each form and assert the app handles "
     "them without crashing or advancing. Off by default.",
 )
+@click.option(
+    "--diff",
+    "diff",
+    is_flag=True,
+    default=False,
+    help="Diff-aware regeneration: compare this crawl against a baseline manifest (a prior "
+    "kit's manifest.json) and write CHANGES.md listing added/changed/removed tests. Records "
+    "manifest.json so the next crawl can diff. Off by default.",
+)
+@click.option(
+    "--baseline",
+    "baseline",
+    default=None,
+    type=click.Path(exists=False),
+    help="With --diff: the prior kit directory (or manifest.json) to diff against. Defaults to "
+    "the output directory's existing manifest.json (i.e. diff against the last kit written there).",
+)
+@click.option(
+    "--only-changed",
+    "only_changed",
+    is_flag=True,
+    default=False,
+    help="With --diff: emit tests only for the added+changed cases (the delta), not the whole "
+    "app. The baseline manifest still records the full case set. Off by default.",
+)
 def crawl(
     package: str,
     platform: str,
@@ -132,6 +157,9 @@ def crawl(
     uninstall_after: bool,
     har: Optional[str],
     fuzz: bool,
+    diff: bool,
+    baseline: Optional[str],
+    only_changed: bool,
 ) -> None:
     """
     Crawl a running app and export an element inventory + tests.
@@ -229,6 +257,9 @@ def crawl(
         assert_values=assert_values,
         har=har,
         fuzz=fuzz,
+        diff=diff,
+        baseline=baseline,
+        only_changed=only_changed,
     )
     for line in report.info:
         print_info(line)
