@@ -3,8 +3,9 @@
 import logging
 import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
+from framework.security.sast._scan import regex_hits
 from framework.security.sast.base import (
     VulnerabilityType,
     Severity,
@@ -59,104 +60,110 @@ class CryptoAnalyzer:
         r'nonce\s*=\s*["\'][0-9a-fA-F]+["\']',
     ]
 
-    # Patterns compiled ONCE, not per line: the per-line `re.escape(algo)` + string-pattern
-    # compilation were the dominant cost (tens of thousands of re.escape / re._compile calls
-    # over a modest repo). Lazily built and cached on the class the first time analyze runs.
-    _algo_compiled: "List[tuple] | None" = None
-    _key_compiled: "List | None" = None
+    # Regex rules as ordered pattern STRINGS, so the whole scan runs through ONE batched
+    # native.scan_lines call (RegexSet — one pass, files in parallel) instead of a re.search
+    # per rule per line. Indices 0..len(algos)-1 are the weak-algorithm rules; the remaining
+    # indices are the hardcoded-key rules. Built once and cached on the class.
+    _patterns: "List[str] | None" = None
+    _algo_meta: "List[tuple] | None" = None
 
     @classmethod
-    def _compiled(cls) -> "tuple[list, list]":
-        """(algo rules, key patterns) as compiled regexes, built once and cached."""
-        algo, keys = cls._algo_compiled, cls._key_compiled
-        if algo is None or keys is None:
-            algo = [
-                (
-                    a,
-                    re.compile(cls.ALGO_PATTERN_OVERRIDES.get(a, rf"\b{re.escape(a)}\b"), re.IGNORECASE),
-                    cwe,
-                    desc,
-                )
-                for a, (cwe, desc) in cls.WEAK_ALGORITHMS.items()
-            ]
-            keys = [re.compile(p, re.IGNORECASE) for p in cls.KEY_PATTERNS]
-            cls._algo_compiled, cls._key_compiled = algo, keys
-        return algo, keys
+    def _rules(cls) -> "tuple[list, list]":
+        """(ordered pattern strings, algo metadata). Algo rules come first, then key rules."""
+        pats, meta = cls._patterns, cls._algo_meta
+        if pats is None or meta is None:
+            meta = [(a, cwe, desc) for a, (cwe, desc) in cls.WEAK_ALGORITHMS.items()]
+            algo_pats = [cls.ALGO_PATTERN_OVERRIDES.get(a, rf"\b{re.escape(a)}\b") for a, _cwe, _d in meta]
+            pats = algo_pats + list(cls.KEY_PATTERNS)
+            cls._patterns, cls._algo_meta = pats, meta
+        return pats, meta
+
+    def _findings(self, file_path: str, content: str, hits: Dict[int, set]) -> List[SASTFinding]:
+        """Build findings for one file from its precomputed regex hits (``{line: {rule_idx}}``)
+        plus the inline case-insensitive substring insecure-random check. The emission order is
+        identical to the per-line scan: weak-algorithm, then insecure-random, then hardcoded-key,
+        in line order — so the batched path yields exactly the same findings as ``analyze``."""
+        _pats, meta = self._rules()
+        n_algo = len(meta)
+        findings: List[SASTFinding] = []
+        for i, line in enumerate(content.splitlines(), 1):
+            line_hits = hits.get(i, ())
+            lower_line = line.lower()
+
+            # Weak algorithms (word-boundary regex). A match inside a comment is not a real use.
+            for ai in range(n_algo):
+                if ai in line_hits:
+                    stripped = line.strip()
+                    if stripped.startswith(("#", "//", "/*", "*")):
+                        continue
+                    algo, cwe, desc = meta[ai]
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.WEAK_CRYPTO,
+                            severity=Severity.HIGH,
+                            title=f"Weak cryptographic algorithm: {algo}",
+                            description=desc,
+                            file_path=file_path,
+                            line_number=i,
+                            code_snippet=line.strip(),
+                            recommendation=f"Replace {algo} with a stronger algorithm (AES-256, SHA-256, etc.)",
+                            cwe_id=cwe,
+                            owasp_category="M5: Insufficient Cryptography",
+                        )
+                    )
+
+            # Insecure random (case-insensitive substring — kept inline, not a regex rule).
+            for pattern in self.INSECURE_RANDOM:
+                if pattern.lower() in lower_line:
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.INSECURE_RANDOM,
+                            severity=Severity.MEDIUM,
+                            title="Insecure random number generator",
+                            description=f"'{pattern}' is not cryptographically secure",
+                            file_path=file_path,
+                            line_number=i,
+                            code_snippet=line.strip(),
+                            recommendation="Use secrets module (Python), SecureRandom (Java), or SecRandomCopyBytes (iOS)",
+                            cwe_id="CWE-338",
+                        )
+                    )
+
+            # Hardcoded keys (regex rules, indices after the algo rules).
+            for ki in range(len(self.KEY_PATTERNS)):
+                if (n_algo + ki) in line_hits:
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=VulnerabilityType.HARDCODED_KEY,
+                            severity=Severity.CRITICAL,
+                            title="Hardcoded cryptographic key",
+                            description="Cryptographic key is hardcoded in source code",
+                            file_path=file_path,
+                            line_number=i,
+                            code_snippet=line.strip()[:100],
+                            recommendation="Store keys in secure key management systems or environment variables",
+                            cwe_id="CWE-321",
+                            owasp_category="M10: Insufficient Cryptography",
+                        )
+                    )
+        return findings
 
     def analyze(self, file_path: Path) -> List[SASTFinding]:
-        """Analyze file for cryptographic weaknesses"""
-        findings = []
-        algo_rules, key_patterns = self._compiled()
-
+        """Analyze one file for cryptographic weaknesses."""
         try:
             content = file_path.read_text(encoding="utf-8")
-            lines = content.splitlines()
-
-            for i, line in enumerate(lines, 1):
-                lower_line = line.lower()
-
-                # Check weak algorithms. Match on word boundaries, not as a
-                # substring: "DES" must not fire on "describe"/"nodes"/"used",
-                # nor "ECB"/"RC2" inside unrelated identifiers.
-                for algo, algo_re, cwe, desc in algo_rules:
-                    if algo_re.search(line):
-                        # Skip if it's a comment
-                        stripped = line.strip()
-                        if stripped.startswith(("#", "//", "/*", "*")):
-                            continue
-
-                        findings.append(
-                            SASTFinding(
-                                vulnerability_type=VulnerabilityType.WEAK_CRYPTO,
-                                severity=Severity.HIGH,
-                                title=f"Weak cryptographic algorithm: {algo}",
-                                description=desc,
-                                file_path=str(file_path),
-                                line_number=i,
-                                code_snippet=line.strip(),
-                                recommendation=f"Replace {algo} with a stronger algorithm (AES-256, SHA-256, etc.)",
-                                cwe_id=cwe,
-                                owasp_category="M5: Insufficient Cryptography",
-                            )
-                        )
-
-                # Check insecure random
-                for pattern in self.INSECURE_RANDOM:
-                    if pattern.lower() in lower_line:
-                        findings.append(
-                            SASTFinding(
-                                vulnerability_type=VulnerabilityType.INSECURE_RANDOM,
-                                severity=Severity.MEDIUM,
-                                title="Insecure random number generator",
-                                description=f"'{pattern}' is not cryptographically secure",
-                                file_path=str(file_path),
-                                line_number=i,
-                                code_snippet=line.strip(),
-                                recommendation="Use secrets module (Python), SecureRandom (Java), or SecRandomCopyBytes (iOS)",
-                                cwe_id="CWE-338",
-                            )
-                        )
-
-                # Check hardcoded keys
-                for key_re in key_patterns:
-                    if key_re.search(line):
-                        findings.append(
-                            SASTFinding(
-                                vulnerability_type=VulnerabilityType.HARDCODED_KEY,
-                                severity=Severity.CRITICAL,
-                                title="Hardcoded cryptographic key",
-                                description="Cryptographic key is hardcoded in source code",
-                                file_path=str(file_path),
-                                line_number=i,
-                                code_snippet=line.strip()[:100],
-                                recommendation="Store keys in secure key management systems or environment variables",
-                                cwe_id="CWE-321",
-                                owasp_category="M10: Insufficient Cryptography",
-                            )
-                        )
-
         except (OSError, UnicodeDecodeError) as e:
-            # A file we can't read/decode is silently absent from the scan results.
             logger.debug("SAST crypto: skipped %s: %s", file_path, e)
+            return []
+        hits = regex_hits([content], self._rules()[0], True)[0]
+        return self._findings(str(file_path), content, hits)
 
-        return findings
+    def analyze_files(self, files: List["tuple[Path, str]"]) -> List[SASTFinding]:
+        """Batch many ``(path, content)`` through ONE native.scan_lines call (RegexSet, parallel
+        over files); identical findings to calling :meth:`analyze` on each, but one pass total."""
+        contents = [content for _path, content in files]
+        per_file = regex_hits(contents, self._rules()[0], True)
+        out: List[SASTFinding] = []
+        for (path, content), hits in zip(files, per_file):
+            out.extend(self._findings(str(path), content, hits))
+        return out

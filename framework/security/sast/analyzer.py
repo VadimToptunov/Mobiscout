@@ -1,6 +1,7 @@
 """Analyzer extracted from sast_analyzer (mechanical split; see sast/base.py)."""
 
 import json
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -19,6 +20,14 @@ from framework.security.sast.android_manifest import AndroidManifestAnalyzer
 from framework.security.sast.ios_plist import IOSPlistAnalyzer
 
 
+def _group_by_path(findings: List[SASTFinding]) -> Dict[str, List[SASTFinding]]:
+    """Index findings by their file_path, preserving each file's finding order."""
+    out: Dict[str, List[SASTFinding]] = defaultdict(list)
+    for f in findings:
+        out[f.file_path].append(f)
+    return out
+
+
 class SASTAnalyzer:
     """
     Comprehensive SAST Analyzer
@@ -34,17 +43,13 @@ class SASTAnalyzer:
         self.android_analyzer = AndroidManifestAnalyzer()
         self.ios_analyzer = IOSPlistAnalyzer()
 
-    def analyze_file(self, file_path: Path) -> List[SASTFinding]:
-        """Analyze a single file"""
-        findings = []
-        suffix = file_path.suffix.lower()
-
-        # Taint analysis
-        taint_flows = self.taint_analyzer.analyze_file(file_path)
-        for flow in taint_flows:
-            # Severity and CWE must reflect the actual vulnerability type of the
-            # flow (SQLi -> CWE-89, command injection -> CWE-78, ...) rather than
-            # a blanket HIGH / CWE-20 for every taint finding.
+    def _taint_findings(self, file_path: Path) -> List[SASTFinding]:
+        """Taint-flow findings for one file, typed by the flow's vulnerability class."""
+        findings: List[SASTFinding] = []
+        for flow in self.taint_analyzer.analyze_file(file_path):
+            # Severity and CWE must reflect the actual vulnerability type of the flow
+            # (SQLi -> CWE-89, command injection -> CWE-78, ...) rather than a blanket
+            # HIGH / CWE-20 for every taint finding.
             severity, cwe_id = default_severity_and_cwe(flow.vulnerability_type)
             findings.append(
                 SASTFinding(
@@ -58,22 +63,23 @@ class SASTAnalyzer:
                     cwe_id=cwe_id,
                 )
             )
+        return findings
+
+    def analyze_file(self, file_path: Path) -> List[SASTFinding]:
+        """Analyze a single file"""
+        findings = self._taint_findings(file_path)
 
         # Control flow analysis (Python)
-        if suffix == ".py":
+        if file_path.suffix.lower() == ".py":
             findings.extend(self.control_flow_analyzer.analyze_python(file_path))
 
-        # Cryptographic analysis
+        # Cryptographic + insecure-API analysis (regex line scanners)
         findings.extend(self.crypto_analyzer.analyze(file_path))
-
-        # Insecure API analysis
         findings.extend(self.api_analyzer.analyze(file_path))
 
-        # Android manifest
+        # Android manifest / iOS plist
         if file_path.name == "AndroidManifest.xml":
             findings.extend(self.android_analyzer.analyze(file_path))
-
-        # iOS plist
         if file_path.name == "Info.plist":
             findings.extend(self.ios_analyzer.analyze(file_path))
 
@@ -82,22 +88,47 @@ class SASTAnalyzer:
     def analyze_directory(
         self, directory: Path, recursive: bool = True, exclude_patterns: Optional[List[str]] = None
     ) -> List[SASTFinding]:
-        """Analyze all files in directory"""
-        findings = []
+        """Analyze all files in a directory.
+
+        The crypto + insecure-API regex scans run as ONE batched ``native.scan_lines`` pass each
+        (RegexSet — a single DFA, files scanned in parallel) rather than a search per rule per
+        line per file; the other analyzers (taint / control-flow / manifest / plist) stay
+        per-file. Finding order is unchanged — per file: taint, control-flow, crypto,
+        insecure-API, manifest, plist — so results are identical to the per-file path.
+        """
         exclude = exclude_patterns or ["node_modules", "venv", ".git", "__pycache__", "build", "dist"]
-
         extensions = {".py", ".java", ".kt", ".swift", ".m", ".h", ".js", ".ts", ".xml", ".plist"}
+        special = ("AndroidManifest.xml", "Info.plist")
 
-        def should_exclude(path: Path) -> bool:
-            return any(ex in str(path) for ex in exclude)
+        def eligible(path: Path) -> bool:
+            if not path.is_file() or any(ex in str(path) for ex in exclude):
+                return False
+            return path.suffix.lower() in extensions or path.name in special
 
-        pattern = "**/*" if recursive else "*"
+        file_paths = [p for p in directory.glob("**/*" if recursive else "*") if eligible(p)]
 
-        for file_path in directory.glob(pattern):
-            if file_path.is_file() and not should_exclude(file_path):
-                if file_path.suffix.lower() in extensions or file_path.name in ["AndroidManifest.xml", "Info.plist"]:
-                    findings.extend(self.analyze_file(file_path))
+        # Read each file once; batch the two regex analyzers across all readable files.
+        loaded: List[tuple] = []
+        for path in file_paths:
+            try:
+                loaded.append((path, path.read_text(encoding="utf-8")))
+            except (OSError, UnicodeDecodeError):
+                loaded.append((path, None))
+        scan_input = [(p, c) for p, c in loaded if c is not None]
+        crypto_by = _group_by_path(self.crypto_analyzer.analyze_files(scan_input))
+        api_by = _group_by_path(self.api_analyzer.analyze_files(scan_input))
 
+        findings: List[SASTFinding] = []
+        for path, content in loaded:
+            findings.extend(self._taint_findings(path))
+            if path.suffix.lower() == ".py":
+                findings.extend(self.control_flow_analyzer.analyze_python(path))
+            findings.extend(crypto_by.get(str(path), []))
+            findings.extend(api_by.get(str(path), []))
+            if path.name == "AndroidManifest.xml":
+                findings.extend(self.android_analyzer.analyze(path))
+            if path.name == "Info.plist":
+                findings.extend(self.ios_analyzer.analyze(path))
         return findings
 
     def get_summary(self, findings: List[SASTFinding]) -> Dict[str, Any]:
