@@ -22,12 +22,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14        # Apple Silicon
+          - os: macos-14        # Apple Silicon (native arm64)
             artifact: mobiscout-engine-macos-arm64
             binary: dist/mobiscout-engine
-          - os: macos-13        # Intel
-            artifact: mobiscout-engine-macos-x64
-            binary: dist/mobiscout-engine
+          - os: macos-14        # Intel: cross-built as x86_64 under Rosetta on the arm64
+            artifact: mobiscout-engine-macos-x64  # runner — GitHub's macos-13 Intel runners
+            binary: dist/mobiscout-engine         # are being retired and queue indefinitely.
+            x86: true
           - os: ubuntu-latest
             artifact: mobiscout-engine-linux-x64
             binary: dist/mobiscout-engine
@@ -38,10 +39,26 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up Python
+        if: ${{ matrix.x86 != true }}
         uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: 'pip'
+
+      - name: Set up x86_64 Python under Rosetta (Intel cross-build)
+        # GitHub's arm64 macOS runner has no x86_64 Python; install the universal2
+        # CPython from python.org (it carries an x86_64 slice) and drive it under
+        # `arch -x86_64`, so pip pulls x86_64 wheels and PyInstaller freezes an
+        # x86_64 binary that Intel Macs can run natively.
+        if: ${{ matrix.x86 == true }}
+        run: |
+          sudo softwareupdate --install-rosetta --agree-to-license
+          PYVER=3.13.1
+          curl -fsSL -o /tmp/python.pkg "https://www.python.org/ftp/python/${PYVER}/python-${PYVER}-macos11.pkg"
+          sudo installer -pkg /tmp/python.pkg -target /
+          PYBIN="/Library/Frameworks/Python.framework/Versions/3.13/bin/python3"
+          echo "PYBIN=$PYBIN" >> "$GITHUB_ENV"
+          arch -x86_64 "$PYBIN" -c "import platform; print('interpreter arch:', platform.machine())"
 
       - name: Install engine (lean core) + build tooling
         # Core install only — NOT requirements.txt (which pulls the ~436 MB ML/viz
@@ -51,13 +68,25 @@ jobs:
         # copies `framework` into site-packages so PyInstaller can collect it (an
         # editable install leaves it a .pth shim that collect_submodules misses).
         # The ML/visual/viz upgrades remain available via `mobiscout[ml|visual|viz]`.
+        if: ${{ matrix.x86 != true }}
         run: |
           python -m pip install --upgrade pip
           pip install .
           pip install pyinstaller
 
       - name: Freeze
+        if: ${{ matrix.x86 != true }}
         run: pyinstaller packaging/mobiscout-engine.spec --noconfirm --clean
+
+      - name: Install + Freeze (x86_64 under Rosetta)
+        # Same lean-core install and freeze as above, but every step runs the
+        # universal2 Python's x86_64 slice so the frozen binary is Intel.
+        if: ${{ matrix.x86 == true }}
+        run: |
+          arch -x86_64 "$PYBIN" -m pip install --upgrade pip
+          arch -x86_64 "$PYBIN" -m pip install .
+          arch -x86_64 "$PYBIN" -m pip install pyinstaller
+          arch -x86_64 "$PYBIN" -m PyInstaller packaging/mobiscout-engine.spec --noconfirm --clean
 
       - name: Smoke test (runs with no interpreter dependency)
         shell: bash
