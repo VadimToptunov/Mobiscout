@@ -18,8 +18,11 @@ import java.security.MessageDigest
  */
 object EngineProvider {
     // The engine build to fetch. Must match a published release tag whose assets
-    // are the per-platform binaries produced by .github/workflows/build-engine.yml.
-    private const val ENGINE_VERSION = "v0.10.0"
+    // are the per-platform binaries produced by .github/workflows/build-engine.yml,
+    // and MUST stay aligned with framework.__version__ (a release ships the plugin and
+    // the engine together). EngineProviderTest asserts that alignment so a release can't
+    // ship a plugin that downloads a stale engine. `internal` so that test can read it.
+    internal const val ENGINE_VERSION = "v0.11.0"
     private const val RELEASE_BASE = "https://github.com/VadimToptunov/Mobiscout/releases/download"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000
