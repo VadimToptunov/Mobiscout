@@ -127,7 +127,7 @@ Plus API contract tests, an accessibility audit, and an APK/IPA security scan.
 
 ## Requirements
 
-- A JetBrains IDE **2023.2+** (IntelliJ, Android Studio, PyCharm, …)
+- A JetBrains IDE **2024.3+** (IntelliJ, Android Studio, PyCharm, …)
 - **Java 17+**, **Python 3.13+**
 - The engine CLI: `pip install mobile-mobiscout-test`
 - Android: Android SDK (`adb`); iOS: Xcode (`simctl`) + Appium for device automation
