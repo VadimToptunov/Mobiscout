@@ -10,7 +10,7 @@
 [![Android](https://img.shields.io/badge/android-Appium%20%7C%20Espresso-green.svg)](demo-app/android)
 [![iOS](https://img.shields.io/badge/ios-Appium%20%7C%20XCTest-blue.svg)](demo-app/ios)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Targets](https://img.shields.io/badge/codegen-8%20targets-red.svg)](#-see-it-in-action--point-at-an-app-get-a-test-kit)
+[![Targets](https://img.shields.io/badge/codegen-9%20targets-red.svg)](#-see-it-in-action--point-at-an-app-get-a-test-kit)
 
 ---
 
@@ -107,8 +107,8 @@ Scenario: State checks for discovered screen 1
 ```
 
 The **same crawl** also emits [Java + TestNG](examples/shop_demo/flat/java_testng)
-and [JavaScript + WebdriverIO](examples/shop_demo/flat/js_webdriverio) — one IR, 8
-targets. iOS suites are generated too, with the correct XCUITest capabilities and
+and [JavaScript + WebdriverIO](examples/shop_demo/flat/js_webdriverio) — one IR, 9
+targets (including Maestro YAML flows). iOS suites are generated too, with the correct XCUITest capabilities and
 locators.
 
 **Opt-in fuzz tests** (`mobiscout crawl … --fuzz`, or the "Also generate fuzz tests"
@@ -181,8 +181,9 @@ single command.
 
 ### Multi-Language & Structured Output — available now
 
-- 🌍 **4 languages, 8 targets** — Python (pytest), Java (TestNG), Kotlin (Appium/Espresso),
-  JavaScript (WebdriverIO), each in an imperative **or BDD/Gherkin** style
+- 🌍 **9 targets** — Python (pytest), Java (TestNG), Kotlin (Appium/Espresso),
+  JavaScript (WebdriverIO), each in an imperative **or BDD/Gherkin** style, plus
+  **Maestro** declarative YAML flows
 - 🏗️ **Framework-structured output** — Page Objects + a shared `conftest` + POM-style tests
   (`--style pom`), or standalone files (`--style flat`)
 - 🔌 **Backends** — Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso
@@ -231,7 +232,7 @@ cd jetbrains-plugin
 
 - ✅ Multi-backend crawling (Android over adb + Appium/UiAutomator2, iOS over Appium/XCUITest)
 - ✅ UI-tree inspection, smart ranked-fallback selector generation
-- ✅ Interaction-graph flow analysis, and code generation across 8 targets (Python/Java/Kotlin/JS, imperative + BDD)
+- ✅ Interaction-graph flow analysis, and code generation across 9 targets (Python/Java/Kotlin/JS imperative + BDD, plus Maestro YAML)
 
 See the [Release Roadmap](ROADMAP.md) for where the product is headed, and the
 [Plugin Documentation](jetbrains-plugin/README.md) / [engineering roadmap](JETBRAINS_PLUGIN_ROADMAP.md) for details.
@@ -561,7 +562,7 @@ mobiscout load compare baseline.json current.json
 ┌────────────────────────────────────────────────────────────┐
 │         Python engine (orchestration + codegen)           │
 │  • Autonomous crawler   • Interaction graph               │
-│  • IR → 8 codegen targets (Python/Java/Kotlin/JS, +BDD/POM)│
+│  • IR → 9 targets: Python/Java/Kotlin/JS, BDD, Maestro    │
 │  • ML element typing (scikit-learn RandomForest)          │
 │  • Security / a11y / API / fuzz                           │
 └────────────────────────┬──────────────────────────────────┘
@@ -585,7 +586,7 @@ The Rust core is an optional accelerator: it ships as a wheel (built with
 `framework/analyzers/native.py` seam, which falls back to pure Python when the
 wheel isn't installed. Run `scripts/bench_native.py` for measured numbers on
 your machine. Generated **tests** target Python, Java, Kotlin and JavaScript —
-8 codegen targets (imperative + BDD).
+9 codegen targets (imperative + BDD + Maestro).
 
 ---
 
@@ -637,7 +638,7 @@ refactor: Code refactoring
 | **Rust Code**            | 1,830 lines                |
 | **Test Coverage**        | ~88% (measured)            |
 | **Platforms crawled live** | Android (adb + Appium), iOS (Appium/XCUITest) |
-| **Codegen targets**      | 8 (Python/Java/Kotlin/JS, imperative + BDD) |
+| **Codegen targets**      | 9 (Python/Java/Kotlin/JS imperative + BDD, + Maestro YAML) |
 | **ML element typing**    | hybrid ML + heuristic (~95% model on synthetic) |
 
 ---
