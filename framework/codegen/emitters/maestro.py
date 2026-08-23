@@ -20,6 +20,7 @@ the per-command shape varies enough that a template would be less clear than the
 
 from __future__ import annotations
 
+import re
 from typing import Dict, List, Optional, Tuple
 
 from framework.codegen.emitters._naming import snake
@@ -44,8 +45,16 @@ def _selector(sel: Optional[Selector]) -> Optional[Tuple[str, str]]:
     if sel.strategy in (SelectorStrategy.ID, SelectorStrategy.ACCESSIBILITY_ID):
         return ("id", sel.value)
     if sel.strategy is SelectorStrategy.TEXT:
-        return ("text", sel.value)
+        return ("text", _text_regex(sel.value))
     return None
+
+
+def _text_regex(value: str) -> str:
+    """Maestro matches ``text:`` as a **regular expression**, so a literal label like
+    ``4.99`` would otherwise match ``4X99`` and ``(1+)`` would break the matcher. Escape the
+    value to an exact-match regex. (The backslashes re.escape adds are then doubled by
+    :func:`_yaml_str` for the YAML double-quoted scalar, so Maestro receives single ones.)"""
+    return re.escape(value)
 
 
 def _selector_block(sel: Optional[Selector], indent: str) -> Optional[List[str]]:
@@ -113,7 +122,7 @@ def _render_target_action(step: Step, a: ActionType) -> List[str]:
 
 def _render_assert(step: Step) -> List[str]:
     if step.assertion is AssertionType.TEXT_EQUALS:
-        return ["- assertVisible:", f"    text: {_yaml_str(step.expected or '')}"]
+        return ["- assertVisible:", f"    text: {_yaml_str(_text_regex(step.expected or ''))}"]
     block = _selector_block(step.selector, "    ")
     if block is None:
         return [f"# SKIPPED assert — Maestro has no selector for this ({_strat(step.selector)})"]

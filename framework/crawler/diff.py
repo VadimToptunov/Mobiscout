@@ -10,8 +10,12 @@ an evolving app yields tests for the *delta*, not the whole app regenerated.
 
     baseline = load_manifest(Path("kit/"))          # prior run, or None
     report = diff_models(baseline, model)            # what moved
-    model = filter_to_changed(model, report)         # keep only added+changed
-    write_manifest(Path("kit/"), model)              # baseline for next time
+    write_manifest(Path("kit/"), model)              # record the FULL model as the next baseline
+    model = filter_to_changed(model, report)         # THEN, optionally, keep only added+changed
+
+Order matters: ``write_manifest`` must record the **full** model (every case this crawl
+produced) so the next diff is crawl-vs-crawl. Writing it after ``filter_to_changed`` would
+persist only the delta, and every case dropped this run would look "removed" next run.
 """
 
 from __future__ import annotations
