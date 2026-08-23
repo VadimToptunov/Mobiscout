@@ -30,6 +30,7 @@ from framework.cli.api_commands import api
 from framework.cli.events_commands import events
 from framework.cli.source_commands import source
 from framework.cli.load_commands import load
+from framework.cli.mcp_commands import mcp
 from framework.cli.mock_commands import mock
 from framework.cli.notify_commands import notify
 from framework.cli.observability_commands import observe_ as observability
@@ -73,6 +74,7 @@ cli.add_command(visual)
 cli.add_command(data)
 cli.add_command(execute)
 cli.add_command(mock)
+cli.add_command(mcp)
 cli.add_command(selector)
 cli.add_command(parallel)
 cli.add_command(ci)
