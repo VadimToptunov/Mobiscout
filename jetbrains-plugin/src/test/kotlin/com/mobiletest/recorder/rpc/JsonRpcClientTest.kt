@@ -152,6 +152,24 @@ class JsonRpcClientTest {
     }
 
     @Test
+    fun `a call made after the daemon has closed fails fast, not after the full timeout`() {
+        val daemon = FakeDaemon { _, _ -> } // never replies
+        val c = JsonRpcClient(daemon).also { client = it }
+        daemon.closeStream()
+        // Let the reader observe EOF and mark the connection closed.
+        val deadline = System.currentTimeMillis() + 2_000
+        Thread.sleep(200)
+        while (System.currentTimeMillis() < deadline && daemon.isAlive) Thread.sleep(20)
+
+        val start = System.currentTimeMillis()
+        // Without the `closed` fast-path this future is never completed and blocks the whole
+        // 10-minute backstop; with it the call fails immediately.
+        assertThrows(Exception::class.java) { c.call("x", emptyMap(), timeoutMs = 600_000) }
+        val elapsed = System.currentTimeMillis() - start
+        assertTrue(elapsed < 5_000, "call blocked ${elapsed}ms after close — it should fail fast")
+    }
+
+    @Test
     fun `getResultOrThrow raises JsonRpcException on an error response`() {
         val daemon = FakeDaemon { req, out ->
             val id = req.get("id").asInt

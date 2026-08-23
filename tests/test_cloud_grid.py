@@ -16,6 +16,21 @@ def _clear_creds(monkeypatch):
         monkeypatch.delenv(p.key_env, raising=False)
 
 
+def test_grid_run_rejects_a_non_python_kit(tmp_path, monkeypatch):
+    # `grid run` uses pytest, so a kit with no test_*.py (e.g. a maestro/java kit) must fail
+    # with an actionable message rather than a confusing pytest error.
+    from click.testing import CliRunner
+
+    monkeypatch.setenv("BROWSERSTACK_USERNAME", "u")
+    monkeypatch.setenv("BROWSERSTACK_ACCESS_KEY", "k")
+    (tmp_path / "login.yaml").write_text("appId: com.x\n", encoding="utf-8")  # a maestro kit
+    from framework.cli.grid_commands import grid
+
+    result = CliRunner().invoke(grid, ["run", str(tmp_path), "--provider", "browserstack", "--device", "Pixel 7"])
+    assert result.exit_code != 0
+    assert "python_pytest kit" in result.output
+
+
 def test_unknown_provider_raises():
     with pytest.raises(UnknownProvider):
         grid_env("nope", "android", "Pixel 7")
@@ -50,7 +65,7 @@ def test_saucelabs_keeps_creds_in_caps_not_url(monkeypatch):
     assert env["MOBISCOUT_APPIUM_SERVER"] == "https://ondemand.us-west-1.saucelabs.com/wd/hub"  # no creds in URL
     caps = json.loads(env["MOBISCOUT_EXTRA_CAPS"])
     assert caps["sauce:options"]["username"] == "bob" and caps["sauce:options"]["accessKey"] == "k"
-    assert caps["platformName"] == "Ios"
+    assert caps["platformName"] == "iOS"  # the exact casing grids expect, not "Ios"
     assert caps["appium:platformVersion"] == "17"
 
 

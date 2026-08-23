@@ -41,8 +41,25 @@ def grid_providers() -> None:
 @click.option("--os-version", "os_version", default=None, help="Device OS version, e.g. 13")
 @click.option("--app", default=None, help="Provider app id/url of an uploaded build (bs://…, storage:…, lt://…)")
 def grid_run(kit_dir: str, provider: str, device: str, platform: str, os_version: str, app: str) -> None:
-    """Run the generated kit in KIT_DIR against a cloud grid device."""
+    """Run the generated kit in KIT_DIR against a cloud grid device.
+
+    KIT_DIR must be a **python_pytest** kit (this runner invokes ``pytest``). For a
+    Java / JS / Maestro kit, run it with that framework's own runner against the same
+    ``MOBISCOUT_APPIUM_SERVER`` / ``MOBISCOUT_EXTRA_CAPS`` this command would export.
+    """
+    from pathlib import Path
+
     print_header(f"Running {kit_dir} on {provider}")
+
+    kit = Path(kit_dir)
+    if not any(kit.glob("test_*.py")) and not any(kit.rglob("test_*.py")):
+        print_error(
+            f"'{kit_dir}' doesn't look like a python_pytest kit (no test_*.py found). "
+            "`grid run` uses pytest; generate a python_pytest kit, or run your Java/JS/Maestro "
+            "kit with its own runner using the env this command prints (MOBISCOUT_APPIUM_SERVER)."
+        )
+        raise click.Abort()
+
     try:
         env = grid_env(provider, platform, device, os_version=os_version, app=app)
     except (UnknownProvider, MissingCredentials) as exc:

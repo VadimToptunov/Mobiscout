@@ -36,6 +36,12 @@ class JsonRpcClient(
     @Volatile
     private var running = true
 
+    // Set once the reader thread has exited (daemon stream closed/errored). After this no
+    // future will ever be completed by the reader, so a call() registered now must fail fast
+    // instead of blocking for the whole timeout backstop.
+    @Volatile
+    private var closed = false
+
     private val readerThread = Thread({ readLoop() }, "mobiscout-rpc-reader").apply {
         isDaemon = true
         start()
@@ -50,9 +56,12 @@ class JsonRpcClient(
         } catch (e: IOException) {
             // stream error — handled by the finally (all pending calls fail)
         } finally {
-            // The daemon went away: fail every in-flight call instead of hanging forever.
-            val closed = JsonRpcException(-1, "daemon connection closed")
-            pending.values.forEach { it.completeExceptionally(closed) }
+            // The daemon went away: mark the connection closed and fail every in-flight call
+            // instead of hanging forever. `closed` is set FIRST so a call() racing in behind us
+            // sees it and fails fast rather than parking on a future no one will complete.
+            closed = true
+            val error = JsonRpcException(-1, "daemon connection closed")
+            pending.values.forEach { it.completeExceptionally(error) }
             pending.clear()
         }
     }
@@ -82,6 +91,13 @@ class JsonRpcClient(
         val id = requestId.incrementAndGet()
         val future = CompletableFuture<JsonRpcResponse>()
         pending[id] = future
+        // If the reader already exited (daemon dead), nobody will ever complete this future —
+        // fail immediately instead of parking on it for the full timeout. Checked AFTER
+        // registering so we can't slip in between the reader's drain and its `closed = true`.
+        if (closed) {
+            pending.remove(id)
+            throw IOException("Daemon connection is closed; cannot call '$method'.")
+        }
         val request = JsonRpcRequest(jsonrpc = "2.0", id = id, method = method, params = params)
         synchronized(writeLock) { writer.println(gson.toJson(request)) }
         return try {
