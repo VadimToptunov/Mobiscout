@@ -188,23 +188,30 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             val name = deviceNames[udid]
             if (name.isNullOrBlank()) udid else "$name — $udid"
         }
-        try {
-            val daemon = com.intellij.openapi.application.ApplicationManager.getApplication()
-                .getService(com.mobiletest.recorder.services.MTRDaemonService::class.java)
-            val client = daemon.getClient() ?: return
-            val result = client.call("device/list", mapOf("platform" to "all")).getResultOrThrow() ?: return
-            val devices = result.getAsJsonArray("devices") ?: return
-            for (el in devices) {
-                val d = el.asJsonObject
-                if ((d.get("status")?.asString ?: "") == "shutdown") continue // running/connected only
-                val udid = d.get("id")?.asString ?: continue
-                deviceNames[udid] = d.get("name")?.asString ?: ""
-                devicePlatforms[udid] = d.get("platform")?.asString ?: ""
-                udidCombo.addItem(udid)
+        val app = com.intellij.openapi.application.ApplicationManager.getApplication()
+        // The device/list RPC (adb / simctl enumeration) can take seconds — do it off the
+        // EDT and populate the combo back on the EDT, so opening the dialog never hangs.
+        app.executeOnPooledThread {
+            val found = try {
+                val client = app.getService(com.mobiletest.recorder.services.MTRDaemonService::class.java).getClient()
+                val result = client?.call("device/list", mapOf("platform" to "all"))?.getResultOrThrow()
+                result?.getAsJsonArray("devices")?.mapNotNull { el ->
+                    val d = el.asJsonObject
+                    if ((d.get("status")?.asString ?: "") == "shutdown") return@mapNotNull null // running only
+                    val udid = d.get("id")?.asString ?: return@mapNotNull null
+                    Triple(udid, d.get("name")?.asString ?: "", d.get("platform")?.asString ?: "")
+                } ?: emptyList()
+            } catch (_: Exception) {
+                emptyList() // engine down / no devices — leave the combo empty and editable
             }
-            if (udidCombo.itemCount == 1) udidCombo.selectedIndex = 0 else udidCombo.selectedItem = ""
-        } catch (_: Exception) {
-            // engine down / no devices — leave the combo empty and editable
+            app.invokeLater({
+                for ((udid, name, platform) in found) {
+                    deviceNames[udid] = name
+                    devicePlatforms[udid] = platform
+                    udidCombo.addItem(udid)
+                }
+                if (udidCombo.itemCount == 1) udidCombo.selectedIndex = 0 else udidCombo.selectedItem = ""
+            }, com.intellij.openapi.application.ModalityState.any())
         }
     }
 
