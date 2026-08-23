@@ -7,6 +7,28 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.11.0] — 2026-08-23
+
+A new codegen target, an AI-agent interface, and two crawl-intelligence artifacts.
+
+### Added
+- **Maestro codegen target** — a 9th target: declarative [Maestro](https://maestro.dev)
+  YAML flows, cross-platform and Appium-free. Each test case becomes one `<case>.yaml`
+  flow; selectors Maestro can't express (XPath / class-name) are honestly annotated as
+  skipped, never faked.
+- **MCP server** (`mobiscout mcp`) — a dependency-free
+  [Model Context Protocol](https://modelcontextprotocol.io) server (JSON-RPC over stdio)
+  that exposes the engine as tools (`list_targets`, `generate_tests`, `crawl_app`), so an
+  AI agent can drive it. The engine stays deterministic and offline — no runtime LLM; MCP
+  is only the interface.
+- **Coverage artifact** — every kit now includes `coverage.md` + `coverage.json`: an honest
+  map of what the crawl reached versus what the generated kit tests (reachable / unreachable
+  / gated / dead-end screens, plus conservative element and screen coverage percentages).
+- **Diff-aware regeneration** (`crawl --diff` / `--only-changed`) — a kit records a
+  `manifest.json`; the next crawl writes a `CHANGES.md` classifying every test as
+  added / changed / removed, and can emit just the delta instead of regenerating the whole
+  app.
+
 ## [0.10.0] — 2026-08-22
 
 One path, zero setup — plus a round of audit-driven correctness fixes.
