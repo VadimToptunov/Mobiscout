@@ -166,6 +166,17 @@ Plus an accessibility audit and an APK/IPA security scan (OWASP-mapped) round ou
 the picture — so a tester gets an inventory, a map, and a running suite from a
 single command.
 
+### Drive it from an AI agent (MCP)
+
+Mobiscout speaks the **Model Context Protocol**, so an MCP-capable agent (Claude, etc.)
+can call the engine as tools — list codegen targets, generate tests from an IR, or crawl a
+live app into a kit. The engine stays deterministic and offline (**AI-assisted, not
+AI-powered** — no runtime LLM); MCP is only the interface. Register it in your client:
+
+```json
+{ "mcpServers": { "mobiscout": { "command": "mobiscout", "args": ["mcp"] } } }
+```
+
 ---
 
 ## 🎯 What Makes Us Different
