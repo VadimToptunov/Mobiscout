@@ -230,21 +230,66 @@ def test_tap_shells_out_to_adb(server):
     assert run.call_args[0][0][:4] == ["adb", "-s", "emulator-5554", "shell"]
 
 
+def _ok_run(*_a, **_k):
+    return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+
 def test_type_escapes_spaces(server):
     sid = _session(server)
-    with mock.patch(f"{_SUB}.run") as run:
+    with mock.patch(f"{_SUB}.run", side_effect=_ok_run) as run:
         server.handle_type({"session_id": sid, "text": "hello world"})
     assert "hello%sworld" in run.call_args[0][0]
 
 
 def test_swipe_passes_coordinates(server):
     sid = _session(server)
-    with mock.patch(f"{_SUB}.run") as run:
+    with mock.patch(f"{_SUB}.run", side_effect=_ok_run) as run:
         resp = server.handle_swipe(
             {"session_id": sid, "start_x": 1, "start_y": 2, "end_x": 3, "end_y": 4, "duration_ms": 200}
         )
     assert resp["status"] == "success"
     assert run.call_args[0][0][-5:] == ["1", "2", "3", "4", "200"]
+
+
+def test_adb_action_raises_on_failure(server):
+    # A device that rejects the input must surface an error, not a fake success.
+    sid = _session(server)
+    fail = SimpleNamespace(returncode=1, stdout="", stderr="error: device offline")
+    with mock.patch(f"{_SUB}.run", side_effect=lambda *a, **k: fail):
+        with pytest.raises(Exception):
+            server.handle_type({"session_id": sid, "text": "x"})
+
+
+class _FakeDriver:
+    def __init__(self):
+        self.typed = []
+        self.scrolled = []
+
+    def type_text(self, text):
+        self.typed.append(text)
+
+    def scroll(self, direction="down"):
+        self.scrolled.append(direction)
+
+
+def test_type_on_ios_routes_to_the_driver_not_adb(server):
+    sid = _session(server)
+    server.sessions[sid]["platform"] = "ios"
+    fake = _FakeDriver()
+    server._session_driver = lambda session: fake  # type: ignore[assignment]
+    with mock.patch(f"{_SUB}.run", side_effect=AssertionError("adb must not be used on iOS")):
+        server.handle_type({"session_id": sid, "text": "user&pass"})
+    assert fake.typed == ["user&pass"]  # typed verbatim, no shell mangling
+
+
+def test_swipe_on_ios_scrolls_via_the_driver(server):
+    sid = _session(server)
+    server.sessions[sid]["platform"] = "ios"
+    fake = _FakeDriver()
+    server._session_driver = lambda session: fake  # type: ignore[assignment]
+    with mock.patch(f"{_SUB}.run", side_effect=AssertionError("adb must not be used on iOS")):
+        server.handle_swipe({"session_id": sid, "start_x": 5, "start_y": 200, "end_x": 5, "end_y": 20})
+    assert fake.scrolled == ["up"]  # end_y < start_y -> content scrolls up
 
 
 def _fake_png(width: int, height: int) -> bytes:
