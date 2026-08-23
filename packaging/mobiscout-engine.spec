@@ -20,10 +20,26 @@ REPO_ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))  # noqa: F821 (SPECPAT
 datas = collect_data_files("framework")  # includes framework/codegen/templates/**/*.j2
 hiddenimports = collect_submodules("framework")
 
+# The compiled Rust accelerator. The release workflow installs the mobiscout_core wheel
+# before freezing, so it must be collected into the binary — PyInstaller won't pick up a
+# C-extension by name unless it's a hidden import, and its .so/.pyd needs collecting too.
+# Guarded so a plain source build (no Rust wheel installed) still freezes; the release
+# build's smoke test then asserts the frozen binary actually reports the "rust" backend.
+binaries = []
+try:
+    import mobiscout_core  # noqa: F401
+
+    from PyInstaller.utils.hooks import collect_dynamic_libs
+
+    hiddenimports += ["mobiscout_core"]
+    binaries += collect_dynamic_libs("mobiscout_core")
+except ImportError:
+    pass
+
 a = Analysis(
     [os.path.join(SPECPATH, "engine_entry.py")],
     pathex=[REPO_ROOT],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],

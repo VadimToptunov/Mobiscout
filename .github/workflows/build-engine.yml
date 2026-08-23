@@ -38,6 +38,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set up Rust
+        # The compiled accelerator (mobiscout_core) is bundled into the frozen engine — the
+        # smoke test below fails the build if it isn't. dtolnay/rust-toolchain is the
+        # maintained toolchain action (actions-rs/* is archived), matching ci.yml.
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Set up Python
         if: ${{ matrix.x86 != true }}
         uses: actions/setup-python@v7
@@ -69,10 +75,20 @@ jobs:
         # editable install leaves it a .pth shim that collect_submodules misses).
         # The ML/visual/viz upgrades remain available via `mobiscout[ml|visual|viz]`.
         if: ${{ matrix.x86 != true }}
+        shell: bash
         run: |
           python -m pip install --upgrade pip
           pip install .
-          pip install pyinstaller
+          pip install pyinstaller maturin
+          # Build + install the Rust accelerator so the frozen binary bundles it. Mirrors
+          # ci.yml's Build Rust Core: `maturin build` in rust_core -> wheel in
+          # rust_core/target/wheels. The import gate makes it MANDATORY — a failed/absent
+          # build stops the release here, not silently at the user (the pure-Python fallback
+          # stays a dev-only path).
+          ( cd rust_core && maturin build --release )
+          WHEEL=$(python -c "import glob; print(sorted(glob.glob('rust_core/target/wheels/*.whl'))[-1])")
+          pip install "$WHEEL"
+          python -c "import mobiscout_core; print('mobiscout_core bundled')"
 
       - name: Freeze
         if: ${{ matrix.x86 != true }}
@@ -85,7 +101,14 @@ jobs:
         run: |
           arch -x86_64 "$PYBIN" -m pip install --upgrade pip
           arch -x86_64 "$PYBIN" -m pip install .
-          arch -x86_64 "$PYBIN" -m pip install pyinstaller
+          arch -x86_64 "$PYBIN" -m pip install pyinstaller maturin
+          # Cross-build the Rust accelerator for x86_64 (abi3 wheel) and install it into the
+          # x86 Python, so the Intel binary bundles it too (mandatory — smoke test asserts it).
+          rustup target add x86_64-apple-darwin
+          ( cd rust_core && "$(dirname "$PYBIN")/maturin" build --release --target x86_64-apple-darwin -i "$PYBIN" )
+          WHEEL=$(ls rust_core/target/wheels/*.whl | head -1)
+          arch -x86_64 "$PYBIN" -m pip install "$WHEEL"
+          arch -x86_64 "$PYBIN" -c "import mobiscout_core; print('mobiscout_core (x86_64) OK')"
           arch -x86_64 "$PYBIN" -m PyInstaller packaging/mobiscout-engine.spec --noconfirm --clean
 
       - name: Smoke test (runs with no interpreter dependency)
@@ -94,6 +117,10 @@ jobs:
           out=$(echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | "${{ matrix.binary }}")
           echo "$out"
           echo "$out" | grep -q '"status": "ok"' || { echo "engine did not respond ok"; exit 1; }
+          # Mandatory Rust: the shipped binary must run the compiled accelerator, never the
+          # pure-Python fallback. If the core didn't get bundled, fail here rather than ship it.
+          echo "$out" | grep -q '"native_backend": "rust"' || {
+            echo "engine shipped WITHOUT the Rust core (native_backend != rust)"; exit 1; }
 
       - name: Rename + checksum
         shell: bash

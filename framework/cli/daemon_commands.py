@@ -345,9 +345,18 @@ class JSONRPCServer:
             params: Request parameters (unused but required for handler interface)
 
         Returns:
-            Health status dictionary
+            Health status dictionary, augmented with ``native_backend`` ("rust" when the
+            compiled accelerator is bundled, else "python") — the frozen engine's build gate
+            asserts this is "rust" so a release can't silently ship the pure-Python fallback.
         """
-        return self.health_checker.check()
+        result = self.health_checker.check()
+        try:
+            from framework.analyzers.native import backend_name
+
+            result["native_backend"] = backend_name()
+        except Exception:
+            result["native_backend"] = "python"
+        return result
 
     def handle_device_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle device list request."""
