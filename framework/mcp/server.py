@@ -24,6 +24,10 @@ from framework import __version__
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_INFO = {"name": "mobiscout", "version": __version__}
 
+# Reject an over-large line before parsing it — parity with the JSON-RPC daemon's cap, so a
+# runaway/hostile client can't push us to json.loads a giant payload.
+_MAX_MESSAGE_BYTES = 8 * 1024 * 1024
+
 
 class ToolError(Exception):
     """A tool-execution failure surfaced to the agent as an ``isError`` result (not a
@@ -228,6 +232,9 @@ def serve_stdio(stdin: Any = None, stdout: Any = None) -> None:
     for line in stdin:
         line = line.strip()
         if not line:
+            continue
+        if len(line.encode("utf-8")) > _MAX_MESSAGE_BYTES:
+            _write(stdout, _error(None, -32600, "Request too large"))
             continue
         try:
             msg = json.loads(line)

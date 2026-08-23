@@ -33,6 +33,8 @@ from framework.crawler.to_codegen import _owned, selector_for
 
 @dataclass
 class GraphNode:
+    """A screen in the interaction graph, with its structural metadata."""
+
     id: int  # 1-based, in crawl-discovery order
     fingerprint: str
     platform: str
@@ -44,6 +46,7 @@ class GraphNode:
     edge_case: Optional[str] = None  # error/loading/permission/network screen, if flagged
 
     def to_dict(self) -> Dict:
+        """Serialize this node to a JSON-safe dict."""
         return {
             "id": self.id,
             "fingerprint": self.fingerprint,
@@ -59,6 +62,8 @@ class GraphNode:
 
 @dataclass
 class GraphEdge:
+    """A transition between two screens — a runnable navigation step."""
+
     src: int
     dst: int
     action: str  # tap | type | ...
@@ -67,6 +72,7 @@ class GraphEdge:
     locator: str  # recommended locator "strategy=value"
 
     def to_dict(self) -> Dict:
+        """Serialize this edge to a JSON-safe dict."""
         return {
             "src": self.src,
             "dst": self.dst,
@@ -79,6 +85,8 @@ class GraphEdge:
 
 @dataclass
 class InteractionGraph:
+    """The app's navigation graph: screens (nodes), transitions (edges), and the analyses mined from them."""
+
     nodes: List[GraphNode] = field(default_factory=list)
     edges: List[GraphEdge] = field(default_factory=list)
     entry: Optional[int] = None
@@ -100,10 +108,12 @@ class InteractionGraph:
         return self._adj_cache
 
     def _node(self, node_id: int) -> Optional[GraphNode]:
+        """The node with this id, or None."""
         return next((n for n in self.nodes if n.id == node_id), None)
 
     # ---- analysis ----------------------------------------------------------
     def unreachable(self) -> List[int]:
+        """Ids of screens with no path from the entry (discovered but not reachable)."""
         return [n.id for n in self.nodes if n.depth < 0 and not n.is_entry]
 
     def dead_ends(self) -> List[int]:
@@ -229,6 +239,7 @@ class InteractionGraph:
         return walks
 
     def metrics(self) -> Dict:
+        """Headline graph metrics: screen/transition counts, max depth, unreachable, dead-ends, cycles."""
         depths = [n.depth for n in self.nodes if n.depth >= 0]
         return {
             "screens": len(self.nodes),
@@ -240,6 +251,7 @@ class InteractionGraph:
         }
 
     def to_dict(self) -> Dict:
+        """Serialize the whole graph (entry, metrics, nodes, edges, and the mined analyses) to a dict."""
         return {
             "entry": self.entry,
             "metrics": self.metrics(),
@@ -773,6 +785,7 @@ def negative_form_cases(
 
 
 def _annotate_depth(graph: InteractionGraph) -> None:
+    """BFS from the entry and stamp each node's depth (-1 for unreachable)."""
     if graph.entry is None:
         return
     adj = graph._adj()
@@ -790,6 +803,7 @@ def _annotate_depth(graph: InteractionGraph) -> None:
 
 # ---- exports ---------------------------------------------------------------
 def _mm_escape(text: str) -> str:
+    """Escape and truncate a label for a Mermaid node caption."""
     return text.replace('"', "&quot;").replace("\n", " ")[:40]
 
 
@@ -828,4 +842,5 @@ def to_dot(graph: InteractionGraph) -> str:
 
 
 def to_json(graph: InteractionGraph) -> str:
+    """Render the graph as pretty-printed JSON."""
     return json.dumps(graph.to_dict(), indent=2)

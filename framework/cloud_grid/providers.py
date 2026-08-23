@@ -111,8 +111,10 @@ def grid_env(
         raise UnknownProvider(f"Unknown grid provider '{provider_name}'. Known: {', '.join(sorted(PROVIDERS))}")
     user, key = provider.credentials()
 
+    # Map to the exact platformName the grids expect ("iOS", not "Ios" from capitalize()).
+    platform_name = {"ios": "iOS", "android": "Android"}.get(platform.lower(), platform)
     caps: Dict[str, Any] = {
-        "platformName": platform.capitalize(),
+        "platformName": platform_name,
         provider.options_key: _options_block(provider, user, key, device, os_version),
         # Also expose device/version under the W3C appium: prefix that most grids accept.
         "appium:deviceName": device,

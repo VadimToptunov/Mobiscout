@@ -117,6 +117,16 @@ def test_unknown_tool_is_an_error_result_not_a_crash():
     assert result["isError"] is True
 
 
+def test_serve_stdio_rejects_an_oversized_line():
+    from framework.mcp.server import _MAX_MESSAGE_BYTES
+
+    huge = '{"jsonrpc":"2.0","id":1,"method":"ping","params":{"x":"' + "a" * (_MAX_MESSAGE_BYTES) + '"}}'
+    out = io.StringIO()
+    serve_stdio(stdin=io.StringIO(huge), stdout=out)
+    resp = json.loads(out.getvalue().splitlines()[-1])
+    assert resp["error"]["code"] == -32600  # rejected before parsing, like the daemon's cap
+
+
 def test_serve_stdio_roundtrips_newline_delimited_json():
     requests = "\n".join(
         [
