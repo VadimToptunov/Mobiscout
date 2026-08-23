@@ -1,8 +1,9 @@
 """Taint analysis (split from sast_analyzer; see sast/base.py)."""
 
 import ast
+import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Pattern
 
 from framework.security.sast.base import (
     VulnerabilityType,
@@ -10,6 +11,9 @@ from framework.security.sast.base import (
     TaintSink,
     TaintFlow,
 )
+
+# The assignment-capture regex is constant — compile it once, not per line.
+_ASSIGN_RE = re.compile(r"(\w+)\s*=")
 
 # Python taint sources: user-controllable / external inputs. Keys are matched
 # against a call's dotted name (input, requests.get) or a bare attribute access
@@ -210,20 +214,24 @@ class TaintAnalyzer:
     # ----------------------------------------------------------------- generic
     def _analyze_generic(self, content: str, file_path: Path) -> List[TaintFlow]:
         """Substring fallback for non-Python languages (Kotlin/Swift/Java)."""
-        import re
-
         flows: List[TaintFlow] = []
         tainted: Dict[str, TaintSource] = {}
+        # Cache the compiled `\bname\b` per tainted variable: names repeat across lines, so
+        # re.escape + re.compile would otherwise run once per (line, name).
+        name_re: Dict[str, Pattern] = {}
         for i, line in enumerate(content.splitlines(), 1):
             for pattern, stype in self.sources.items():
                 if pattern in line:
-                    m = re.search(r"(\w+)\s*=", line)
+                    m = _ASSIGN_RE.search(line)
                     if m:
                         tainted[m.group(1)] = TaintSource(m.group(1), str(file_path), i, stype)
             for pattern, vuln in self.sinks.items():
                 if pattern in line:
                     for name, source in tainted.items():
-                        if re.search(rf"\b{re.escape(name)}\b", line):
+                        rx = name_re.get(name)
+                        if rx is None:
+                            rx = name_re[name] = re.compile(rf"\b{re.escape(name)}\b")
+                        if rx.search(line):
                             sink = TaintSink(pattern, str(file_path), i, vuln.value)
                             flows.append(TaintFlow(source=source, sink=sink, path=[name], vulnerability_type=vuln))
         return flows
