@@ -571,6 +571,20 @@ class JSONRPCServer:
         if r.returncode != 0 or (r.stderr or "").strip():
             raise Exception(f"adb {' '.join(args[:2])} failed: {(r.stderr or '').strip() or r.returncode}")
 
+    @staticmethod
+    def _encode_adb_text(text: str) -> str:
+        """Encode ``text`` for ``adb shell input text``. Two hazards, two layers:
+
+        1. ``input text`` maps ``%s`` to a space, so spaces are encoded as ``%s``.
+        2. adb concatenates its ``shell`` argv into a command line that the **device** shell
+           re-parses — so ``&``, ``;``, ``$``, ``()``, ``<>``, quotes etc. would be
+           interpreted (``Tom & Jerry`` backgrounds a job) unless quoted. The whole token is
+           wrapped in single quotes, with any embedded single quote escaped as ``'\\''``
+           (close-quote, literal quote, reopen), making every metacharacter literal.
+        """
+        encoded = text.replace(" ", "%s")
+        return "'" + encoded.replace("'", "'\\''") + "'"
+
     def handle_swipe(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle swipe action. Platform-aware: Android over adb; iOS through the session's
         driver (a directional scroll inferred from the endpoints) — the old adb-only path
@@ -602,9 +616,9 @@ class JSONRPCServer:
 
     def handle_type(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle type action. Platform-aware: Android over adb; iOS through the session's
-        driver. On Android the text is passed as a single argv token (not concatenated into
-        a device-shell line), so metacharacters (& ; $ quotes) are typed literally instead
-        of being reinterpreted by the device shell."""
+        driver. On Android the text is single-quoted for the device shell (see
+        :meth:`_encode_adb_text`), so metacharacters (& ; $ quotes) are typed literally
+        instead of being reinterpreted by the device shell."""
         session_id = params.get("session_id")
         text = str(params.get("text", ""))
 
@@ -616,11 +630,7 @@ class JSONRPCServer:
         if platform == "ios":
             self._session_driver(session).type_text(text)
         else:
-            # `input text` reads one argument; adb transmits our argv token as-is. Spaces
-            # must be encoded as %s; %/quotes/metachars are escaped so the device shell
-            # doesn't reinterpret them.
-            escaped = text.replace("%", "\\%").replace(" ", "%s")
-            self._adb_shell(session["device_id"], ["input", "text", escaped])
+            self._adb_shell(session["device_id"], ["input", "text", self._encode_adb_text(text)])
         return {"status": "success", "text": text}
 
     def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:

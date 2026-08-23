@@ -239,7 +239,32 @@ def test_type_escapes_spaces(server):
     sid = _session(server)
     with mock.patch(f"{_SUB}.run", side_effect=_ok_run) as run:
         server.handle_type({"session_id": sid, "text": "hello world"})
-    assert "hello%sworld" in run.call_args[0][0]
+    # Space -> %s (input text), and the token is single-quoted for the device shell.
+    assert "'hello%sworld'" in run.call_args[0][0]
+
+
+def test_type_quotes_shell_metacharacters(server):
+    # `Tom & Jerry` used to background a job on the device shell (& ; $ interpreted).
+    # The whole token must be single-quoted so every metacharacter is typed literally.
+    sid = _session(server)
+    with mock.patch(f"{_SUB}.run", side_effect=_ok_run) as run:
+        server.handle_type({"session_id": sid, "text": "Tom & Jerry; echo $HOME"})
+    token = run.call_args[0][0][-1]  # the `input text` argument
+    assert token.startswith("'") and token.endswith("'")
+    # The metacharacters live inside the quotes (literal), not as bare shell operators.
+    assert "&" in token and ";" in token and "$HOME" in token
+
+
+def test_encode_adb_text_escaping():
+    enc = JSONRPCServer._encode_adb_text
+    assert enc("hello world") == "'hello%sworld'"
+    assert enc("a & b") == "'a%s&%sb'"
+    # An embedded single quote is closed, escaped, and reopened: ' -> '\''
+    assert enc("it's") == "'it'\\''s'"
+    # Metacharacters are wrapped, never left bare.
+    for meta in ("&", ";", "$", '"', "(", ")", "<", ">", "|", "`"):
+        out = enc(f"x{meta}y")
+        assert out == f"'x{meta}y'"
 
 
 def test_swipe_passes_coordinates(server):
