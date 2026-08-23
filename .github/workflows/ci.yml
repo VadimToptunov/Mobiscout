@@ -266,7 +266,7 @@ jobs:
       - name: Install Rust core
         run: pip install wheels/*.whl || echo "Rust core optional"
 
-      - name: End-to-end (device-free): crawl -> kit -> the emitted kit runs green
+      - name: "End-to-end (device-free): crawl -> kit -> emitted kit runs green"
         run: |
           # The real integration: the whole crawl->model->codegen pipeline against a
           # fake UI graph, AND an emitted python_pytest kit executed through pytest

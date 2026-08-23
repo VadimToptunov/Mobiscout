@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from framework.healing.file_updater import FileUpdater
@@ -31,13 +31,40 @@ class DashboardServer:
             repo_path: Path to repository root
             db_path: Path to SQLite database (defaults to repo/.dashboard.db)
         """
-        self.repo_path = repo_path
+        self.repo_path = Path(repo_path).resolve()
         self.db_path = db_path or (repo_path / ".dashboard.db")
         self.db = DashboardDB(self.db_path)
 
         # Create FastAPI app
         self.app = FastAPI(title="Test Maintenance Dashboard")
         self._setup_routes()
+
+    def _confine_to_repo(self, raw_path: str) -> Path:
+        """Resolve a selector's file path and confine it to the repo. A healed-selector
+        row can carry any string (healing runs against untrusted third-party apps); an
+        absolute path or a ``..`` escape would otherwise let approve overwrite an
+        arbitrary file. Reject anything that resolves outside the repo root."""
+        candidate = Path(raw_path)
+        if candidate.is_absolute():
+            raise HTTPException(status_code=400, detail="Absolute selector paths are not allowed")
+        resolved = (self.repo_path / candidate).resolve()
+        if resolved != self.repo_path and self.repo_path not in resolved.parents:
+            raise HTTPException(status_code=400, detail="Selector path escapes the repository")
+        return resolved
+
+    @staticmethod
+    def _guard_local_origin(request: Request) -> None:
+        """Block cross-site drive-by writes: a mutating request carrying an Origin/Referer
+        from another site is rejected. A no-preflight POST is still *sent* by any page the
+        developer visits, so this closes the CSRF path even on a localhost bind."""
+        origin = request.headers.get("origin") or request.headers.get("referer")
+        if not origin:
+            return  # curl / same-origin fetch (browsers send Origin on cross-site POST)
+        from urllib.parse import urlparse
+
+        host = (urlparse(origin).hostname or "").lower()
+        if host not in ("localhost", "127.0.0.1", "::1", ""):
+            raise HTTPException(status_code=403, detail="Cross-origin request refused")
 
     def _setup_routes(self) -> None:
         """Setup API routes"""
@@ -95,20 +122,19 @@ class DashboardServer:
             return JSONResponse([s.to_dict() for s in selectors])
 
         @self.app.post("/api/selectors/{selector_id}/approve")
-        async def approve_selector(selector_id: str, commit: bool = False) -> JSONResponse:
+        async def approve_selector(selector_id: str, request: Request, commit: bool = False) -> JSONResponse:
             """Approve a healed selector: write the new locator into the source file and
             (optionally, ``?commit=true``) git-commit that change. The DB is only marked
             approved once the file has actually been updated — approval used to flip the
             flag and report success without touching the file."""
+            self._guard_local_origin(request)
             selector = self.db.get_selector(selector_id)
             if not selector:
                 raise HTTPException(status_code=404, detail="Selector not found")
 
-            # Apply the healed selector to the source file — the substantive part of
-            # approval. Resolve relative paths against the dashboard's repo root.
-            file_path = Path(selector.file_path)
-            if not file_path.is_absolute():
-                file_path = self.repo_path / file_path
+            # Apply the healed selector to the source file — confined to the repo so a
+            # poisoned selector row can't overwrite an arbitrary path.
+            file_path = self._confine_to_repo(selector.file_path)
             result = FileUpdater().update_selector(
                 file_path,
                 selector.element_name,
@@ -153,8 +179,9 @@ class DashboardServer:
             )
 
         @self.app.post("/api/selectors/{selector_id}/reject")
-        async def reject_selector(selector_id: str) -> JSONResponse:
+        async def reject_selector(selector_id: str, request: Request) -> JSONResponse:
             """Reject healed selector"""
+            self._guard_local_origin(request)
             selector = self.db.get_selector(selector_id)
             if not selector:
                 raise HTTPException(status_code=404, detail="Selector not found")
@@ -424,9 +451,11 @@ class DashboardServer:
 </html>
         """
 
-    def run(self, host: str = "0.0.0.0", port: int = 8080) -> None:
+    def run(self, host: str = "127.0.0.1", port: int = 8080) -> None:
         """
-        Start dashboard server
+        Start dashboard server. Binds to localhost by default — the dashboard has no
+        auth, so it must not be exposed on all interfaces (0.0.0.0) unless the operator
+        deliberately opts in via an explicit host.
 
         Args:
             host: Host to bind to

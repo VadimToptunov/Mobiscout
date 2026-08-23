@@ -39,6 +39,13 @@ def _body(response):
     return json.loads(response.body)
 
 
+class _Req:
+    """Minimal stand-in for a Starlette Request — only .headers is read by the origin guard."""
+
+    def __init__(self, origin=None):
+        self.headers = {"origin": origin} if origin else {}
+
+
 def _seed_result(server, name, status, duration=1.0, offset_min=0, rid=None):
     server.db.add_test_result(
         TestResult(
@@ -191,7 +198,7 @@ def test_approve_selector_applies_to_file_then_marks_approved(server):
     # Approve must rewrite the source file, not just flip a DB flag.
     page = _seed_page_file(server, "pages/login.py")
     _seed_selector(server, "s1", HealingStatus.PENDING, file_path="pages/login.py")
-    body = _body(_call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1")))
+    body = _body(_call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1", _Req())))
     assert body["status"] == "approved" and body["selector_id"] == "s1"
     assert body["file_updated"] is True
     updated = page.read_text(encoding="utf-8")
@@ -204,19 +211,38 @@ def test_approve_does_not_mark_approved_when_file_update_fails(server):
     # instead of reporting a success that never touched a file.
     _seed_selector(server, "s1", HealingStatus.PENDING, file_path="pages/missing.py")
     with pytest.raises(HTTPException) as exc:
-        _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1"))
+        _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1", _Req()))
     assert exc.value.status_code == 422
     assert server.db.get_selector("s1").status == HealingStatus.PENDING
 
 
+def test_approve_rejects_path_escape(server):
+    # A poisoned selector row must not overwrite a file outside the repo.
+    for bad in ("/etc/passwd", "../../secret.txt"):
+        _seed_selector(server, "s1", HealingStatus.PENDING, file_path=bad)
+        with pytest.raises(HTTPException) as exc:
+            _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1", _Req()))
+        assert exc.value.status_code == 400
+        assert server.db.get_selector("s1").status == HealingStatus.PENDING
+
+
+def test_approve_refuses_cross_origin(server):
+    _seed_page_file(server, "pages/login.py")
+    _seed_selector(server, "s1", HealingStatus.PENDING, file_path="pages/login.py")
+    with pytest.raises(HTTPException) as exc:
+        _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("s1", _Req("http://evil.example.com")))
+    assert exc.value.status_code == 403
+    assert server.db.get_selector("s1").status == HealingStatus.PENDING  # nothing applied
+
+
 def test_reject_selector_updates_status(server):
     _seed_selector(server, "s1", HealingStatus.PENDING)
-    body = _body(_call(_endpoint(server, "POST", "/api/selectors/{selector_id}/reject")("s1")))
+    body = _body(_call(_endpoint(server, "POST", "/api/selectors/{selector_id}/reject")("s1", _Req())))
     assert body == {"status": "rejected", "selector_id": "s1"}
     assert server.db.get_selector("s1").status == HealingStatus.REJECTED
 
 
 def test_approve_missing_selector_404(server):
     with pytest.raises(HTTPException) as exc:
-        _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("nope"))
+        _call(_endpoint(server, "POST", "/api/selectors/{selector_id}/approve")("nope", _Req()))
     assert exc.value.status_code == 404
