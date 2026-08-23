@@ -583,6 +583,19 @@ class FuzzingCampaign:
                 continue
 
             target_crashes = sum(1 for r in fuzz_results if r.crash)
+            # Real findings only — a simulated result (no device driver) is not a finding.
+            for r in fuzz_results:
+                if not r.simulated and (r.crash or r.error):
+                    results.setdefault("findings", []).append(
+                        {
+                            "target": target_id,
+                            "value": str(r.input.value)[:80],
+                            "strategy": getattr(r.input.strategy, "value", str(r.input.strategy)),
+                            "crash": r.crash,
+                            "error": r.error,
+                        }
+                    )
+            results["real_inputs"] = results.get("real_inputs", 0) + sum(1 for r in fuzz_results if not r.simulated)
 
             results["targets"].append(
                 {"id": target_id, "type": target_type, "inputs": len(fuzz_results), "crashes": target_crashes}
@@ -591,6 +604,9 @@ class FuzzingCampaign:
             results["total_inputs"] += len(fuzz_results)
             results["crashes"] += target_crashes
 
+        # Simulated when nothing real was exercised (no device driver), so a report never
+        # claims findings it didn't actually observe.
+        results["simulated"] = results.get("real_inputs", 0) == 0 and results["total_inputs"] > 0
         results["end_time"] = datetime.datetime.now().isoformat()
         results["statistics"] = self.ui_fuzzer.get_statistics()
 
@@ -616,6 +632,18 @@ class FuzzingCampaign:
             fuzz_results = self.api_fuzzer.fuzz_endpoint(method, endpoint, param_type, count=100)
 
             endpoint_errors = sum(1 for r in fuzz_results if r.error)
+            for r in fuzz_results:
+                if not r.simulated and (r.crash or r.error):
+                    results.setdefault("findings", []).append(
+                        {
+                            "endpoint": f"{method} {endpoint}",
+                            "value": str(r.input.value)[:80],
+                            "strategy": getattr(r.input.strategy, "value", str(r.input.strategy)),
+                            "crash": r.crash,
+                            "error": r.error,
+                        }
+                    )
+            results["real_inputs"] = results.get("real_inputs", 0) + sum(1 for r in fuzz_results if not r.simulated)
 
             results["endpoints"].append(
                 {"method": method, "endpoint": endpoint, "requests": len(fuzz_results), "errors": endpoint_errors}
@@ -624,6 +652,7 @@ class FuzzingCampaign:
             results["total_requests"] += len(fuzz_results)
             results["errors"] += endpoint_errors
 
+        results["simulated"] = results.get("real_inputs", 0) == 0 and results["total_requests"] > 0
         results["end_time"] = datetime.datetime.now().isoformat()
         results["vulnerable_endpoints"] = self.api_fuzzer.get_vulnerable_endpoints()
 
@@ -636,6 +665,13 @@ class FuzzingCampaign:
 
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(self.campaign_results, f, indent=2)
+
+    def report_markdown(self, title: str = "Fuzzing campaign report") -> str:
+        """A shareable Markdown summary of the campaign (findings, or an honest
+        'simulated — no findings' note when no real target was exercised)."""
+        from framework.fuzzing.report import fuzz_report
+
+        return fuzz_report(self.campaign_results, title=title)
 
     def get_summary(self) -> Dict[str, Any]:
         """Get campaign summary"""

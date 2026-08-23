@@ -423,10 +423,12 @@ def campaign(config: Optional[str], output: str) -> None:
 
     console.print(summary_table)
 
-    # Export report
+    # Export report (JSON) + a shareable Markdown summary alongside it.
     output_path = Path(output)
     campaign_runner.export_report(output_path)
-    console.print(f"\n[green]✓[/green] Report saved to {output_path}")
+    md_path = output_path.with_suffix(".md")
+    md_path.write_text(campaign_runner.report_markdown(), encoding="utf-8")
+    console.print(f"\n[green]✓[/green] Report saved to {output_path} (+ shareable summary {md_path})")
 
 
 @fuzz.command(name="list")
