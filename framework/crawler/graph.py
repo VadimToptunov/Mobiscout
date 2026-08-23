@@ -440,6 +440,7 @@ def multi_step_cases(
     graph = graph if graph is not None else build_graph(result, app_package)
     fps = list(result.screens)
     fp_of = {i + 1: fp for i, fp in enumerate(fps)}
+    gated = getattr(result, "gated", None) or set()
     degree = {n.id: 0 for n in graph.nodes}
     for e in graph.edges:
         degree[e.src] = degree.get(e.src, 0) + 1
@@ -476,6 +477,12 @@ def multi_step_cases(
             continue
         node_path = tuple([walk[0].src] + [e.dst for e in walk])
         if node_path in seen_paths or node_path not in maximal:
+            continue
+        # Skip journeys that cross into a gated screen: reaching it needs the auth
+        # prefix (login/OTP), which the per-screen auth-prefixed cases already cover.
+        # A bare journey here would fill the gate form with sample data and assert the
+        # post-auth screen — red on any app whose gate actually gates.
+        if any(fp_of.get(n) in gated for n in node_path):
             continue
 
         steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
