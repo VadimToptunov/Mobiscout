@@ -225,12 +225,32 @@ def emit_mock_from_har(har: Optional[str], out: Path) -> int:
     return len(build_recordings(har_calls))
 
 
+def _require_appium(server: str) -> None:
+    """Fail fast with an actionable message when an Appium-driven crawl is asked for but
+    no Appium server is reachable — instead of the silent 0-screen result a failed
+    connection otherwise produces. (adb-driven Android crawls don't need Appium.)"""
+    from framework.health.preflight import appium_status
+
+    reachable, _ = appium_status(server)
+    if not reachable:
+        from framework.crawler.errors import CrawlerDriverError
+
+        raise CrawlerDriverError(
+            f"Appium server not reachable at {server}. Install Node + Appium and start it:\n"
+            "  npm install -g appium\n"
+            "  appium driver install uiautomator2   # xcuitest for iOS\n"
+            "  appium\n"
+            "…or point 'server' at your Appium / cloud-grid hub."
+        )
+
+
 def _make_driver(config: Dict[str, Any]) -> Any:
     """Build a crawler driver from the config; returns (driver, owns_session)."""
     package = config["package"]
     platform = config.get("platform", "android")
     server = config.get("server", "http://localhost:4723")
     if platform == "ios":
+        _require_appium(server)
         from framework.crawler.appium_driver import IOSCrawlerDriver
 
         drv: Any = IOSCrawlerDriver(
@@ -242,6 +262,7 @@ def _make_driver(config: Dict[str, Any]) -> Any:
         )
         return drv, True
     if config.get("driver") == "appium":
+        _require_appium(server)
         try:
             from framework.crawler.appium_android import AndroidAppiumDriver
         except ImportError:  # not yet available on this checkout

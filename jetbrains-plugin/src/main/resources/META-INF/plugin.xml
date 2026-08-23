@@ -28,11 +28,17 @@
     
     <h2>Requirements:</h2>
     <ul>
-        <li>For Android: Android Studio's SDK and an emulator or a connected device</li>
-        <li>For iOS (macOS): Xcode and a simulator</li>
+        <li>For Android: Android Studio's SDK and an emulator or a connected device.
+        Crawling over adb needs nothing more; Appium-mode crawls and running the generated
+        kit need Node + Appium (<code>npm i -g appium</code>, then
+        <code>appium driver install uiautomator2</code>).</li>
+        <li>For iOS (macOS): Xcode and a simulator, plus Node + Appium with the
+        <code>xcuitest</code> driver (iOS crawls and kits run through Appium/XCUITest).</li>
     </ul>
-    <p>No separate engine to install — Mobiscout sets up its local engine automatically
-    on first use.</p>
+    <p>No separate engine to install — Mobiscout sets up its own local engine
+    automatically on first use. Appium (above) is the one external tool the generated
+    tests run against; the plugin tells you if it isn't reachable rather than failing
+    silently.</p>
 
     <h2>Getting started:</h2>
     <ol>
