@@ -17,6 +17,7 @@ pub mod ast_analyzer;
 pub mod correlator;
 pub mod business_logic;
 pub mod io;
+pub mod sast_scan;
 pub mod utils;
 
 // Re-exports
@@ -38,6 +39,9 @@ fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Correlation>()?;
     m.add_class::<RustBusinessLogicAnalyzer>()?;
     m.add_class::<BusinessLogicPattern>()?;
+
+    // Register the SAST multi-pattern line scanner (RegexSet, parallel over files)
+    m.add_function(wrap_pyfunction!(sast_scan::scan_lines, m)?)?;
 
     // Register I/O functions
     m.add_function(wrap_pyfunction!(io::read_file_fast, m)?)?;
