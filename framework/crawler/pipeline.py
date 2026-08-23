@@ -268,10 +268,11 @@ def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
     for fingerprint, screen in extra.screens.items():
         into.screens.setdefault(fingerprint, screen)
     seen = {(src, el.label, dst) for src, el, dst in into.transitions}
-    for src, el, dst in extra.transitions:
+    for t in extra.transitions:
+        src, el, dst = t
         key = (src, el.label, dst)
         if key not in seen:
-            into.transitions.append((src, el, dst))
+            into.transitions.append(t)  # preserve the transition's kind (tap/gate/probe)
             seen.add(key)
     into.steps += extra.steps
     return into

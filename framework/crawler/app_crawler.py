@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
 from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
-from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen
+from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen, Transition
 from framework.crawler.obstacles import clear_obstacle, error_retry, terminal_obstacle
 from framework.crawler.parse import parse_screen
 from framework.utils.logger import get_logger
@@ -480,7 +480,7 @@ class AppCrawler:
                 # cases. The synthetic hop is trimmed by the gated nav re-rooting;
                 # the prepended auth steps reproduce the crossing.
                 if entry_link is not None and passed.fingerprint != entry_fp:
-                    result.transitions.append((entry_fp, entry_link, passed.fingerprint))
+                    result.transitions.append(Transition(entry_fp, entry_link, passed.fingerprint, kind="gate"))
 
         # Exercise this screen's form both ways (invalid→error, then valid) so
         # form-gated flows are reachable and validation states get discovered.
@@ -538,7 +538,7 @@ class AppCrawler:
             section = parse_screen(self.driver.page_source())
             if not section.fingerprint:
                 continue
-            result.transitions.append((home.fingerprint, tab, section.fingerprint))
+            result.transitions.append(Transition(home.fingerprint, tab, section.fingerprint))
             if section.fingerprint in seen_fps:
                 continue  # two tabs landing on the same screen (e.g. the current one)
             seen_fps.add(section.fingerprint)
@@ -700,7 +700,7 @@ class AppCrawler:
         outcome = self._read_content_screen()
         if not outcome.fingerprint:
             return
-        result.transitions.append((screen.fingerprint, submit, outcome.fingerprint))
+        result.transitions.append(Transition(screen.fingerprint, submit, outcome.fingerprint, kind="probe"))
         if outcome.fingerprint != screen.fingerprint:
             result.screens.setdefault(outcome.fingerprint, outcome)  # error / next state
             self._note_screen(result, outcome.fingerprint)
@@ -772,7 +772,7 @@ class AppCrawler:
                 # before we fingerprint and record it.
                 new_screen = self._await_content(new_screen)
 
-            result.transitions.append((current_fp, element, new_screen.fingerprint))
+            result.transitions.append(Transition(current_fp, element, new_screen.fingerprint))
 
             if new_screen.fingerprint == current_fp:
                 continue  # no navigation; keep trying elements on this screen
@@ -785,7 +785,7 @@ class AppCrawler:
             if self._pass_gates(new_screen):
                 behind = self._read_content_screen()
                 if behind.fingerprint and behind.fingerprint != new_screen.fingerprint:
-                    result.transitions.append((new_screen.fingerprint, element, behind.fingerprint))
+                    result.transitions.append(Transition(new_screen.fingerprint, element, behind.fingerprint))
                     result.screens.setdefault(behind.fingerprint, behind)
                     self._note_screen(result, behind.fingerprint)
                     new_screen = behind
