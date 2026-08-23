@@ -19,6 +19,19 @@ from selenium.webdriver.support.ui import WebDriverWait
 # fixed sleep or a global implicit wait (which silently fights explicit waits),
 # so tests stay in sync with async UI without paying a worst-case sleep every step.
 _TIMEOUT = 10
+# How many times _find scrolls looking for an off-screen element before giving up.
+_SCROLL_TRIES = 4
+
+
+def _scroll_down(driver):
+    """One scroll-down gesture — used by _find to bring a below-the-fold element into
+    view. Platform-aware: iOS uses `mobile: scroll`, Android `mobile: scrollGesture`."""
+    _s = driver.get_window_size()
+    driver.execute_script("mobile: scrollGesture", {
+        "left": int(_s["width"] * 0.1), "top": int(_s["height"] * 0.2),
+        "width": int(_s["width"] * 0.8), "height": int(_s["height"] * 0.6),
+        "direction": "down", "percent": 0.8,
+    })
 
 # A generic "busy" indicator per platform — used by _settle to wait out a
 # transition. Not app-specific, so it's a no-op on screens that show no spinner.
@@ -59,10 +72,25 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
     try:
         return WebDriverWait(driver, timeout, poll_frequency=0.3).until(_locate)
     except TimeoutException:
-        by, value = primary
-        raise NoSuchElementException(
-            f"None of the locators matched within {timeout}s (primary + {len(fallbacks)} fallbacks): {by}={value}"
-        )
+        pass
+
+    # Below the fold: the element may just need scrolling into view. Scroll down a few
+    # times, retrying after each — so a tap/assert on an off-screen control (a long
+    # list, a form field under the keyboard) isn't a false NoSuchElement.
+    for _ in range(_SCROLL_TRIES):
+        try:
+            _scroll_down(driver)
+        except Exception:
+            break
+        found = _locate(driver)
+        if found:
+            return found
+
+    by, value = primary
+    raise NoSuchElementException(
+        f"None of the locators matched within {timeout}s + {_SCROLL_TRIES} scrolls "
+        f"(primary + {len(fallbacks)} fallbacks): {by}={value}"
+    )
 
 
 # Test input data, kept out of the test body so it changes in one place (and can be

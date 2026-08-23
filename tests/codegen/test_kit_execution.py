@@ -150,6 +150,18 @@ def test_emitted_kit_runs_green_against_fake_app(tmp_path):
     assert "passed" in proc.stdout
 
 
+def test_find_scrolls_to_reach_a_below_fold_element(tmp_path):
+    # Move a start-screen element below the fold: present only after a scroll. The kit
+    # must still pass, which it can only do if the generated _find scrolls on miss.
+    result = _shop()
+    kit = _emit_kit(result, tmp_path)
+    model = _fake_app(result, "com.x")
+    hidden = model["screens"][0].pop()  # a login-screen locator [by, value]
+    model.setdefault("reveals", []).append([0, hidden[0], hidden[1]])
+    proc = _run_pytest(kit, model)
+    assert proc.returncode == 0, f"_find did not scroll to the below-fold element:\n{proc.stdout}\n{proc.stderr}"
+
+
 def test_harness_has_teeth_broken_navigation_fails(tmp_path):
     # Drop the login->home transition: the journey tests can no longer reach the home
     # screen, so the emitted kit must FAIL. Proves the green above isn't vacuous.

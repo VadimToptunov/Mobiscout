@@ -10,6 +10,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 # Condition-based wait budget (seconds) — poll for the element instead of a fixed
 # sleep or a global implicit wait, so pages stay in sync with async UI.
 TIMEOUT = 10
+# How many times _find scrolls looking for an off-screen element before giving up.
+SCROLL_TRIES = 4
 
 
 class {{ po.class_name }}:
@@ -25,10 +27,26 @@ class {{ po.class_name }}:
     def __init__(self, driver):
         self.driver = driver
 
+    def _scroll_down(self):
+        """One scroll-down gesture, best-effort across platforms (iOS `mobile: scroll`,
+        Android `mobile: scrollGesture`) — used by _find to reach a below-the-fold element."""
+        try:
+            self.driver.execute_script("mobile: scroll", {"direction": "down"})
+        except Exception:
+            try:
+                s = self.driver.get_window_size()
+                self.driver.execute_script("mobile: scrollGesture", {
+                    "left": int(s["width"] * 0.1), "top": int(s["height"] * 0.2),
+                    "width": int(s["width"] * 0.8), "height": int(s["height"] * 0.6),
+                    "direction": "down", "percent": 0.8,
+                })
+            except Exception:
+                pass
+
     def _find(self, name):
         """Locate an element by name, waiting for it to appear and self-healing
         through its ranked locators — a condition-based wait, not an instant lookup
-        that flakes on async screens."""
+        that flakes on async screens. Scrolls to reach a below-the-fold element."""
         locators = self.LOCATORS[name]
 
         def _locate(driver):
@@ -42,7 +60,13 @@ class {{ po.class_name }}:
         try:
             return WebDriverWait(self.driver, TIMEOUT, poll_frequency=0.3).until(_locate)
         except TimeoutException:
-            raise NoSuchElementException(f"No locator matched for {name!r} on {{ po.screen_name }} within {TIMEOUT}s")
+            pass
+        for _ in range(SCROLL_TRIES):
+            self._scroll_down()
+            found = _locate(self.driver)
+            if found:
+                return found
+        raise NoSuchElementException(f"No locator matched for {name!r} on {{ po.screen_name }} within {TIMEOUT}s")
 
 {% for f in po.fields %}
     def {{ f.name }}(self):
