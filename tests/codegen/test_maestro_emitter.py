@@ -2,6 +2,8 @@
 staying honest about the selectors Maestro can't express. The emitted flows must be valid
 YAML (appId header document + a command-list document)."""
 
+import re
+
 import yaml
 
 from framework.codegen import get_emitter
@@ -105,7 +107,9 @@ def test_text_equals_asserts_on_text():
         steps=[Step(action=ActionType.ASSERT, assertion=AssertionType.TEXT_EQUALS, expected="Hi there")],
     )
     cmds = _commands(_emit([case])["test_assert.yaml"])
-    assert cmds == [{"assertVisible": {"text": "Hi there"}}]
+    # Text is emitted as an exact-match regex (Maestro treats text: as a regex).
+    assert cmds == [{"assertVisible": {"text": re.escape("Hi there")}}]
+    assert re.fullmatch(cmds[0]["assertVisible"]["text"], "Hi there")
 
 
 def test_duplicate_case_names_get_distinct_files():
@@ -116,6 +120,26 @@ def test_duplicate_case_names_get_distinct_files():
         ]
     )
     assert set(files) == {"test_dup.yaml", "test_dup_1.yaml"}
+
+
+def test_text_selectors_are_regex_escaped():
+    # Maestro matches `text:` as a regex, so a literal price/label must be escaped, else
+    # `4.99` matches `4X99` and `(1+)` breaks the matcher.
+    case = TestCase(
+        name="test_price",
+        steps=[
+            Step(action=ActionType.TAP, selector=_text("Buy (1+) for 4.99")),
+            Step(action=ActionType.ASSERT, assertion=AssertionType.TEXT_EQUALS, expected="Total: 4.99"),
+        ],
+    )
+    cmds = _commands(_emit([case])["test_price.yaml"])
+    # After YAML decoding the value is a regex that matches the literal text exactly.
+    tap_text = next(c["tapOn"]["text"] for c in cmds if isinstance(c, dict) and "tapOn" in c)
+    assert tap_text == re.escape("Buy (1+) for 4.99")
+    assert re.fullmatch(tap_text, "Buy (1+) for 4.99")  # matches the literal
+    assert not re.fullmatch(tap_text, "BuyX(1+)Xfor 4X99")  # no longer matches a look-alike
+    assert_text = next(c["assertVisible"]["text"] for c in cmds if isinstance(c, dict) and "assertVisible" in c)
+    assert assert_text == re.escape("Total: 4.99")
 
 
 def test_yaml_special_characters_are_escaped():

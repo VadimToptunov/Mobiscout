@@ -132,7 +132,9 @@ logger = get_logger(__name__)
     is_flag=True,
     default=False,
     help="With --diff: emit tests only for the added+changed cases (the delta), not the whole "
-    "app. The baseline manifest still records the full case set. Off by default.",
+    "app. The generated kit then contains ONLY those tests — unchanged tests are not written "
+    "(flat files are overwritten). The baseline manifest still records the full case set. "
+    "Off by default.",
 )
 def crawl(
     package: str,

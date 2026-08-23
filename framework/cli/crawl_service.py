@@ -385,7 +385,17 @@ def write_kit(
             write_manifest(out, model)  # baseline for the next crawl — the FULL case set
             report.info.append(f"Changes: {report_diff.summary()} (see {out / 'CHANGES.md'})")
             if only_changed:
+                full = len(model.cases)
                 model = filter_to_changed(model, report_diff)
+                dropped = full - len(model.cases)
+                if dropped:
+                    # Flat emitters write fixed filenames, so this kit now contains ONLY the
+                    # delta — the unchanged tests are not in it. Say so, loudly, rather than
+                    # letting them silently vanish.
+                    report.warnings.append(
+                        f"--only-changed: emitting {len(model.cases)} changed/added case(s); "
+                        f"{dropped} unchanged case(s) are omitted from this kit (the delta only)."
+                    )
 
     if not model.cases:
         report.no_tests = True

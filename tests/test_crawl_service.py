@@ -267,6 +267,28 @@ def test_write_kit_writes_inventory_graph_and_tests(tmp_path, crawl_result):
     assert any("Inventory" in line for line in report.info)
 
 
+def test_write_kit_only_changed_warns_when_it_drops_unchanged_cases(tmp_path, crawl_result):
+    common = dict(
+        result=crawl_result,
+        output=str(tmp_path),
+        package=_PKG,
+        targets="python_pytest",
+        style="flat",
+        scaffold=False,
+        server="http://localhost:4723",
+        app_activity=None,
+        launch_args=(),
+    )
+    # First run records the baseline manifest + CHANGES.md.
+    write_kit(diff=True, **common)
+    assert (tmp_path / "manifest.json").exists()
+    assert (tmp_path / "CHANGES.md").exists()
+    # Second run of the SAME crawl: every case is unchanged, so --only-changed emits an empty
+    # delta and MUST warn (the kit would otherwise silently lose its tests).
+    second = write_kit(diff=True, only_changed=True, **common)
+    assert any("only-changed" in w and "omitted" in w for w in second.warnings)
+
+
 def test_write_kit_flags_an_unknown_target_without_aborting(tmp_path, crawl_result):
     report = write_kit(
         result=crawl_result,
