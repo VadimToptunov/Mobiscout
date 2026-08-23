@@ -361,6 +361,13 @@ def build_graph(result: CrawlResult, app_package: str = "") -> InteractionGraph:
     fps = list(result.screens)
     id_of = {fp: i + 1 for i, fp in enumerate(fps)}
 
+    # Classify every element up front in one batched model round-trip, warming the shared
+    # memo. build_graph (and the inventory + codegen that follow) then classify from cache
+    # instead of paying the per-element ML overhead thousands of times over.
+    from framework.crawler.classify import classify_many
+
+    classify_many([e for screen in result.screens.values() for e in screen.elements])
+
     nodes: List[GraphNode] = []
     for fp, screen in result.screens.items():
         owned = _owned(screen, app_package)

@@ -92,3 +92,55 @@ def test_generic_containers_classified_by_behaviour(cls, kwargs, expected):
 
 def test_unknown_is_generic():
     assert C.element_type(_el("android.view.ViewGroup", clickable=False)) == "generic"
+
+
+# --- batch classification (perf: one model round-trip, cache pre-warm) ----------------
+
+
+def test_classify_many_matches_per_element_and_warms_the_cache(monkeypatch):
+    els = [
+        _el("android.widget.Button", text="Go"),
+        _el("android.widget.EditText", desc="Email"),
+        _el("android.widget.CheckBox", text="x"),
+    ]
+    single = [C.classify(e) for e in els]
+    C.reset_cache()
+
+    C.classify_many(els)
+    # Every element is now cached, so classify recomputes nothing — a hit returns the memo.
+    calls = {"n": 0}
+    original = C._classify_uncached
+    monkeypatch.setattr(C, "_classify_uncached", lambda e: calls.__setitem__("n", calls["n"] + 1) or original(e))
+    batched = [C.classify(e) for e in els]
+    assert calls["n"] == 0  # no recomputation — served from the warmed cache
+    assert batched == single  # heuristic path: identical results
+
+
+def test_classify_many_is_a_noop_on_empty_and_deduplicates(monkeypatch):
+    C.classify_many([])  # must not raise
+    # Two elements with identical fields share one cache entry / one model row.
+    a = _el("android.widget.Button", text="Same")
+    b = _el("android.widget.Button", text="Same")
+    C.classify_many([a, b])
+    assert C._classify_key(a) in C._classify_cache
+
+
+def test_classify_many_uses_a_single_batch_model_call_when_a_model_is_present(monkeypatch):
+    # Inject a fake model exposing predict_batch; classify_many must call it ONCE for all
+    # elements (the whole point — amortise sklearn/pandas per-call overhead), not per element.
+    # A plain-string label exercises the getattr(ml_type, "value", str(ml_type)) path without
+    # importing the ML module (CI runs without the ml extra).
+    calls = {"batch": 0, "rows": 0}
+
+    class _FakeModel:
+        def predict_batch(self, feats):
+            calls["batch"] += 1
+            calls["rows"] += len(feats)
+            return [("button", 0.99) for _ in feats]
+
+    monkeypatch.setattr(C, "_load_model", lambda: _FakeModel())
+    C.reset_cache()
+    els = [_el("android.widget.Button", text=f"b{i}") for i in range(5)]
+    C.classify_many(els)
+    assert calls["batch"] == 1 and calls["rows"] == 5  # one call, all rows
+    assert all(C.classify(e)[0] == "button" for e in els)  # confident ML label applied
