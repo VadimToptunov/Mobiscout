@@ -3,8 +3,9 @@
 import logging
 import re
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
+from framework.security.sast._scan import regex_hits
 from framework.security.sast.base import (
     VulnerabilityType,
     Severity,
@@ -73,62 +74,75 @@ class InsecureAPIAnalyzer:
         "evaluateJavaScript": (VT.INSECURE_WEBVIEW, Severity.MEDIUM, "CWE-79", "JavaScript evaluation in WebView"),
     }
 
-    # Per-pattern (regex-vs-substring decision + escaping + compile) computed ONCE, not per
-    # line: for a wildcard pattern we cache a compiled regex, else the raw substring.
-    _apis_compiled: "List[tuple] | None" = None
+    # Regex rules as ordered pattern STRINGS (substrings become re.escape'd exact matches;
+    # wildcard rules keep their paren-escaped regex), so the whole set matches in ONE
+    # case-sensitive RegexSet pass via native.scan_lines instead of a search per rule per line.
+    _patterns: "List[str] | None" = None
+    _metas: "List[tuple] | None" = None
 
     @classmethod
-    def _compiled_apis(cls) -> "List[tuple]":
-        """[(pattern, meta, compiled_regex_or_None)] — built once and cached on the class."""
-        cached = cls._apis_compiled
-        if cached is None:
-            cached = []
+    def _rules(cls) -> "tuple[list, list]":
+        """(ordered pattern strings, [(original_pattern, meta)]), built once and cached."""
+        pats, metas = cls._patterns, cls._metas
+        if pats is None or metas is None:
+            pats, metas = [], []
             for pattern, meta in cls.INSECURE_APIS.items():
-                rx = None
                 if "*" in pattern or "?" in pattern or "[" in pattern:
-                    escaped = pattern.replace("(", r"\(").replace(")", r"\)")
-                    try:
-                        rx = re.compile(escaped)
-                    except re.error:
-                        rx = None  # fall back to substring
-                cached.append((pattern, meta, rx))
-            cls._apis_compiled = cached
-        return cached
+                    pat = pattern.replace("(", r"\(").replace(")", r"\)")
+                else:
+                    pat = re.escape(pattern)  # exact substring, as a regex
+                pats.append(pat)
+                metas.append((pattern, meta))
+            cls._patterns, cls._metas = pats, metas
+        return pats, metas
+
+    def _findings(self, file_path: str, content: str, hits: Dict[int, set]) -> List[SASTFinding]:
+        """Build findings for one file from its precomputed hits (``{line: {rule_idx}}``). Same
+        emission as the per-line scan: comment lines are skipped whole, matched rules emit in
+        rule order — so the batched path yields exactly the same findings as ``analyze``."""
+        _pats, metas = self._rules()
+        findings: List[SASTFinding] = []
+        for i, line in enumerate(content.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith(("#", "//", "/*", "*", '"""', "'''")):
+                continue  # comment line — no findings
+            line_hits = hits.get(i, ())
+            if not line_hits:
+                continue
+            for ri in range(len(metas)):
+                if ri in line_hits:
+                    pattern, (vuln_type, severity_override, cwe_override, desc) = metas[ri]
+                    default_severity, default_cwe = default_severity_and_cwe(vuln_type)
+                    findings.append(
+                        SASTFinding(
+                            vulnerability_type=vuln_type,
+                            severity=severity_override or default_severity,
+                            title=f"Insecure API usage: {pattern.split('(')[0] if '(' in pattern else pattern}",
+                            description=desc,
+                            file_path=file_path,
+                            line_number=i,
+                            code_snippet=line.strip(),
+                            cwe_id=cwe_override or default_cwe,
+                        )
+                    )
+        return findings
 
     def analyze(self, file_path: Path) -> List[SASTFinding]:
-        """Analyze file for insecure API usage"""
-        findings = []
-        apis = self._compiled_apis()
-
+        """Analyze one file for insecure API usage."""
         try:
             content = file_path.read_text(encoding="utf-8")
-            lines = content.splitlines()
-
-            for i, line in enumerate(lines, 1):
-                # Skip comments
-                stripped = line.strip()
-                if stripped.startswith(("#", "//", "/*", "*", '"""', "'''")):
-                    continue
-
-                for pattern, (vuln_type, severity_override, cwe_override, desc), rx in apis:
-                    matched = (rx.search(line) is not None) if rx is not None else (pattern in line)
-
-                    if matched:
-                        default_severity, default_cwe = default_severity_and_cwe(vuln_type)
-                        findings.append(
-                            SASTFinding(
-                                vulnerability_type=vuln_type,
-                                severity=severity_override or default_severity,
-                                title=f"Insecure API usage: {pattern.split('(')[0] if '(' in pattern else pattern}",
-                                description=desc,
-                                file_path=str(file_path),
-                                line_number=i,
-                                code_snippet=line.strip(),
-                                cwe_id=cwe_override or default_cwe,
-                            )
-                        )
-
         except (OSError, UnicodeDecodeError) as e:
             logger.debug("SAST insecure-api: skipped %s: %s", file_path, e)
+            return []
+        hits = regex_hits([content], self._rules()[0], False)[0]
+        return self._findings(str(file_path), content, hits)
 
-        return findings
+    def analyze_files(self, files: List["tuple[Path, str]"]) -> List[SASTFinding]:
+        """Batch many ``(path, content)`` through ONE native.scan_lines call (RegexSet, parallel
+        over files); identical findings to calling :meth:`analyze` on each, but one pass total."""
+        contents = [content for _path, content in files]
+        per_file = regex_hits(contents, self._rules()[0], False)
+        out: List[SASTFinding] = []
+        for (path, content), hits in zip(files, per_file):
+            out.extend(self._findings(str(path), content, hits))
+        return out
