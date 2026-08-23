@@ -552,56 +552,65 @@ class JSONRPCServer:
 
         return {"status": "success", "x": x, "y": y}
 
+    @staticmethod
+    def _adb_shell(device_id: str, args: list, timeout: int = 5) -> None:
+        """Run `adb -s <dev> shell <args>` and raise on failure. adb `shell` exit codes are
+        unreliable, so a non-empty stderr is also treated as an error — better than the old
+        fire-and-forget that returned success even when the device rejected the input."""
+        r = subprocess.run(["adb", "-s", device_id, "shell", *args], capture_output=True, text=True, timeout=timeout)
+        if r.returncode != 0 or (r.stderr or "").strip():
+            raise Exception(f"adb {' '.join(args[:2])} failed: {(r.stderr or '').strip() or r.returncode}")
+
     def handle_swipe(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle swipe action."""
+        """Handle swipe action. Platform-aware: Android over adb; iOS through the session's
+        driver (a directional scroll inferred from the endpoints) — the old adb-only path
+        silently no-op'd on iOS while still reporting success."""
         session_id = params.get("session_id")
-        start_x = params.get("start_x")
-        start_y = params.get("start_y")
-        end_x = params.get("end_x")
-        end_y = params.get("end_y")
+        sx, sy = params.get("start_x"), params.get("start_y")
+        ex, ey = params.get("end_x"), params.get("end_y")
         duration_ms = params.get("duration_ms", 300)
 
         if session_id not in self.sessions:
             raise Exception(f"Session not found: {session_id}")
+        if sx is None or sy is None or ex is None or ey is None:
+            raise Exception("swipe requires start_x, start_y, end_x, end_y")
+        sx, sy, ex, ey = int(sx), int(sy), int(ex), int(ey)
 
         session = self.sessions[session_id]
-        device_id = session["device_id"]
-
-        # Execute swipe via adb
-        subprocess.run(
-            [
-                "adb",
-                "-s",
-                device_id,
-                "shell",
-                "input",
-                "swipe",
-                str(start_x),
-                str(start_y),
-                str(end_x),
-                str(end_y),
-                str(duration_ms),
-            ],
-            timeout=2,
-        )
-
+        platform = str(session.get("platform") or "android").lower()
+        if platform == "ios":
+            dx, dy = ex - sx, ey - sy
+            # A swipe moves content with the finger; scroll takes the content direction.
+            direction = ("up" if dy < 0 else "down") if abs(dy) >= abs(dx) else ("left" if dx < 0 else "right")
+            self._session_driver(session).scroll(direction)
+        else:
+            self._adb_shell(
+                session["device_id"],
+                ["input", "swipe", str(sx), str(sy), str(ex), str(ey), str(duration_ms)],
+            )
         return {"status": "success"}
 
     def handle_type(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle type action."""
+        """Handle type action. Platform-aware: Android over adb; iOS through the session's
+        driver. On Android the text is passed as a single argv token (not concatenated into
+        a device-shell line), so metacharacters (& ; $ quotes) are typed literally instead
+        of being reinterpreted by the device shell."""
         session_id = params.get("session_id")
-        text = params.get("text", "")
+        text = str(params.get("text", ""))
 
         if session_id not in self.sessions:
             raise Exception(f"Session not found: {session_id}")
 
         session = self.sessions[session_id]
-        device_id = session["device_id"]
-
-        # Execute text input via adb (escape spaces)
-        escaped_text = text.replace(" ", "%s")
-        subprocess.run(["adb", "-s", device_id, "shell", "input", "text", escaped_text], timeout=2)
-
+        platform = str(session.get("platform") or "android").lower()
+        if platform == "ios":
+            self._session_driver(session).type_text(text)
+        else:
+            # `input text` reads one argument; adb transmits our argv token as-is. Spaces
+            # must be encoded as %s; %/quotes/metachars are escaped so the device shell
+            # doesn't reinterpret them.
+            escaped = text.replace("%", "\\%").replace(" ", "%s")
+            self._adb_shell(session["device_id"], ["input", "text", escaped])
         return {"status": "success", "text": text}
 
     def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
