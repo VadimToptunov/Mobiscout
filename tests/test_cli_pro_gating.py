@@ -9,6 +9,7 @@ from click.testing import CliRunner
 
 from framework.cli.a11y_commands import a11y
 from framework.cli.fuzz_commands import fuzz
+from framework.cli.grid_commands import grid
 from framework.cli.load_commands import load
 from framework.cli.security.base import security
 from framework.licensing import Entitlements, Tier, reset_provider, set_provider
@@ -19,6 +20,7 @@ LANES = [
     (a11y, "list", "Accessibility auditing"),
     (fuzz, "generate", "Fuzz testing"),
     (load, "profiles", "Load testing"),
+    (grid, "providers", "Cloud device grid"),
 ]
 
 

@@ -140,6 +140,18 @@ Generated pytest is **environment-configurable**: set `MOBISCOUT_APPIUM_SERVER`
 (hub URL) and `MOBISCOUT_EXTRA_CAPS` (JSON capabilities) to run the same suite on
 a cloud grid or a different server without regenerating.
 
+**Cloud device grid (bring your own account):** `mobiscout grid` wires that seam to
+BrowserStack / Sauce Labs / LambdaTest — you supply your provider credentials as
+environment variables (nothing is stored, no Mobiscout backend), and the same kit runs
+on the grid:
+
+```bash
+export BROWSERSTACK_USERNAME=… BROWSERSTACK_ACCESS_KEY=…
+mobiscout grid run ./crawl-kit/python_pytest --provider browserstack \
+  --device "Google Pixel 7" --os-version 13 --app bs://<uploaded-app-id>
+mobiscout grid providers   # list providers + the env vars each expects
+```
+
 > Static source analysis and the live crawl support **Android and iOS**. (The ML
 > element classifier is additionally trained on Flutter/React Native samples, but
 > those aren't yet analyzable/crawlable platforms.)

@@ -23,8 +23,9 @@ SECURITY_SCAN = "security_scan"
 A11Y_AUDIT = "a11y_audit"
 FUZZING = "fuzzing"
 LOAD_TESTING = "load_testing"
+CLOUD_GRID = "cloud_grid"
 
-PRO_LANE_FEATURES = (SECURITY_SCAN, A11Y_AUDIT, FUZZING, LOAD_TESTING)
+PRO_LANE_FEATURES = (SECURITY_SCAN, A11Y_AUDIT, FUZZING, LOAD_TESTING, CLOUD_GRID)
 
 
 def require_feature(feature: str, label: str) -> None:
