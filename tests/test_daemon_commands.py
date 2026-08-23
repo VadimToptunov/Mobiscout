@@ -2,6 +2,7 @@
 device actions shell out, so they're driven through a mocked subprocess; no device
 needed."""
 
+import json
 from types import SimpleNamespace
 from unittest import mock
 
@@ -280,6 +281,26 @@ def test_type_on_ios_routes_to_the_driver_not_adb(server):
     with mock.patch(f"{_SUB}.run", side_effect=AssertionError("adb must not be used on iOS")):
         server.handle_type({"session_id": sid, "text": "user&pass"})
     assert fake.typed == ["user&pass"]  # typed verbatim, no shell mangling
+
+
+def test_oversized_request_is_rejected_before_parsing(server):
+    huge = "x" * (server._MAX_MESSAGE_BYTES + 1)
+    resp = json.loads(server._process_line(huge))
+    assert resp["error"]["code"] == -32600 and "too large" in resp["error"]["message"].lower()
+
+
+def test_kit_generate_defaults_a_wall_clock_budget(server, monkeypatch):
+    captured = {}
+    monkeypatch.setattr("framework.crawler.pipeline.run_kit", lambda config: captured.update(config) or {"screens": 0})
+    server.handle_kit_generate({"package": "com.x"})
+    assert captured["max_seconds"] == server._DEFAULT_KIT_MAX_SECONDS
+
+
+def test_kit_generate_respects_caller_supplied_max_seconds(server, monkeypatch):
+    captured = {}
+    monkeypatch.setattr("framework.crawler.pipeline.run_kit", lambda config: captured.update(config) or {})
+    server.handle_kit_generate({"package": "com.x", "max_seconds": 30})
+    assert captured["max_seconds"] == 30
 
 
 def test_swipe_on_ios_scrolls_via_the_driver(server):

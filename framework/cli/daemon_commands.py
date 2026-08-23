@@ -132,6 +132,11 @@ def generate_selector(params: Dict[str, Any]) -> Dict[str, Any]:
 class JSONRPCServer:
     """JSON-RPC 2.0 server for IDE plugin communication."""
 
+    # Wall-clock backstop for an IDE-driven crawl so a wedged device can't hang the
+    # single-threaded daemon forever. Generous — a real crawl is bounded by max_steps
+    # well under this; a caller may override via the request's max_seconds.
+    _DEFAULT_KIT_MAX_SECONDS = 600
+
     def __init__(self) -> None:
         # A GUI-launched IDE gives the engine a minimal PATH (no adb/emulator), so
         # Android would silently show no devices. Resolve the SDK and fix PATH first.
@@ -310,7 +315,10 @@ class JSONRPCServer:
 
         if not params.get("package"):
             raise ValueError("kit/generate requires 'package'")
-        return run_kit(params)
+        # Default a wall-clock budget so an IDE-driven crawl on a wedged device (adb
+        # command hangs, dead WDA) can't block the single-threaded daemon indefinitely;
+        # a caller-supplied max_seconds still wins.
+        return run_kit({"max_seconds": self._DEFAULT_KIT_MAX_SECONDS, **params})
 
     def handle_kit_generate_many(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Crawl → kit for several apps in one call — a project's Android and iOS apps, or
@@ -325,6 +333,8 @@ class JSONRPCServer:
         for config in configs:
             if not config.get("package"):
                 raise ValueError("each config in kit/generateMany requires 'package'")
+        # Default the wall-clock budget per config (see handle_kit_generate).
+        configs = [{"max_seconds": self._DEFAULT_KIT_MAX_SECONDS, **c} for c in configs]
         return {"results": run_kits(configs, parallel=bool(params.get("parallel", True)))}
 
     def handle_health_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -754,6 +764,10 @@ class JSONRPCServer:
             except Exception:
                 pass
 
+    # Reject a single request larger than this before parsing — a wedged plugin (or a
+    # local client) sending a huge/garbage blob can't OOM the engine on json.loads.
+    _MAX_MESSAGE_BYTES = 8 * 1024 * 1024
+
     def _process_line(self, line: str) -> Optional[str]:
         """Handle one newline-delimited JSON-RPC request and return its response
         as a JSON string (``None`` for a blank line). Shared by the stdio and TCP
@@ -761,6 +775,8 @@ class JSONRPCServer:
         line = line.strip()
         if not line:
             return None
+        if len(line) > self._MAX_MESSAGE_BYTES:
+            return json.dumps({"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Request too large"}})
         try:
             request = json.loads(line)
             response = self.handle_request(request)
