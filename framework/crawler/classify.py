@@ -24,7 +24,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, cast
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, cast
 
 from framework.crawler.app_crawler import CrawlElement
 
@@ -224,9 +224,46 @@ def _feature_dict(element: CrawlElement) -> dict:
     }
 
 
+# Classification is a pure function of an element's attributes but runs an ML model per call.
+# The crawl→codegen builders classify the SAME elements over and over (per screen, per graph
+# path, per form/negative/fuzz case), so a cold classify ran the RandomForest tens of
+# thousands of times for a handful of screens. Memoize by the fields that determine the
+# result; cleared by reset_cache() whenever the model changes.
+_classify_cache: Dict[Tuple, Tuple[str, float, str]] = {}
+
+
+def _classify_key(element: CrawlElement) -> Tuple:
+    """The element attributes that determine its classification (same inputs the heuristic and
+    the ML feature dict read) — two elements with equal keys always classify identically."""
+    return (
+        element.class_name,
+        element.text,
+        element.content_desc,
+        element.resource_id,
+        element.clickable,
+        getattr(element, "scrollable", False),
+        getattr(element, "focusable", False),
+        getattr(element, "checkable", False),
+        getattr(element, "password", False),
+        getattr(element, "enabled", True),
+    )
+
+
 def classify(element: CrawlElement) -> Tuple[str, float, str]:
     """Return (element_type, confidence, source) where source is 'ml' or
-    'heuristic'. ML is used only when present and confident."""
+    'heuristic'. ML is used only when present and confident. Memoized per element identity —
+    the builders re-classify the same elements many times, and the model call is expensive."""
+    key = _classify_key(element)
+    cached = _classify_cache.get(key)
+    if cached is not None:
+        return cached
+    result = _classify_uncached(element)
+    _classify_cache[key] = result
+    return result
+
+
+def _classify_uncached(element: CrawlElement) -> Tuple[str, float, str]:
+    """Classify one element without the memo (the actual heuristic/ML decision)."""
     heuristic_type = _heuristic(element)
     model = _load_model()
     if model is None:
@@ -241,13 +278,55 @@ def classify(element: CrawlElement) -> Tuple[str, float, str]:
     return heuristic_type, float(conf), "heuristic"
 
 
+def classify_many(elements: List[CrawlElement]) -> None:
+    """Pre-classify many elements into the memo in ONE model round-trip.
+
+    ``classify`` alone builds a 1-row DataFrame and calls the model per element; the
+    pandas/sklearn per-call overhead (validation, warning filters, joblib dispatch) then
+    dominates and makes N distinct elements cost N slow predictions. This batches every
+    not-yet-cached distinct element into a single ``predict_batch`` — one model round-trip for
+    the whole crawl — and fills the cache so later ``classify`` calls are hits. A no-op for the
+    heuristic-only tier (no model) beyond warming the cache."""
+    uncached: List[CrawlElement] = []
+    keys: List[Tuple] = []
+    seen: set = set()
+    for el in elements:
+        key = _classify_key(el)
+        if key in _classify_cache or key in seen:
+            continue
+        seen.add(key)
+        uncached.append(el)
+        keys.append(key)
+    if not uncached:
+        return
+
+    model = _load_model()
+    if model is None or not hasattr(model, "predict_batch"):
+        for el, key in zip(uncached, keys):
+            _classify_cache[key] = _classify_uncached(el)
+        return
+    try:
+        preds = model.predict_batch([_feature_dict(el) for el in uncached])
+    except Exception:
+        for el, key in zip(uncached, keys):
+            _classify_cache[key] = _classify_uncached(el)
+        return
+    for el, key, (ml_type, conf) in zip(uncached, keys, preds):
+        ml_value = getattr(ml_type, "value", str(ml_type))
+        if conf >= ML_CONFIDENCE and ml_value != "generic":
+            _classify_cache[key] = (ml_value, float(conf), "ml")
+        else:
+            _classify_cache[key] = (_heuristic(el), float(conf), "heuristic")
+
+
 def element_type(element: CrawlElement) -> str:
     """Just the type label (convenience)."""
     return classify(element)[0]
 
 
 def reset_cache() -> Optional[object]:
-    """Test hook: forget the cached model so a new path is picked up."""
+    """Test hook: forget the cached model (and per-element results) so a new path is picked up."""
     global _model
     _model = _UNSET
+    _classify_cache.clear()
     return None
