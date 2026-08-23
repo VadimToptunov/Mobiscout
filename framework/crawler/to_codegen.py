@@ -381,8 +381,13 @@ def _screen_cases(
         )
         steps.append(Step(ActionType.SWITCH_CONTEXT, text="native", description="Back to the native context"))
     title = _slug(_screen_title(owned))
-    name = f"{title}_screen_shows_expected_controls" if title else f"screen_{index + 1}_shows_expected_controls"
-    human = title.replace("_", " ") if title else f"screen {index + 1}"
+    # A titleless screen is named from its crawl-stable fingerprint, NOT its enumeration index:
+    # inserting a screen elsewhere used to renumber every later screen_N, so diff-aware
+    # regeneration reported spurious added/removed churn. The fingerprint prefix is stable
+    # across insertions (it moves only when this screen's own content changes).
+    stable = title or f"screen_{screen.fingerprint[:8]}"
+    name = f"{title}_screen_shows_expected_controls" if title else f"{stable}_shows_expected_controls"
+    human = title.replace("_", " ") if title else stable.replace("_", " ")
     return TestCase(name=name, steps=steps, description=f"The {human} screen shows its expected controls")
 
 

@@ -29,6 +29,29 @@ def _case(model, name_contains):
     return next((c for c in model.cases if name_contains in c.name), None)
 
 
+def test_titleless_screen_is_named_from_its_fingerprint_not_its_index():
+    # Review #8: a titleless screen used to be named screen_{enumeration index}, so inserting a
+    # screen renumbered every later one and churned diff-aware CHANGES.md. The name is now a
+    # pure function of the screen's own fingerprint — so it can't shift when another screen is
+    # inserted, because `index` no longer appears in it.
+    weak = _el("0")  # fragile numeric, no title
+    strong = CrawlElement(
+        resource_id="",
+        text="Freeze card",
+        content_desc="card.freezeToggle",
+        class_name="android.widget.Button",
+        clickable=True,
+        bounds=(0, 20, 10, 30),
+    )
+    model = build_test_model(
+        CrawlResult(screens={"deadbeefcafe": _screen("deadbeefcafe", weak, strong)}, transitions=[]),
+        "com.x",
+    )
+    entry = _case(model, "screen_deadbeef")  # first 8 of the fingerprint
+    assert entry is not None
+    assert "index" not in entry.name and "screen_1" not in entry.name
+
+
 def test_non_entry_state_case_navigates_before_asserting():
     home = _screen("home", _el("Login", "id/login"))
     settings = _screen("settings", _el("Profile", "id/profile"), _el("Log out", "id/logout"))
@@ -85,7 +108,8 @@ def test_state_case_skips_fragile_numeric_text_assertions():
     )
     result = CrawlResult(screens={"home": _screen("home", weak, strong)}, transitions=[])
     model = build_test_model(result, "com.example.app")
-    entry = _case(model, "screen_1")
+    # A titleless screen is named from its fingerprint (stable across insertions), not its index.
+    entry = _case(model, "screen_home")
     assert entry is not None
     asserted = " ".join(s.selector.value for s in entry.steps if s.selector)
     assert "card.freezeToggle" in asserted  # the stable control is checked
