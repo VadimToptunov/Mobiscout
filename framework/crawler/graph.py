@@ -27,7 +27,15 @@ from typing import Dict, List, Optional, Tuple
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
-from framework.crawler.form_values import _FINANCIAL_LABELS, _SUBMIT_LABELS, _invalid_value, _sample_value
+from framework.crawler.form_values import (
+    _ALWAYS_FINANCIAL_LABELS,
+    _CONTEXT_FINANCIAL_LABELS,
+    _SUBMIT_LABELS,
+    _invalid_value,
+    _is_money_screen,
+    _label_has_token,
+    _sample_value,
+)
 from framework.crawler.to_codegen import _owned, selector_for
 
 
@@ -580,14 +588,20 @@ def multi_step_cases(
 
 def _submit_element(screen: CrawlScreen, app_package: str) -> Optional[CrawlElement]:
     """The button on this screen that commits a form (login/continue/…), or None. Skips
-    money-moving/destructive controls (_FINANCIAL_LABELS) so a generated negative/fuzz case
-    never targets a "Transfer"/"Send"/"Confirm" button — the codegen mirror of the live
-    crawler's _submit_control skipping blocked controls (CS2)."""
-    for e in _owned(screen, app_package):
+    money-moving/destructive controls so a generated negative/fuzz case never targets a
+    "Transfer"/"Send"/"Confirm" button — the codegen mirror of the live crawler's
+    _submit_control (CS2). Uses the same word-boundary match and money-context gate as the
+    crawler (CR1): always-financial verbs are skipped everywhere, the ambiguous ones only on
+    a screen that shows a money field (so an OTP "Send code" still yields a case)."""
+    owned = _owned(screen, app_package)
+    money = _is_money_screen((e.text or e.content_desc or e.resource_id or "") for e in owned)
+    for e in owned:
         if not e.clickable or classify(e)[0] != "button":
             continue
         label = (e.text or e.content_desc or e.resource_id or "").strip().lower()
-        if any(k in label for k in _FINANCIAL_LABELS):
+        if any(_label_has_token(k, label) for k in _ALWAYS_FINANCIAL_LABELS):
+            continue
+        if money and any(_label_has_token(k, label) for k in _CONTEXT_FINANCIAL_LABELS):
             continue
         if any(k in label for k in _SUBMIT_LABELS):
             return e

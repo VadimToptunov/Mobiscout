@@ -24,7 +24,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
-from framework.crawler.form_values import _FINANCIAL_LABELS, _SUBMIT_LABELS, _invalid_value, _sample_value
+from framework.crawler.form_values import (
+    _CONTEXT_FINANCIAL_LABELS,
+    _FINANCIAL_LABELS,
+    _SUBMIT_LABELS,
+    _invalid_value,
+    _is_money_screen,
+    _label_has_token,
+    _sample_value,
+)
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen, Transition
 from framework.crawler.obstacles import clear_obstacle, error_retry, terminal_obstacle
 from framework.crawler.parse import parse_screen
@@ -106,6 +114,9 @@ class _Frame:
     todo: Deque["CrawlElement"]
     seen: set
     scrolls: int = 0
+    # Whether this screen shows a money field — gates the ambiguous financial verbs when
+    # the depth-first loop taps this frame's controls (see _blocked).
+    money: bool = False
 
 
 class AppCrawler:
@@ -150,6 +161,10 @@ class AppCrawler:
         # ``allow_destructive`` (for throwaway sandbox/test apps) keeps only the
         # session-enders blocked, so the crawl can tap Pay/Buy/Delete/Confirm and
         # reach the screens behind them. An explicit ``blocklist`` overrides both.
+        # Context-gate the ambiguous financial verbs (send/confirm/exchange) only in the
+        # default profile — an explicit blocklist is taken literally, and --allow-destructive
+        # drops the financial tier entirely.
+        self._context_gated = blocklist is None and not allow_destructive
         if blocklist is None:
             blocklist = SESSION_BLOCKLIST if allow_destructive else DEFAULT_BLOCKLIST
         self.blocklist = tuple(b.lower() for b in blocklist)
@@ -219,9 +234,26 @@ class AppCrawler:
             current = nxt
         return fired_any
 
-    def _blocked(self, element: CrawlElement) -> bool:
-        label = element.label.lower()
-        return any(b in label for b in self.blocklist)
+    def _blocked(self, element: CrawlElement, money_context: bool = False) -> bool:
+        """Whether this control must not be tapped. Matches blocklist tokens on WORD
+        BOUNDARIES (so "send" never fires on "resend"/"sender", "pay" not on "PayPal") and,
+        in the default profile, treats the ambiguous financial verbs (send/confirm/exchange)
+        as blocked only when ``money_context`` — the screen shows a money field. So an OTP
+        "Send code" or a chat "Send" is still crawled, while "Send" on a transfer form is not.
+        """
+        label = element.label.strip().lower()
+        for b in self.blocklist:
+            if not _label_has_token(b, label):
+                continue
+            if self._context_gated and not money_context and b in _CONTEXT_FINANCIAL_LABELS:
+                continue  # ambiguous verb, no money field on this screen → not blocked
+            return True
+        return False
+
+    def _money_screen(self, screen: CrawlScreen) -> bool:
+        """Does this screen involve money (a currency symbol / amount field)? Gates the
+        ambiguous financial verbs for :meth:`_blocked`."""
+        return _is_money_screen(e.label for e in screen.elements if self._own(e))
 
     def _own(self, element: CrawlElement) -> bool:
         """Does this element belong to the app under test? System bars, dialogs
@@ -494,7 +526,7 @@ class AppCrawler:
         if len(nav) >= 2:
             self._explore_tabs(result, screen, nav)
         else:
-            self._dfs(result, screen.fingerprint, self._own_interactive(screen))
+            self._dfs(result, screen.fingerprint, self._own_interactive(screen), root_money=self._money_screen(screen))
 
     def _reanchor(self, tab: CrawlElement, target_fp: str, result: CrawlResult, tries: int = 3) -> bool:
         """Return to a tab's root screen by tapping its (persistent) bar entry.
@@ -550,7 +582,13 @@ class AppCrawler:
                 break
             if not self._reanchor(tab, section.fingerprint, result):
                 continue  # can't get back to this section; its root is still mapped
-            self._dfs(result, section.fingerprint, self._own_interactive(section, exclude_nav=True), exclude_nav=True)
+            self._dfs(
+                result,
+                section.fingerprint,
+                self._own_interactive(section, exclude_nav=True),
+                exclude_nav=True,
+                root_money=self._money_screen(section),
+            )
 
     @staticmethod
     def _element_key(element: CrawlElement) -> Tuple[str, str, str]:
@@ -650,8 +688,9 @@ class AppCrawler:
         None. Skips blocked controls so a probe never taps Pay/Buy/Delete."""
         from framework.crawler.classify import classify
 
+        money = self._money_screen(screen)
         for element in screen.interactive():
-            if not self._own(element) or self._blocked(element):
+            if not self._own(element) or self._blocked(element, money_context=money):
                 continue
             if classify(element)[0] != "button":
                 continue
@@ -719,11 +758,16 @@ class AppCrawler:
         return True
 
     def _dfs(
-        self, result: CrawlResult, root_fp: str, root_todo: Deque[CrawlElement], exclude_nav: bool = False
+        self,
+        result: CrawlResult,
+        root_fp: str,
+        root_todo: Deque[CrawlElement],
+        exclude_nav: bool = False,
+        root_money: bool = False,
     ) -> None:
         """Depth-first walk from one root screen, tapping untried elements and
         backing out of dead ends. Shared by the single-root and per-tab crawls."""
-        stack: List[_Frame] = [_Frame(root_fp, root_todo, {self._element_key(e) for e in root_todo})]
+        stack: List[_Frame] = [_Frame(root_fp, root_todo, {self._element_key(e) for e in root_todo}, money=root_money)]
 
         while stack and self._within_budget(result):
             frame = stack[-1]
@@ -745,7 +789,7 @@ class AppCrawler:
                 continue
 
             element = todo.popleft()
-            if self._blocked(element) or not self._own(element):
+            if self._blocked(element, money_context=frame.money) or not self._own(element):
                 continue
 
             x, y = element.center
@@ -801,7 +845,14 @@ class AppCrawler:
                     continue
                 self._handle_form(result, new_screen)  # exercise its form both ways (invalid→error, valid)
                 child = self._own_interactive(new_screen, exclude_nav=exclude_nav)
-                stack.append(_Frame(new_screen.fingerprint, child, {self._element_key(e) for e in child}))
+                stack.append(
+                    _Frame(
+                        new_screen.fingerprint,
+                        child,
+                        {self._element_key(e) for e in child},
+                        money=self._money_screen(new_screen),
+                    )
+                )
             else:
                 # Already seen (or depth cap): don't re-explore, return to parent.
                 result.steps += 1
