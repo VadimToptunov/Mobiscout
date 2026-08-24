@@ -82,7 +82,11 @@ class GenerateKitAction : AnAction() {
             return
         }
 
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating test kit", true) {
+        // Not cancellable: the crawl runs inside a single blocking `kit/generate` RPC and the
+        // daemon reads its stdio serially, so a cancel request would sit unread until the crawl
+        // finished — the button would do nothing. The crawl self-terminates on its wall-clock
+        // budget instead. Better an honest bar with no Cancel than a Cancel that lies.
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating test kit", false) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
                 try {
@@ -193,7 +197,6 @@ class GenerateKitAction : AnAction() {
         daemonService.startDevice(platform, target)
         val deadline = System.currentTimeMillis() + 120_000
         while (System.currentTimeMillis() < deadline) {
-            if (indicator.isCanceled) throw IllegalStateException("Cancelled.")
             runningDeviceFor(daemonService, platform)?.let { return it }
             Thread.sleep(3_000)
         }
@@ -231,7 +234,8 @@ class GenerateKitAction : AnAction() {
      *  engine's kit/generateMany — crawled in parallel, each on its own device — and report
      *  a per-app summary in one notification. */
     private fun generateMany(project: Project, daemonService: MTRDaemonService, configs: List<Map<String, Any>>) {
-        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating ${configs.size} kits", true) {
+        // Not cancellable, same as the single-kit path: kit/generateMany is one blocking RPC.
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating ${configs.size} kits", false) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
                 indicator.text = "Crawling ${configs.size} apps in parallel…"
