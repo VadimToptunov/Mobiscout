@@ -191,7 +191,9 @@ class GenerateKitAction : AnAction() {
     private fun liveProgressListener(
         indicator: ProgressIndicator,
     ): (JsonRpcNotification) -> Unit = { n ->
-        if (n.method == "logs/message") {
+        // Ignore the app-log stream (source="device") that the Logs tab may be streaming
+        // concurrently — only crawl progress belongs in this bar, not flickering logcat.
+        if (n.method == "logs/message" && n.params.get("source")?.asString != "device") {
             val msg = n.params.get("message")?.asString?.trim().orEmpty()
             if (msg.isNotEmpty()) indicator.text = msg.lineSequence().first().take(120)
         }
