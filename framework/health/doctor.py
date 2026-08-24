@@ -67,6 +67,7 @@ class SystemDoctor:
             ("Android SDK", self._check_android_sdk),
             ("Connected Devices", self._check_devices),
             ("Configuration Files", self._check_config),
+            ("Native Core", self._check_native_core),
             ("Performance", self._check_performance),
         ]
 
@@ -108,6 +109,25 @@ class SystemDoctor:
                 message=f"Python {version.major}.{version.minor} (3.9+ required)",
                 fix_command="Install Python 3.9+",
             )
+
+    def _check_native_core(self, verbose: bool) -> HealthCheck:
+        """Report the active SAST/complexity backend: the Rust core (with version) or the
+        Python fallback (correct but slower — and the signal that a stale/absent wheel is
+        silently costing the acceleration)."""
+        from framework.analyzers.native import backend_name, native_version
+
+        if backend_name() == "rust":
+            return HealthCheck(
+                name="Native Core",
+                status=CheckStatus.PASS,
+                message=f"Rust acceleration active (mobiscout_core {native_version()})",
+            )
+        return HealthCheck(
+            name="Native Core",
+            status=CheckStatus.WARN,
+            message="Python fallback — the Rust core is not installed or too old for this ABI",
+            fix_command="cd rust_core && maturin develop",
+        )
 
     def _check_packages(self, verbose: bool) -> HealthCheck:
         """Check required packages"""

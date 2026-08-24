@@ -80,7 +80,7 @@ def test_run_all_checks_and_report(tmp_path, monkeypatch):
 
     doctor = _doctor()
     checks = doctor.run_all_checks(verbose=False)
-    assert len(checks) == 10
+    assert len(checks) == 11  # + Native Core (V1)
     assert all(isinstance(c, HealthCheck) for c in checks)
 
     passed, failed, warned, skipped = doctor.generate_report()
