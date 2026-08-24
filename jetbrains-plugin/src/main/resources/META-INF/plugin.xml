@@ -52,6 +52,27 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.0 — tool-window polish, safer crawls, hardened engine</h3>
+    <ul>
+        <li><b>Native tool window</b>: the Devices/Screen/Logs/Inspector toolbars are now
+        real IDE ActionToolbars; the Generate dialog groups the rarely-used knobs under a
+        collapsible "Advanced", browses for the output folder, and validates before it runs.</li>
+        <li><b>Honest feedback</b>: the generated kit lands in your project with an "Open
+        folder" action; the progress bar shows the live crawl, not a frozen "Crawling…";
+        errors are non-modal balloons; the Logs view is bounded and no longer yanks you to
+        the bottom while you read.</li>
+        <li><b>Live screen mirror</b>: a "Live" toggle auto-refreshes while a session is
+        active; the Inspector lets you copy a locator or generate a ranked, self-healing
+        selector for the selected element.</li>
+        <li><b>Never freezes the IDE</b>: every engine call (start, screenshot, …) runs off
+        the UI thread, asserted at the service boundary so a regression fails loudly.</li>
+        <li><b>Safer crawls</b>: a default crawl never taps money-moving controls
+        (Pay/Buy/Transfer/… and Send/Confirm on a screen with a money field) — while OTP
+        "Send code", messaging and email-confirmation flows are still crawled. Use
+        <code>--allow-destructive</code> only on throwaway/sandbox apps.</li>
+        <li><b>Hardened Rust engine</b>: the accelerated core is version-gated across the
+        Python↔Rust seam, so a stale build degrades loudly instead of silently.</li>
+    </ul>
     <h3>0.11.0 — Maestro, MCP, and crawl intelligence</h3>
     <ul>
         <li>New codegen target: <b>Maestro</b> declarative YAML flows (cross-platform, no Appium) —
