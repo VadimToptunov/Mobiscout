@@ -3,6 +3,7 @@ CLI commands for CI/CD Integration
 """
 
 from pathlib import Path
+from typing import Any, List, NoReturn, Tuple
 
 import click
 import yaml
@@ -146,6 +147,70 @@ def show(ci_system: str, template_type: str) -> None:
         console.print(f"[red]❌ Error: {e}[/red]")
 
 
+def _fail_empty_yaml() -> NoReturn:
+    """Print the empty/invalid-YAML failure and exit."""
+    console.print("[red]✗[/red] Validation failed!")
+    console.print("[red]Error:[/red] YAML file is empty or invalid")
+    raise SystemExit(1)
+
+
+def _github_issues(config: Any) -> List[str]:
+    """Missing required top-level fields for a GitHub Actions workflow."""
+    issues = []
+    if "name" not in config:
+        issues.append("Missing 'name' field")
+    # PyYAML parses the bare `on:` key as the boolean True (YAML 1.1),
+    # so accept either spelling before flagging the trigger as missing.
+    if "on" not in config and True not in config:
+        issues.append("Missing 'on' (triggers) field")
+    if "jobs" not in config:
+        issues.append("Missing 'jobs' field")
+    return issues
+
+
+def _gitlab_issues(config: Any) -> List[str]:
+    """Missing required fields for a GitLab CI config."""
+    return ["Missing 'stages' field"] if "stages" not in config else []
+
+
+def _jenkins_issues(content: str) -> List[str]:
+    """Missing required blocks in a Jenkinsfile (text, not YAML)."""
+    issues = []
+    if "pipeline" not in content:
+        issues.append("Missing 'pipeline' block")
+    if "stages" not in content:
+        issues.append("Missing 'stages'")
+    return issues
+
+
+def _circleci_issues(config: Any) -> List[str]:
+    """Missing required fields for a CircleCI config."""
+    issues = []
+    if "version" not in config:
+        issues.append("Missing 'version' field")
+    if "jobs" not in config:
+        issues.append("Missing 'jobs' field")
+    return issues
+
+
+def _classify_and_check(config_file: Path) -> Tuple[str, List[str]]:
+    """Identify the CI system from the path/name and return (system, issues). YAML systems
+    fail-exit on an empty/invalid file; an unrecognized file is reported as a basic pass."""
+    if ".github" in str(config_file):
+        config = yaml.safe_load(_load_config(config_file))
+        return "GitHub Actions", _github_issues(config if config is not None else _fail_empty_yaml())
+    if config_file.name == ".gitlab-ci.yml":
+        config = yaml.safe_load(_load_config(config_file))
+        return "GitLab CI", _gitlab_issues(config if config is not None else _fail_empty_yaml())
+    if config_file.name == "Jenkinsfile":
+        return "Jenkins", _jenkins_issues(_load_config(config_file))
+    if ".circleci" in str(config_file):
+        config = yaml.safe_load(_load_config(config_file))
+        return "CircleCI", _circleci_issues(config if config is not None else _fail_empty_yaml())
+    console.print("[yellow]⚠️  Unknown CI system, performing basic validation...[/yellow]")
+    return "Unknown", []
+
+
 @ci.command()
 @click.argument("config_file", type=Path)
 def validate(config_file: Path) -> None:
@@ -157,74 +222,7 @@ def validate(config_file: Path) -> None:
     console.print(f"\n[cyan]Validating {config_file}...[/cyan]\n")
 
     try:
-        # Determine CI system from filename
-        if ".github" in str(config_file):
-            ci_system = "GitHub Actions"
-            config = yaml.safe_load(_load_config(config_file))
-
-            # Check if YAML is empty or invalid
-            if config is None:
-                console.print("[red]✗[/red] Validation failed!")
-                console.print("[red]Error:[/red] YAML file is empty or invalid")
-                raise SystemExit(1)
-
-            # Basic validation
-            issues = []
-            if "name" not in config:
-                issues.append("Missing 'name' field")
-            # PyYAML parses the bare `on:` key as the boolean True (YAML 1.1),
-            # so accept either spelling before flagging the trigger as missing.
-            if "on" not in config and True not in config:
-                issues.append("Missing 'on' (triggers) field")
-            if "jobs" not in config:
-                issues.append("Missing 'jobs' field")
-
-        elif config_file.name == ".gitlab-ci.yml":
-            ci_system = "GitLab CI"
-            config = yaml.safe_load(_load_config(config_file))
-
-            # Check if YAML is empty or invalid
-            if config is None:
-                console.print("[red]✗[/red] Validation failed!")
-                console.print("[red]Error:[/red] YAML file is empty or invalid")
-                raise SystemExit(1)
-
-            issues = []
-            if "stages" not in config:
-                issues.append("Missing 'stages' field")
-
-        elif config_file.name == "Jenkinsfile":
-            ci_system = "Jenkins"
-            content = _load_config(config_file)
-
-            issues = []
-            if "pipeline" not in content:
-                issues.append("Missing 'pipeline' block")
-            if "stages" not in content:
-                issues.append("Missing 'stages'")
-
-        elif ".circleci" in str(config_file):
-            ci_system = "CircleCI"
-            config = yaml.safe_load(_load_config(config_file))
-
-            # Check if YAML is empty or invalid
-            if config is None:
-                console.print("[red]✗[/red] Validation failed!")
-                console.print("[red]Error:[/red] YAML file is empty or invalid")
-                raise SystemExit(1)
-
-            issues = []
-            if "version" not in config:
-                issues.append("Missing 'version' field")
-            if "jobs" not in config:
-                issues.append("Missing 'jobs' field")
-
-        else:
-            console.print("[yellow]⚠️  Unknown CI system, performing basic validation...[/yellow]")
-            ci_system = "Unknown"
-            issues = []
-
-        # Report results
+        ci_system, issues = _classify_and_check(config_file)
         if issues:
             console.print(f"[red]❌ Validation failed for {ci_system}:[/red]\n")
             for issue in issues:
