@@ -4,6 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.progress.ProgressIndicator
@@ -120,7 +121,7 @@ class HealSelectorAction : AnAction() {
 
         val lineStart = document.getLineStartOffset(lineNumber)
         val lineEnd = document.getLineEndOffset(lineNumber)
-        return document.getText(com.intellij.openapi.util.TextRange(lineStart, lineEnd))
+        return document.getText(TextRange(lineStart, lineEnd))
     }
 
     private fun containsSelector(line: String): Boolean {
@@ -184,7 +185,7 @@ class HealSelectorAction : AnAction() {
 
             val lineStart = document.getLineStartOffset(lineNumber)
             val lineEnd = document.getLineEndOffset(lineNumber)
-            val currentLine = document.getText(com.intellij.openapi.util.TextRange(lineStart, lineEnd))
+            val currentLine = document.getText(TextRange(lineStart, lineEnd))
 
             // Generate new selector line
             val newSelector = generateSelectorCode(currentLine, suggestion)

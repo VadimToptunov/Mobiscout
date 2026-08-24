@@ -5,6 +5,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserFactory
 import com.intellij.openapi.fileChooser.FileSaverDescriptor
+import com.intellij.openapi.vfs.VirtualFile
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
 import java.io.File
@@ -38,7 +39,7 @@ class CaptureScreenshotAction : AnAction() {
                 val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot", "png")
                 val saveDialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
                 // Cast the null baseDir to disambiguate the VirtualFile? vs Path? save() overloads.
-                val fileWrapper = saveDialog.save(null as com.intellij.openapi.vfs.VirtualFile?, "screenshot.png")
+                val fileWrapper = saveDialog.save(null as VirtualFile?, "screenshot.png")
                 
                 if (fileWrapper != null) {
                     val file = fileWrapper.file

@@ -11,9 +11,12 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.notification.NotificationGroupManager
+import com.mobiletest.recorder.rpc.JsonRpcNotification
 import com.mobiletest.recorder.services.MTRDaemonService
+import com.mobiletest.recorder.settings.MTRSettings
 import com.mobiletest.recorder.ui.GenerateKitDialog
 import com.mobiletest.recorder.ui.Notifier
+import java.io.File
 
 /**
  * "Generate Test Kit" — opens a parameter form, then runs the engine's
@@ -187,7 +190,7 @@ class GenerateKitAction : AnAction() {
      *  than a frozen "Crawling…". One trimmed line; ignores everything but logs/message. */
     private fun liveProgressListener(
         indicator: ProgressIndicator,
-    ): (com.mobiletest.recorder.rpc.JsonRpcNotification) -> Unit = { n ->
+    ): (JsonRpcNotification) -> Unit = { n ->
         if (n.method == "logs/message") {
             val msg = n.params.get("message")?.asString?.trim().orEmpty()
             if (msg.isNotEmpty()) indicator.text = msg.lineSequence().first().take(120)
@@ -233,7 +236,7 @@ class GenerateKitAction : AnAction() {
     /** A bootable target: the user's preferred emulator/simulator from settings when it's among
      *  the candidates, else the first AVD (Android) / shut-down simulator (iOS). Null if none. */
     private fun firstBootCandidate(daemonService: MTRDaemonService, platform: String): String? {
-        val settings = com.mobiletest.recorder.settings.MTRSettings.getInstance()
+        val settings = MTRSettings.getInstance()
         if (platform == "android") {
             val avds = daemonService.listAvds()?.getAsJsonArray("avds")?.mapNotNull { it.asString } ?: return null
             val preferred = settings.defaultEmulatorName.trim()
@@ -321,7 +324,7 @@ class GenerateKitAction : AnAction() {
         val notification = NotificationGroupManager.getInstance()
             .getNotificationGroup("Mobiscout Framework")
             .createNotification("Test kit generated", content, NotificationType.INFORMATION)
-        val dir = outputDir?.let { java.io.File(it) }
+        val dir = outputDir?.let { File(it) }
         if (dir != null && dir.isDirectory) {
             notification.addAction(NotificationAction.createSimpleExpiring("Open folder") {
                 RevealFileAction.openDirectory(dir)

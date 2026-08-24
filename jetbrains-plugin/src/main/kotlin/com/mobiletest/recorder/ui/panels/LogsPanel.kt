@@ -9,10 +9,12 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextField
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.ui.DeviceItem
 import com.mobiletest.recorder.ui.DeviceList
 import java.awt.BorderLayout
+import java.awt.Font
 import javax.swing.*
 import javax.swing.text.BadLocationException
 import com.mobiletest.recorder.ui.Notifier
@@ -27,14 +29,14 @@ class LogsPanel(
 
     // App-log stream controls: pick a device, name the app, stream its device logs.
     private val deviceCombo = JComboBox<DeviceItem>()
-    private val appField = com.intellij.ui.components.JBTextField(16)
+    private val appField = JBTextField(16)
 
     // Whether a device-log stream is live — drives the Start/Stop action enablement.
     private var streaming = false
 
     init {
         logsTextArea.isEditable = false
-        logsTextArea.font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11)
+        logsTextArea.font = Font("Monospaced", Font.PLAIN, 11)
 
         // Native ActionToolbar for the actions; the device combo + app field sit alongside it
         // (they can't live inside an ActionToolbar). Start/Stop enable off `streaming`.
