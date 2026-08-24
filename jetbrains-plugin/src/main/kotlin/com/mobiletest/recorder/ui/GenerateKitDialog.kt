@@ -2,6 +2,9 @@ package com.mobiletest.recorder.ui
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -10,11 +13,14 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
 import com.intellij.util.ui.FormBuilder
+import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.settings.MTRSettings
+import java.io.File
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.SwingWorker
@@ -131,14 +137,14 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
             .withTitle("Select the Project Folder")
             .withDescription("Detect the app(s) in this project and fill the form")
-        val dir = com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, project, null) ?: return
+        val dir = FileChooser.chooseFile(descriptor, project, null) ?: return
         val path = dir.path
         detectButton.isEnabled = false
         setErrorText(null)
         (object : SwingWorker<JsonArray?, Void>() {
             override fun doInBackground(): JsonArray? = try {
-                com.intellij.openapi.application.ApplicationManager.getApplication()
-                    .getService(com.mobiletest.recorder.services.MTRDaemonService::class.java)
+                ApplicationManager.getApplication()
+                    .getService(MTRDaemonService::class.java)
                     .getClient()?.call("project/detect", mapOf("path" to path))
                     ?.getResultOrThrow()?.getAsJsonArray("apps")
             } catch (e: Exception) {
@@ -194,16 +200,16 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
      *  by friendly name. Best-effort: if the engine isn't running the combo stays empty
      *  and editable, so a UDID can still be typed. Auto-selects the only device. */
     private fun loadDevices() {
-        udidCombo.renderer = com.intellij.ui.SimpleListCellRenderer.create("") { udid ->
+        udidCombo.renderer = SimpleListCellRenderer.create("") { udid ->
             val name = deviceNames[udid]
             if (name.isNullOrBlank()) udid else "$name — $udid"
         }
-        val app = com.intellij.openapi.application.ApplicationManager.getApplication()
+        val app = ApplicationManager.getApplication()
         // The device/list RPC (adb / simctl enumeration) can take seconds — do it off the
         // EDT and populate the combo back on the EDT, so opening the dialog never hangs.
         app.executeOnPooledThread {
             val found = try {
-                val client = app.getService(com.mobiletest.recorder.services.MTRDaemonService::class.java).getClient()
+                val client = app.getService(MTRDaemonService::class.java).getClient()
                 val result = client?.call("device/list", mapOf("platform" to "all"))?.getResultOrThrow()
                 result?.getAsJsonArray("devices")?.mapNotNull { el ->
                     val d = el.asJsonObject
@@ -221,7 +227,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                     udidCombo.addItem(udid)
                 }
                 if (udidCombo.itemCount == 1) udidCombo.selectedIndex = 0 else udidCombo.selectedItem = ""
-            }, com.intellij.openapi.application.ModalityState.any())
+            }, ModalityState.any())
         }
     }
 
@@ -315,8 +321,8 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
          *  or the install dir), where the engine would either fail mkdir or hide the result.
          *  An absolute path, or a relative one with no project root, is returned unchanged. */
         fun resolveOutputPath(out: String, basePath: String?): String {
-            if (java.io.File(out).isAbsolute || basePath == null) return out
-            return java.io.File(basePath, out).path
+            if (File(out).isAbsolute || basePath == null) return out
+            return File(basePath, out).path
         }
     }
 

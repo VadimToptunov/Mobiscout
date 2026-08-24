@@ -9,6 +9,7 @@ import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
 import com.mobiletest.recorder.ui.Notifier
 import java.awt.BorderLayout
+import java.awt.Font
 import java.awt.datatransfer.StringSelection
 import javax.swing.*
 
@@ -40,8 +41,8 @@ class InspectorPanel(
 
     init {
         detailArea.isEditable = false
-        detailArea.font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12)
-        elementList.font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 12)
+        detailArea.font = Font("Monospaced", Font.PLAIN, 12)
+        elementList.font = Font("Monospaced", Font.PLAIN, 12)
         elementList.selectionMode = ListSelectionModel.SINGLE_SELECTION
 
         val captureButton = JButton("Capture UI Tree")
