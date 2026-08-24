@@ -89,6 +89,10 @@ class GenerateKitAction : AnAction() {
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating test kit", false) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
+                // Reflect the crawl's streamed progress in the indicator instead of a static
+                // "Crawling…": the daemon emits a logs/message per screen it visits.
+                val progress = liveProgressListener(indicator)
+                daemonService.addNotificationListener(progress)
                 try {
                     // 0. Auto-degrade: make sure a device is available before crawling. If
                     //    none is running for this platform, boot a candidate (an AVD, or a
@@ -151,13 +155,12 @@ class GenerateKitAction : AnAction() {
                         if (screens == 0) {
                             // 0 screens means the crawl never reached the app — a failure,
                             // not a success. Say so, with the usual causes.
-                            notify(
+                            Notifier.warn(
                                 project,
                                 "No screens crawled",
                                 "The crawl reached 0 screens, so no tests were generated. Common causes: the " +
                                     "device/emulator isn't connected, Appium isn't running at the configured " +
                                     "server, or the app package / UDID is wrong. See the Logs tab for details.",
-                                NotificationType.WARNING,
                             )
                         } else {
                             notifyGenerated(
@@ -170,11 +173,25 @@ class GenerateKitAction : AnAction() {
                     }
                 } catch (ex: Exception) {
                     ApplicationManager.getApplication().invokeLater {
-                        notify(project, "Generation failed", ex.message ?: "Unknown error", NotificationType.ERROR)
+                        Notifier.error(project, "Generation failed", ex.message ?: "Unknown error")
                     }
+                } finally {
+                    daemonService.removeNotificationListener(progress)
                 }
             }
         })
+    }
+
+    /** A daemon-notification listener that mirrors each streamed `logs/message` into the
+     *  progress bar's text, so the crawl shows what it's doing (the screen it's on) rather
+     *  than a frozen "Crawling…". One trimmed line; ignores everything but logs/message. */
+    private fun liveProgressListener(
+        indicator: ProgressIndicator,
+    ): (com.mobiletest.recorder.rpc.JsonRpcNotification) -> Unit = { n ->
+        if (n.method == "logs/message") {
+            val msg = n.params.get("message")?.asString?.trim().orEmpty()
+            if (msg.isNotEmpty()) indicator.text = msg.lineSequence().first().take(120)
+        }
     }
 
     /** Return a device id to crawl on. Auto-degradation: use the given one, else a running
@@ -239,6 +256,8 @@ class GenerateKitAction : AnAction() {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
                 indicator.text = "Crawling ${configs.size} apps in parallel…"
+                val progress = liveProgressListener(indicator)
+                daemonService.addNotificationListener(progress)
                 try {
                     val result = daemonService.getClient()
                         ?.call("kit/generateMany", mapOf("configs" to configs, "parallel" to true))
@@ -255,17 +274,17 @@ class GenerateKitAction : AnAction() {
                         else "• $pkg — ${r.get("screens")?.asInt ?: 0} screen(s), ${r.get("cases")?.asInt ?: 0} case(s)"
                     }
                     ApplicationManager.getApplication().invokeLater {
-                        notify(
-                            project,
-                            "Generated ${configs.size - failed}/${configs.size} kits",
-                            lines,
-                            if (failed == configs.size) NotificationType.WARNING else NotificationType.INFORMATION,
-                        )
+                        val title = "Generated ${configs.size - failed}/${configs.size} kits"
+                        // All failed → warn; otherwise a normal info summary.
+                        if (failed == configs.size) Notifier.warn(project, title, lines)
+                        else Notifier.info(project, title, lines)
                     }
                 } catch (ex: Exception) {
                     ApplicationManager.getApplication().invokeLater {
-                        notify(project, "Generation failed", ex.message ?: "Unknown error", NotificationType.ERROR)
+                        Notifier.error(project, "Generation failed", ex.message ?: "Unknown error")
                     }
+                } finally {
+                    daemonService.removeNotificationListener(progress)
                 }
             }
         })
@@ -294,13 +313,6 @@ class GenerateKitAction : AnAction() {
         } catch (ex: Exception) {
             ""
         }
-    }
-
-    private fun notify(project: com.intellij.openapi.project.Project, title: String, content: String, type: NotificationType) {
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("Mobiscout Framework")
-            .createNotification(title, content, type)
-            .notify(project)
     }
 
     /** Success notification with an "Open folder" action — the kit is on disk; the first thing
