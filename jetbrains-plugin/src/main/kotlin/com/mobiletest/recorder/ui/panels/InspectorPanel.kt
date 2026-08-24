@@ -1,6 +1,13 @@
 package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonObject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBList
@@ -28,9 +35,6 @@ class InspectorPanel(
     // Shows the generated self-healing selector for the picked element.
     private val detailArea = JTextArea(5, 0)
 
-    private val copyLocatorButton = JButton("Copy locator")
-    private val generateButton = JButton("Generate selector")
-
     // Platform of the last captured tree — selector/generate needs it (android vs ios).
     private var currentPlatform = "android"
 
@@ -45,24 +49,16 @@ class InspectorPanel(
         elementList.font = Font("Monospaced", Font.PLAIN, 12)
         elementList.selectionMode = ListSelectionModel.SINGLE_SELECTION
 
-        val captureButton = JButton("Capture UI Tree")
-        captureButton.addActionListener { captureUiTree() }
-        copyLocatorButton.addActionListener { copyLocator() }
-        generateButton.addActionListener { generateSelector() }
-
-        // The two element actions only make sense once something is selected.
-        copyLocatorButton.isEnabled = false
-        generateButton.isEnabled = false
-        elementList.addListSelectionListener {
-            val has = elementList.selectedValue != null
-            copyLocatorButton.isEnabled = has
-            generateButton.isEnabled = has
+        // Native ActionToolbar — Copy locator / Generate selector enable themselves via update()
+        // only when an element is picked (no manual ListSelectionListener toggling).
+        val actions = DefaultActionGroup().apply {
+            add(CaptureTreeAction())
+            add(CopyLocatorAction())
+            add(GenerateSelectorAction())
         }
-
-        val toolbar = JPanel()
-        toolbar.add(captureButton)
-        toolbar.add(copyLocatorButton)
-        toolbar.add(generateButton)
+        val toolbar = ActionManager.getInstance()
+            .createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, actions, true)
+        toolbar.targetComponent = panel
 
         // Element list on top, generated-selector detail below.
         val split = JSplitPane(
@@ -75,8 +71,34 @@ class InspectorPanel(
         center.add(headerLabel, BorderLayout.NORTH)
         center.add(split, BorderLayout.CENTER)
 
-        panel.add(toolbar, BorderLayout.NORTH)
+        panel.add(toolbar.component, BorderLayout.NORTH)
         panel.add(center, BorderLayout.CENTER)
+    }
+
+    private inner class CaptureTreeAction :
+        AnAction("Capture UI Tree", "Fetch the current screen's element tree", AllIcons.Actions.Refresh) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) = captureUiTree()
+    }
+
+    private inner class CopyLocatorAction :
+        AnAction("Copy locator", "Copy the most stable locator for the selected element", AllIcons.Actions.Copy) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = elementList.selectedValue != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = copyLocator()
+    }
+
+    private inner class GenerateSelectorAction :
+        AnAction("Generate selector", "Generate a ranked self-healing selector", AllIcons.Actions.IntentionBulb) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = elementList.selectedValue != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = generateSelector()
     }
 
     /** Fetch the current screen's element tree over the daemon (ui/getTree) for the
