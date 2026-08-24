@@ -259,58 +259,71 @@ class ScreenPanel(
     }
     
     private fun captureScreen() {
-        currentSessionId?.let { sessionId ->
-            (object : SwingWorker<BufferedImage?, Void>() {
-                override fun doInBackground(): BufferedImage? {
-                    try {
-                        val result = daemonService.getScreenshot(sessionId, "png")
-                        val base64Data = result?.get("data")?.asString ?: return null
-                        val imageBytes = Base64.getDecoder().decode(base64Data)
-                        return ImageIO.read(ByteArrayInputStream(imageBytes))
-                    } catch (e: Exception) {
-                        return null
-                    }
+        val sessionId = currentSessionId ?: return
+        (object : SwingWorker<BufferedImage?, Void>() {
+            private var error: String? = null
+
+            override fun doInBackground(): BufferedImage? {
+                return try {
+                    val result = daemonService.getScreenshot(sessionId, "png")
+                    val base64Data = result?.get("data")?.asString
+                        ?: run { error = "The engine returned no screenshot data."; return null }
+                    val imageBytes = Base64.getDecoder().decode(base64Data)
+                    ImageIO.read(ByteArrayInputStream(imageBytes))
+                } catch (e: Exception) {
+                    error = e.message ?: e.toString()
+                    null
                 }
-                
-                override fun done() {
-                    currentImage = get()
+            }
+
+            override fun done() {
+                val img = get()
+                if (img != null) {
+                    currentImage = img
                     imagePanel.repaint()
+                } else {
+                    // Don't blank a working mirror on a transient capture failure — keep the
+                    // last frame on screen and say (non-modally) what went wrong.
+                    Notifier.warn(project, "Screenshot", error ?: "Couldn't capture the screen.")
                 }
-            }).execute()
-        }
+            }
+        }).execute()
     }
     
     private fun performTap(x: Int, y: Int) {
-        currentSessionId?.let { sessionId ->
-            (object : SwingWorker<Void?, Void>() {
-                override fun doInBackground(): Void? {
-                    try {
-                        val params = mapOf(
-                            "session_id" to sessionId,
-                            "x" to x,
-                            "y" to y
-                        )
-                        daemonService.getClient()?.call("action/tap", params)
-                        
-                        // Wait a bit for UI to update
-                        Thread.sleep(500)
-                    } catch (e: Exception) {
-                        // Ignore
-                    }
-                    return null
+        val sessionId = currentSessionId ?: return
+        (object : SwingWorker<String?, Void>() {
+            // Returns an error message, or null on success.
+            override fun doInBackground(): String? {
+                return try {
+                    daemonService.getClient()
+                        ?.call("action/tap", mapOf("session_id" to sessionId, "x" to x, "y" to y))
+                        ?.getResultOrThrow()
+                    // Let the tapped screen settle (a navigation/animation) before re-capturing.
+                    Thread.sleep(POST_TAP_SETTLE_MS)
+                    null
+                } catch (e: Exception) {
+                    e.message ?: e.toString()
                 }
-                
-                override fun done() {
-                    // Auto-refresh screenshot after tap
-                    captureScreen()
-                }
-            }).execute()
-        }
+            }
+
+            override fun done() {
+                // A tap that the daemon rejected used to vanish silently; surface it.
+                get()?.let { Notifier.warn(project, "Tap failed", it) }
+                // Auto-refresh the mirror whether or not the tap succeeded.
+                captureScreen()
+            }
+        }).execute()
     }
-    
+
     fun getPanel(): JComponent = panel
 
     /** The id of the live device session, or null if none is started — so a
      *  toolbar action (Capture Screenshot) can act on the same session. */
     fun activeSessionId(): String? = currentSessionId
+
+    companion object {
+        /** Pause after a tap so a resulting navigation/animation finishes before we re-capture. */
+        private const val POST_TAP_SETTLE_MS = 500L
+    }
 }
