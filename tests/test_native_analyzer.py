@@ -5,14 +5,28 @@ pure-Python fallback (which must be correct on its own) and simulate the Rust co
 a fake module to prove the seam uses it when present and degrades to Python on error.
 """
 
+import pytest
+
 import framework.analyzers.native as native
 from framework.analyzers.native import SourceComplexity, analyze_source_complexity, backend_name
 
 
-def test_backend_is_python_without_the_wheel():
-    # The wheel isn't installed here, so the fallback backend is active.
-    assert backend_name() == "python"
+def test_backend_is_python_when_the_core_is_absent(monkeypatch):
+    # Force the no-wheel path deterministically rather than assuming this box lacks the
+    # wheel — it may not, since the perf work installs mobiscout_core, which would red
+    # this test locally while it's green in CI. _native_core is lru_cached, so replace it
+    # wholesale with one that reports "absent".
+    monkeypatch.setattr(native, "_native_core", lambda: None)
     assert native.native_available() is False
+    assert backend_name() == "python"
+
+
+@pytest.mark.skipif(native._native_core() is None, reason="native wheel not installed")
+def test_backend_is_rust_with_the_real_wheel():
+    # The mirror against the *real* core when it's actually installed — live proof the
+    # Rust wiring reports itself (the fake-core test above proves only the seam logic).
+    assert native.native_available() is True
+    assert backend_name() == "rust"
 
 
 def test_python_fallback_counts_functions_classes_and_branches():
