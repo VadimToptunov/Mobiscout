@@ -128,20 +128,10 @@
     </extensions>
 
     <actions>
-        <!-- Main Toolbar Actions -->
-        <group id="MTR.ToolbarActions" text="Mobiscout" popup="false">
-            <action id="MTR.StartDaemon" class="com.mobiletest.recorder.actions.StartDaemonAction" text="Restart Engine"
-                    description="Restart the Mobiscout engine" icon="AllIcons.Actions.Execute"/>
-            <action id="MTR.StopDaemon" class="com.mobiletest.recorder.actions.StopDaemonAction" text="Stop Engine"
-                    description="Stop the Mobiscout engine" icon="AllIcons.Actions.Suspend"/>
-            <separator/>
-            <action id="MTR.RefreshDevices" class="com.mobiletest.recorder.actions.RefreshDevicesAction"
-                    text="Refresh Devices" description="Refresh device list" icon="AllIcons.Actions.Refresh"/>
-            <action id="MTR.CaptureScreenshot" class="com.mobiletest.recorder.actions.CaptureScreenshotAction"
-                    text="Capture Screenshot" description="Capture device screenshot"
-                    icon="AllIcons.Actions.Menu_saveall"/>
-        </group>
-
+        <!-- The engine Start/Stop live in the Tools ▸ Mobiscout Framework menu below
+             (MTR.StartDaemon2 / MTR.StopDaemon2); the tool window builds its own toolbar in
+             code. The former "MTR.ToolbarActions" group was never added to any menu — a dead
+             duplicate registration — so it's gone. -->
         <!-- STEP 11: Enhanced Actions -->
         <group id="MTR.MobiscoutActions" text="Mobiscout Framework" popup="true" icon="AllIcons.General.GearPlain">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
