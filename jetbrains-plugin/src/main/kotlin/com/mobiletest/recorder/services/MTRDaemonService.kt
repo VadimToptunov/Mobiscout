@@ -6,6 +6,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.util.concurrency.ThreadingAssertions
 import com.mobiletest.recorder.rpc.JsonRpcClient
 import com.mobiletest.recorder.rpc.JsonRpcNotification
 import java.io.File
@@ -139,81 +140,66 @@ class MTRDaemonService : Disposable {
     }
     
     // API Methods
-    
-    fun healthCheck(): JsonObject? {
-        return client?.call("health/check")?.getResultOrThrow()
+    //
+    // Every wrapper below performs a BLOCKING JSON-RPC round-trip — the daemon reads its
+    // stdio serially and a device op can take seconds — so it must never run on the EDT.
+    // rpc() asserts that: a stray EDT call fails loudly in dev instead of freezing the IDE
+    // and waiting for a review to catch it (the P0.4b / U2 / RC3 class).
+
+    /** One blocking JSON-RPC call, asserted off the EDT. Result object, or null when the
+     *  engine isn't up. */
+    private fun rpc(method: String, params: Map<String, Any> = emptyMap()): JsonObject? {
+        ThreadingAssertions.assertBackgroundThread()
+        return client?.call(method, params)?.getResultOrThrow()
     }
-    
-    fun listDevices(platform: String = "all"): JsonObject? {
-        val params = mapOf("platform" to platform)
-        return client?.call("device/list", params)?.getResultOrThrow()
-    }
+
+    fun healthCheck(): JsonObject? = rpc("health/check")
+
+    fun listDevices(platform: String = "all"): JsonObject? = rpc("device/list", mapOf("platform" to platform))
 
     /** Start streaming the app-under-test's device logs; each line arrives as a
      *  `logs/message` notification the Logs panel renders. iOS uses `simctl log
      *  stream`, Android `adb logcat` scoped to the app's PID. */
-    fun startAppLogs(udid: String, bundleId: String, platform: String): JsonObject? {
-        val params = mapOf("udid" to udid, "bundle_id" to bundleId, "platform" to platform)
-        return client?.call("logs/start", params)?.getResultOrThrow()
-    }
+    fun startAppLogs(udid: String, bundleId: String, platform: String): JsonObject? =
+        rpc("logs/start", mapOf("udid" to udid, "bundle_id" to bundleId, "platform" to platform))
 
-    fun stopAppLogs(): JsonObject? = client?.call("logs/stop", emptyMap<String, Any>())?.getResultOrThrow()
-    
-    fun getUiTree(sessionId: String): JsonObject? {
-        val params = mapOf("session_id" to sessionId)
-        return client?.call("ui/getTree", params)?.getResultOrThrow()
-    }
-    
-    fun getScreenshot(sessionId: String, format: String = "png"): JsonObject? {
-        val params = mapOf(
-            "session_id" to sessionId,
-            "format" to format
-        )
-        return client?.call("ui/getScreenshot", params)?.getResultOrThrow()
-    }
+    fun stopAppLogs(): JsonObject? = rpc("logs/stop")
+
+    fun getUiTree(sessionId: String): JsonObject? = rpc("ui/getTree", mapOf("session_id" to sessionId))
+
+    fun getScreenshot(sessionId: String, format: String = "png"): JsonObject? =
+        rpc("ui/getScreenshot", mapOf("session_id" to sessionId, "format" to format))
 
     /**
      * Detect the automation toolchain (Appium, adb/Android SDK, drivers, Xcode)
      * so the setup wizard can tell the user what to fix before crawling — e.g.
      * the ANDROID_HOME an UiAutomator2 Appium session needs. Runs no device.
      */
-    fun detectEnvironment(): JsonObject? {
-        return client?.call("environment/detect")?.getResultOrThrow()
-    }
+    fun detectEnvironment(): JsonObject? = rpc("environment/detect")
 
     /** Boot an emulator/simulator so a session can start on it. */
-    fun startDevice(platform: String, target: String): JsonObject? {
-        val params = mapOf("platform" to platform, "target" to target)
-        return client?.call("device/start", params)?.getResultOrThrow()
-    }
+    fun startDevice(platform: String, target: String): JsonObject? =
+        rpc("device/start", mapOf("platform" to platform, "target" to target))
 
     /** Shut down a running emulator/simulator. */
-    fun stopDevice(platform: String, deviceId: String): JsonObject? {
-        val params = mapOf("platform" to platform, "device_id" to deviceId)
-        return client?.call("device/stop", params)?.getResultOrThrow()
-    }
+    fun stopDevice(platform: String, deviceId: String): JsonObject? =
+        rpc("device/stop", mapOf("platform" to platform, "device_id" to deviceId))
 
     /** Installed Android AVDs that can be booted (`emulator -list-avds`). */
-    fun listAvds(): JsonObject? = client?.call("device/listAvds", emptyMap<String, Any>())?.getResultOrThrow()
+    fun listAvds(): JsonObject? = rpc("device/listAvds")
 
     /** Install a build (.apk / .app) onto a device before crawling. */
-    fun installApp(platform: String, deviceId: String, appPath: String): JsonObject? {
-        val params = mapOf("platform" to platform, "device_id" to deviceId, "app_path" to appPath)
-        return client?.call("app/install", params)?.getResultOrThrow()
-    }
+    fun installApp(platform: String, deviceId: String, appPath: String): JsonObject? =
+        rpc("app/install", mapOf("platform" to platform, "device_id" to deviceId, "app_path" to appPath))
 
     /** Remove the app after a run (install → crawl → cleanup). */
-    fun uninstallApp(platform: String, deviceId: String, packageName: String): JsonObject? {
-        val params = mapOf("platform" to platform, "device_id" to deviceId, "package" to packageName)
-        return client?.call("app/uninstall", params)?.getResultOrThrow()
-    }
+    fun uninstallApp(platform: String, deviceId: String, packageName: String): JsonObject? =
+        rpc("app/uninstall", mapOf("platform" to platform, "device_id" to deviceId, "package" to packageName))
 
     /**
      * The active entitlement tier + quotas, so the IDE can show limits and upsell.
      * The open-core engine is unlimited (`pro`); a Mobiscout-PRO install with a
      * FREE licence reports `free` with `max_screens`/`max_tests`/`max_targets`.
      */
-    fun licenseStatus(): JsonObject? {
-        return client?.call("license/status")?.getResultOrThrow()
-    }
+    fun licenseStatus(): JsonObject? = rpc("license/status")
 }
