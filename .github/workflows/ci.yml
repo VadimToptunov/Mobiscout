@@ -45,8 +45,8 @@ jobs:
           # Exit-zero treats all errors as warnings (informational: style + complexity>10)
           flake8 framework --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
           # Enforced complexity ceiling: fails only if a function grows MORE complex than
-          # today's worst (23). A real ratchet — lower it as the hotspots are refactored.
-          flake8 framework --count --select=C901 --max-complexity=23 --statistics
+          # today's worst (22). A real ratchet — lower it as the hotspots are refactored.
+          flake8 framework --count --select=C901 --max-complexity=22 --statistics
 
       - name: Check docstring coverage (interrogate)
         run: interrogate framework
