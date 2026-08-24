@@ -45,19 +45,54 @@ class SourceComplexity:
         return "low"
 
 
+#: The minimum ``mobiscout_core`` version this framework's ABI expects. Bump it — and
+#: ``rust_core/Cargo.toml``'s ``version`` — together with any incompatible change to the Rust
+#: surface (e.g. the #462 ``scan_lines`` signature). An older installed wheel is then treated
+#: as absent (with one warning) rather than failing every call into the silent Python path.
+_MIN_NATIVE_VERSION = (0, 2, 0)
+
+_warned_native = False
+
+
+def _warn_once_native(message: str) -> None:
+    """Log a native-fallback warning at most once per process (a per-line scan mustn't spam)."""
+    global _warned_native
+    if not _warned_native:
+        _warned_native = True
+        logger.warning("%s", message)
+
+
+def _version_tuple(v: str) -> Tuple[int, ...]:
+    """Parse ``"0.2.0"`` → ``(0, 2, 0)``; anything unparseable sorts oldest."""
+    try:
+        return tuple(int(p) for p in v.split(".")[:3])
+    except (ValueError, AttributeError):
+        return (0, 0, 0)
+
+
 @lru_cache(maxsize=1)
 def _native_core() -> Optional[Any]:
-    """The imported ``mobiscout_core`` module, or ``None`` when the wheel isn't installed."""
+    """The imported ``mobiscout_core`` module, or ``None`` when the wheel isn't installed or is
+    too old for the current ABI. A stale wheel (built before the #462 ``scan_lines`` change,
+    say) would otherwise fail every call and degrade to the Python path silently — version-gate
+    it up front and warn once instead of per call."""
     try:
         import mobiscout_core  # type: ignore
-
-        return mobiscout_core
     except Exception:
         return None
+    version = getattr(mobiscout_core, "__version__", "0.0.0")
+    if _version_tuple(version) < _MIN_NATIVE_VERSION:
+        _warn_once_native(
+            f"mobiscout_core {version} is older than the required "
+            f"{'.'.join(map(str, _MIN_NATIVE_VERSION))} — rebuild the wheel (maturin develop). "
+            "Using the Python fallback."
+        )
+        return None
+    return mobiscout_core
 
 
 def native_available() -> bool:
-    """Whether the Rust acceleration is installed and importable."""
+    """Whether the Rust acceleration is installed, importable, and ABI-compatible."""
     return _native_core() is not None
 
 
@@ -66,7 +101,10 @@ def backend_name() -> str:
     return "rust" if native_available() else "python"
 
 
-_warned_native_fallback = False
+def native_version() -> Optional[str]:
+    """The active native core's version string, or ``None`` when the Python fallback is in use."""
+    core = _native_core()
+    return getattr(core, "__version__", None) if core is not None else None
 
 
 def scan_lines(contents: List[str], patterns: List[str], ignore_case: bool = False) -> List[Tuple[int, int, int]]:
@@ -85,13 +123,10 @@ def scan_lines(contents: List[str], patterns: List[str], ignore_case: bool = Fal
         try:
             return cast(List[Tuple[int, int, int]], core.scan_lines(lines_per_file, list(patterns), ignore_case))
         except Exception as e:
-            # A pattern the Rust regex crate can't compile (e.g. a negative lookahead), or an
-            # ABI/signature skew, degrades to Python. Warn once so it doesn't silently cost
-            # the ~35x forever — the results stay correct either way.
-            global _warned_native_fallback
-            if not _warned_native_fallback:
-                _warned_native_fallback = True
-                logger.warning("Rust scan_lines unavailable, using the Python fallback: %s", e)
+            # A pattern the Rust regex crate can't compile (e.g. a negative lookahead) degrades
+            # to Python. (A stale-ABI wheel is already screened out by _native_core's version
+            # gate.) Warn once so it doesn't silently cost the ~35x — results stay correct.
+            _warn_once_native(f"Rust scan_lines failed, using the Python fallback: {e}")
     return _scan_lines_py(lines_per_file, patterns, ignore_case)
 
 
