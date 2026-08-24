@@ -2,6 +2,15 @@ package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.fileChooser.FileChooser
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.JBColor
@@ -28,25 +37,17 @@ class DevicesPanel(
     private val table = JBTable(tableModel)
     
     init {
-        // Toolbar
-        val toolbar = JPanel()
-        val refreshButton = JButton("Refresh")
-        refreshButton.addActionListener {
-            refreshDevices()
+        // A native ActionToolbar (icons, tooltips, theme) instead of a hand-rolled JButton row.
+        // Shutdown/Install enable themselves only when a device row is selected.
+        val group = DefaultActionGroup().apply {
+            add(RefreshAction())
+            add(BootAction())
+            add(ShutdownAction())
+            add(InstallAction())
         }
-        toolbar.add(refreshButton)
-
-        val bootButton = JButton("Boot device…")
-        bootButton.addActionListener { bootDevice() }
-        toolbar.add(bootButton)
-
-        val shutdownButton = JButton("Shutdown")
-        shutdownButton.addActionListener { shutdownDevice() }
-        toolbar.add(shutdownButton)
-
-        val installButton = JButton("Install build…")
-        installButton.addActionListener { installBuild() }
-        toolbar.add(installButton)
+        val actionToolbar = ActionManager.getInstance()
+            .createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, group, true)
+        actionToolbar.targetComponent = panel
 
         // Table
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
@@ -92,8 +93,40 @@ class DevicesPanel(
 
         val scrollPane = JBScrollPane(table)
 
-        panel.add(toolbar, BorderLayout.NORTH)
+        panel.add(actionToolbar.component, BorderLayout.NORTH)
         panel.add(scrollPane, BorderLayout.CENTER)
+    }
+
+    private inner class RefreshAction :
+        AnAction("Refresh", "Reload the device list", AllIcons.Actions.Refresh) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) = refreshDevices()
+    }
+
+    private inner class BootAction :
+        AnAction("Boot Device…", "Boot an emulator or simulator", AllIcons.Actions.Execute) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) = bootDevice()
+    }
+
+    private inner class ShutdownAction :
+        AnAction("Shutdown", "Shut down the selected device", AllIcons.Actions.Suspend) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = table.selectedRow >= 0
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = shutdownDevice()
+    }
+
+    private inner class InstallAction :
+        AnAction("Install Build…", "Install a build on the selected device", AllIcons.Actions.Install) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = table.selectedRow >= 0
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = installBuild()
     }
 
     fun refreshDevices() {
@@ -167,10 +200,11 @@ class DevicesPanel(
         val deviceId = tableModel.getValueAt(row, 0)?.toString().orEmpty()
         val platform = tableModel.getValueAt(row, 2)?.toString().orEmpty().ifEmpty { "android" }
 
-        val chooser = JFileChooser()
-        chooser.dialogTitle = "Select a build (.apk / .app)"
-        if (chooser.showOpenDialog(panel) != JFileChooser.APPROVE_OPTION) return
-        val appPath = chooser.selectedFile?.absolutePath ?: return
+        // IDE file chooser (consistent look, remembers the last dir) — .apk is a file,
+        // .app is a bundle directory, so allow either.
+        val descriptor = FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor()
+            .withTitle("Select a Build (.apk / .app)")
+        val appPath = (FileChooser.chooseFile(descriptor, project, null) ?: return).path
 
         (object : SwingWorker<JsonObject?, Void>() {
             override fun doInBackground(): JsonObject? {
