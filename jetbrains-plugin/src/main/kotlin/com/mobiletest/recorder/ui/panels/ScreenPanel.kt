@@ -6,6 +6,8 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.JBTextField
 import com.mobiletest.recorder.services.MTRDaemonService
+import com.mobiletest.recorder.ui.DeviceItem
+import com.mobiletest.recorder.ui.DeviceList
 import java.awt.*
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -34,8 +36,6 @@ class ScreenPanel(
     private val appField = JBTextField(16)
     private val serverField = JBTextField("http://localhost:4723", 16)
     private val launchArgsField = JBTextField(14)
-    // "name (id)" combo string -> platform, so a session starts on the right backend.
-    private val devicePlatform = mutableMapOf<String, String>()
 
     private val imagePanel = object : JPanel() {
         override fun paintComponent(g: Graphics) {
@@ -103,7 +103,7 @@ class ScreenPanel(
         val toolbar = JPanel()
         toolbar.layout = BoxLayout(toolbar, BoxLayout.X_AXIS)
         
-        val deviceCombo = JComboBox<String>()
+        val deviceCombo = JComboBox<DeviceItem>()
         val startButton = JButton("Start Session")
         val stopButton = JButton("Stop Session")
         val captureButton = JButton("Capture Screen")
@@ -120,7 +120,7 @@ class ScreenPanel(
         }
         
         startButton.addActionListener {
-            val selectedDevice = deviceCombo.selectedItem as? String
+            val selectedDevice = deviceCombo.selectedItem as? DeviceItem
             if (selectedDevice != null) {
                 startSession(selectedDevice, startButton, stopButton, captureButton, refreshButton)
             }
@@ -166,38 +166,23 @@ class ScreenPanel(
         panel.add(scrollPane, BorderLayout.CENTER)
     }
     
-    private fun loadDevices(combo: JComboBox<String>) {
-        (object : SwingWorker<List<String>, Void>() {
-            override fun doInBackground(): List<String> {
-                try {
-                    val result = daemonService.listDevices("all")
-                    val devices = result?.getAsJsonArray("devices") ?: return emptyList()
-                    return devices.map {
-                        val dev = it.asJsonObject
-                        val label = "${dev.get("name")?.asString} (${dev.get("id")?.asString})"
-                        // Remember the platform so the session starts on the right backend.
-                        devicePlatform[label] = dev.get("platform")?.asString ?: "android"
-                        label
-                    }
-                } catch (e: Exception) {
-                    return emptyList()
-                }
-            }
-            
+    private fun loadDevices(combo: JComboBox<DeviceItem>) {
+        (object : SwingWorker<List<DeviceItem>, Void>() {
+            override fun doInBackground(): List<DeviceItem> = DeviceList.load("all")
+
             override fun done() {
                 combo.removeAllItems()
                 get().forEach { combo.addItem(it) }
             }
         }).execute()
     }
-    
-    private fun startSession(deviceStr: String, startBtn: JButton, stopBtn: JButton, 
+
+    private fun startSession(device: DeviceItem, startBtn: JButton, stopBtn: JButton,
                             captureBtn: JButton, refreshBtn: JButton) {
         (object : SwingWorker<String?, Void>() {
             override fun doInBackground(): String? {
                 try {
-                    // Extract device ID from string
-                    val deviceId = deviceStr.substringAfter("(").substringBefore(")")
+                    val deviceId = device.id
                     currentDeviceId = deviceId
 
                     // Give the daemon what it needs to open the right driver: the
@@ -207,7 +192,7 @@ class ScreenPanel(
                     val params = buildMap {
                         put("device_id", deviceId)
                         put("backend", "appium")
-                        put("platform", devicePlatform[deviceStr] ?: "android")
+                        put("platform", device.platform)
                         if (appField.text.isNotBlank()) put("bundle_id", appField.text.trim())
                         if (serverField.text.isNotBlank()) put("server", serverField.text.trim())
                         if (launchArgs.isNotEmpty()) put("launch_args", launchArgs)
