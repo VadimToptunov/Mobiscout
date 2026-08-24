@@ -17,7 +17,6 @@ import com.intellij.util.ui.FormBuilder
 import com.mobiletest.recorder.settings.MTRSettings
 import javax.swing.JButton
 import javax.swing.JComponent
-import javax.swing.JFileChooser
 import javax.swing.JPanel
 import javax.swing.SwingWorker
 
@@ -56,7 +55,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     private val driverCombo = comboBox("adb", "appium")
     private val languageCombo = comboBox("python", "java", "javascript", "kotlin", "maestro")
     private val frameworkCombo = ComboBox<String>()
-    private val outputField = JBTextField(30)
+    private val outputField = TextFieldWithBrowseButton()
     private val newProjectCheck = JBCheckBox("Create a new runnable project (scaffold)", settings.createNewFramework)
     // Device is a dropdown of the currently running/connected devices (shown by name),
     // populated from the engine — so you pick "iPhone 17" instead of hunting for a UDID.
@@ -114,6 +113,13 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                 .withTitle("Select a Build (.apk / .app)")
                 .withDescription("The build is installed on the device (UDID) before crawling")
         )
+        // Let the output dir be browsed too — a relative path is resolved against the project.
+        outputField.addBrowseFolderListener(
+            project,
+            FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                .withTitle("Select the output directory")
+                .withDescription("Where the generated test kit is written")
+        )
         loadDevices()
         detectButton.addActionListener { detectFromProject() }
         init()
@@ -121,12 +127,13 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
 
     /** Pick a project folder, detect its app(s) via the engine, and fill the form. */
     private fun detectFromProject() {
-        val chooser = JFileChooser().apply {
-            dialogTitle = "Select the project folder"
-            fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-        }
-        if (chooser.showOpenDialog(rootPane) != JFileChooser.APPROVE_OPTION) return
-        val path = chooser.selectedFile?.absolutePath ?: return
+        // Use the IDE's own file chooser (consistent look, remembers the last dir) instead of
+        // a bare Swing JFileChooser.
+        val descriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
+            .withTitle("Select the Project Folder")
+            .withDescription("Detect the app(s) in this project and fill the form")
+        val dir = com.intellij.openapi.fileChooser.FileChooser.chooseFile(descriptor, project, null) ?: return
+        val path = dir.path
         detectButton.isEnabled = false
         setErrorText(null)
         (object : SwingWorker<JsonArray?, Void>() {
@@ -260,7 +267,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             .addLabeledComponent("App package / bundle id:", packageField)
             .addLabeledComponent("Platform:", platformCombo)
             .addLabeledComponent("Device:", udidCombo)
-            .addLabeledComponent("Language:", languageCombo)
+            .addLabeledComponent("Language / target:", languageCombo)
             .addLabeledComponent("Framework:", frameworkCombo)
             .addLabeledComponent("Output directory:", outputField)
             .addComponent(newProjectCheck)
@@ -286,6 +293,11 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     override fun doValidate(): ValidationInfo? {
         if (packageField.text.isNullOrBlank()) {
             return ValidationInfo("App package / bundle id is required", packageField)
+        }
+        // "Install build first" needs a target device — catch it here instead of after the
+        // dialog closes (the action rejected it with a notification and made you reopen).
+        if (buildPathField.text.isNotBlank() && selectedUdid().isBlank()) {
+            return ValidationInfo("Choose a device (UDID) to install the build on", udidCombo)
         }
         return null
     }
