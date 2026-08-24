@@ -54,7 +54,7 @@ def test_gated_form_prepends_auth_and_does_not_tap_the_gate():
     # The form is behind a login gate. The generated case must reach it via the auth prefix
     # (from auth_sequence), NOT by tapping the login button as if it were plain navigation.
     login = _screen(_btn("Sign in", "id/signin"))
-    form = _screen(_field("id/amount", "Amount"), _btn("Confirm", "id/confirm"))
+    form = _screen(_field("id/email", "Email"), _btn("Continue", "id/continue"))
     result = CrawlResult(
         screens={login.fingerprint: login, form.fingerprint: form},
         transitions=[Transition(login.fingerprint, login.elements[0], form.fingerprint, kind="gate")],
@@ -68,7 +68,7 @@ def test_gated_form_prepends_auth_and_does_not_tap_the_gate():
     # The synthetic gate element is never tapped as navigation...
     assert "id/signin" not in locators
     # ...and the form's own controls are exercised (reached past the gate).
-    assert "id/confirm" in locators
+    assert "id/continue" in locators
     # An auth step (typing credentials) precedes the form interaction.
     from framework.codegen.ir import ActionType
 

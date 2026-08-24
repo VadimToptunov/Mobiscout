@@ -27,7 +27,7 @@ from typing import Dict, List, Optional, Tuple
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
 from framework.crawler.classify import classify
-from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
+from framework.crawler.form_values import _FINANCIAL_LABELS, _SUBMIT_LABELS, _invalid_value, _sample_value
 from framework.crawler.to_codegen import _owned, selector_for
 
 
@@ -579,11 +579,16 @@ def multi_step_cases(
 
 
 def _submit_element(screen: CrawlScreen, app_package: str) -> Optional[CrawlElement]:
-    """The button on this screen that commits a form (login/continue/…), or None."""
+    """The button on this screen that commits a form (login/continue/…), or None. Skips
+    money-moving/destructive controls (_FINANCIAL_LABELS) so a generated negative/fuzz case
+    never targets a "Transfer"/"Send"/"Confirm" button — the codegen mirror of the live
+    crawler's _submit_control skipping blocked controls (CS2)."""
     for e in _owned(screen, app_package):
         if not e.clickable or classify(e)[0] != "button":
             continue
         label = (e.text or e.content_desc or e.resource_id or "").strip().lower()
+        if any(k in label for k in _FINANCIAL_LABELS):
+            continue
         if any(k in label for k in _SUBMIT_LABELS):
             return e
     return None

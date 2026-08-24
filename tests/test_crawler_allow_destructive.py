@@ -54,6 +54,28 @@ def test_allow_destructive_unblocks_financial_but_not_logout():
     assert c._blocked(_el("Sign out"))
 
 
+def test_default_blocks_financial_submit_verbs():
+    # CS1: transfer/send/exchange and a bare "Confirm" are submit labels (so an opted-in
+    # crawl can reach the forms behind them), but a DEFAULT crawl must never tap them — the
+    # negative probe fills invalid data and would commit a money move, relying on the app's
+    # own validation, which is exactly what the blocklist exists to not assume.
+    c = _crawler()
+    for label in ("Transfer", "Send money", "Exchange", "Confirm"):
+        assert c._blocked(_el(label)), label
+    # Ordinary, non-financial submit verbs stay crawlable.
+    assert not c._blocked(_el("Continue"))
+    assert not c._blocked(_el("Log in"))
+    assert not c._blocked(_el("Save"))
+
+
+def test_allow_destructive_reaches_financial_submits():
+    # The escape hatch for a throwaway/sandbox app: --allow-destructive lifts the financial
+    # block so the crawler can go past a "Send"/"Transfer"/"Confirm".
+    c = _crawler(allow_destructive=True)
+    for label in ("Transfer", "Send money", "Confirm"):
+        assert not c._blocked(_el(label)), label
+
+
 def test_explicit_blocklist_overrides_allow_destructive():
     c = _crawler(blocklist=("frobnicate",), allow_destructive=True)
     assert c._blocked(_el("Frobnicate this"))

@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Deque, Dict, List, Optional, Tuple
 
 from framework.crawler.errors import CrawlerDriverError
-from framework.crawler.form_values import _SUBMIT_LABELS, _invalid_value, _sample_value
+from framework.crawler.form_values import _FINANCIAL_LABELS, _SUBMIT_LABELS, _invalid_value, _sample_value
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen, Transition
 from framework.crawler.obstacles import clear_obstacle, error_retry, terminal_obstacle
 from framework.crawler.parse import parse_screen
@@ -57,19 +57,17 @@ SESSION_BLOCKLIST = (
 )
 
 # Labels for destructive or financial actions. Blocked by default so a crawl of a
-# real app never deletes data or completes a purchase — but a deliberately
+# real app never deletes data or completes a payment/transfer — but a deliberately
 # throwaway app (a sandbox/test build) can opt to let the crawler through these
 # to reach the screens behind them (see AppCrawler(..., allow_destructive=True)).
+# The financial verbs (pay/buy/transfer/send/confirm/…) are single-sourced in
+# form_values._FINANCIAL_LABELS so the submit picker and this blocklist can't drift:
+# a control that's a "submit" must also be gated here if it moves money.
 DESTRUCTIVE_BLOCKLIST = (
     "delete",
     "remove account",
     "deactivate",
-    "pay",
-    "buy",
-    "purchase",
-    "checkout",
-    "confirm order",
-)
+) + _FINANCIAL_LABELS
 
 # Element labels containing any of these are never tapped by default — they are
 # destructive or would leave the app / session.

@@ -58,9 +58,9 @@ logger = get_logger(__name__)
 @click.option(
     "--allow-destructive",
     is_flag=True,
-    help="Let the crawler tap destructive/financial actions (Pay/Buy/Delete/Confirm) to reach the screens "
-    "behind them. Only for throwaway sandbox/test apps — never a real app with real data. Session-enders "
-    "(Logout) stay blocked regardless.",
+    help="Let the crawler tap destructive/financial actions (Pay/Buy/Transfer/Send/Delete/Confirm) to reach "
+    "the screens behind them. Only for throwaway sandbox/test apps — never a real app with real data. "
+    "Session-enders (Logout) stay blocked regardless.",
 )
 @click.option(
     "--launch-arg",

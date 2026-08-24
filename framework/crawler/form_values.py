@@ -52,10 +52,11 @@ def _invalid_value(element: CrawlElement) -> str:
 
 
 # Button labels that submit a form — the control whose tap commits typed input.
-# Used both to find the submit control during a crawl (to probe a form with
-# invalid data) and to locate it in codegen. "pay"/"buy"/"delete" are deliberately
-# absent (blocklisted — a probe/negative test must never complete a real purchase
-# or destructive action).
+# Used both to find the submit control during a crawl (to probe a form with invalid
+# data) and to locate it in codegen. This list DOES include money-moving verbs
+# (confirm/send/transfer/exchange) so an opted-in --allow-destructive crawl can reach
+# the forms behind them — but a DEFAULT crawl never taps them, because those verbs are
+# also in _FINANCIAL_LABELS below → the crawler's DESTRUCTIVE_BLOCKLIST.
 _SUBMIT_LABELS = (
     "submit",
     "login",
@@ -74,4 +75,21 @@ _SUBMIT_LABELS = (
     "exchange",
     "transfer",
     "done",
+)
+
+# The money-moving / destructive subset of the submit verbs — the single source of truth
+# folded into the crawler's DESTRUCTIVE_BLOCKLIST (app_crawler) and gated out of the codegen
+# submit picker (graph). So neither a live negative probe nor a generated fuzz/negative case
+# taps "Pay"/"Buy"/"Transfer"/"Send"/"Confirm" by default; they rely on the app's own
+# validation only under an explicit --allow-destructive (a throwaway/sandbox build).
+_FINANCIAL_LABELS = (
+    "pay",
+    "buy",
+    "purchase",
+    "checkout",
+    "confirm",
+    "transfer",
+    "exchange",
+    "send",
+    "wire",
 )
