@@ -1,29 +1,21 @@
 //! Mobiscout Core - High-Performance Rust Engine
 //!
-//! This library provides high-performance implementations of CPU-intensive
-//! operations for the Mobile Test Recorder framework.
+//! CPU-hot operations for the Mobiscout framework, exposed to Python over PyO3.
 //!
 //! # Modules
 //!
-//! - `ast_analyzer`: Fast AST parsing and complexity analysis
-//! - `correlator`: Event correlation engine
-//! - `business_logic`: Business logic pattern extraction
-//! - `io`: Optimized file I/O operations
+//! - `ast_analyzer`: tree-sitter AST parsing and complexity analysis (`RustAstAnalyzer`)
+//! - `sast_scan`: multi-pattern line scanner for SAST (`scan_lines`, RegexSet + rayon)
 
 use pyo3::prelude::*;
 
 // Module declarations
 pub mod ast_analyzer;
-pub mod correlator;
-pub mod business_logic;
-pub mod io;
 pub mod sast_scan;
 pub mod utils;
 
 // Re-exports
-pub use ast_analyzer::{RustAstAnalyzer, ComplexityMetrics};
-pub use correlator::{RustCorrelator, Event, Correlation};
-pub use business_logic::{RustBusinessLogicAnalyzer, BusinessLogicPattern};
+pub use ast_analyzer::{ComplexityMetrics, RustAstAnalyzer};
 
 /// Python module definition
 #[pymodule]
@@ -34,31 +26,9 @@ fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
     // Register classes
     m.add_class::<RustAstAnalyzer>()?;
     m.add_class::<ComplexityMetrics>()?;
-    m.add_class::<RustCorrelator>()?;
-    m.add_class::<Event>()?;
-    m.add_class::<Correlation>()?;
-    m.add_class::<RustBusinessLogicAnalyzer>()?;
-    m.add_class::<BusinessLogicPattern>()?;
 
     // Register the SAST multi-pattern line scanner (RegexSet, parallel over files)
     m.add_function(wrap_pyfunction!(sast_scan::scan_lines, m)?)?;
-
-    // Register I/O functions
-    m.add_function(wrap_pyfunction!(io::read_file_fast, m)?)?;
-    m.add_function(wrap_pyfunction!(io::write_file_fast, m)?)?;
-    m.add_function(wrap_pyfunction!(io::read_files_parallel, m)?)?;
-    m.add_function(wrap_pyfunction!(io::find_files, m)?)?;
-    m.add_function(wrap_pyfunction!(io::get_file_size, m)?)?;
-    m.add_function(wrap_pyfunction!(io::file_exists, m)?)?;
-    m.add_function(wrap_pyfunction!(io::get_directory_size, m)?)?;
-    m.add_function(wrap_pyfunction!(io::list_directory, m)?)?;
-    m.add_function(wrap_pyfunction!(io::copy_file_fast, m)?)?;
-    m.add_function(wrap_pyfunction!(io::move_file, m)?)?;
-    m.add_function(wrap_pyfunction!(io::delete_file, m)?)?;
-    m.add_function(wrap_pyfunction!(io::create_directory, m)?)?;
-    m.add_function(wrap_pyfunction!(io::delete_directory, m)?)?;
-    m.add_function(wrap_pyfunction!(io::get_file_mtime, m)?)?;
-    m.add_function(wrap_pyfunction!(io::read_file_chunked, m)?)?;
 
     // Module metadata
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
@@ -67,13 +37,9 @@ fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_module_loads() {
-        // Basic smoke test
-        assert!(true);
-    }
-}
+// No Rust `#[cfg(test)]` here: the crate is a PyO3 `extension-module`, so a standalone
+// `cargo test` binary can't resolve the interpreter symbols (it aborts on `_PyExc_*`). The
+// old `test_module_loads` (`assert!(true)`) never actually ran and proved nothing. The core
+// is exercised for real from Python — `tests/test_native_scan.py` (scan_lines parity) and
+// `tests/test_native_analyzer.py` (the analyzer seam) — plus the build-engine smoke test
+// that imports the built wheel and asserts the backend reports "rust".
