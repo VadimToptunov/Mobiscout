@@ -15,10 +15,13 @@ languages precise (and everything fast).
 from __future__ import annotations
 
 import ast
+import logging
 import re
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, Optional, cast
+from typing import Any, List, Optional, Tuple, cast
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -63,33 +66,48 @@ def backend_name() -> str:
     return "rust" if native_available() else "python"
 
 
-def scan_lines(contents: list, patterns: list, ignore_case: bool = False) -> list:
+_warned_native_fallback = False
+
+
+def scan_lines(contents: List[str], patterns: List[str], ignore_case: bool = False) -> List[Tuple[int, int, int]]:
     """Scan file ``contents`` for regex ``patterns`` — the CPU-hot part of SAST.
 
-    Returns one ``(file_index, line_number, rule_index, line_text)`` tuple per matching
-    (line, rule). Uses the Rust ``RegexSet`` scanner when available (all rules matched in one
-    DFA pass, files scanned in parallel — ~35x on a real repo); otherwise an exact-equivalent
-    pure-Python compiled-regex fallback. Results are identical either way.
+    Returns one ``(file_index, line_number, rule_index)`` tuple per matching (line, rule),
+    ``line_number`` 1-based. Uses the Rust ``RegexSet`` scanner when available (all rules
+    matched in one DFA pass, files scanned in parallel — ~35x on a real repo); otherwise a
+    pure-Python compiled-regex fallback. Results are **identical** either way: the lines are
+    split here once (``str.splitlines()``, the same boundaries the analyzers number by) and
+    passed to whichever backend, so neither re-splits.
     """
+    lines_per_file = [content.splitlines() for content in contents]
     core = _native_core()
     if core is not None and hasattr(core, "scan_lines"):
         try:
-            return cast(list, core.scan_lines(list(contents), list(patterns), ignore_case))
-        except Exception:  # a bad-pattern/ABI issue degrades to the Python path
-            pass
-    return _scan_lines_py(contents, patterns, ignore_case)
+            return cast(List[Tuple[int, int, int]], core.scan_lines(lines_per_file, list(patterns), ignore_case))
+        except Exception as e:
+            # A pattern the Rust regex crate can't compile (e.g. a negative lookahead), or an
+            # ABI/signature skew, degrades to Python. Warn once so it doesn't silently cost
+            # the ~35x forever — the results stay correct either way.
+            global _warned_native_fallback
+            if not _warned_native_fallback:
+                _warned_native_fallback = True
+                logger.warning("Rust scan_lines unavailable, using the Python fallback: %s", e)
+    return _scan_lines_py(lines_per_file, patterns, ignore_case)
 
 
-def _scan_lines_py(contents: list, patterns: list, ignore_case: bool) -> list:
-    """Pure-Python reference for :func:`scan_lines` (compiled regex, one search per rule)."""
+def _scan_lines_py(
+    lines_per_file: List[List[str]], patterns: List[str], ignore_case: bool
+) -> List[Tuple[int, int, int]]:
+    """Pure-Python reference for :func:`scan_lines` (compiled regex, one search per rule),
+    over the already-split lines — same input the Rust path gets, so the two agree exactly."""
     flags = re.IGNORECASE if ignore_case else 0
     compiled = [re.compile(p, flags) for p in patterns]
-    out = []
-    for file_idx, content in enumerate(contents):
-        for line_no, line in enumerate(content.splitlines(), 1):
+    out: List[Tuple[int, int, int]] = []
+    for file_idx, lines in enumerate(lines_per_file):
+        for line_no, line in enumerate(lines, 1):
             for rule_idx, rx in enumerate(compiled):
                 if rx.search(line):
-                    out.append((file_idx, line_no, rule_idx, line))
+                    out.append((file_idx, line_no, rule_idx))
     return out
 
 
@@ -99,6 +117,14 @@ def analyze_source_complexity(source: str, language: str = "python") -> SourceCo
     Uses the Rust core when available (fast, multi-language); otherwise the pure-Python
     fallback. Any error from the native path (an unsupported-language build, an ABI
     mismatch) degrades to the fallback rather than propagating to the caller.
+
+    The two backends are NOT identical here (unlike :func:`scan_lines`): the Rust core parses
+    with real tree-sitter grammars, the fallback uses the stdlib ``ast`` (exact for Python)
+    or a coarse keyword heuristic (other languages). ``cyclomatic_complexity`` /
+    ``lines_of_code`` / counts agree, but ``cognitive_complexity`` and ``max_nesting_depth``
+    (and thus ``risk_level`` near a band edge) can differ. The wheel is mandatory in the
+    shipped engine, so users always get the precise Rust numbers; the divergence is only
+    visible in a dev checkout without the wheel built.
     """
     core = _native_core()
     if core is not None:
