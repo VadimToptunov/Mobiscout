@@ -26,6 +26,10 @@ class MTRDaemonService : Disposable {
     // Notified from the RPC reader thread while listeners are added/removed on the EDT —
     // a copy-on-write list makes that iteration/mutation safe.
     private val listeners = CopyOnWriteArrayList<(JsonRpcNotification) -> Unit>()
+    // Daemon-lifecycle listeners: fired on every start/stop so any UI (the tool-window
+    // status dot) reflects the real state no matter which path started/stopped it — the
+    // toolbar action, the Tools-menu action, or an internal failure. true = running.
+    private val stateListeners = CopyOnWriteArrayList<(Boolean) -> Unit>()
 
     @Volatile
     private var isRunning = false
@@ -65,6 +69,7 @@ class MTRDaemonService : Disposable {
                 process = proc
                 client = rpc
                 isRunning = true
+                notifyState(true)
                 return true
             }
             rpc.close()
@@ -81,10 +86,27 @@ class MTRDaemonService : Disposable {
      */
     @Synchronized
     fun stop() {
+        val wasRunning = isRunning
         isRunning = false
         client?.close()
         client = null
         process = null
+        if (wasRunning) notifyState(false)
+    }
+
+    /** Add/remove a daemon-lifecycle listener (true = started, false = stopped). Fired
+     *  from whatever thread called start()/stop(), so a Swing listener must marshal to the
+     *  EDT itself. */
+    fun addStateListener(listener: (Boolean) -> Unit) {
+        stateListeners.add(listener)
+    }
+
+    fun removeStateListener(listener: (Boolean) -> Unit) {
+        stateListeners.remove(listener)
+    }
+
+    private fun notifyState(running: Boolean) {
+        stateListeners.forEach { it(running) }
     }
 
     /** Stop the engine when the IDE (and thus this application service) is disposed. */

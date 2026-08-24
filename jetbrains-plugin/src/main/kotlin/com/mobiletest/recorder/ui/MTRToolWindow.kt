@@ -1,6 +1,7 @@
 package com.mobiletest.recorder.ui
 
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -25,7 +26,7 @@ import com.mobiletest.recorder.ui.panels.ScreenPanel
 import java.awt.BorderLayout
 import javax.swing.*
 
-class MTRToolWindow(private val project: Project) {
+class MTRToolWindow(private val project: Project) : Disposable {
     private val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
     private val tabbedPane = JBTabbedPane()
     
@@ -49,7 +50,20 @@ class MTRToolWindow(private val project: Project) {
     private var daemonRunning = false
     private var daemonStarting = false
 
+    // The daemon can be started/stopped from three places (this toolbar, the Tools menu,
+    // or an internal failure); subscribe to the service so the dot + action enablement stay
+    // honest no matter which one fired. Marshals to the EDT (the service fires on any thread).
+    private val daemonStateListener: (Boolean) -> Unit = { running ->
+        ApplicationManager.getApplication().invokeLater {
+            daemonStarting = false
+            daemonRunning = running
+            statusLabel.text = if (running) "● Running" else "● Stopped"
+            statusLabel.foreground = if (running) runningColor else stoppedColor
+        }
+    }
+
     init {
+        daemonService.addStateListener(daemonStateListener)
         // Publish the panels so toolbar/menu actions (which the platform creates
         // without a panel reference) can drive them — e.g. RefreshDevicesAction.
         project.getService(MTRToolWindowService::class.java).let {
@@ -166,12 +180,8 @@ class MTRToolWindow(private val project: Project) {
             e.presentation.isEnabled = daemonRunning
         }
 
-        override fun actionPerformed(e: AnActionEvent) {
-            daemonService.stop()
-            daemonRunning = false
-            statusLabel.text = "● Stopped"
-            statusLabel.foreground = stoppedColor
-        }
+        // stop() fires the service state-listener, which updates the dot + daemonRunning.
+        override fun actionPerformed(e: AnActionEvent) = daemonService.stop()
     }
 
     private fun createTabs() {
@@ -188,5 +198,9 @@ class MTRToolWindow(private val project: Project) {
     
     fun getContent(): JComponent {
         return mainPanel
+    }
+
+    override fun dispose() {
+        daemonService.removeStateListener(daemonStateListener)
     }
 }
