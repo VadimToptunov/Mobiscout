@@ -3,6 +3,8 @@ package com.mobiletest.recorder.ui.panels
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBScrollPane
 import com.mobiletest.recorder.services.MTRDaemonService
+import com.mobiletest.recorder.ui.DeviceItem
+import com.mobiletest.recorder.ui.DeviceList
 import java.awt.BorderLayout
 import javax.swing.*
 import com.mobiletest.recorder.ui.Notifier
@@ -15,12 +17,10 @@ class LogsPanel(
     private val logsTextArea = JTextArea()
 
     // App-log stream controls: pick a device, name the app, stream its device logs.
-    private val deviceCombo = JComboBox<String>()
+    private val deviceCombo = JComboBox<DeviceItem>()
     private val appField = com.intellij.ui.components.JBTextField(16)
     private val startButton = JButton("Start App Logs")
     private val stopButton = JButton("Stop")
-    // "name (id)" combo string -> platform, so logs stream on the right backend.
-    private val devicePlatform = mutableMapOf<String, String>()
 
     init {
         logsTextArea.isEditable = false
@@ -77,21 +77,8 @@ class LogsPanel(
     }
 
     private fun loadDevices() {
-        (object : SwingWorker<List<String>, Void>() {
-            override fun doInBackground(): List<String> {
-                return try {
-                    val result = daemonService.listDevices("all")
-                    val devices = result?.getAsJsonArray("devices") ?: return emptyList()
-                    devices.map {
-                        val dev = it.asJsonObject
-                        val label = "${dev.get("name")?.asString} (${dev.get("id")?.asString})"
-                        devicePlatform[label] = dev.get("platform")?.asString ?: "ios"
-                        label
-                    }
-                } catch (e: Exception) {
-                    emptyList()
-                }
-            }
+        (object : SwingWorker<List<DeviceItem>, Void>() {
+            override fun doInBackground(): List<DeviceItem> = DeviceList.load("all")
 
             override fun done() {
                 deviceCombo.removeAllItems()
@@ -101,10 +88,10 @@ class LogsPanel(
     }
 
     private fun startAppLogs() {
-        val selected = deviceCombo.selectedItem as? String
-        val udid = selected?.substringAfterLast("(", "")?.substringBefore(")")?.trim().orEmpty()
+        val selected = deviceCombo.selectedItem as? DeviceItem
+        val udid = selected?.id.orEmpty()
         val bundle = appField.text.trim()
-        val platform = selected?.let { devicePlatform[it] } ?: "ios"
+        val platform = selected?.platform ?: "ios"
         if (udid.isEmpty() || bundle.isEmpty()) {
             Notifier.warn(project, "App Logs", "Pick a device and enter the app bundle id / package first.")
             return
