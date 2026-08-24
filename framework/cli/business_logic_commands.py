@@ -2,12 +2,20 @@
 CLI commands for business logic analysis
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 import click
 import yaml
+
+if TYPE_CHECKING:
+    from framework.analyzers.business_logic_analyzer import (
+        BusinessLogicAnalysis,
+        BusinessLogicAnalyzer,
+    )
 
 
 def _load_analysis(input_file: str) -> Dict:
@@ -29,6 +37,121 @@ def business() -> None:
 
     Extract and analyze business logic from source code
     """
+
+
+def _print_summary(analyzer: BusinessLogicAnalyzer, analysis: BusinessLogicAnalysis) -> None:
+    """Print the platform and the per-category counts."""
+    click.echo("\n📊 Analysis Summary:")
+    click.echo(f"   Platform: {analyzer.platform.upper()}")
+    click.echo(f"   User Flows: {len(analysis.user_flows)}")
+    click.echo(f"   Business Rules: {len(analysis.business_rules)}")
+    click.echo(f"   Data Models: {len(analysis.data_models)}")
+    click.echo(f"   State Machines: {len(analysis.state_machines)}")
+    click.echo(f"   Edge Cases: {len(analysis.edge_cases)}")
+    click.echo(f"   Negative Tests: {len(analysis.negative_test_cases)}")
+    click.echo(f"   Mock Data Entities: {len(analysis.mock_data)}")
+
+
+def _print_user_flows(analysis: BusinessLogicAnalysis) -> None:
+    """Print the first few user flows, with a '... and N more' tail."""
+    if not analysis.user_flows:
+        return
+    click.echo("\n👤 User Flows:")
+    for flow in analysis.user_flows[:5]:  # Show first 5
+        click.echo(f"   • {flow.name}")
+        click.echo(f"     Steps: {len(flow.steps)}")
+        click.echo(f"     Entry: {flow.entry_point}")
+    if len(analysis.user_flows) > 5:
+        click.echo(f"   ... and {len(analysis.user_flows) - 5} more")
+
+
+def _print_state_machines(analysis: BusinessLogicAnalysis) -> None:
+    """Print the first few state machines and their state counts."""
+    if not analysis.state_machines:
+        return
+    click.echo("\n🔄 State Machines:")
+    for sm in analysis.state_machines[:3]:
+        click.echo(f"   • {sm.name}: {len(sm.states)} states")
+    if len(analysis.state_machines) > 3:
+        click.echo(f"   ... and {len(analysis.state_machines) - 3} more")
+
+
+def _print_edge_cases(analysis: BusinessLogicAnalysis) -> None:
+    """Print a per-type count of the detected edge cases."""
+    if not analysis.edge_cases:
+        return
+    click.echo("\n⚠️ Edge Cases:")
+    edge_types: Dict[str, int] = {}
+    for ec in analysis.edge_cases:
+        edge_types[ec.type] = edge_types.get(ec.type, 0) + 1
+    for edge_type, count in edge_types.items():
+        click.echo(f"   • {edge_type}: {count} detected")
+
+
+def _print_data_models(analysis: BusinessLogicAnalysis) -> None:
+    """Print the first few data models and their field counts."""
+    if not analysis.data_models:
+        return
+    click.echo("\n📦 Data Models:")
+    for model in analysis.data_models[:5]:
+        click.echo(f"   • {model.name} ({len(model.fields)} fields)")
+    if len(analysis.data_models) > 5:
+        click.echo(f"   ... and {len(analysis.data_models) - 5} more")
+
+
+def _print_mock_data(analysis: BusinessLogicAnalysis) -> None:
+    """Print a summary line per mock-data entity (Android ID ranges, iOS objects, or generic)."""
+    if not analysis.mock_data:
+        return
+    click.echo("\n🎭 Mock Test Data:")
+    for entity, data in list(analysis.mock_data.items())[:5]:
+        if isinstance(data, dict):
+            if "start_id" in data and "end_id" in data:
+                # Android mock data with ID ranges
+                click.echo(f"   • {entity}: {data['count']} records (IDs {data['start_id']}-{data['end_id']})")
+            elif "type" in data:
+                # iOS mock data without ID ranges
+                click.echo(f"   • {entity}: {data['count']} {data['type']} objects")
+            else:
+                # Generic mock data
+                click.echo(f"   • {entity}: {data.get('count', 'N/A')} records")
+    if len(analysis.mock_data) > 5:
+        click.echo(f"   ... and {len(analysis.mock_data) - 5} more")
+
+
+def _print_api_contracts(analysis: BusinessLogicAnalysis) -> None:
+    """Print the first few API contracts (method + endpoint)."""
+    if not analysis.api_contracts:
+        return
+    click.echo("\n📡 API Contracts:")
+    for contract in analysis.api_contracts[:5]:
+        click.echo(f"   • {contract.method} {contract.endpoint}")
+    if len(analysis.api_contracts) > 5:
+        click.echo(f"   ... and {len(analysis.api_contracts) - 5} more")
+
+
+def _save_analysis(analyzer: BusinessLogicAnalyzer, output: str, fmt: str) -> Path:
+    """Write the analyzer's export to ``output`` as JSON or YAML; return the path."""
+    output_path = Path(output)
+    export_data = analyzer.export_to_json()
+    with open(output_path, "w", encoding="utf-8") as f:
+        if fmt == "json":
+            json.dump(export_data, f, indent=2)
+        else:
+            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
+    return output_path
+
+
+def _print_next_steps(output_path: Path) -> None:
+    """Print the follow-up commands the user can run against the saved analysis."""
+    click.echo(f"\n💾 Analysis saved to: {output_path}")
+    click.echo("\nNext steps:")
+    click.echo(f"  1. Review business logic: cat {output_path}")
+    click.echo(f"  2. Generate scenarios: mobiscout business scenarios --input {output_path}")
+    click.echo(f"  3. Generate BDD features: mobiscout business features --input {output_path}")
+    click.echo(f"  4. View API contracts: mobiscout business contracts --input {output_path}")
+    click.echo(f"  5. View edge cases: mobiscout business edge-cases --input {output_path}")
+    click.echo(f"  6. View negative tests: mobiscout business negative --input {output_path}")
 
 
 @business.command()
@@ -55,95 +178,16 @@ def analyze(source: str, output: str, format: str) -> None:
     analyzer = BusinessLogicAnalyzer(Path(source))
     analysis = analyzer.analyze()
 
-    # Print summary
-    click.echo("\n📊 Analysis Summary:")
-    click.echo(f"   Platform: {analyzer.platform.upper()}")
-    click.echo(f"   User Flows: {len(analysis.user_flows)}")
-    click.echo(f"   Business Rules: {len(analysis.business_rules)}")
-    click.echo(f"   Data Models: {len(analysis.data_models)}")
-    click.echo(f"   State Machines: {len(analysis.state_machines)}")
-    click.echo(f"   Edge Cases: {len(analysis.edge_cases)}")
-    click.echo(f"   Negative Tests: {len(analysis.negative_test_cases)}")
-    click.echo(f"   Mock Data Entities: {len(analysis.mock_data)}")
+    _print_summary(analyzer, analysis)
+    _print_user_flows(analysis)
+    _print_state_machines(analysis)
+    _print_edge_cases(analysis)
+    _print_data_models(analysis)
+    _print_mock_data(analysis)
+    _print_api_contracts(analysis)
 
-    # Show user flows
-    if analysis.user_flows:
-        click.echo("\n👤 User Flows:")
-        for flow in analysis.user_flows[:5]:  # Show first 5
-            click.echo(f"   • {flow.name}")
-            click.echo(f"     Steps: {len(flow.steps)}")
-            click.echo(f"     Entry: {flow.entry_point}")
-        if len(analysis.user_flows) > 5:
-            click.echo(f"   ... and {len(analysis.user_flows) - 5} more")
-
-    # Show state machines
-    if analysis.state_machines:
-        click.echo("\n🔄 State Machines:")
-        for sm in analysis.state_machines[:3]:
-            click.echo(f"   • {sm.name}: {len(sm.states)} states")
-        if len(analysis.state_machines) > 3:
-            click.echo(f"   ... and {len(analysis.state_machines) - 3} more")
-
-    # Show edge cases summary
-    if analysis.edge_cases:
-        click.echo("\n⚠️ Edge Cases:")
-        edge_types: Dict[str, int] = {}
-        for ec in analysis.edge_cases:
-            edge_types[ec.type] = edge_types.get(ec.type, 0) + 1
-        for edge_type, count in edge_types.items():
-            click.echo(f"   • {edge_type}: {count} detected")
-
-    # Show data models
-    if analysis.data_models:
-        click.echo("\n📦 Data Models:")
-        for model in analysis.data_models[:5]:
-            click.echo(f"   • {model.name} ({len(model.fields)} fields)")
-        if len(analysis.data_models) > 5:
-            click.echo(f"   ... and {len(analysis.data_models) - 5} more")
-
-    # Show mock data
-    if analysis.mock_data:
-        click.echo("\n🎭 Mock Test Data:")
-        for entity, data in list(analysis.mock_data.items())[:5]:
-            if isinstance(data, dict):
-                if "start_id" in data and "end_id" in data:
-                    # Android mock data with ID ranges
-                    click.echo(f"   • {entity}: {data['count']} records (IDs {data['start_id']}-{data['end_id']})")
-                elif "type" in data:
-                    # iOS mock data without ID ranges
-                    click.echo(f"   • {entity}: {data['count']} {data['type']} objects")
-                else:
-                    # Generic mock data
-                    click.echo(f"   • {entity}: {data.get('count', 'N/A')} records")
-        if len(analysis.mock_data) > 5:
-            click.echo(f"   ... and {len(analysis.mock_data) - 5} more")
-
-    # Show API contracts
-    if analysis.api_contracts:
-        click.echo("\n📡 API Contracts:")
-        for contract in analysis.api_contracts[:5]:
-            click.echo(f"   • {contract.method} {contract.endpoint}")
-        if len(analysis.api_contracts) > 5:
-            click.echo(f"   ... and {len(analysis.api_contracts) - 5} more")
-
-    # Save to file
-    output_path = Path(output)
-    export_data = analyzer.export_to_json()
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        if format == "json":
-            json.dump(export_data, f, indent=2)
-        else:
-            yaml.dump(export_data, f, default_flow_style=False, sort_keys=False)
-
-    click.echo(f"\n💾 Analysis saved to: {output_path}")
-    click.echo("\nNext steps:")
-    click.echo(f"  1. Review business logic: cat {output_path}")
-    click.echo(f"  2. Generate scenarios: mobiscout business scenarios --input {output_path}")
-    click.echo(f"  3. Generate BDD features: mobiscout business features --input {output_path}")
-    click.echo(f"  4. View API contracts: mobiscout business contracts --input {output_path}")
-    click.echo(f"  5. View edge cases: mobiscout business edge-cases --input {output_path}")
-    click.echo(f"  6. View negative tests: mobiscout business negative --input {output_path}")
+    output_path = _save_analysis(analyzer, output, format)
+    _print_next_steps(output_path)
 
 
 @business.command()
