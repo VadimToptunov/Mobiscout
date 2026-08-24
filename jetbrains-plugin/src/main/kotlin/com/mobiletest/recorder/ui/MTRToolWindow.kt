@@ -2,6 +2,7 @@ package com.mobiletest.recorder.ui
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUpdateThread
@@ -64,6 +65,9 @@ class MTRToolWindow(private val project: Project) : Disposable {
 
     init {
         daemonService.addStateListener(daemonStateListener)
+        // The Screen panel owns a repeating Live-refresh timer — tie its lifecycle to ours so
+        // the timer is stopped when the tool window (or project) closes.
+        Disposer.register(this, screenPanel)
         // Publish the panels so toolbar/menu actions (which the platform creates
         // without a panel reference) can drive them — e.g. RefreshDevicesAction.
         project.getService(MTRToolWindowService::class.java).let {
