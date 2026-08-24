@@ -1,6 +1,13 @@
 package com.mobiletest.recorder.ui.panels
 
 import com.google.gson.JsonObject
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
@@ -37,6 +44,10 @@ class ScreenPanel(
     private val appField = JBTextField(16)
     private val serverField = JBTextField("http://localhost:4723", 16)
     private val launchArgsField = JBTextField(14)
+
+    // The device to mirror. A field (not a local) so the toolbar actions can read the
+    // selection in their update() to enable/disable themselves.
+    private val deviceCombo = JComboBox<DeviceItem>()
 
     private val imagePanel = object : JPanel() {
         override fun paintComponent(g: Graphics) {
@@ -99,51 +110,27 @@ class ScreenPanel(
         })
         
         val scrollPane = JBScrollPane(imagePanel)
-        
-        // Toolbar
+
+        // Native ActionToolbar for the actions; the input fields (device, app, server,
+        // launch args) sit alongside it — those can't live inside an ActionToolbar. Action
+        // enablement derives from the live session state via update(), so there's no manual
+        // button toggling to keep in sync.
+        val actions = DefaultActionGroup().apply {
+            add(LoadDevicesAction())
+            add(StartSessionAction())
+            add(StopSessionAction())
+            add(CaptureAction())
+            add(RefreshAction())
+        }
+        val actionToolbar = ActionManager.getInstance()
+            .createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, actions, true)
+        actionToolbar.targetComponent = panel
+
         val toolbar = JPanel()
         toolbar.layout = BoxLayout(toolbar, BoxLayout.X_AXIS)
-        
-        val deviceCombo = JComboBox<DeviceItem>()
-        val startButton = JButton("Start Session")
-        val stopButton = JButton("Stop Session")
-        val captureButton = JButton("Capture Screen")
-        val refreshButton = JButton("Refresh")
-        
-        stopButton.isEnabled = false
-        captureButton.isEnabled = false
-        refreshButton.isEnabled = false
-        
-        // Load devices
-        val loadDevicesButton = JButton("Load Devices")
-        loadDevicesButton.addActionListener {
-            loadDevices(deviceCombo)
-        }
-        
-        startButton.addActionListener {
-            val selectedDevice = deviceCombo.selectedItem as? DeviceItem
-            if (selectedDevice != null) {
-                startSession(selectedDevice, startButton, stopButton, captureButton, refreshButton)
-            }
-        }
-        
-        stopButton.addActionListener {
-            stopSession(startButton, stopButton, captureButton, refreshButton)
-        }
-        
-        captureButton.addActionListener {
-            captureScreen()
-        }
-        
-        refreshButton.addActionListener {
-            captureScreen()
-        }
-        
         toolbar.add(JLabel("Device:"))
         toolbar.add(Box.createHorizontalStrut(5))
         toolbar.add(deviceCombo)
-        toolbar.add(Box.createHorizontalStrut(5))
-        toolbar.add(loadDevicesButton)
         toolbar.add(Box.createHorizontalStrut(8))
         toolbar.add(JLabel("App:"))
         toolbar.add(appField)
@@ -153,33 +140,75 @@ class ScreenPanel(
         toolbar.add(Box.createHorizontalStrut(5))
         toolbar.add(JLabel("Launch args:"))
         toolbar.add(launchArgsField)
-        toolbar.add(Box.createHorizontalStrut(10))
-        toolbar.add(startButton)
-        toolbar.add(Box.createHorizontalStrut(5))
-        toolbar.add(stopButton)
-        toolbar.add(Box.createHorizontalStrut(10))
-        toolbar.add(captureButton)
-        toolbar.add(Box.createHorizontalStrut(5))
-        toolbar.add(refreshButton)
+        toolbar.add(Box.createHorizontalStrut(8))
+        toolbar.add(actionToolbar.component)
         toolbar.add(Box.createHorizontalGlue())
-        
+
         panel.add(toolbar, BorderLayout.NORTH)
         panel.add(scrollPane, BorderLayout.CENTER)
     }
+
+    private inner class LoadDevicesAction :
+        AnAction("Load Devices", "Reload the running devices", AllIcons.Actions.Refresh) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) = loadDevices()
+    }
+
+    private inner class StartSessionAction :
+        AnAction("Start Session", "Start mirroring the selected device", AllIcons.Actions.Execute) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            // A session needs a device, and only one at a time.
+            e.presentation.isEnabled = currentSessionId == null && deviceCombo.selectedItem is DeviceItem
+        }
+
+        override fun actionPerformed(e: AnActionEvent) {
+            (deviceCombo.selectedItem as? DeviceItem)?.let { startSession(it) }
+        }
+    }
+
+    private inner class StopSessionAction :
+        AnAction("Stop Session", "Stop mirroring", AllIcons.Actions.Suspend) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = currentSessionId != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = stopSession()
+    }
+
+    private inner class CaptureAction :
+        AnAction("Capture Screen", "Capture the current screen", AllIcons.Actions.Dump) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = currentSessionId != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = captureScreen()
+    }
+
+    private inner class RefreshAction :
+        AnAction("Refresh", "Re-capture the current screen", AllIcons.Actions.Refresh) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = currentSessionId != null
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = captureScreen()
+    }
     
-    private fun loadDevices(combo: JComboBox<DeviceItem>) {
+    private fun loadDevices() {
         (object : SwingWorker<List<DeviceItem>, Void>() {
             override fun doInBackground(): List<DeviceItem> = DeviceList.load("all")
 
             override fun done() {
-                combo.removeAllItems()
-                get().forEach { combo.addItem(it) }
+                deviceCombo.removeAllItems()
+                get().forEach { deviceCombo.addItem(it) }
             }
         }).execute()
     }
 
-    private fun startSession(device: DeviceItem, startBtn: JButton, stopBtn: JButton,
-                            captureBtn: JButton, refreshBtn: JButton) {
+    private fun startSession(device: DeviceItem) {
         (object : SwingWorker<String?, Void>() {
             override fun doInBackground(): String? {
                 try {
@@ -212,13 +241,8 @@ class ScreenPanel(
                 val sessionId = get()
                 if (sessionId != null) {
                     currentSessionId = sessionId
-                    startBtn.isEnabled = false
-                    stopBtn.isEnabled = true
-                    captureBtn.isEnabled = true
-                    refreshBtn.isEnabled = true
-                    
-                    // Auto-capture first screenshot
-                    captureScreen()
+                    // The toolbar actions enable/disable themselves off currentSessionId.
+                    captureScreen() // auto-capture the first screenshot
                 } else {
                     // The daemon's preflight returns an actionable, often multi-line message
                     // (e.g. the ANDROID_HOME fix). Show it as a non-modal balloon — the full
@@ -230,8 +254,7 @@ class ScreenPanel(
         }).execute()
     }
     
-    private fun stopSession(startBtn: JButton, stopBtn: JButton, 
-                           captureBtn: JButton, refreshBtn: JButton) {
+    private fun stopSession() {
         currentSessionId?.let { sessionId ->
             (object : SwingWorker<Void?, Void>() {
                 override fun doInBackground(): Void? {
@@ -243,16 +266,12 @@ class ScreenPanel(
                     }
                     return null
                 }
-                
+
                 override fun done() {
+                    // Clearing currentSessionId flips the toolbar actions back via update().
                     currentSessionId = null
                     currentImage = null
                     imagePanel.repaint()
-                    
-                    startBtn.isEnabled = true
-                    stopBtn.isEnabled = false
-                    captureBtn.isEnabled = false
-                    refreshBtn.isEnabled = false
                 }
             }).execute()
         }
