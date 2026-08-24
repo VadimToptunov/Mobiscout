@@ -8,6 +8,8 @@ import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
+import com.intellij.openapi.actionSystem.ToggleAction
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBScrollPane
@@ -28,11 +30,15 @@ import javax.swing.*
 class ScreenPanel(
     private val project: Project,
     private val daemonService: MTRDaemonService
-) {
+) : Disposable {
     private val panel = JPanel(BorderLayout())
     private var currentSessionId: String? = null
     private var currentImage: BufferedImage? = null
     private var currentDeviceId: String? = null
+
+    // "Live" auto-refresh: a repeating timer that re-captures while a session is active.
+    private var live = false
+    private var liveTimer: Timer? = null
 
     // The daemon runs a fail-fast preflight on session/start and returns an
     // actionable JSON-RPC error (e.g. the ANDROID_HOME fix) — surface it verbatim
@@ -121,6 +127,7 @@ class ScreenPanel(
             add(StopSessionAction())
             add(CaptureAction())
             add(RefreshAction())
+            add(LiveToggleAction())
         }
         val actionToolbar = ActionManager.getInstance()
             .createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, actions, true)
@@ -196,7 +203,36 @@ class ScreenPanel(
 
         override fun actionPerformed(e: AnActionEvent) = captureScreen()
     }
-    
+
+    /** Toggle continuous mirroring: while on (and a session is live), a timer re-captures
+     *  every [LIVE_REFRESH_MS]. The dead "screenshot refresh interval" setting was removed in
+     *  the settings cleanup; this is the capability it had promised, built for real. */
+    private inner class LiveToggleAction :
+        ToggleAction("Live", "Auto-refresh the mirror while a session is active", AllIcons.Actions.Refresh) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            super.update(e)
+            val hasSession = currentSessionId != null
+            e.presentation.isEnabled = hasSession
+            if (!hasSession && live) setLive(false) // a session that ended drops Live
+        }
+
+        override fun isSelected(e: AnActionEvent): Boolean = live
+        override fun setSelected(e: AnActionEvent, state: Boolean) = setLive(state)
+    }
+
+    /** Start/stop the auto-refresh timer, keeping [live] in sync. */
+    private fun setLive(on: Boolean) {
+        live = on
+        liveTimer?.stop()
+        liveTimer = null
+        if (on && currentSessionId != null) {
+            liveTimer = Timer(LIVE_REFRESH_MS) {
+                if (currentSessionId == null) setLive(false) else captureScreen()
+            }.apply { isRepeats = true; start() }
+        }
+    }
+
     private fun loadDevices() {
         (object : SwingWorker<List<DeviceItem>, Void>() {
             override fun doInBackground(): List<DeviceItem> = DeviceList.load("all")
@@ -272,6 +308,7 @@ class ScreenPanel(
                     currentSessionId = null
                     currentImage = null
                     imagePanel.repaint()
+                    setLive(false) // no session → stop auto-refresh
                 }
             }).execute()
         }
@@ -341,8 +378,16 @@ class ScreenPanel(
      *  toolbar action (Capture Screenshot) can act on the same session. */
     fun activeSessionId(): String? = currentSessionId
 
+    override fun dispose() {
+        liveTimer?.stop() // don't leave a repeating timer firing after the tool window closes
+        liveTimer = null
+    }
+
     companion object {
         /** Pause after a tap so a resulting navigation/animation finishes before we re-capture. */
         private const val POST_TAP_SETTLE_MS = 500L
+
+        /** Auto-refresh cadence for the Live toggle. */
+        private const val LIVE_REFRESH_MS = 1500
     }
 }
