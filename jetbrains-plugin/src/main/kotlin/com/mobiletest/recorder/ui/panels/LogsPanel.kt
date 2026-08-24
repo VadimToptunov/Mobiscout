@@ -7,6 +7,7 @@ import com.mobiletest.recorder.ui.DeviceItem
 import com.mobiletest.recorder.ui.DeviceList
 import java.awt.BorderLayout
 import javax.swing.*
+import javax.swing.text.BadLocationException
 import com.mobiletest.recorder.ui.Notifier
 
 class LogsPanel(
@@ -15,6 +16,7 @@ class LogsPanel(
 ) {
     private val panel = JPanel(BorderLayout())
     private val logsTextArea = JTextArea()
+    private val logsScroll = JBScrollPane(logsTextArea)
 
     // App-log stream controls: pick a device, name the app, stream its device logs.
     private val deviceCombo = JComboBox<DeviceItem>()
@@ -25,8 +27,6 @@ class LogsPanel(
     init {
         logsTextArea.isEditable = false
         logsTextArea.font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11)
-
-        val scrollPane = JBScrollPane(logsTextArea)
 
         // Toolbar: device + app + stream controls, then Clear.
         val toolbar = JPanel()
@@ -57,7 +57,7 @@ class LogsPanel(
         toolbar.add(clearButton)
 
         panel.add(toolbar, BorderLayout.NORTH)
-        panel.add(scrollPane, BorderLayout.CENTER)
+        panel.add(logsScroll, BorderLayout.CENTER)
 
         // Render both daemon logs and streamed app logs (both arrive as logs/message).
         daemonService.addNotificationListener { notification ->
@@ -69,8 +69,22 @@ class LogsPanel(
                 val prefix = if (timestamp.isBlank()) "$level: " else "[$timestamp] $level: "
 
                 SwingUtilities.invokeLater {
+                    val bar = logsScroll.verticalScrollBar
+                    // Autoscroll only when the view is already at the tail — don't yank it
+                    // back down while the user has scrolled up to read earlier lines.
+                    val atBottom = bar.value + bar.visibleAmount >= bar.maximum - 4
+                    val doc = logsTextArea.document
                     logsTextArea.append("$prefix$message\n")
-                    logsTextArea.caretPosition = logsTextArea.document.length
+                    // Bound the buffer: a long-running stream would otherwise grow without
+                    // limit. Drop the oldest characters once it exceeds MAX_LOG_CHARS.
+                    if (doc.length > MAX_LOG_CHARS) {
+                        try {
+                            doc.remove(0, doc.length - MAX_LOG_CHARS)
+                        } catch (_: BadLocationException) {
+                            // concurrent edit narrowed the doc — skip this trim
+                        }
+                    }
+                    if (atBottom) logsTextArea.caretPosition = doc.length
                 }
             }
         }
@@ -134,4 +148,9 @@ class LogsPanel(
     }
 
     fun getPanel(): JComponent = panel
+
+    companion object {
+        /** Keep at most this many characters of log tail in the view (~a few MB of RAM cap). */
+        private const val MAX_LOG_CHARS = 200_000
+    }
 }

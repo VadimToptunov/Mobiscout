@@ -8,6 +8,7 @@ import com.intellij.ui.components.JBTextField
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.ui.DeviceItem
 import com.mobiletest.recorder.ui.DeviceList
+import com.mobiletest.recorder.ui.Notifier
 import java.awt.*
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
@@ -219,22 +220,11 @@ class ScreenPanel(
                     // Auto-capture first screenshot
                     captureScreen()
                 } else {
-                    // Show the daemon's actionable message (preflight/ANDROID_HOME
-                    // fix) verbatim; it can be multi-line, so use a scrollable area.
-                    val message = lastStartError ?: "Failed to start session"
-                    val area = JTextArea(message).apply {
-                        isEditable = false
-                        lineWrap = true
-                        wrapStyleWord = true
-                        rows = minOf(10, message.lines().size + 1)
-                        columns = 60
-                    }
-                    JOptionPane.showMessageDialog(
-                        panel,
-                        JScrollPane(area),
-                        "Could not start session",
-                        JOptionPane.ERROR_MESSAGE
-                    )
+                    // The daemon's preflight returns an actionable, often multi-line message
+                    // (e.g. the ANDROID_HOME fix). Show it as a non-modal balloon — the full
+                    // text stays readable/copyable in the Event Log — instead of a modal
+                    // JOptionPane that freezes the whole IDE until dismissed.
+                    Notifier.error(project, "Could not start session", lastStartError ?: "Failed to start session")
                 }
             }
         }).execute()
