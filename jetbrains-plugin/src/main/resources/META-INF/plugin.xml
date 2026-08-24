@@ -142,40 +142,12 @@
                     icon="AllIcons.Actions.Download"/>
             <separator/>
 
-            <action id="MTR.SecurityScan" class="com.mobiletest.recorder.actions.SecurityScanAction"
-                    text="Security Scan" description="Scan project for security vulnerabilities"
-                    icon="AllIcons.Nodes.SecurityRole"/>
-
-            <action id="MTR.GenerateTest" class="com.mobiletest.recorder.actions.GenerateTestAction"
-                    text="Generate Test from Page Object" description="Generate test from selected Page Object"
-                    icon="AllIcons.Actions.IntentionBulbGrey"/>
-
-            <action id="MTR.HealSelector" class="com.mobiletest.recorder.actions.HealSelectorAction"
-                    text="Heal Selector" description="Get selector-healing suggestions"
-                    icon="AllIcons.Actions.QuickfixBulb">
-                <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt H"/>
-            </action>
-
-            <action id="MTR.FuzzTest" class="com.mobiletest.recorder.actions.FuzzTestAction"
-                    text="Run Fuzz Test" description="Run fuzzing test on UI element"
-                    icon="AllIcons.Actions.Lightning"/>
-
-            <separator/>
-
             <action id="MTR.StartDaemon2" class="com.mobiletest.recorder.actions.StartDaemonAction"
                     text="Restart Mobiscout Engine" description="Restart the Mobiscout engine"
                     icon="AllIcons.Actions.Execute"/>
             <action id="MTR.StopDaemon2" class="com.mobiletest.recorder.actions.StopDaemonAction"
                     text="Stop Mobiscout Engine" description="Stop the Mobiscout engine"
                     icon="AllIcons.Actions.Suspend"/>
-        </group>
-
-        <!-- Editor Context Menu -->
-        <group id="MTR.EditorPopupMenu" text="Mobiscout">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-            <separator/>
-            <reference ref="MTR.HealSelector"/>
-            <reference ref="MTR.GenerateTest"/>
         </group>
     </actions>
 </idea-plugin>
