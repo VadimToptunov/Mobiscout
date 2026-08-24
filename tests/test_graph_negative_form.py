@@ -149,3 +149,21 @@ def test_submit_element_skips_financial_controls():
     # A safe submit alongside a financial one -> the safe one is chosen.
     picked = G._submit_element(_screen("F", [transfer, cont]), "com.x")
     assert picked is not None and picked.text == "Continue"
+
+
+def test_submit_element_reaches_otp_send_but_not_transfer_send():
+    # CR1(b): "Send code" on an OTP screen (no money field) is a valid submit target, but a
+    # bare "Send" on a transfer form (amount field present) is skipped — the codegen mirror
+    # of the live crawler's money-context gate.
+    otp = _screen(
+        "OTP",
+        [_el("android.widget.EditText", rid="com.x:id/code", desc="Code"), _btn("Send code", "id/sendcode")],
+    )
+    picked = G._submit_element(otp, "com.x")
+    assert picked is not None and picked.text == "Send code"
+
+    transfer = _screen(
+        "XFER",
+        [_el("android.widget.EditText", rid="com.x:id/amount", desc="Amount"), _btn("Send", "id/send")],
+    )
+    assert G._submit_element(transfer, "com.x") is None

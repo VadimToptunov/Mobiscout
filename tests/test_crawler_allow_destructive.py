@@ -54,13 +54,11 @@ def test_allow_destructive_unblocks_financial_but_not_logout():
     assert c._blocked(_el("Sign out"))
 
 
-def test_default_blocks_financial_submit_verbs():
-    # CS1: transfer/send/exchange and a bare "Confirm" are submit labels (so an opted-in
-    # crawl can reach the forms behind them), but a DEFAULT crawl must never tap them — the
-    # negative probe fills invalid data and would commit a money move, relying on the app's
-    # own validation, which is exactly what the blocklist exists to not assume.
+def test_default_blocks_always_financial_verbs():
+    # CS1: the unambiguous money verbs are blocked whenever they appear (money screen or
+    # not) — the negative probe would fill invalid data and commit a real money move.
     c = _crawler()
-    for label in ("Transfer", "Send money", "Exchange", "Confirm"):
+    for label in ("Pay now", "Buy", "Purchase", "Checkout", "Wire funds", "Transfer"):
         assert c._blocked(_el(label)), label
     # Ordinary, non-financial submit verbs stay crawlable.
     assert not c._blocked(_el("Continue"))
@@ -68,12 +66,31 @@ def test_default_blocks_financial_submit_verbs():
     assert not c._blocked(_el("Save"))
 
 
+def test_context_financial_verbs_block_only_on_a_money_screen():
+    # CR1: send/confirm/exchange are benign in most apps (OTP "Send code", "Confirm email",
+    # a chat composer), so a default crawl blocks them ONLY when the screen shows a money
+    # field — otherwise the OTP/messaging/confirmation flows become dead-ends.
+    c = _crawler()
+    for label in ("Send code", "Resend OTP", "Send message", "Confirm email", "Confirm", "Exchange rate"):
+        assert not c._blocked(_el(label)), label  # no money context on the screen
+    for label in ("Send", "Confirm", "Exchange"):
+        assert c._blocked(_el(label), money_context=True), label  # e.g. a transfer form
+
+
+def test_blocklist_matches_whole_words_not_substrings():
+    # CR1(a): word-boundary matching — "pay" must not fire on "PayPal"/"Payment", "buy" not
+    # on "Buyer", "send" not on "resend"/"sender" (the latter two pre-existed #469).
+    c = _crawler()
+    for label in ("PayPal", "Payment methods", "Buyer details", "Resend", "Sender name"):
+        assert not c._blocked(_el(label)), label
+
+
 def test_allow_destructive_reaches_financial_submits():
     # The escape hatch for a throwaway/sandbox app: --allow-destructive lifts the financial
-    # block so the crawler can go past a "Send"/"Transfer"/"Confirm".
+    # block so the crawler can go past a "Send"/"Transfer"/"Confirm" — even on a money screen.
     c = _crawler(allow_destructive=True)
-    for label in ("Transfer", "Send money", "Confirm"):
-        assert not c._blocked(_el(label)), label
+    for label in ("Transfer", "Send money", "Confirm", "Pay now"):
+        assert not c._blocked(_el(label), money_context=True), label
 
 
 def test_explicit_blocklist_overrides_allow_destructive():
