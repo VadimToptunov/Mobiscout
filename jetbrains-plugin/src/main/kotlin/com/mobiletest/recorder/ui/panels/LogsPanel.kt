@@ -1,5 +1,12 @@
 package com.mobiletest.recorder.ui.panels
 
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionManager
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.project.Project
 import com.intellij.ui.components.JBScrollPane
 import com.mobiletest.recorder.services.MTRDaemonService
@@ -21,40 +28,37 @@ class LogsPanel(
     // App-log stream controls: pick a device, name the app, stream its device logs.
     private val deviceCombo = JComboBox<DeviceItem>()
     private val appField = com.intellij.ui.components.JBTextField(16)
-    private val startButton = JButton("Start App Logs")
-    private val stopButton = JButton("Stop")
+
+    // Whether a device-log stream is live — drives the Start/Stop action enablement.
+    private var streaming = false
 
     init {
         logsTextArea.isEditable = false
         logsTextArea.font = java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11)
 
-        // Toolbar: device + app + stream controls, then Clear.
+        // Native ActionToolbar for the actions; the device combo + app field sit alongside it
+        // (they can't live inside an ActionToolbar). Start/Stop enable off `streaming`.
+        val actions = DefaultActionGroup().apply {
+            add(LoadDevicesAction())
+            add(StartLogsAction())
+            add(StopLogsAction())
+            add(ClearAction())
+        }
+        val actionToolbar = ActionManager.getInstance()
+            .createActionToolbar(ActionPlaces.TOOLWINDOW_CONTENT, actions, true)
+        actionToolbar.targetComponent = panel
+
         val toolbar = JPanel()
         toolbar.layout = BoxLayout(toolbar, BoxLayout.X_AXIS)
-
-        val loadButton = JButton("Load Devices")
-        loadButton.addActionListener { loadDevices() }
-        stopButton.isEnabled = false
-        startButton.addActionListener { startAppLogs() }
-        stopButton.addActionListener { stopAppLogs() }
-
-        val clearButton = JButton("Clear")
-        clearButton.addActionListener { logsTextArea.text = "" }
-
         toolbar.add(JLabel("Device:"))
         toolbar.add(Box.createHorizontalStrut(4))
         toolbar.add(deviceCombo)
-        toolbar.add(Box.createHorizontalStrut(4))
-        toolbar.add(loadButton)
         toolbar.add(Box.createHorizontalStrut(8))
         toolbar.add(JLabel("App:"))
         toolbar.add(appField)
         toolbar.add(Box.createHorizontalStrut(6))
-        toolbar.add(startButton)
-        toolbar.add(Box.createHorizontalStrut(4))
-        toolbar.add(stopButton)
+        toolbar.add(actionToolbar.component)
         toolbar.add(Box.createHorizontalGlue())
-        toolbar.add(clearButton)
 
         panel.add(toolbar, BorderLayout.NORTH)
         panel.add(logsScroll, BorderLayout.CENTER)
@@ -119,8 +123,7 @@ class LogsPanel(
 
             override fun done() {
                 if (get()) {
-                    startButton.isEnabled = false
-                    stopButton.isEnabled = true
+                    streaming = true // the toolbar's Start/Stop reflect this via update()
                     logsTextArea.append("— streaming device logs for $bundle —\n")
                 } else {
                     Notifier.error(project, "App Logs", "Couldn't start the log stream. Is the engine running?")
@@ -141,10 +144,45 @@ class LogsPanel(
             }
 
             override fun done() {
-                startButton.isEnabled = true
-                stopButton.isEnabled = false
+                streaming = false // flips the toolbar's Start/Stop back via update()
             }
         }).execute()
+    }
+
+    private inner class LoadDevicesAction :
+        AnAction("Load Devices", "Reload the running devices", AllIcons.Actions.Refresh) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) = loadDevices()
+    }
+
+    private inner class StartLogsAction :
+        AnAction("Start App Logs", "Stream the app's device logs", AllIcons.Actions.Execute) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            // Needs a device and an app id, and only one live stream at a time.
+            e.presentation.isEnabled =
+                !streaming && deviceCombo.selectedItem is DeviceItem && appField.text.isNotBlank()
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = startAppLogs()
+    }
+
+    private inner class StopLogsAction :
+        AnAction("Stop", "Stop the log stream", AllIcons.Actions.Suspend) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun update(e: AnActionEvent) {
+            e.presentation.isEnabled = streaming
+        }
+
+        override fun actionPerformed(e: AnActionEvent) = stopAppLogs()
+    }
+
+    private inner class ClearAction :
+        AnAction("Clear", "Clear the log view", AllIcons.Actions.GC) {
+        override fun getActionUpdateThread() = ActionUpdateThread.EDT
+        override fun actionPerformed(e: AnActionEvent) {
+            logsTextArea.text = ""
+        }
     }
 
     fun getPanel(): JComponent = panel
