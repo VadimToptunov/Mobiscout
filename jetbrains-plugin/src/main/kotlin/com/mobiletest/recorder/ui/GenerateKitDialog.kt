@@ -205,26 +205,20 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             if (name.isNullOrBlank()) udid else "$name — $udid"
         }
         val app = ApplicationManager.getApplication()
-        // The device/list RPC (adb / simctl enumeration) can take seconds — do it off the
-        // EDT and populate the combo back on the EDT, so opening the dialog never hangs.
+        // The device enumeration (adb / simctl) can take seconds — do it off the EDT via the
+        // shared DeviceList loader (no more hand-rolled device/list parsing here), then populate
+        // the editable combo back on the EDT so opening the dialog never hangs.
         app.executeOnPooledThread {
             val found = try {
-                val client = app.getService(MTRDaemonService::class.java).getClient()
-                val result = client?.call("device/list", mapOf("platform" to "all"))?.getResultOrThrow()
-                result?.getAsJsonArray("devices")?.mapNotNull { el ->
-                    val d = el.asJsonObject
-                    if ((d.get("status")?.asString ?: "") == "shutdown") return@mapNotNull null // running only
-                    val udid = d.get("id")?.asString ?: return@mapNotNull null
-                    Triple(udid, d.get("name")?.asString ?: "", d.get("platform")?.asString ?: "")
-                } ?: emptyList()
+                DeviceList.load("all").filter { it.status != "shutdown" } // running only
             } catch (_: Exception) {
                 emptyList() // engine down / no devices — leave the combo empty and editable
             }
             app.invokeLater({
-                for ((udid, name, platform) in found) {
-                    deviceNames[udid] = name
-                    devicePlatforms[udid] = platform
-                    udidCombo.addItem(udid)
+                for (device in found) {
+                    deviceNames[device.id] = device.name
+                    devicePlatforms[device.id] = device.platform
+                    udidCombo.addItem(device.id)
                 }
                 if (udidCombo.itemCount == 1) udidCombo.selectedIndex = 0 else udidCombo.selectedItem = ""
             }, ModalityState.any())
