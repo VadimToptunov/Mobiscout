@@ -873,6 +873,7 @@ def daemon_command(stdio: bool, tcp: Optional[int]) -> None:
     """
     Run JSON-RPC daemon for IDE plugin communication.
 
+    \b
     Examples:
         mobiscout daemon --stdio
         mobiscout daemon --tcp 33333

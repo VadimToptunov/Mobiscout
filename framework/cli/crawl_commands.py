@@ -170,6 +170,7 @@ def crawl(
     (--driver appium, which unlocks real devices and cloud grids via --cap), and
     iOS over an Appium/XCUITest session.
 
+    \b
     Examples:
         mobiscout crawl --package com.example.app --targets python_pytest,java_testng
         mobiscout crawl --package com.example.app --driver appium --udid <UDID>
