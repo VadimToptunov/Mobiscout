@@ -298,12 +298,31 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         if (packageField.text.isNullOrBlank()) {
             return ValidationInfo("App package / bundle id is required", packageField)
         }
+        // A known device must match the chosen platform — an Android crawl can't drive an iOS
+        // device. Only enforced for a device the engine listed; a hand-typed UDID has no platform.
+        val platform = platformCombo.selectedItem as String
+        val devicePlatform = devicePlatforms[selectedUdid()]
+        if (devicePlatform != null && devicePlatform != platform) {
+            return ValidationInfo("That device is $devicePlatform, but the platform is set to $platform", udidCombo)
+        }
         // "Install build first" needs a target device — catch it here instead of after the
         // dialog closes (the action rejected it with a notification and made you reopen).
         if (buildPathField.text.isNotBlank() && selectedUdid().isBlank()) {
             return ValidationInfo("Choose a device (UDID) to install the build on", udidCombo)
         }
+        // Reject garbage in the crawl limits instead of silently coercing it to the default.
+        positiveIntError(maxStepsField, "Max crawl steps")?.let { return it }
+        positiveIntError(maxDepthField, "Max crawl depth")?.let { return it }
         return null
+    }
+
+    /** [ValidationInfo] when [field] holds something other than a positive whole number, else
+     *  null. Blank is allowed — an empty field falls back to the default in [params]. */
+    private fun positiveIntError(field: JBTextField, label: String): ValidationInfo? {
+        val text = field.text.trim()
+        if (text.isEmpty()) return null
+        val n = text.toIntOrNull()
+        return if (n == null || n <= 0) ValidationInfo("$label must be a positive whole number", field) else null
     }
 
     /** The collected config, ready to send as `kit/generate` params. */
