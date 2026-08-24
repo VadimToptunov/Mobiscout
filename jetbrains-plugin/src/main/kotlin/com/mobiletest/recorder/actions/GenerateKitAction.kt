@@ -1,5 +1,7 @@
 package com.mobiletest.recorder.actions
 
+import com.intellij.ide.actions.RevealFileAction
+import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -154,12 +156,11 @@ class GenerateKitAction : AnAction() {
                                 NotificationType.WARNING,
                             )
                         } else {
-                            notify(
+                            notifyGenerated(
                                 project,
-                                "Test kit generated",
                                 "$screens screen(s), $cases test case(s)$extra$crashNote" +
                                     "\nWritten to: $output$cleanupNote$tierNote",
-                                NotificationType.INFORMATION,
+                                (output as? String),
                             )
                         }
                     }
@@ -291,5 +292,20 @@ class GenerateKitAction : AnAction() {
             .getNotificationGroup("Mobiscout Framework")
             .createNotification(title, content, type)
             .notify(project)
+    }
+
+    /** Success notification with an "Open folder" action — the kit is on disk; the first thing
+     *  a user wants is to see it, not copy a path out of notification text. */
+    private fun notifyGenerated(project: Project, content: String, outputDir: String?) {
+        val notification = NotificationGroupManager.getInstance()
+            .getNotificationGroup("Mobiscout Framework")
+            .createNotification("Test kit generated", content, NotificationType.INFORMATION)
+        val dir = outputDir?.let { java.io.File(it) }
+        if (dir != null && dir.isDirectory) {
+            notification.addAction(NotificationAction.createSimpleExpiring("Open folder") {
+                RevealFileAction.openDirectory(dir)
+            })
+        }
+        notification.notify(project)
     }
 }

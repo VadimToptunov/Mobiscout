@@ -291,13 +291,26 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     }
 
     /** The collected config, ready to send as `kit/generate` params. */
+    private fun resolveOutput(out: String): String = resolveOutputPath(out, project.basePath)
+
+    companion object {
+        /** Resolve a relative output dir against the project root, so the kit lands where the
+         *  user can find it — not in the IDE's working directory (which for a GUI launch is `/`
+         *  or the install dir), where the engine would either fail mkdir or hide the result.
+         *  An absolute path, or a relative one with no project root, is returned unchanged. */
+        fun resolveOutputPath(out: String, basePath: String?): String {
+            if (java.io.File(out).isAbsolute || basePath == null) return out
+            return java.io.File(basePath, out).path
+        }
+    }
+
     fun params(): Map<String, Any> {
         val params = LinkedHashMap<String, Any>()
         params["package"] = packageField.text.trim()
         params["platform"] = platformCombo.selectedItem as String
         params["driver"] = driverCombo.selectedItem as String
         params["targets"] = listOf(selectedTarget())
-        params["output"] = outputField.text.trim().ifEmpty { "mobile-tests" }
+        params["output"] = resolveOutput(outputField.text.trim().ifEmpty { "mobile-tests" })
         params["scaffold"] = newProjectCheck.isSelected
         params["fuzz"] = fuzzCheck.isSelected  // opt-in: adversarial-input tests per form
         params["server"] = serverField.text.trim()
