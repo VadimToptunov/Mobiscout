@@ -33,7 +33,7 @@ def _tabbar():
 # Each top-level section: distinct content buttons on top + the shared tab bar,
 # so the four tabs get four distinct structural fingerprints.
 _SECTIONS = {
-    "home": [_el("Button", "Transfer", 0, 100), _el("Button", "Exchange", 0, 160)],
+    "home": [_el("Button", "Overview", 0, 100), _el("Button", "Filters", 0, 160)],
     "markets": [_el("Button", "EUR", 0, 100), _el("Button", "GBP", 0, 160)],
     "portfolio": [_el("Button", "Sort", 0, 100)],
     "card": [_el("Button", "Freeze", 0, 100)],
@@ -41,9 +41,9 @@ _SECTIONS = {
 # Pushed details (no tab bar, Back pops them): eur_detail from Markets→EUR, and
 # transactions from a Home "See all" link that only exists once Home is scrolled.
 _DETAIL = {
-    "eur_detail": [_el("StaticText", "EUR/USD", 0, 60), _el("Button", "Confirm", 0, 120)],
+    "eur_detail": [_el("StaticText", "EUR/USD", 0, 60), _el("Button", "Details", 0, 120)],
     "transactions": [_el("StaticText", "History", 0, 60), _el("Button", "Filter", 0, 120)],
-    # A modal sheet (opened by Home → Exchange): its "Detail" control does not
+    # A modal sheet (opened by Home → Filters): its "Detail" control does not
     # dismiss it, and Back (edge-swipe) can't either — only a swipe-down does.
     "exchange_sheet": [_el("StaticText", "ExchangeTitle", 0, 60), _el("Button", "Detail", 0, 120)],
 }
@@ -112,7 +112,7 @@ class FakeTabDriver:
             self.current, self._pushed = "eur_detail", True
         elif name == "SeeAll" and self.current == "home":
             self.current, self._pushed, self._txn_loaded = "transactions", True, False
-        elif name == "Exchange" and self.current == "home":
+        elif name == "Filters" and self.current == "home":
             self.current, self._modal = "exchange_sheet", True  # a sheet Back can't close
 
     def scroll(self, direction="down"):
@@ -161,7 +161,7 @@ def test_scrolling_reveals_below_the_fold_links():
 def test_recovers_from_a_modal_sheet_back_cannot_dismiss():
     """Opening a sheet that ignores Back must not strand the crawl: it has to
     dismiss the sheet and carry on, or every later tap lands on the wrong screen.
-    Proof: the below-the-fold Transactions link, tapped only *after* the Exchange
+    Proof: the below-the-fold Transactions link, tapped only *after* the Filters
     sheet is opened and dismissed, is still reached."""
     driver = FakeTabDriver()
     result = AppCrawler(driver, _BUNDLE, max_steps=120, max_depth=8).crawl()

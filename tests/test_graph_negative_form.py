@@ -137,3 +137,15 @@ def test_wired_into_build_test_model():
 
     model = build_test_model(_email_form_result(), "com.x")
     assert any("rejects_invalid_input" in c.name for c in model.cases)
+
+
+def test_submit_element_skips_financial_controls():
+    # CS2: the codegen submit picker must never target a money-moving control, so a generated
+    # negative/fuzz case can't tap "Transfer"/"Send"/"Confirm" when the user runs the kit.
+    transfer = _btn("Transfer", "com.x:id/transfer")
+    cont = _btn("Continue", "com.x:id/continue")
+    # Only a financial submit present -> None (no case is built around it).
+    assert G._submit_element(_screen("F", [transfer]), "com.x") is None
+    # A safe submit alongside a financial one -> the safe one is chosen.
+    picked = G._submit_element(_screen("F", [transfer, cont]), "com.x")
+    assert picked is not None and picked.text == "Continue"
