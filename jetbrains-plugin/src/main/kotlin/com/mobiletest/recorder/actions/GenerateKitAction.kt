@@ -210,16 +210,21 @@ class GenerateKitAction : AnAction() {
         }
     }
 
-    /** A bootable target: the first AVD (Android) or shut-down simulator (iOS), or null. */
+    /** A bootable target: the user's preferred emulator/simulator from settings when it's among
+     *  the candidates, else the first AVD (Android) / shut-down simulator (iOS). Null if none. */
     private fun firstBootCandidate(daemonService: MTRDaemonService, platform: String): String? {
+        val settings = com.mobiletest.recorder.settings.MTRSettings.getInstance()
         if (platform == "android") {
-            return daemonService.listAvds()?.getAsJsonArray("avds")?.firstOrNull()?.asString
+            val avds = daemonService.listAvds()?.getAsJsonArray("avds")?.mapNotNull { it.asString } ?: return null
+            val preferred = settings.defaultEmulatorName.trim()
+            return avds.firstOrNull { it == preferred } ?: avds.firstOrNull()
         }
-        val sims = daemonService.listDevices("ios")?.getAsJsonArray("devices") ?: return null
-        return sims.firstNotNullOfOrNull {
-            val d = it.asJsonObject
-            if ((d.get("status")?.asString ?: "") == "shutdown") d.get("id")?.asString else null
-        }
+        val sims = (daemonService.listDevices("ios")?.getAsJsonArray("devices") ?: return null)
+            .map { it.asJsonObject }
+            .filter { (it.get("status")?.asString ?: "") == "shutdown" }
+        val preferred = settings.defaultSimulatorName.trim()
+        return (sims.firstOrNull { (it.get("name")?.asString ?: "") == preferred } ?: sims.firstOrNull())
+            ?.get("id")?.asString
     }
 
     /** Generate a kit for several apps at once (a project's Android + iOS apps) via the

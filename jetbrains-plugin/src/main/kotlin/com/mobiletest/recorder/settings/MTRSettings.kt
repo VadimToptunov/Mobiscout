@@ -8,9 +8,12 @@ import com.intellij.openapi.components.Storage
 import com.intellij.util.xmlb.XmlSerializerUtil
 
 /**
- * Persistent settings for Mobiscout plugin.
+ * Persistent settings for the Mobiscout plugin.
  *
- * Settings are stored in IDE configuration and persist across restarts.
+ * Only settings the plugin actually reads live here. The old state carried ~20 knobs left
+ * over from the removed setup wizard that nothing consumed — a user turned them and nothing
+ * happened. Removing a persisted field is backward-safe: an old MobileTestRecorder.xml with
+ * extra keys just ignores them on load.
  */
 @Service
 @State(
@@ -21,54 +24,17 @@ class MTRSettings : PersistentStateComponent<MTRSettings.State> {
 
     private var myState = State()
 
-    /**
-     * Settings state - all configurable options
-     */
     data class State(
-        // === Project Configuration ===
-        var hasSourceCode: Boolean = false,
-        var sourceCodePath: String = "",
-        var buildPath: String = "",
+        // Defaults for the Generate dialog.
         var targetPlatform: Platform = Platform.ANDROID,
-
-        // === Analysis Options ===
-        var analyzeApiLogs: Boolean = true,
-        var enableSecurityScan: Boolean = false,
-        var enablePerformanceAnalysis: Boolean = false,
-
-        // === Test Framework ===
+        var preferredLanguage: Language = Language.PYTHON,
         var createNewFramework: Boolean = true,
         var existingFrameworkPath: String = "",
-        var preferredLanguage: Language = Language.PYTHON,
-        var testFramework: TestFramework = TestFramework.PYTEST,
-        var automationBackend: AutomationBackend = AutomationBackend.APPIUM,
-
-        // === Device Configuration ===
+        // Preferred device to auto-boot when nothing is running (else the first candidate).
         var defaultEmulatorName: String = "",
         var defaultSimulatorName: String = "",
-        var adbPath: String = "",
-        var androidSdkPath: String = "",
-        var xcodeSelectPath: String = "/usr/bin/xcode-select",
-
-        // === Code Generation ===
-        var pageObjectPattern: PageObjectPattern = PageObjectPattern.PAGE_OBJECT,
-        var generateComments: Boolean = true,
-        var generateDocstrings: Boolean = true,
-        var useTypeHints: Boolean = true,
-
-        // === Daemon Configuration ===
-        var daemonPort: Int = 9876,
+        // Start the engine when the IDE opens.
         var daemonAutoStart: Boolean = true,
-        var daemonLogLevel: LogLevel = LogLevel.INFO,
-
-        // === UI Preferences ===
-        var screenshotRefreshInterval: Int = 1000,
-        var showElementOverlay: Boolean = true,
-        var highlightTappedElements: Boolean = true,
-
-        // === License ===
-        var licenseKey: String = "",
-        var licenseEmail: String = ""
     )
 
     enum class Platform {
@@ -87,39 +53,6 @@ class MTRSettings : PersistentStateComponent<MTRSettings.State> {
         GO
     }
 
-    enum class TestFramework {
-        PYTEST,
-        UNITTEST,
-        JUNIT,
-        TESTNG,
-        XCTEST,
-        MOCHA,
-        JEST,
-        GO_TEST
-    }
-
-    enum class AutomationBackend {
-        APPIUM,
-        ESPRESSO,
-        XCTEST,
-        DETOX,
-        MAESTRO
-    }
-
-    enum class PageObjectPattern {
-        PAGE_OBJECT,
-        SCREENPLAY,
-        PAGE_FACTORY,
-        SIMPLE
-    }
-
-    enum class LogLevel {
-        DEBUG,
-        INFO,
-        WARNING,
-        ERROR
-    }
-
     override fun getState(): State = myState
 
     override fun loadState(state: State) {
@@ -134,53 +67,13 @@ class MTRSettings : PersistentStateComponent<MTRSettings.State> {
     }
 
     // Convenience accessors
-    var hasSourceCode: Boolean
-        get() = myState.hasSourceCode
-        set(value) { myState.hasSourceCode = value }
-
-    var sourceCodePath: String
-        get() = myState.sourceCodePath
-        set(value) { myState.sourceCodePath = value }
-
-    var buildPath: String
-        get() = myState.buildPath
-        set(value) { myState.buildPath = value }
-
     var targetPlatform: Platform
         get() = myState.targetPlatform
         set(value) { myState.targetPlatform = value }
 
-    var analyzeApiLogs: Boolean
-        get() = myState.analyzeApiLogs
-        set(value) { myState.analyzeApiLogs = value }
-
-    var enableSecurityScan: Boolean
-        get() = myState.enableSecurityScan
-        set(value) { myState.enableSecurityScan = value }
-
-    var enablePerformanceAnalysis: Boolean
-        get() = myState.enablePerformanceAnalysis
-        set(value) { myState.enablePerformanceAnalysis = value }
-
     var preferredLanguage: Language
         get() = myState.preferredLanguage
         set(value) { myState.preferredLanguage = value }
-
-    var testFramework: TestFramework
-        get() = myState.testFramework
-        set(value) { myState.testFramework = value }
-
-    var automationBackend: AutomationBackend
-        get() = myState.automationBackend
-        set(value) { myState.automationBackend = value }
-
-    var daemonAutoStart: Boolean
-        get() = myState.daemonAutoStart
-        set(value) { myState.daemonAutoStart = value }
-
-    var screenshotRefreshInterval: Int
-        get() = myState.screenshotRefreshInterval
-        set(value) { myState.screenshotRefreshInterval = value }
 
     var createNewFramework: Boolean
         get() = myState.createNewFramework
@@ -189,4 +82,16 @@ class MTRSettings : PersistentStateComponent<MTRSettings.State> {
     var existingFrameworkPath: String
         get() = myState.existingFrameworkPath
         set(value) { myState.existingFrameworkPath = value }
+
+    var defaultEmulatorName: String
+        get() = myState.defaultEmulatorName
+        set(value) { myState.defaultEmulatorName = value }
+
+    var defaultSimulatorName: String
+        get() = myState.defaultSimulatorName
+        set(value) { myState.defaultSimulatorName = value }
+
+    var daemonAutoStart: Boolean
+        get() = myState.daemonAutoStart
+        set(value) { myState.daemonAutoStart = value }
 }
