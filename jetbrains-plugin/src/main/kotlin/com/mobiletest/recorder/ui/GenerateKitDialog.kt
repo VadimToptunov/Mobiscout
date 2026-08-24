@@ -9,7 +9,7 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.ui.popup.JBPopupFactory
-import com.intellij.ui.TitledSeparator
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
@@ -17,7 +17,6 @@ import com.intellij.util.ui.FormBuilder
 import com.mobiletest.recorder.settings.MTRSettings
 import javax.swing.JButton
 import javax.swing.JComponent
-import javax.swing.JPanel
 import javax.swing.SwingWorker
 
 /**
@@ -258,10 +257,30 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     }
 
     override fun createCenterPanel(): JComponent {
-        // Essentials up top (what you set every run), then everything else under an
-        // "Advanced" heading whose defaults are fine for the common case — so the form
+        // The advanced knobs live in a collapsible group (Kotlin UI DSL) so the whole block
+        // folds away — their defaults are fine for the common run, so it starts collapsed.
+        val advancedPanel = panel {
+            collapsibleGroup("Advanced") {
+                row("Android backend:") { cell(driverCombo) }
+                row("Appium server:") { cell(serverField) }
+                row("iOS launch args (space-separated):") { cell(launchArgsField) }
+                separator()
+                row("Login username (optional):") { cell(loginUserField) }
+                row("Login password:") { cell(loginPassField) }
+                row("Login submit button:") { cell(loginSubmitField) }
+                separator()
+                row("Install build first (.apk / .app):") { cell(buildPathField) }
+                row { cell(uninstallAfterCheck) }
+                row { cell(fuzzCheck) }
+                separator()
+                row("Max crawl steps:") { cell(maxStepsField) }
+                row("Max crawl depth:") { cell(maxDepthField) }
+            }.expanded = false
+        }
+
+        // Essentials up top (what you set every run); Advanced collapsed below — the form
         // reads as "app, device, language → Generate" without hiding any knob.
-        val panel: JPanel = FormBuilder.createFormBuilder()
+        return FormBuilder.createFormBuilder()
             .addComponent(detectButton)
             .addComponent(generateAllCheck)
             .addLabeledComponent("App package / bundle id:", packageField)
@@ -271,23 +290,8 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             .addLabeledComponent("Framework:", frameworkCombo)
             .addLabeledComponent("Output directory:", outputField)
             .addComponent(newProjectCheck)
-            .addComponent(TitledSeparator("Advanced"))
-            .addLabeledComponent("Android backend:", driverCombo)
-            .addLabeledComponent("Appium server:", serverField)
-            .addLabeledComponent("iOS launch args (space-separated):", launchArgsField)
-            .addSeparator()
-            .addLabeledComponent("Login username (optional):", loginUserField)
-            .addLabeledComponent("Login password:", loginPassField)
-            .addLabeledComponent("Login submit button:", loginSubmitField)
-            .addSeparator()
-            .addLabeledComponent("Install build first (.apk / .app):", buildPathField)
-            .addComponent(uninstallAfterCheck)
-            .addComponent(fuzzCheck)
-            .addSeparator()
-            .addLabeledComponent("Max crawl steps:", maxStepsField)
-            .addLabeledComponent("Max crawl depth:", maxDepthField)
+            .addComponent(advancedPanel)
             .panel
-        return panel
     }
 
     override fun doValidate(): ValidationInfo? {
