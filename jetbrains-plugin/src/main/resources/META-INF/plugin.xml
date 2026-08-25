@@ -15,9 +15,9 @@
     <h2>Key Features:</h2>
     <ul>
         <li><strong>📱 Device Management</strong> - Control Android emulators and iOS simulators directly from IDE</li>
-        <li><strong>🔍 UI Tree Inspector</strong> - Explore app UI hierarchy with the Appium XML viewer</li>
-        <li><strong>📊 Live Device Logs</strong> - Stream and filter logcat/simctl logs in real-time</li>
-        <li><strong>🎯 Interactive Control</strong> - Tap, swipe, type on the device screen from the IDE</li>
+        <li><strong>🔍 UI Element Inspector</strong> - List the current screen's elements and copy or generate a ranked locator for any of them</li>
+        <li><strong>📊 Live Device Logs</strong> - Stream logcat/simctl logs in real-time</li>
+        <li><strong>🎯 Interactive Control</strong> - Tap the device screen from the IDE, mirrored live</li>
         <li><strong>🧠 Ranked, self-healing selectors</strong> - accessibility-id → resource-id → text, with fallbacks; element types from a hybrid ML + heuristic classifier</li>
         <li><strong>🔄 Interaction Graph</strong> - the app's navigation map, mined into multi-step, form-filling test paths, with structural findings (unreachable / dead-end screens)</li>
         <li><strong>🌍 Multi-Language</strong> - generate tests in Python, Java, Kotlin and JavaScript, imperative or BDD, flat files or Page-Object structure</li>
@@ -52,6 +52,25 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.2 — project-wide review: safer crawls, sturdier engine, honest UI</h3>
+    <ul>
+        <li><b>Deeper crawls</b>: the screen behind a mid-crawl gate (a login/OTP you tap
+        into) is now explored, not mapped as one dead node; forms are cleared before typing
+        so the invalid and valid passes are both real; a money field revealed by scrolling
+        re-arms the "don't move money" gate.</li>
+        <li><b>Never taps the wrong button</b>: a permission grant (and the blocking-dialog
+        handler) no longer taps "Don't Allow"; onboarding auto-skip no longer treats a
+        form's "Done" as a skip; a stale-coordinate tap after a failed back-out is prevented.</li>
+        <li><b>Sturdier engine</b>: iOS swipe direction fixed; screenshots are platform-aware
+        (a host without adb no longer crashes an iOS capture); a rejected Android tap is an
+        error, not a fake success; the device log stream actually stops when you stop it.</li>
+        <li><b>Tool-window polish</b>: the Generate dialog's collapsed "Advanced" no longer
+        leaves a dead gap; the screen mirror scales to a short window; Live stops and warns
+        once on failure instead of storming; actions report the real cause and never freeze
+        the IDE.</li>
+        <li><b>Honest feature list</b> and a packaging fix so iOS/Appium crawls no longer
+        fail with "No package metadata was found for Appium-Python-Client".</li>
+    </ul>
     <h3>0.12.1 — crawl-safety follow-ups</h3>
     <ul>
         <li>A transfer form whose amount field is identified only by its id (no visible
@@ -168,10 +187,18 @@
                     text="Generate Test Kit..."
                     description="Configure parameters and generate an inventory, interaction graph and tests"
                     icon="AllIcons.Actions.Download"/>
+            <action id="MTR.CaptureScreenshot" class="com.mobiletest.recorder.actions.CaptureScreenshotAction"
+                    text="Save Device Screenshot..."
+                    description="Capture the current device session's screen and save it to a PNG file"
+                    icon="AllIcons.Actions.Dump"/>
+            <action id="MTR.RefreshDevices" class="com.mobiletest.recorder.actions.RefreshDevicesAction"
+                    text="Refresh Devices"
+                    description="Reload the connected-device list in the Mobiscout tool window"
+                    icon="AllIcons.Actions.Refresh"/>
             <separator/>
 
             <action id="MTR.StartDaemon2" class="com.mobiletest.recorder.actions.StartDaemonAction"
-                    text="Restart Mobiscout Engine" description="Restart the Mobiscout engine"
+                    text="Start Mobiscout Engine" description="Start the Mobiscout engine (it also starts automatically)"
                     icon="AllIcons.Actions.Execute"/>
             <action id="MTR.StopDaemon2" class="com.mobiletest.recorder.actions.StopDaemonAction"
                     text="Stop Mobiscout Engine" description="Stop the Mobiscout engine"

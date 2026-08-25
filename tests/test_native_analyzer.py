@@ -115,3 +115,19 @@ def test_native_error_degrades_to_python(monkeypatch):
     # Falls back to the Python analyzer instead of raising.
     c = analyze_source_complexity("def f():\n    return 1\n", "python")
     assert c.function_count == 1
+
+
+def test_version_tuple_pads_and_parses_prereleases():
+    from framework.analyzers.native import _MIN_NATIVE_VERSION, _version_tuple
+
+    # A 2-part version must pad to 3, else Python sorts the shorter tuple BELOW an equal
+    # 3-part minimum and the ABI-compatible wheel is wrongly rejected.
+    assert _version_tuple("0.2") == (0, 2, 0)
+    assert _version_tuple("0.2") >= _MIN_NATIVE_VERSION
+    # A PEP 440 prerelease reads as its release ABI instead of failing int() -> (0, 0, 0).
+    assert _version_tuple("0.2.0rc1") == (0, 2, 0)
+    assert _version_tuple("0.2.0-dev") == (0, 2, 0)
+    assert _version_tuple("1.3.5") == (1, 3, 5)
+    # A genuinely older core still sorts below the minimum, and unparseable sorts oldest.
+    assert _version_tuple("0.1.9") < _MIN_NATIVE_VERSION
+    assert _version_tuple("abc") == (0, 0, 0)

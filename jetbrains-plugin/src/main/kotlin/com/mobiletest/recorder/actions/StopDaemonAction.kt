@@ -11,7 +11,7 @@ class StopDaemonAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val daemonService = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
-        daemonService.stop()
+        daemonService.stopAsync() // stop() blocks up to ~5s; never on the EDT
     }
     
     override fun update(e: AnActionEvent) {

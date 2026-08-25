@@ -474,7 +474,10 @@ def multi_step_cases(
         degree[e.dst] = degree.get(e.dst, 0) + 1
 
     by_pair: Dict[Tuple[str, str], List] = defaultdict(list)
-    for from_fp, elem, to_fp in result.transitions:
+    for t in result.transitions:
+        if getattr(t, "kind", "tap") == "probe":
+            continue  # a negative-data probe is not a real navigation edge (as in build_graph)
+        from_fp, elem, to_fp = t  # Transition or the legacy (src, element, dst) tuple
         by_pair[(from_fp, to_fp)].append(elem)
 
     def _landmark(screen: CrawlScreen) -> Optional[Selector]:

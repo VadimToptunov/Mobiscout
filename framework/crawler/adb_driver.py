@@ -157,6 +157,19 @@ class AdbCrawlerDriver:
         self._run("shell", "input", "text", text.replace(" ", "%s"))
         self._settle_wait()
 
+    def clear_field(self) -> None:
+        """Clear the focused field so a re-fill replaces rather than appends.
+
+        adb has no element handle, so move the cursor to the end of the text and
+        send a bounded run of deletes. ``input keyevent`` takes several keycodes in
+        one call, so this is two adb round-trips: 123 = MOVE_END, then 67 = DEL x64
+        (enough for realistic form fields, without an unbounded loop on a field we
+        can't measure).
+        """
+        self._run("shell", "input", "keyevent", "123")
+        self._run("shell", "input", "keyevent", *(["67"] * 64))
+        self._settle_wait()
+
     def back(self) -> None:
         """Press the hardware/system Back key and wait for the UI to settle."""
         self._run("shell", "input", "keyevent", "4")

@@ -38,25 +38,36 @@ def _button(rid, text):
 
 
 class RecordingDriver:
-    """Records taps and typed text; can optionally lack `type_text`/`hide_keyboard`."""
+    """Records taps and typed text; can optionally lack `type_text`/`hide_keyboard`,
+    or (opt-in) provide `clear_field`. `events` logs tap/clear/type in call order."""
 
-    def __init__(self, can_type=True, can_hide=True):
+    def __init__(self, can_type=True, can_hide=True, can_clear=False):
         self.taps = []
         self.typed = []
         self.hidden = 0
+        self.cleared = 0
+        self.events = []
         if can_type:
             self.type_text = self._type_text
         if can_hide:
             self.hide_keyboard = self._hide_keyboard
+        if can_clear:
+            self.clear_field = self._clear_field
 
     def current_package(self):
         return APP
 
     def tap(self, x, y):
         self.taps.append((x, y))
+        self.events.append("tap")
 
     def _type_text(self, value):
         self.typed.append(value)
+        self.events.append("type")
+
+    def _clear_field(self):
+        self.cleared += 1
+        self.events.append("clear")
 
     def _hide_keyboard(self):
         self.hidden += 1
@@ -83,6 +94,17 @@ def test_fills_each_input_and_dismisses_keyboard():
     assert driver.hidden == 1
     # Each input was tapped to focus before typing.
     assert len(driver.taps) == 2
+
+
+def test_clears_each_field_before_typing_when_supported():
+    # When the driver can clear, a field is cleared BEFORE typing so a re-fill (negative
+    # probe then positive fill, or a revisit) replaces the text instead of appending —
+    # otherwise a field holds "invalid@valid" and neither branch is really exercised.
+    driver = RecordingDriver(can_clear=True)
+    screen = CrawlScreen(fingerprint="fp", elements=[_input("id/email"), _button("id/submit", "Submit")])
+    _crawler(driver)._fill_inputs(screen)
+    assert driver.cleared == 1
+    assert driver.events == ["tap", "clear", "type"]  # focus, then clear, then type
 
 
 def test_skips_foreign_package_inputs():

@@ -52,22 +52,36 @@ class MTRToolWindow(private val project: Project) : Disposable {
     private var daemonStarting = false
 
     // The daemon can be started/stopped from three places (this toolbar, the Tools menu,
-    // or an internal failure); subscribe to the service so the dot + action enablement stay
-    // honest no matter which one fired. Marshals to the EDT (the service fires on any thread).
+    // or an internal failure/crash); subscribe to the service so the dot + action enablement
+    // stay honest no matter which one fired. Marshals to the EDT (the service fires on any
+    // thread). On start it also refreshes the device list and tier — the engine may have been
+    // started from the Tools menu or by GenerateKit's auto-start, where startDaemon() didn't run.
     private val daemonStateListener: (Boolean) -> Unit = { running ->
         ApplicationManager.getApplication().invokeLater {
             daemonStarting = false
             daemonRunning = running
             statusLabel.text = if (running) "● Running" else "● Stopped"
             statusLabel.foreground = if (running) runningColor else stoppedColor
+            if (running) {
+                devicesPanel.refreshDevices()
+                proPanel.refreshTier()
+            }
         }
     }
 
     init {
         daemonService.addStateListener(daemonStateListener)
-        // The Screen panel owns a repeating Live-refresh timer — tie its lifecycle to ours so
-        // the timer is stopped when the tool window (or project) closes.
+        // Seed from the actual engine state: the tool window can open onto an engine already
+        // started elsewhere (Tools menu, a prior window), so don't default the dot to Stopped.
+        daemonRunning = daemonService.isRunning()
+        if (daemonRunning) {
+            statusLabel.text = "● Running"
+            statusLabel.foreground = runningColor
+        }
+        // The Screen and Logs panels own resources tied to this window (a repeating timer, a
+        // daemon notification listener) — dispose them with it so nothing leaks past close.
         Disposer.register(this, screenPanel)
+        Disposer.register(this, logsPanel)
         // Publish the panels so toolbar/menu actions (which the platform creates
         // without a panel reference) can drive them — e.g. RefreshDevicesAction.
         project.getService(MTRToolWindowService::class.java).let {
@@ -106,11 +120,11 @@ class MTRToolWindow(private val project: Project) : Disposable {
                     statusLabel.text = "● Stopped"
                     statusLabel.foreground = stoppedColor
                     if (showErrorOnFail) {
-                        Notifier.error(
-                            project,
-                            "Couldn't start the engine",
-                            "Check your internet connection and try again.",
-                        )
+                        // Report the real cause (missing CLI, download failure, health-check
+                        // error), not a blanket "check your internet".
+                        val cause = daemonService.lastStartError
+                            ?: "Check your internet connection and try again."
+                        Notifier.error(project, "Couldn't start the engine", cause)
                     }
                 }
             }
@@ -162,8 +176,8 @@ class MTRToolWindow(private val project: Project) : Disposable {
     // Manual restart, for when the auto-start on open didn't catch (offline, then back
     // online). Rarely needed — the engine starts itself.
     private inner class StartDaemonAction : AnAction(
-        "Restart Engine",
-        "Restart the Mobiscout engine",
+        "Start Engine",
+        "Start the Mobiscout engine",
         AllIcons.Actions.Restart,
     ) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -184,8 +198,9 @@ class MTRToolWindow(private val project: Project) : Disposable {
             e.presentation.isEnabled = daemonRunning
         }
 
-        // stop() fires the service state-listener, which updates the dot + daemonRunning.
-        override fun actionPerformed(e: AnActionEvent) = daemonService.stop()
+        // stopAsync() fires the service state-listener (which updates the dot + daemonRunning)
+        // off the EDT — stop() blocks up to ~5s waiting for the process to die.
+        override fun actionPerformed(e: AnActionEvent) = daemonService.stopAsync()
     }
 
     private fun createTabs() {
@@ -206,5 +221,11 @@ class MTRToolWindow(private val project: Project) : Disposable {
 
     override fun dispose() {
         daemonService.removeStateListener(daemonStateListener)
+        // Clear the published references so actions can't drive a disposed panel after close
+        // (the KDoc on MTRToolWindowService promises exactly this).
+        project.getService(MTRToolWindowService::class.java).let {
+            it.devicesPanel = null
+            it.screenPanel = null
+        }
     }
 }

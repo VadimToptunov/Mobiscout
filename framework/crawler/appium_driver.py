@@ -173,6 +173,20 @@ class IOSCrawlerDriver:
             pass
         self._settle_wait()
 
+    def clear_field(self) -> None:
+        # Clear the focused field so a re-fill replaces rather than appends. In a
+        # WebView clear the focused DOM input; otherwise clear the active element.
+        from framework.crawler import webview
+
+        if self._web and webview.clear_web(self._driver, self._web):
+            self._settle_wait()
+            return
+        try:
+            self._driver.switch_to.active_element.clear()
+        except Exception:
+            pass
+        self._settle_wait()
+
     def back(self) -> None:
         # iOS has no hardware Back; the near-universal gesture is an edge swipe
         # from the left. dragFromToForDuration works on the simulator too.

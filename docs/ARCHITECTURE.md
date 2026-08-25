@@ -560,10 +560,10 @@ machine.
 ### Test Execution Flow
 
 ```
-┌─────────────┐
-│ User runs   │
-│ mobiscout test│
-└──────┬──────┘
+┌─────────────────┐
+│ User runs       │
+│ mobiscout crawl │
+└──────┬──────────┘
        │
        v
 ┌──────────────────┐
@@ -732,7 +732,7 @@ jobs:
       - name: Auto-Heal Failures
         if: failure()
         run: |
-          mobiscout heal auto --commit
+          mobiscout heal auto -t results/junit.xml --commit
       
       - name: Upload Reports
         uses: actions/upload-artifact@v3

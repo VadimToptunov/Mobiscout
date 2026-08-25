@@ -6,6 +6,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.util.concurrency.ThreadingAssertions
 import com.mobiletest.recorder.rpc.JsonRpcClient
 import com.mobiletest.recorder.rpc.JsonRpcNotification
@@ -37,7 +38,17 @@ class MTRDaemonService : Disposable {
 
     private companion object {
         private val LOG = logger<MTRDaemonService>()
+
+        /** A healthy engine answers health/check in well under this; a wedged one must fail
+         *  the start fast rather than pinning the "Starting…" spinner on the RPC backstop. */
+        private const val HEALTH_CHECK_TIMEOUT_MS = 15_000L
     }
+
+    /** Human-readable cause of the last failed [start], for the notification surfaces —
+     *  so a missing CLI or a health-check error isn't reported as "check your internet". */
+    @Volatile
+    var lastStartError: String? = null
+        private set
 
     /**
      * Start the daemon process. Synchronized so concurrent callers (tool-window
@@ -48,7 +59,9 @@ class MTRDaemonService : Disposable {
         if (isRunning && client != null) {
             return true
         }
-
+        lastStartError = null
+        var proc: Process? = null
+        var rpc: JsonRpcClient? = null
         try {
             // Resolve the engine: a self-contained standalone binary (downloaded on
             // first use, no user Python) or a PATH `mobiscout` CLI for development.
@@ -60,31 +73,64 @@ class MTRDaemonService : Disposable {
             val logFile = File(PathManager.getLogPath(), "mobiscout-daemon.log")
             processBuilder.redirectError(ProcessBuilder.Redirect.to(logFile))
 
-            val proc = processBuilder.start()
-            val rpc = JsonRpcClient(proc)
+            proc = processBuilder.start()
+            rpc = JsonRpcClient(proc)
             rpc.startListening { notification -> listeners.forEach { it(notification) } }
 
-            // Test connection with health check
-            val response = rpc.call("health/check")
-            if (response.isError() == false) {
+            // Test the connection. Short timeout: a healthy engine answers in well under
+            // 15 s, and a wedged one must not pin the "Starting…" spinner for 10 minutes.
+            val response = rpc.call("health/check", timeoutMs = HEALTH_CHECK_TIMEOUT_MS)
+            if (!response.isError()) {
                 process = proc
                 client = rpc
                 isRunning = true
+                // Detect the engine dying out from under us (crash, OOM, external kill):
+                // stop() fires the state listeners, so the status dot and action enablement
+                // heal instead of lying "Running" over a dead process forever.
+                proc.onExit().thenRun { onEngineExit(proc) }
                 notifyState(true)
                 return true
             }
+            lastStartError = "Engine health check failed: ${response.error?.message ?: "unknown error"}"
             rpc.close()
             return false
         } catch (e: Exception) {
             LOG.warn("Failed to start mobiscout daemon", e)
-            stop()
+            lastStartError = e.message ?: e.toString()
+            // Clean up the half-started locals — stop() only touches the (still-null) fields,
+            // so without this a daemon that launched but never answered would keep running.
+            try {
+                rpc?.close()
+            } catch (_: Exception) {
+            }
+            try {
+                proc?.destroyForcibly()
+            } catch (_: Exception) {
+            }
             return false
+        }
+    }
+
+    /** The engine process ended. Stop (and notify the UI) only if it is still the CURRENT
+     *  engine — a stale onExit from an engine we already replaced must not kill its successor. */
+    @Synchronized
+    private fun onEngineExit(dead: Process) {
+        if (process === dead) {
+            LOG.warn("Mobiscout engine process exited unexpectedly")
+            stop()
         }
     }
 
     /**
      * Stop the daemon.
      */
+    /** Stop the engine off the calling thread. [stop] blocks up to ~5 s waiting for the
+     *  process to die, so a UI action (a toolbar/menu click, always on the EDT) must use this
+     *  to avoid freezing the IDE. The state listeners still fire (from the pooled thread). */
+    fun stopAsync() {
+        ApplicationManager.getApplication().executeOnPooledThread { stop() }
+    }
+
     @Synchronized
     fun stop() {
         val wasRunning = isRunning

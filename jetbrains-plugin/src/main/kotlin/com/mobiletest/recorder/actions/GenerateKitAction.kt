@@ -117,7 +117,8 @@ class GenerateKitAction : AnAction() {
 
                     // 2. Crawl and generate.
                     indicator.text = "Crawling ${params["package"]} and generating tests…"
-                    val result = daemonService.getClient()?.call("kit/generate", params)?.getResultOrThrow()
+                    val result = daemonService.getClient()
+                        ?.call("kit/generate", params, timeoutMs = KIT_RPC_TIMEOUT_MS)?.getResultOrThrow()
                         ?: throw IllegalStateException("No response from daemon")
 
                     val screens = result.get("screens")?.asInt ?: 0
@@ -265,7 +266,11 @@ class GenerateKitAction : AnAction() {
                 daemonService.addNotificationListener(progress)
                 try {
                     val result = daemonService.getClient()
-                        ?.call("kit/generateMany", mapOf("configs" to configs, "parallel" to true))
+                        ?.call(
+                            "kit/generateMany",
+                            mapOf("configs" to configs, "parallel" to true),
+                            timeoutMs = KIT_RPC_TIMEOUT_MS,
+                        )
                         ?.getResultOrThrow() ?: throw IllegalStateException("No response from daemon")
                     val results = result.getAsJsonArray("results")
                     val failed = results.count { r ->
@@ -333,5 +338,14 @@ class GenerateKitAction : AnAction() {
             })
         }
         notification.notify(project)
+    }
+
+    private companion object {
+        // The engine caps the crawl itself (wall-clock budget, default 600 s); the full
+        // kit/generate then adds driver/Appium setup, codegen, scaffold and file writes on top.
+        // Give the RPC generous slack over that budget so a legitimate long crawl that runs to
+        // its own self-termination isn't reported as "no response from daemon" while the engine
+        // finishes and writes the kit. (The JsonRpcClient default equals the crawl budget.)
+        private const val KIT_RPC_TIMEOUT_MS = 1_800_000L // 30 min
     }
 }

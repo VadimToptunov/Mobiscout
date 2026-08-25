@@ -141,17 +141,30 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         detectButton.isEnabled = false
         setErrorText(null)
         (object : SwingWorker<JsonArray?, Void>() {
+            // Distinguish "engine couldn't answer" (null) from "no app in that folder" (empty
+            // list) — otherwise a dead engine tells the user their valid project has no app.
+            private var failed = false
+
             override fun doInBackground(): JsonArray? = try {
-                ApplicationManager.getApplication()
-                    .getService(MTRDaemonService::class.java)
-                    .getClient()?.call("project/detect", mapOf("path" to path))
-                    ?.getResultOrThrow()?.getAsJsonArray("apps")
+                val client = ApplicationManager.getApplication()
+                    .getService(MTRDaemonService::class.java).getClient()
+                if (client == null) {
+                    failed = true
+                    null
+                } else {
+                    client.call("project/detect", mapOf("path" to path)).getResultOrThrow().getAsJsonArray("apps")
+                }
             } catch (e: Exception) {
+                failed = true
                 null
             }
 
             override fun done() {
                 detectButton.isEnabled = true
+                if (failed) {
+                    setErrorText("Couldn't detect apps — is the engine running? Try again in a moment.")
+                    return
+                }
                 val apps = get()
                 detectedApps = apps?.map { it.asJsonObject } ?: emptyList()
                 generateAllCheck.isVisible = detectedApps.size > 1
@@ -400,6 +413,14 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         if (!generateAllCheck.isVisible || !generateAllCheck.isSelected || detectedApps.size < 2) return emptyList()
         val base = params()
         val baseOutput = (base["output"] as? String) ?: "mobile-tests"
+        // Hand each app a DISTINCT device of its platform — two Android apps crawled in
+        // parallel on the same emulator would fight over one Appium session. Devices are
+        // consumed as assigned; an app with none left is emitted without a udid, and the
+        // engine's auto-boot/degrade handles it (better serialized than colliding).
+        val freeByPlatform: MutableMap<String, ArrayDeque<String>> = HashMap()
+        for ((udid, platform) in devicePlatforms) {
+            freeByPlatform.getOrPut(platform) { ArrayDeque() }.add(udid)
+        }
         return detectedApps.map { app ->
             val pkg = app.get("package")?.asString ?: ""
             val platform = app.get("platform")?.asString ?: "android"
@@ -407,7 +428,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             cfg["package"] = pkg
             cfg["platform"] = platform
             cfg["output"] = "$baseOutput/$pkg"
-            val device = devicePlatforms.entries.firstOrNull { it.value == platform }?.key
+            val device = freeByPlatform[platform]?.removeFirstOrNull()
             if (device != null) cfg["udid"] = device else cfg.remove("udid")
             cfg
         }

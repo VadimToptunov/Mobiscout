@@ -5,7 +5,8 @@ import logging
 import subprocess
 import sys
 import threading
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict, Optional
 
 import click
 
@@ -152,6 +153,11 @@ class JSONRPCServer:
         # responses, so their lines must not interleave.
         self._io_lock = threading.Lock()
         self._log_stream: Optional[subprocess.Popen] = None  # active `simctl log stream`
+        # Where server-initiated notifications (the log stream) are written. None means
+        # stdout (the stdio transport); run_tcp swaps in the connected socket for the
+        # life of a connection so a log stream started over TCP reaches the TCP client
+        # instead of leaking to the daemon's own stdout.
+        self._emit_sink: Optional[Callable[[str], None]] = None
 
         self.handlers = {
             "health/check": self.handle_health_check,
@@ -454,7 +460,7 @@ class JSONRPCServer:
             "bundle_id": params.get("bundle_id") or params.get("package"),
             "server": server,
             "launch_args": params.get("launch_args") or params.get("process_args"),
-            "started_at": "2026-01-14T12:00:00Z",
+            "started_at": datetime.now(timezone.utc).isoformat(),
         }
 
         response: Dict[str, Any] = {"session_id": session_id, "backend": backend, "device_id": device_id}
@@ -487,9 +493,9 @@ class JSONRPCServer:
 
         session = self.sessions[session_id]
         device_id = session["device_id"]
+        platform = str(session.get("platform") or "android").lower()
 
         # Capture screenshot via adb/simctl
-        import subprocess
         import base64
         import tempfile
         import os
@@ -498,17 +504,25 @@ class JSONRPCServer:
             tmp_path = tmp.name
 
         try:
-            # Try Android first
-            result = subprocess.run(
-                ["adb", "-s", device_id, "exec-out", "screencap", "-p"], capture_output=True, timeout=5
-            )
-
-            if result.returncode == 0:
-                with open(tmp_path, "wb") as f:
-                    f.write(result.stdout)
-            else:
-                # Try iOS simulator
-                subprocess.run(["xcrun", "simctl", "io", device_id, "screenshot", tmp_path], check=True, timeout=5)
+            # Platform-aware: an iOS-only Mac has no adb, so the old "try adb first"
+            # raised FileNotFoundError before it could reach the simctl path. Pick the
+            # right tool up front, and turn a missing tool into a clear RPC error.
+            try:
+                if platform == "ios":
+                    subprocess.run(["xcrun", "simctl", "io", device_id, "screenshot", tmp_path], check=True, timeout=5)
+                else:
+                    result = subprocess.run(
+                        ["adb", "-s", device_id, "exec-out", "screencap", "-p"], capture_output=True, timeout=5
+                    )
+                    if result.returncode != 0:
+                        raise Exception(
+                            (result.stderr or b"").decode("utf-8", "replace").strip() or "adb screencap failed"
+                        )
+                    with open(tmp_path, "wb") as f:
+                        f.write(result.stdout)
+            except FileNotFoundError as e:
+                tool = "Xcode command-line tools (xcrun)" if platform == "ios" else "adb"
+                raise Exception(f"Screenshot failed: {tool} not found on PATH") from e
 
             # Read and encode
             with open(tmp_path, "rb") as f:
@@ -566,8 +580,9 @@ class JSONRPCServer:
                     pass
             driver.tap(tx, ty)
         else:
-            device_id = session["device_id"]
-            subprocess.run(["adb", "-s", device_id, "shell", "input", "tap", str(x), str(y)], timeout=2)
+            # _adb_shell raises on a non-zero exit / non-empty stderr, so a rejected tap
+            # surfaces as an RPC error instead of the old fire-and-forget "success".
+            self._adb_shell(session["device_id"], ["input", "tap", str(x), str(y)])
 
         return {"status": "success", "x": x, "y": y}
 
@@ -613,8 +628,11 @@ class JSONRPCServer:
         platform = str(session.get("platform") or "android").lower()
         if platform == "ios":
             dx, dy = ex - sx, ey - sy
-            # A swipe moves content with the finger; scroll takes the content direction.
-            direction = ("up" if dy < 0 else "down") if abs(dy) >= abs(dx) else ("left" if dx < 0 else "right")
+            # scroll(direction) takes the CONTENT-reveal direction (scroll("down")
+            # reveals below-the-fold content), which is opposite the finger's motion:
+            # a finger swipe UP (dy < 0) reveals content below → scroll("down"); a
+            # swipe LEFT (dx < 0) reveals content to the right → scroll("right").
+            direction = ("down" if dy < 0 else "up") if abs(dy) >= abs(dx) else ("right" if dx < 0 else "left")
             self._session_driver(session).scroll(direction)
         else:
             self._adb_shell(
@@ -690,12 +708,18 @@ class JSONRPCServer:
         return json.dumps({"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": "0.5.0"}})
 
     def _emit(self, obj: Dict[str, Any]) -> None:
-        """Write one JSON-RPC message to stdout under the io lock. Used for
-        server-initiated notifications (the log stream) so their lines never
-        interleave with the main loop's responses."""
+        """Write one JSON-RPC message to the active transport under the io lock. Used
+        for server-initiated notifications (the log stream) so their lines never
+        interleave with the main loop's responses. Routes to the connected TCP client's
+        socket when one is set (see run_tcp), otherwise to stdout."""
+        line = json.dumps(obj) + "\n"
         with self._io_lock:
-            sys.stdout.write(json.dumps(obj) + "\n")
-            sys.stdout.flush()
+            sink = self._emit_sink
+            if sink is not None:
+                sink(line)
+            else:
+                sys.stdout.write(line)
+                sys.stdout.flush()
 
     def handle_logs_start(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Stream the app-under-test's device logs into the IDE's Logs tab.
@@ -777,11 +801,20 @@ class JSONRPCServer:
 
     def _stop_log_stream(self) -> None:
         proc, self._log_stream = self._log_stream, None
-        if proc is not None:
+        if proc is None:
+            return
+        try:
+            proc.terminate()
             try:
-                proc.terminate()
-            except Exception:
-                pass
+                proc.wait(timeout=2)  # reap it — a terminated-but-unwaited child lingers
+            except subprocess.TimeoutExpired:
+                proc.kill()  # SIGTERM ignored (or a wrapper is holding the pipe) — force it
+                try:
+                    proc.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    pass
+        except Exception:
+            pass
 
     # Reject a single request larger than this before parsing — a wedged plugin (or a
     # local client) sending a huge/garbage blob can't OOM the engine on json.loads.
@@ -840,15 +873,35 @@ class JSONRPCServer:
             while True:
                 conn, addr = srv.accept()
                 logger.info("Client connected: %s", addr)
-                with conn, conn.makefile("rwb") as stream:
-                    stream.write((self._ready_notification() + "\n").encode("utf-8"))
-                    stream.flush()
-                    for raw in stream:
-                        response = self._process_line(raw.decode("utf-8"))
-                        if response is None:
-                            continue
-                        stream.write((response + "\n").encode("utf-8"))
-                        stream.flush()
+                try:
+                    with conn, conn.makefile("rwb") as stream:
+                        # Route server notifications (the log stream) to THIS socket for
+                        # the life of the connection, not to the daemon's stdout.
+                        def _sink(line: str, _s: Any = stream) -> None:
+                            _s.write(line.encode("utf-8"))
+                            _s.flush()
+
+                        self._emit_sink = _sink
+                        with self._io_lock:
+                            stream.write((self._ready_notification() + "\n").encode("utf-8"))
+                            stream.flush()
+                        for raw in stream:
+                            response = self._process_line(raw.decode("utf-8", "replace"))
+                            if response is None:
+                                continue
+                            # Under the io lock so a log-stream notification can't
+                            # interleave mid-line with this response (as in stdio mode).
+                            with self._io_lock:
+                                stream.write((response + "\n").encode("utf-8"))
+                                stream.flush()
+                except Exception as e:
+                    # One client dropping or sending garbage must not take the daemon
+                    # down — log it and go back to accept the next client.
+                    logger.warning("TCP client %s errored: %s", addr, e)
+                finally:
+                    # Don't emit into a dead socket or leak the stream into the next client.
+                    self._emit_sink = None
+                    self._stop_log_stream()
                 logger.info("Client disconnected: %s", addr)
 
 

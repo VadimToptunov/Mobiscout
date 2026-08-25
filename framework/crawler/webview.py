@@ -325,3 +325,24 @@ def type_web(driver: Any, web: Dict[str, Any], text: str) -> bool:
         return False
     finally:
         _to_native(driver)
+
+
+def clear_web(driver: Any, web: Dict[str, Any]) -> bool:
+    """Clear the last-clicked web input (or the active element) so a re-fill
+    replaces rather than appends. Returns to NATIVE_APP afterward."""
+    from selenium.webdriver.common.by import By
+
+    i = web.get("focused")
+    try:
+        driver.switch_to.context(web["ctx"])
+        el = (
+            driver.find_element(By.CSS_SELECTOR, '[data-mtr-id="%d"]' % i)
+            if i is not None
+            else driver.switch_to.active_element
+        )
+        el.clear()
+        return True
+    except Exception:
+        return False
+    finally:
+        _to_native(driver)

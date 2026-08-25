@@ -62,12 +62,21 @@ def _warn_once_native(message: str) -> None:
         logger.warning("%s", message)
 
 
-def _version_tuple(v: str) -> Tuple[int, ...]:
-    """Parse ``"0.2.0"`` → ``(0, 2, 0)``; anything unparseable sorts oldest."""
-    try:
-        return tuple(int(p) for p in v.split(".")[:3])
-    except (ValueError, AttributeError):
-        return (0, 0, 0)
+def _version_tuple(v: str) -> Tuple[int, int, int]:
+    """Parse a version to a 3-tuple for ABI comparison: ``"0.2.0"`` → ``(0, 2, 0)``.
+
+    Pads to three components so a 2-part ``"0.2"`` reads as ``(0, 2, 0)`` — not the
+    shorter ``(0, 2)``, which Python would sort *below* ``(0, 2, 0)`` and wrongly
+    reject — and takes each component's leading digits so a PEP 440 prerelease
+    (``"0.2.0rc1"``, ``"0.2.0-dev"``) reads as its release ABI instead of failing
+    ``int()`` and sorting oldest. Anything with no leading digit sorts as 0."""
+    parts: List[int] = []
+    for p in str(v).split(".")[:3]:
+        m = re.match(r"\d+", p.strip())
+        parts.append(int(m.group()) if m else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    return cast(Tuple[int, int, int], tuple(parts))
 
 
 @lru_cache(maxsize=1)

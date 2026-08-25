@@ -72,6 +72,24 @@ def _find(els: List[CrawlElement], hint: str, exclude_ids: Optional[set] = None)
     return next((e for e in els if id(e) not in skip and h in _haystack(e)), None)
 
 
+# Negation phrases that flip an otherwise-affirmative label into its opposite.
+# "Don't Allow" / "Disallow" both contain "allow", so a plain substring match on
+# "allow" would tap the DENY button and grant nothing — the grant finder skips these.
+# Multi-word phrases ("not now", "no thanks") so a bare "not"/"no" can't exclude a
+# real button like "Allow notifications".
+_NEGATIONS = ("don't", "dont", "do not", "disallow", "deny", "never", "not now", "no thanks", "reject")
+
+
+def _find_affirmative(els: List[CrawlElement], hint: str) -> Optional[CrawlElement]:
+    """Like :func:`_find`, but skips a negated match so a grant waypoint taps the
+    button that actually grants ("Allow"), not the deny button ("Don't Allow")."""
+    h = hint.lower()
+    return next(
+        (e for e in els if h in (hay := _haystack(e)) and not any(n in hay for n in _NEGATIONS)),
+        None,
+    )
+
+
 def _tap(driver: Any, element: CrawlElement) -> None:
     x, y = element.center
     driver.tap(x, y)
@@ -89,7 +107,7 @@ def apply(waypoint: Waypoint, driver: Any, screen: CrawlScreen) -> bool:
     if action == "totp":
         return _totp(driver, els, data)
     if action == "grant":
-        target = _find(els, data.get("button", "allow"))
+        target = _find_affirmative(els, data.get("button", "allow"))
         if target is None:
             return False
         _tap(driver, target)
@@ -154,11 +172,14 @@ def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
 def _totp(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     from framework.fixtures.totp import totp
 
+    secret = data.get("secret")
+    if not secret:
+        return False  # a misconfigured TOTP waypoint must skip, not KeyError out of the crawl
     field_el = _find(els, data.get("field", "otp")) or _find(els, "code")
     if field_el is None or not hasattr(driver, "type_text"):
         return False
     _tap(driver, field_el)
-    driver.type_text(totp(data["secret"]))
+    driver.type_text(totp(secret))
     submit = _find(els, data["submit"]) if data.get("submit") else None
     if submit is not None:
         _tap(driver, submit)
