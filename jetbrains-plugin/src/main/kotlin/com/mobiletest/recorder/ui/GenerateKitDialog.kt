@@ -17,7 +17,6 @@ import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBPasswordField
 import com.intellij.ui.components.JBTextField
-import com.intellij.util.ui.FormBuilder
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.settings.MTRSettings
 import java.io.File
@@ -257,9 +256,20 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     }
 
     override fun createCenterPanel(): JComponent {
-        // The advanced knobs live in a collapsible group (Kotlin UI DSL) so the whole block
-        // folds away — their defaults are fine for the common run, so it starts collapsed.
-        val advancedPanel = panel {
+        // One Kotlin UI DSL panel for the whole form: the essentials up top, then Advanced as
+        // a collapsibleGroup that starts collapsed. The group must be a top-level element of
+        // this panel (not a nested panel{} dropped into a FormBuilder) or the dialog won't
+        // re-pack when it toggles — which left a large empty area under a collapsed Advanced.
+        return panel {
+            row { cell(detectButton) }
+            row { cell(generateAllCheck) }
+            row("App package / bundle id:") { cell(packageField) }
+            row("Platform:") { cell(platformCombo) }
+            row("Device:") { cell(udidCombo) }
+            row("Language / target:") { cell(languageCombo) }
+            row("Framework:") { cell(frameworkCombo) }
+            row("Output directory:") { cell(outputField) }
+            row { cell(newProjectCheck) }
             collapsibleGroup("Advanced") {
                 row("Android backend:") { cell(driverCombo) }
                 row("Appium server:") { cell(serverField) }
@@ -277,21 +287,6 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                 row("Max crawl depth:") { cell(maxDepthField) }
             }.expanded = false
         }
-
-        // Essentials up top (what you set every run); Advanced collapsed below — the form
-        // reads as "app, device, language → Generate" without hiding any knob.
-        return FormBuilder.createFormBuilder()
-            .addComponent(detectButton)
-            .addComponent(generateAllCheck)
-            .addLabeledComponent("App package / bundle id:", packageField)
-            .addLabeledComponent("Platform:", platformCombo)
-            .addLabeledComponent("Device:", udidCombo)
-            .addLabeledComponent("Language / target:", languageCombo)
-            .addLabeledComponent("Framework:", frameworkCombo)
-            .addLabeledComponent("Output directory:", outputField)
-            .addComponent(newProjectCheck)
-            .addComponent(advancedPanel)
-            .panel
     }
 
     override fun doValidate(): ValidationInfo? {

@@ -10,7 +10,7 @@ Output:                 dist/mobiscout-engine   (per the OS/arch it's built on)
 """
 import os
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 # SPECPATH is injected by PyInstaller = this file's directory; the repo root
 # (where ``framework`` lives) is its parent. Using it keeps the build runnable
@@ -18,6 +18,18 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 REPO_ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))  # noqa: F821 (SPECPATH is injected)
 
 datas = collect_data_files("framework")  # includes framework/codegen/templates/**/*.j2
+
+# The Appium Python client reads its OWN version via importlib.metadata at import time
+# (appium/version.py: version = _metadata_version('Appium-Python-Client')). A frozen binary
+# carries no .dist-info by default, so `import appium` — every iOS / Appium-driver crawl —
+# raised "No package metadata was found for Appium-Python-Client". Bundle the metadata;
+# recursive=True also grabs the dependency metadata the stack (selenium, …) may read.
+for _pkg in ("Appium-Python-Client", "selenium"):
+    try:
+        datas += copy_metadata(_pkg, recursive=True)
+    except Exception:
+        pass  # a source build without the client installed still freezes
+
 hiddenimports = collect_submodules("framework")
 
 # The compiled Rust accelerator. The release workflow installs the mobiscout_core wheel
