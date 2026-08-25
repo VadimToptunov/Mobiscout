@@ -21,6 +21,11 @@ class CrawlerDriver(Protocol):
 
     def type_text(self, text: str) -> None: ...  # type into the focused field
 
+    # Optional: clear the focused field before typing. Drivers that implement it keep a
+    # re-fill (negative probe then positive fill) from appending onto leftover text;
+    # those that don't still work (the field simply keeps its prior contents).
+    def clear_field(self) -> None: ...
+
     def back(self) -> None: ...
 
     def current_package(self) -> str: ...

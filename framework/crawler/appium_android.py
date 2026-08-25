@@ -209,6 +209,20 @@ class AndroidAppiumDriver:
             pass
         time.sleep(self._settle)
 
+    def clear_field(self) -> None:
+        # Clear the focused field so a re-fill replaces rather than appends. In a
+        # WebView clear the focused DOM input; otherwise clear the active element.
+        from framework.crawler import webview
+
+        if self._web and webview.clear_web(self._driver, self._web):
+            time.sleep(self._settle)
+            return
+        try:
+            self._driver.switch_to.active_element.clear()
+        except Exception:
+            pass
+        time.sleep(self._settle)
+
     def scroll(self, direction: str = "down") -> None:
         # Reveal off-screen content so the crawl reaches below-the-fold rows/links.
         # `mobile: scrollGesture` scrolls the largest scrollable within the given

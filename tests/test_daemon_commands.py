@@ -230,16 +230,19 @@ def test_actions_require_a_known_session(server):
             getattr(server, method)({"session_id": "ghost"})
 
 
+def _ok_run(*_a, **_k):
+    return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+
 def test_tap_shells_out_to_adb(server):
     sid = _session(server)
-    with mock.patch(f"{_SUB}.run") as run:
+    # Android taps go through _adb_shell now (which checks the result), so give it a
+    # succeeding run rather than a bare MagicMock (whose truthy returncode reads as failure).
+    with mock.patch(f"{_SUB}.run", side_effect=_ok_run) as run:
         resp = server.handle_tap({"session_id": sid, "x": 10, "y": 20})
     assert resp["status"] == "success"
     assert run.call_args[0][0][:4] == ["adb", "-s", "emulator-5554", "shell"]
-
-
-def _ok_run(*_a, **_k):
-    return SimpleNamespace(returncode=0, stdout="", stderr="")
+    assert run.call_args[0][0][-4:] == ["input", "tap", "10", "20"]
 
 
 def test_type_escapes_spaces(server):
@@ -342,7 +345,10 @@ def test_swipe_on_ios_scrolls_via_the_driver(server):
     server._session_driver = lambda session: fake  # type: ignore[assignment]
     with mock.patch(f"{_SUB}.run", side_effect=AssertionError("adb must not be used on iOS")):
         server.handle_swipe({"session_id": sid, "start_x": 5, "start_y": 200, "end_x": 5, "end_y": 20})
-    assert fake.scrolled == ["up"]  # end_y < start_y -> content scrolls up
+    # Finger swipes UP (end_y < start_y), which reveals content BELOW the fold — the
+    # driver calls that scroll("down") (see the driver's scroll() convention), the
+    # opposite of the finger's motion. (Was asserting "up": the direction was inverted.)
+    assert fake.scrolled == ["down"]
 
 
 def _fake_png(width: int, height: int) -> bytes:

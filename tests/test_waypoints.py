@@ -115,6 +115,33 @@ def test_totp_waypoint_enters_current_code():
     assert len(typed) == 1 and typed[0].isdigit() and len(typed[0]) == 6  # a TOTP code
 
 
+def test_totp_waypoint_without_secret_is_skipped_not_crash():
+    # A misconfigured TOTP waypoint (no "secret") must be skipped, not raise a KeyError
+    # up out of the crawl and end it.
+    otp_screen = CrawlScreen(
+        "otp",
+        [_el("android.widget.EditText", rid="otp", desc="One-time code")],
+        platform="android",
+    )
+    driver = RecordingDriver(["<hierarchy/>"])
+    wp = Waypoint(when={"text_contains": "one-time"}, action="totp", data={"field": "otp"})
+    assert apply_first_match([wp], driver, otp_screen) is False
+    assert not any(c[0] == "type" for c in driver.calls)  # nothing typed
+
+
+def test_grant_waypoint_taps_allow_not_dont_allow():
+    # A permission dialog lists "Don't Allow" then "Allow". "allow" is a substring of
+    # BOTH, so a plain substring finder taps the deny button — the grant must tap Allow.
+    deny = CrawlElement("deny", "Don't Allow", "", "android.widget.Button", True, (0, 0, 100, 40), package="com.x")
+    allow = CrawlElement("allow", "Allow", "", "android.widget.Button", True, (0, 100, 100, 140), package="com.x")
+    screen = CrawlScreen("perm", [deny, allow], platform="android")
+    driver = RecordingDriver(["<hierarchy/>"])
+    wp = Waypoint(when={"text_contains": "allow"}, action="grant")
+    assert apply_first_match([wp], driver, screen)
+    taps = [c for c in driver.calls if c[0] == "tap"]
+    assert taps == [("tap", 50, 120)]  # center of "Allow" (y 100..140), never "Don't Allow" (y 0..40)
+
+
 def test_crawler_passes_gate_and_reaches_screen_behind():
     # Page 0: login (gate). After the waypoint taps submit, page 1: the home screen.
     login_xml = (

@@ -117,6 +117,10 @@ class _Frame:
     # Whether this screen shows a money field — gates the ambiguous financial verbs when
     # the depth-first loop taps this frame's controls (see _blocked).
     money: bool = False
+    # False once a return-to-parent (_go_back) failed to land back on this frame's screen:
+    # the frame's queued element coordinates are then stale, so the loop re-checks the live
+    # screen before tapping rather than hitting whatever pixels those coordinates now point at.
+    synced: bool = True
 
 
 class AppCrawler:
@@ -268,6 +272,11 @@ class AppCrawler:
     # responding", a runtime permission, a system prompt) WITHOUT leaving the app.
     # "Close app" / "Don't allow" / "Deny" would kill or block it, so they're out.
     _SAFE_DIALOG_LABELS = ("wait", "allow", "while using", "only this time", "ok", "continue", "got it")
+    # ...but never a *negated* affirmative: "Don't allow"/"Disallow" contain "allow",
+    # and tapping them denies the permission or blocks the app. A safe-label match that
+    # also reads as one of these is skipped (the substring match alone can't tell them
+    # apart, which is exactly how the deny button used to get tapped).
+    _UNSAFE_DIALOG_LABELS = ("don't", "dont", "do not", "disallow", "deny", "not now", "no thanks")
 
     def _clear_blocking_dialog(self) -> bool:
         """A capricious device throws blocking dialogs over the app — an ANR, a
@@ -280,9 +289,12 @@ class AppCrawler:
             return False
         for element in screen.elements:
             label = (element.text or element.content_desc or "").strip().lower()
-            if label and element.bounds and any(k in label for k in self._SAFE_DIALOG_LABELS):
-                self.driver.tap(*element.center)
-                return True
+            if not (label and element.bounds and any(k in label for k in self._SAFE_DIALOG_LABELS)):
+                continue
+            if any(n in label for n in self._UNSAFE_DIALOG_LABELS):
+                continue  # "Don't allow"/"Deny" — matches "allow" but must not be tapped
+            self.driver.tap(*element.center)
+            return True
         return False
 
     # How many stacked non-terminal obstacles (onboarding page, then a consent
@@ -343,16 +355,19 @@ class AppCrawler:
     def _current_fp(self) -> str:
         return parse_screen(self.driver.page_source()).fingerprint
 
-    def _go_back(self, parent_fp: str) -> None:
+    def _go_back(self, parent_fp: str) -> bool:
         """Return to ``parent_fp``. Back pops a navigation push, but on iOS it is
         an edge-swipe that does *not* dismiss a modal sheet — so if we're still not
         on the parent we tap a Close/Cancel/Done control, then fall back to a
         swipe-down. Without this the crawl gets stranded on the first sheet it opens
-        and every later tap lands on the wrong screen."""
+        and every later tap lands on the wrong screen.
+
+        Returns whether we actually ended up back on ``parent_fp`` — the caller marks
+        the frame unsynced on False so it won't tap that frame's stale coordinates."""
         self.driver.back()
         self._recover()
         if not parent_fp or self._current_fp() == parent_fp:
-            return
+            return True
         # Still off the parent — likely a modal. Try an explicit dismissal control.
         screen = parse_screen(self.driver.page_source())
         for element in screen.interactive():
@@ -361,11 +376,12 @@ class AppCrawler:
                 self.driver.tap(*element.center)
                 self._recover()
                 if self._current_fp() == parent_fp:
-                    return
+                    return True
                 break
         # Last resort: a downward swipe, the near-universal "dismiss sheet" gesture.
         self._scroll("up")
         self._recover()
+        return self._current_fp() == parent_fp
 
     @staticmethod
     def _screen_bottom(screen: CrawlScreen) -> int:
@@ -607,17 +623,24 @@ class AppCrawler:
             return False
         return True
 
-    def _reveal_more(self, seen: set, exclude_nav: bool) -> Deque[CrawlElement]:
+    def _reveal_more(self, frame: "_Frame", exclude_nav: bool) -> Deque[CrawlElement]:
         """Scroll down and return app elements newly brought on screen (not already
         seen on this frame). Off-screen content — long lists, below-the-fold links —
-        is the single biggest thing a tap-only crawl misses."""
+        is the single biggest thing a tap-only crawl misses.
+
+        Also re-checks the revealed screen for a money field and makes the frame
+        *sticky*-money: a screen whose amount field sits below the fold would
+        otherwise keep frame.money False, so a Send/Confirm scrolled into view stays
+        ungated and a default crawl could move money."""
         fresh: Deque[CrawlElement] = deque()
         if not self._scroll("down") or not self._on_app():
             return fresh
-        for element in self._own_interactive(parse_screen(self.driver.page_source()), exclude_nav=exclude_nav):
+        screen = parse_screen(self.driver.page_source())
+        frame.money = frame.money or self._money_screen(screen)
+        for element in self._own_interactive(screen, exclude_nav=exclude_nav):
             key = self._element_key(element)
-            if key not in seen:
-                seen.add(key)
+            if key not in frame.seen:
+                frame.seen.add(key)
                 fresh.append(element)
         return fresh
 
@@ -662,6 +685,7 @@ class AppCrawler:
         from framework.crawler.classify import classify
 
         typed = False
+        clear = getattr(self.driver, "clear_field", None)
         for element in screen.elements:
             if not self._own(element) or classify(element)[0] != "input":
                 continue
@@ -670,6 +694,12 @@ class AppCrawler:
                 continue  # nothing meaningful to type (invalid-mode, untyped field)
             try:
                 self.driver.tap(*element.center)
+                # Clear any prior text before typing so a re-fill (the negative probe
+                # then the positive fill on the same form, or a revisit) *replaces* the
+                # field instead of appending — otherwise a field ends up holding
+                # "invalid@valid" and neither branch is really exercised.
+                if callable(clear):
+                    clear()
                 self.driver.type_text(value)
                 typed = True
             except Exception:  # a field that won't accept input must not abort the crawl
@@ -772,20 +802,36 @@ class AppCrawler:
         while stack and self._within_budget(result):
             frame = stack[-1]
             current_fp, todo = frame.fingerprint, frame.todo
+
+            # A prior return-to-parent didn't land us back on this frame's screen, so its
+            # queued coordinates are stale. Re-check the live screen before doing anything
+            # with them; if we still can't get here, abandon the frame and head for its
+            # parent instead of tapping (or scrolling) blind. Only runs when a go_back
+            # reported failure, so the happy path pays no extra dump.
+            if not frame.synced:
+                if self._current_fp() == current_fp:
+                    frame.synced = True
+                else:
+                    stack.pop()
+                    if stack:
+                        result.steps += 1
+                        stack[-1].synced = self._go_back(stack[-1].fingerprint)
+                    continue
+
             if not todo:
                 # Before giving up on this screen, scroll to see if there is more
                 # below the fold; only pop once scrolling reveals nothing new.
                 if frame.scrolls < self._MAX_SCROLLS:
                     frame.scrolls += 1
                     result.steps += 1
-                    fresh = self._reveal_more(frame.seen, exclude_nav)
+                    fresh = self._reveal_more(frame, exclude_nav)
                     if fresh:
                         todo.extend(fresh)
                         continue
                 stack.pop()
                 if stack:  # return to the parent screen (dismissing any modal)
                     result.steps += 1
-                    self._go_back(stack[-1].fingerprint)
+                    stack[-1].synced = self._go_back(stack[-1].fingerprint)
                 continue
 
             element = todo.popleft()
@@ -827,9 +873,22 @@ class AppCrawler:
             if self._pass_gates(new_screen):
                 behind = self._read_content_screen()
                 if behind.fingerprint and behind.fingerprint != new_screen.fingerprint:
-                    result.transitions.append(Transition(new_screen.fingerprint, element, behind.fingerprint))
-                    result.screens.setdefault(behind.fingerprint, behind)
-                    self._note_screen(result, behind.fingerprint)
+                    # Record the crossing as a synthetic gate edge (kind="gate"), labelled
+                    # with a control on the GATE screen — not `element`, which is the parent
+                    # control that led *into* the gate. kind="gate" is what stops codegen
+                    # replaying it as a real tap / positive journey (it uses the auth prefix
+                    # instead); mirrors the entry-gate crossing above.
+                    gate_link = next((e for e in new_screen.interactive() if self._own(e)), None)
+                    if gate_link is None and new_screen.elements:
+                        gate_link = new_screen.elements[0]
+                    result.transitions.append(
+                        Transition(new_screen.fingerprint, gate_link or element, behind.fingerprint, kind="gate")
+                    )
+                    # Hand the behind-gate screen to the seen/new block below to record AND
+                    # explore — don't pre-insert it into result.screens here, or that block
+                    # sees it as "already seen" and backs out, mapping the whole post-auth
+                    # app as a single unexplored node. _note_screen still tags it gated there
+                    # (self._passed_gate stays True once any gate fires).
                     new_screen = behind
 
             if new_screen.fingerprint not in result.screens and len(stack) < self.max_depth:
@@ -841,7 +900,7 @@ class AppCrawler:
                 # it and back out to the parent.
                 if terminal_obstacle(new_screen) is not None:
                     result.steps += 1
-                    self._go_back(current_fp)
+                    frame.synced = self._go_back(current_fp)
                     continue
                 self._handle_form(result, new_screen)  # exercise its form both ways (invalid→error, valid)
                 child = self._own_interactive(new_screen, exclude_nav=exclude_nav)
@@ -856,4 +915,4 @@ class AppCrawler:
             else:
                 # Already seen (or depth cap): don't re-explore, return to parent.
                 result.steps += 1
-                self._go_back(current_fp)
+                frame.synced = self._go_back(current_fp)

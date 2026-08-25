@@ -43,9 +43,12 @@ _CONSENT_DECLINE = (
 _CONSENT_ACCEPT = ("accept all", "accept", "agree", "allow all", "i agree", "got it")
 
 # Onboarding / tutorial carousels. Fire only on an explicit skip-like control so
-# we never tap "Next"/"Continue" on a legitimate flow.
+# we never tap "Next"/"Continue" on a legitimate flow. "done" is deliberately NOT a
+# skip token: it is ambiguous (a form/date-picker/keyboard "Done"), so on a real
+# content screen that merely mentions "welcome" ("Welcome back") it would tap Done
+# and submit/dismiss the actual flow. The remaining tokens are unambiguous skips.
 _ONBOARD_WORDS = ("welcome", "get started", "tutorial", "walkthrough", "tour", "swipe", "onboarding", "take a tour")
-_ONBOARD_SKIP = ("skip", "get started", "let's go", "lets go", "start now", "done")
+_ONBOARD_SKIP = ("skip", "get started", "let's go", "lets go", "start now")
 
 # Rate-us / promo / "enable notifications" nags — a dismiss control that keeps us
 # in the app.
