@@ -22,7 +22,7 @@ import com.mobiletest.recorder.ui.Notifier
 class LogsPanel(
     private val project: Project,
     private val daemonService: MTRDaemonService
-) {
+) : com.intellij.openapi.Disposable {
     private val panel = JPanel(BorderLayout())
     private val logsTextArea = JTextArea()
     private val logsScroll = JBScrollPane(logsTextArea)
@@ -65,8 +65,13 @@ class LogsPanel(
         panel.add(toolbar, BorderLayout.NORTH)
         panel.add(logsScroll, BorderLayout.CENTER)
 
-        // Render both daemon logs and streamed app logs (both arrive as logs/message).
-        daemonService.addNotificationListener { notification ->
+    }
+
+    // Renders both daemon logs and streamed app logs (both arrive as logs/message). Held in
+    // a field and removed in dispose() — the daemon service is APPLICATION-level, so a
+    // listener left behind would pin this panel (and its whole Project) past close.
+    private val logListener: (com.mobiletest.recorder.rpc.JsonRpcNotification) -> Unit =
+        { notification ->
             if (notification.method == "logs/message") {
                 val params = notification.params
                 val message = params.get("message")?.asString ?: ""
@@ -94,6 +99,9 @@ class LogsPanel(
                 }
             }
         }
+
+    init {
+        daemonService.addNotificationListener(logListener)
     }
 
     private fun loadDevices() {
@@ -188,6 +196,10 @@ class LogsPanel(
     }
 
     fun getPanel(): JComponent = panel
+
+    override fun dispose() {
+        daemonService.removeNotificationListener(logListener)
+    }
 
     companion object {
         /** Keep at most this many characters of log tail in the view (~a few MB of RAM cap). */

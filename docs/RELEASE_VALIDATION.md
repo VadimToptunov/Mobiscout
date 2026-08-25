@@ -43,7 +43,7 @@ Compose app, a real store app). Record the outcomes in the table at the bottom.
 - [ ] **Source planning:** `mobiscout source analyze <src>` maps screens/routes/APIs.
 
 ## 3. Honesty spot-checks (so nothing over-claims live)
-- [ ] **Security:** `mobiscout security scan <app.apk>` — on an app with a known
+- [ ] **Security:** `mobiscout security scan <app.apk> --platform android --app-name <name>` — on an app with a known
       embedded secret it is **found**; with no apktool the report shows the explicit
       "Partial analysis — not a clean bill of health" note (never a silent "secure").
 - [ ] **Fuzz (API):** point `mobiscout fuzz api <url>` at a real endpoint — crashes
@@ -51,7 +51,7 @@ Compose app, a real store app). Record the outcomes in the table at the bottom.
       warning (no invented crashes).
 - [ ] **Visual:** two genuinely different screenshots report a non-zero diff and a
       bounding box; identical ones report 0%.
-- [ ] **A11y:** `mobiscout a11y scan hierarchy.json --screenshot shot.png` — contrast
+- [ ] **A11y:** `mobiscout a11y scan hierarchy.json -a <app> -s <screen> --screenshot shot.png` — contrast
       is actually checked; without `--screenshot` it reports "not checked", not a pass.
 
 ## 4. Robustness (the flaky-device reality)

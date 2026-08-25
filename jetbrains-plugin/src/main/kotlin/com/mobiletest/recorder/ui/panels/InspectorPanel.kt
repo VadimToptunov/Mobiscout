@@ -114,19 +114,25 @@ class InspectorPanel(
         listModel.clear()
         detailArea.text = ""
         (object : SwingWorker<JsonObject?, Void>() {
+            private var error: String? = null
+
             override fun doInBackground(): JsonObject? =
                 try {
                     daemonService.getClient()
                         ?.call("ui/getTree", mapOf("session_id" to sessionId))
                         ?.getResultOrThrow()
                 } catch (e: Exception) {
+                    // The daemon returns actionable errors here — keep the text instead of a
+                    // generic "failed" that hides the real cause.
+                    error = e.message ?: e.toString()
                     null
                 }
 
             override fun done() {
                 val result = get()
                 if (result == null) {
-                    headerLabel.text = "Failed to capture UI tree."
+                    headerLabel.text = error?.let { "Couldn't capture the UI tree: $it" }
+                        ?: "Couldn't capture the UI tree (is the session still running?)."
                     return
                 }
                 populate(result)
@@ -173,18 +179,27 @@ class InspectorPanel(
         val e = elementList.selectedValue?.element ?: return
         detailArea.text = "Generating selector…"
         (object : SwingWorker<JsonObject?, Void>() {
+            private var error: String? = null
+
             override fun doInBackground(): JsonObject? =
                 try {
                     daemonService.getClient()
                         ?.call("selector/generate", mapOf("platform" to currentPlatform, "element" to elementParams(e)))
                         ?.getResultOrThrow()
                 } catch (ex: Exception) {
+                    error = ex.message ?: ex.toString()
                     null
                 }
 
             override fun done() {
                 val result = get()
-                if (result == null || result.get("found")?.asBoolean != true) {
+                if (result == null) {
+                    // An engine error is not the same as "no selector exists" — say which.
+                    detailArea.text = error?.let { "Selector generation failed: $it" }
+                        ?: "Selector generation failed (is the engine running?)."
+                    return
+                }
+                if (result.get("found")?.asBoolean != true) {
                     detailArea.text = "No self-healing selector could be built for this element."
                     return
                 }

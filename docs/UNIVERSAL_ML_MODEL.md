@@ -58,7 +58,7 @@ The model automatically identifies UI element types:
 
 ```bash
 # Run this ONCE to create the universal model
-mobiscout ml create-universal-model
+mobiscout ml create-universal-model --output ml_models/universal_element_classifier.pkl
 ```
 
 **Output:**
@@ -84,14 +84,11 @@ This model works out-of-the-box for ANY mobile application!
 No app-specific training required! 
 ```
 
-### 2. Use It In Model Building
+### 2. It's Used Automatically
 
 ```bash
-# Build App Model with ML classification enabled
-mobiscout model build \
-  --session-id session_20250119_142345 \
-  --app-version 1.0.0 \
-  --use-ml
+# Crawl an app — element classification runs as part of the pipeline
+mobiscout crawl --package com.example.app --output ./crawl-output
 
 # The universal model (ml_models/universal_element_classifier.pkl)
 # is used automatically!
@@ -172,19 +169,13 @@ The classifier analyzes multiple element attributes:
 ### Old Way (App-Specific Training)
 
 ```bash
-# 1. Record session
-mobiscout record start --package com.myapp
-# ... use app ...
-mobiscout record stop
+# 1. Generate training data from an app model
+mobiscout ml generate-training-data --app-model app_model.json --output training_data.json
 
-# 2. Generate training data
-mobiscout ml generate-training-data --type from-session --session-id session_123
+# 2. Train a model on it
+mobiscout ml train --training-data training_data.json --output ml_models/my_app_classifier.pkl
 
-# 3. Train model
-mobiscout ml train --session-id session_123 --auto-label
-
-# 4. Finally use it
-mobiscout model build --session-id session_123 --use-ml
+# 3. Repeat for every app...
 ```
 
 **Problems:**
@@ -197,10 +188,10 @@ mobiscout model build --session-id session_123 --use-ml
 
 ```bash
 # One-time setup (framework maintainer does this)
-mobiscout ml create-universal-model
+mobiscout ml create-universal-model --output ml_models/universal_element_classifier.pkl
 
-# Users just enable ML (works for ANY app!)
-mobiscout model build --session-id session_123 --use-ml
+# Users just crawl — classification works for ANY app!
+mobiscout crawl --package com.example.app
 ```
 
 **Benefits:**
@@ -216,25 +207,20 @@ mobiscout model build --session-id session_123 --use-ml
 If the universal model doesn't achieve desired accuracy for your specific app, you can **fine-tune** it:
 
 ```bash
-# 1. Use universal model as baseline
-mobiscout model build --session-id session_123 --use-ml
-
-# 2. Generate app-specific training data
+# 1. Generate app-specific training data from your app model
 mobiscout ml generate-training-data \
-  --type from-session \
-  --session-id session_123
+  --app-model app_model.json \
+  --output training_data.json
 
-# 3. Fine-tune the model
+# 2. Train the app-specific model
 mobiscout ml train \
-  --session-id session_123 \
-  --auto-label \
+  --training-data training_data.json \
   --output ml_models/my_app_classifier.pkl
 
-# 4. Use fine-tuned model
-mobiscout model build \
-  --session-id session_456 \
-  --use-ml \
-  --ml-model ml_models/my_app_classifier.pkl
+# 3. Evaluate it
+mobiscout ml evaluate \
+  --model ml_models/my_app_classifier.pkl \
+  --test-data training_data.json
 ```
 
 This combines the best of both worlds:
@@ -250,7 +236,7 @@ Your colleagues don't need to understand ML! They just:
 
 1. **Install framework**
 2. **Create universal model** (one command, one time)
-3. **Use `--use-ml` flag** when building models
+3. **Crawl** — classification happens automatically
 
 That's it! The ML model automatically:
 
@@ -369,7 +355,7 @@ ml_models/
 ## Summary
 
 **Universal Model** = Zero-setup ML for ANY mobile app  
-**One Command** = `mobiscout ml create-universal-model`  
+**One Command** = `mobiscout ml create-universal-model -o ml_models/universal_element_classifier.pkl`  
 **Just Works** = No training, no data, no ML expertise needed  
 **For Teams** = QA engineers can use ML without understanding it
 

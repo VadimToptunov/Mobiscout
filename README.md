@@ -192,9 +192,9 @@ AI-powered** — no runtime LLM); MCP is only the interface. Register it in your
 
 ### Multi-Language & Structured Output — available now
 
-- 🌍 **9 targets** — Python (pytest), Java (TestNG), Kotlin (Appium/Espresso),
-  JavaScript (WebdriverIO), each in an imperative **or BDD/Gherkin** style, plus
-  **Maestro** declarative YAML flows
+- 🌍 **9 targets** — Python (pytest), Java (TestNG) and JavaScript (WebdriverIO)
+  each in an imperative **or BDD/Gherkin** style, Kotlin imperative (Appium + Espresso),
+  plus **Maestro** declarative YAML flows
 - 🏗️ **Framework-structured output** — Page Objects + a shared `conftest` + POM-style tests
   (`--style pom`), or standalone files (`--style flat`)
 - 🔌 **Backends** — Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso
@@ -211,7 +211,7 @@ AI-powered** — no runtime LLM); MCP is only the interface. Register it in your
 1. **Install CLI Backend**:
 
 ```bash
-# From source (for developers; end users just install the plugin — it bundles the engine, no Python needed):
+# From source (for developers; end users just install the plugin — it sets up its own local engine automatically on first use, no Python needed):
 git clone https://github.com/VadimToptunov/Mobiscout.git
 cd mobile_test_recorder
 pip install -e .
@@ -226,8 +226,7 @@ cd jetbrains-plugin
 ```
 
 3. **Start Testing**:
-    - Open View → Tool Windows → Mobiscout
-    - Click "Start Daemon"
+    - Open View → Tool Windows → Mobiscout (the engine starts automatically)
     - Go to "Screen" tab
     - Click "Load Devices", select device
     - Click "Start Session"
@@ -273,7 +272,7 @@ cd ..
 
 ```bash
 # Business Logic Analysis
-mobiscout business analyze app/src --output analysis.json
+mobiscout business analyze --source app/src --output analysis.json --format json
 
 # Self-Healing Tests
 mobiscout heal auto --test-results junit.xml --commit
@@ -282,13 +281,13 @@ mobiscout heal auto --test-results junit.xml --commit
 mobiscout load run tests/ --profile medium --users 20
 
 # Security Scanning
-mobiscout security scan app.apk --output security-report.json
+mobiscout security scan app.apk --platform android --app-name MyApp --output security-report.json
 
 # Accessibility Testing
-mobiscout a11y scan tests/ --wcag-level AAA
+mobiscout a11y scan hierarchy.json -a MyApp -s Login --wcag-level AAA
 
 # Parallel Execution
-mobiscout parallel run tests/ --workers 4 --devices pool-name
+mobiscout parallel run tests/ --workers 4
 
 # Performance Profiling
 mobiscout load profile tests/test_checkout.py --cpu --memory
@@ -362,13 +361,13 @@ failed run; wiring them into the crawl→codegen loop is on the roadmap.
 mobiscout heal auto \
   --test-results results/junit.xml \
   --screenshots screenshots/ \
-  --confidence 0.7 \
+  --min-confidence 0.7 \
   --commit \
   --dry-run  # Preview changes first
 
 # Manual approval workflow
-mobiscout heal analyze results/junit.xml
-mobiscout dashboard  # Review fixes in UI
+mobiscout heal analyze -t results/junit.xml
+mobiscout dashboard start  # Review fixes in UI
 # Approve fixes manually
 ```
 
@@ -379,23 +378,22 @@ mobiscout dashboard  # Review fixes in UI
 ### Observability
 
 ```bash
-# Start metrics server (Prometheus format)
-mobiscout observe metrics --port 9090
+# Export collected metrics (Prometheus or JSON format)
+mobiscout observe metrics --format prometheus --output metrics.txt
 
-# View structured logs
-mobiscout observe logs --filter ERROR --since 1h
+# View structured logs (filter by level, follow like tail -f)
+mobiscout observe logs --level ERROR --follow
 
-# Distributed tracing
-mobiscout observe trace --session-id abc123
+# Analyze a saved trace file
+mobiscout observe trace traces/trace_123.json
 ```
 
 **Metrics Exported:**
 
-- Test execution time (P50, P95, P99)
-- Healing success rate
-- ML prediction accuracy
-- Device pool utilization
-- API latency
+- Test duration (`test_duration_seconds`)
+- Test failures (`test_failures_total`)
+- Device availability (`device_availability`)
+- Healing success rate (`healing_success_rate`)
 
 ### CI/CD Integration
 
@@ -414,7 +412,7 @@ jobs:
       
       - name: Setup
         run: |
-          pip install -e .
+          pip install -e ".[dev,backend]"  # backend extra provides the heal group
       
       - name: Run Tests
         run: |
@@ -423,11 +421,11 @@ jobs:
       - name: Auto-Heal Failures
         if: failure()
         run: |
-          mobiscout heal auto --commit
+          mobiscout heal auto -t results/junit.xml --commit
       
       - name: Security Scan
         run: |
-          mobiscout security scan app.apk
+          mobiscout security scan app.apk --platform android --app-name MyApp
       
       - name: Load Test
         run: |
@@ -441,14 +439,15 @@ jobs:
 mobiscout devices list
 
 # Create device pool
-mobiscout parallel create-pool \
+mobiscout devices pool create \
   --name staging-pool \
-  --devices emulator-5554,device-001
-
-# Run tests on pool
-mobiscout parallel run tests/ \
-  --pool staging-pool \
+  --devices emulator-5554,device-001 \
   --strategy round-robin
+
+# Run tests in parallel
+mobiscout parallel run tests/ \
+  --workers 4 \
+  --shard-strategy balanced
 ```
 
 ---
@@ -467,16 +466,15 @@ never presented as "secure".
 # OWASP Mobile Top 10 scan (real string/secret + obfuscation checks; deeper
 # manifest/bytecode analysis when apktool/androguard are available)
 mobiscout security scan app.apk \
+  --platform android --app-name MyApp \
   --output security-report.json \
   --format html
 
 # Quick audit
-mobiscout security audit app/ --category all
+mobiscout security audit app.apk -p android -n MyApp --severity high
 
 # Compare security posture
-mobiscout security compare \
-  --baseline v1.0-security.json \
-  --current v1.1-security.json
+mobiscout security compare MyApp v1.0-security.json v1.1-security.json
 ```
 
 **Checks:**
@@ -493,15 +491,15 @@ mobiscout security compare \
 
 ```bash
 # WCAG 2.1 compliance check
-mobiscout a11y scan tests/ \
+mobiscout a11y scan hierarchy.json -a MyApp -s Login \
   --wcag-level AAA \
-  --output a11y-report.html
+  --output a11y-report.json
 
-# Fix suggestions
-mobiscout a11y fix-suggestions --screen LoginScreen
+# Detailed audit with per-violation recommendations
+mobiscout a11y audit hierarchy.json -a MyApp -s Login --severity critical
 
-# Report
-mobiscout a11y report results.json
+# Summary from a saved report
+mobiscout a11y summary a11y-report.json
 ```
 
 **Checks:**
@@ -616,7 +614,7 @@ cd mobile_test_recorder
 source activate.sh  # Includes Rust setup
 
 # 3. Install dev dependencies
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 
 # 4. Run tests
 pytest tests/

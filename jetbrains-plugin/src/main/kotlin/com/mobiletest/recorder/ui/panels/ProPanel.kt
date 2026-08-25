@@ -91,11 +91,15 @@ class ProPanel(
                     daemonService.licenseStatus()
                 } catch (e: Exception) {
                     null
-                } ?: return "Tier: detecting…"
-                val features = status.getAsJsonArray("features")?.map { it.asString } ?: emptyList()
+                } ?: return "Tier: engine not running"
+                // Trust the daemon's own `tier` field (pro | free | …) rather than re-deriving
+                // it from the feature list — a FREE licence can carry named features, and a real
+                // PRO one carries "*", so the old feature-scan mislabeled both.
+                val tier = status.get("tier")?.asString.orEmpty().lowercase()
+                val unlimited = status.get("unlimited")?.asBoolean == true
                 return when {
-                    features.any { it != "*" } -> "Tier: PRO — licensed ✓"
-                    status.get("unlimited")?.asBoolean == true -> "Tier: Open-core (unlimited)"
+                    tier == "pro" && !unlimited -> "Tier: PRO — licensed ✓"
+                    unlimited -> "Tier: Open-core (unlimited)"
                     else -> "Tier: Free — quota-limited (upgrade for unlimited + PRO features)"
                 }
             }

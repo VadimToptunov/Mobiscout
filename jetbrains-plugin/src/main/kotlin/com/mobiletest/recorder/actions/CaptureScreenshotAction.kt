@@ -41,7 +41,14 @@ class CaptureScreenshotAction : AnAction() {
                 indicator.isIndeterminate = true
                 val imageBytes = try {
                     val result = daemonService.getScreenshot(sessionId, "png")
-                    val base64Data = result?.get("data")?.asString ?: return
+                    val base64Data = result?.get("data")?.asString
+                    if (base64Data == null) {
+                        // Don't fail silently — say the engine returned no image.
+                        ApplicationManager.getApplication().invokeLater {
+                            Notifier.warn(project, "Screenshot", "The engine returned no screenshot data.")
+                        }
+                        return
+                    }
                     Base64.getDecoder().decode(base64Data)
                 } catch (ex: Exception) {
                     ApplicationManager.getApplication().invokeLater {

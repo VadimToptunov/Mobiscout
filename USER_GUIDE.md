@@ -1123,7 +1123,7 @@ def test_checkout():
 
 - [Architecture](docs/ARCHITECTURE.md) - System design
 - [Technical Design](docs/TECHNICAL_DESIGN.md) - Implementation details
-- [API Reference](docs/API_REFERENCE.md) - Complete API docs
+- [CLI API](docs/CLI_API.md) - Integrating the CLI with external tools
 - [Examples](examples/) - Real-world examples
 
 **Get Help:**

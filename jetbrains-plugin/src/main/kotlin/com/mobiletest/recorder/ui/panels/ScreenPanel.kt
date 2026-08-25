@@ -40,6 +40,23 @@ class ScreenPanel(
     private var live = false
     private var liveTimer: Timer? = null
 
+    // A capture is in flight — the Live timer skips a tick rather than piling SwingWorkers up
+    // faster than the daemon (which serves screenshots serially) can answer them.
+    private var capturing = false
+
+    // The engine stopping/crashing invalidates any live session — clear it so the mirror
+    // and the Live toggle don't keep firing against a dead session. Removed in dispose().
+    private val engineStateListener: (Boolean) -> Unit = { running ->
+        if (!running) {
+            javax.swing.SwingUtilities.invokeLater {
+                currentSessionId = null
+                currentImage = null
+                setLive(false)
+                imagePanel.repaint()
+            }
+        }
+    }
+
     // The daemon runs a fail-fast preflight on session/start and returns an
     // actionable JSON-RPC error (e.g. the ANDROID_HOME fix) — surface it verbatim
     // instead of a generic "failed" message.
@@ -55,7 +72,16 @@ class ScreenPanel(
     // selection in their update() to enable/disable themselves.
     private val deviceCombo = JComboBox<DeviceItem>()
 
-    private val imagePanel = object : JPanel() {
+    // Scrollable so it always matches the viewport in BOTH axes: paintComponent scales the
+    // frame to fit width×height, so tracking the viewport lets the mirror shrink to fit a short
+    // or narrow tool window instead of pinning 400×800 and showing scrollbars.
+    private val imagePanel = object : JPanel(), Scrollable {
+        override fun getPreferredScrollableViewportSize(): Dimension = preferredSize
+        override fun getScrollableUnitIncrement(r: Rectangle, orientation: Int, direction: Int) = 16
+        override fun getScrollableBlockIncrement(r: Rectangle, orientation: Int, direction: Int) = 64
+        override fun getScrollableTracksViewportWidth() = true
+        override fun getScrollableTracksViewportHeight() = true
+
         override fun paintComponent(g: Graphics) {
             super.paintComponent(g)
             currentImage?.let { img ->
@@ -87,6 +113,7 @@ class ScreenPanel(
     }
     
     init {
+        daemonService.addStateListener(engineStateListener)
         imagePanel.background = JBColor(0x2B2B2B, 0x1E1E1E)
         imagePanel.preferredSize = Dimension(400, 800)
         
@@ -170,7 +197,11 @@ class ScreenPanel(
         }
 
         override fun actionPerformed(e: AnActionEvent) {
-            (deviceCombo.selectedItem as? DeviceItem)?.let { startSession(it) }
+            // Snapshot the input fields on the EDT — reading Swing text from the background
+            // worker below is a threading violation and can pick up mid-edit text.
+            (deviceCombo.selectedItem as? DeviceItem)?.let {
+                startSession(it, appField.text.trim(), serverField.text.trim(), launchArgsField.text.trim())
+            }
         }
     }
 
@@ -244,7 +275,7 @@ class ScreenPanel(
         }).execute()
     }
 
-    private fun startSession(device: DeviceItem) {
+    private fun startSession(device: DeviceItem, appId: String, server: String, launchArgsText: String) {
         (object : SwingWorker<String?, Void>() {
             override fun doInBackground(): String? {
                 try {
@@ -254,13 +285,13 @@ class ScreenPanel(
                     // Give the daemon what it needs to open the right driver: the
                     // platform (adb vs Appium), and for iOS the app bundle id, the
                     // Appium server, and any launch args to start past a gate.
-                    val launchArgs = launchArgsField.text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                    val launchArgs = launchArgsText.split(Regex("\\s+")).filter { it.isNotEmpty() }
                     val params = buildMap {
                         put("device_id", deviceId)
                         put("backend", "appium")
                         put("platform", device.platform)
-                        if (appField.text.isNotBlank()) put("bundle_id", appField.text.trim())
-                        if (serverField.text.isNotBlank()) put("server", serverField.text.trim())
+                        if (appId.isNotBlank()) put("bundle_id", appId)
+                        if (server.isNotBlank()) put("server", server)
                         if (launchArgs.isNotEmpty()) put("launch_args", launchArgs)
                     }
                     lastStartError = null
@@ -316,6 +347,11 @@ class ScreenPanel(
     
     private fun captureScreen() {
         val sessionId = currentSessionId ?: return
+        // A capture is already in flight — skip this tick rather than stacking SwingWorkers
+        // faster than the daemon (which serves screenshots serially) can answer. Without this a
+        // slow device makes the Live timer queue captures unboundedly.
+        if (capturing) return
+        capturing = true
         (object : SwingWorker<BufferedImage?, Void>() {
             private var error: String? = null
 
@@ -333,13 +369,19 @@ class ScreenPanel(
             }
 
             override fun done() {
+                capturing = false
                 val img = get()
                 if (img != null) {
                     currentImage = img
                     imagePanel.repaint()
+                } else if (live) {
+                    // A capture failed while Live was auto-refreshing: stop Live and warn ONCE,
+                    // instead of storming the same balloon every LIVE_REFRESH_MS (session died,
+                    // engine crashed, device unplugged). The last frame stays on screen.
+                    setLive(false)
+                    Notifier.warn(project, "Live mirror stopped", error ?: "Couldn't capture the screen.")
                 } else {
-                    // Don't blank a working mirror on a transient capture failure — keep the
-                    // last frame on screen and say (non-modally) what went wrong.
+                    // Manual/first capture: keep the last frame and say (non-modally) what broke.
                     Notifier.warn(project, "Screenshot", error ?: "Couldn't capture the screen.")
                 }
             }
@@ -379,6 +421,7 @@ class ScreenPanel(
     fun activeSessionId(): String? = currentSessionId
 
     override fun dispose() {
+        daemonService.removeStateListener(engineStateListener)
         liveTimer?.stop() // don't leave a repeating timer firing after the tool window closes
         liveTimer = null
     }

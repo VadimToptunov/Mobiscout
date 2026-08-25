@@ -21,10 +21,16 @@ data class DeviceItem(val id: String, val name: String, val platform: String, va
  * is editable-String, so it reads the ids/names/platforms off these items but keeps its own combo.
  */
 object DeviceList {
-    /** Devices for [platform] ("all" | "android" | "ios"); empty when the engine isn't up. */
+    /** Devices for [platform] ("all" | "android" | "ios"); empty when the engine isn't up OR
+     *  the enumeration errors (a missing adb, a JSON-RPC error) — a device list a panel can't
+     *  populate must not throw out of a SwingWorker onto the EDT as an "internal IDE error". */
     fun load(platform: String = "all"): List<DeviceItem> {
         val service = ApplicationManager.getApplication().getService(MTRDaemonService::class.java)
-        val devices = service.listDevices(platform)?.getAsJsonArray("devices") ?: return emptyList()
+        val devices = try {
+            service.listDevices(platform)?.getAsJsonArray("devices")
+        } catch (_: Exception) {
+            null
+        } ?: return emptyList()
         return devices.mapNotNull {
             val d = it.asJsonObject
             val id = d.get("id")?.asString ?: return@mapNotNull null

@@ -731,7 +731,7 @@ mobiscout heal auto [OPTIONS]
 
 - `--test-results PATH` - Path to JUnit XML results
 - `--screenshots PATH` - Path to screenshots directory
-- `--confidence FLOAT` - Minimum confidence threshold (default: 0.7)
+- `--min-confidence FLOAT` - Minimum confidence threshold (default: 0.7)
 - `--commit` - Auto-commit fixes to Git
 - `--dry-run` - Preview changes without applying
 
@@ -741,7 +741,7 @@ mobiscout heal auto [OPTIONS]
 mobiscout heal auto \
   --test-results results/junit.xml \
   --screenshots screenshots/ \
-  --confidence 0.7 \
+  --min-confidence 0.7 \
   --commit
 ```
 
@@ -757,19 +757,17 @@ mobiscout ml train [OPTIONS]
 
 **Options:**
 
-- `--data PATH` - Path to training data
+- `--training-data PATH` - Path to training data
 - `--output PATH` - Model output path
-- `--test-size FLOAT` - Test set size (default: 0.2)
-- `--cv-folds INT` - Cross-validation folds (default: 5)
+- `--test-split FLOAT` - Test set size (default: 0.2)
 
 **Example:**
 
 ```bash
 mobiscout ml train \
-  --data data/training_data.json \
+  --training-data data/training_data.json \
   --output models/element_classifier.pkl \
-  --test-size 0.2 \
-  --cv-folds 5
+  --test-split 0.2
 ```
 
 ### Python API
