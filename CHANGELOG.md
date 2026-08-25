@@ -7,6 +7,51 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.0] — 2026-08-25
+
+Tool-window polish, safer-by-default crawls, and a hardened Python↔Rust engine seam.
+
+### Added
+- **Live screen mirror** — a "Live" toggle on the Screen panel auto-refreshes the device
+  mirror while a session is active (the capability the removed "screenshot refresh interval"
+  setting had only promised); the timer is tied to the tool-window lifecycle, so it never
+  outlives it.
+- **Inspector locators** — the Inspector is now a selectable element list: **Copy locator**
+  (the most stable id/text/content-desc) and **Generate selector** (a ranked, self-healing
+  selector via the engine's `selector/generate`) for the picked element.
+- **`mobiscout doctor` native-core line** — reports the active backend: `Rust acceleration
+  active (mobiscout_core x.y.z)` or a warning with the `maturin develop` fix.
+
+### Changed
+- **Native tool-window toolbars** — Devices, Screen, Logs and Inspector use real IDE
+  `ActionToolbar`s (icons, tooltips, theme, keyboard); their actions enable/disable from
+  state via `update()` instead of manual toggling.
+- **Generate-kit dialog** — the rarely-used knobs collapse under an "Advanced" group; the
+  output directory has a Browse button and resolves relative paths against the project;
+  file pickers use the IDE chooser; the mislabeled "Language" field is now "Language /
+  target"; validation (device↔platform, positive crawl limits, build-needs-device) runs
+  before the dialog closes.
+- **Honest progress & logs** — the crawl progress bar reflects the live stream instead of a
+  frozen "Crawling…"; errors are non-modal balloons; the Logs view is bounded and only
+  autoscrolls when already at the tail.
+- **Rust core** — version-gated across the PyO3 seam (`mobiscout_core` 0.2.0); the SAST
+  scanner splits lines once in Python so both backends agree exactly; ~1,200 lines of dead
+  Rust (correlator/business-logic/io) removed from the shipped binary.
+
+### Fixed
+- **Never freezes the IDE** — every engine RPC runs off the EDT, asserted at the service
+  boundary (`assertBackgroundThread`); menu Start/Stop and screenshot capture were the last
+  offenders.
+- **Crawl safety** — a default crawl never taps money-moving controls (Pay/Buy/Transfer/…
+  always; Send/Confirm/Exchange only on a screen with a money field), while OTP "Send code",
+  messaging and email-confirmation flows are still crawled; blocklist matching is now on word
+  boundaries (no more `pay`→"PayPal"). Use `--allow-destructive` only on sandbox apps.
+- **Kit output** lands in the project (not the IDE's working dir) with an "Open folder"
+  action; the tool-window status dot stays honest when the engine is stopped from the menu;
+  the device picker no longer mis-parses a name with parentheses ("iPad Pro (11-inch)").
+- **CLI `--help`** keeps the Examples blocks on separate lines; removed four dead-on-arrival
+  Tools-menu actions that called non-existent commands.
+
 ## [0.11.0] — 2026-08-23
 
 A new codegen target, an AI-agent interface, and two crawl-intelligence artifacts.
