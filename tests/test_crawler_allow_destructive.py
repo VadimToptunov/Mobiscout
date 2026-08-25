@@ -77,6 +77,29 @@ def test_context_financial_verbs_block_only_on_a_money_screen():
         assert c._blocked(_el(label), money_context=True), label  # e.g. a transfer form
 
 
+def test_money_screen_detects_amount_field_by_id_without_a_currency_symbol():
+    # MC1: a transfer form whose amount input is recognisable only from its id
+    # (…/amount_field) — no visible currency symbol or hint *word* in the labels — must
+    # still be a money screen (so its "Send" is blocked). An OTP screen (a code input) and a
+    # phone field (phone-OTP) must NOT be, or those flows become dead-ends again.
+    from framework.crawler.form_values import _is_money_screen
+
+    def _field(rid):
+        return CrawlElement(
+            resource_id=rid,
+            text="",
+            content_desc="",
+            class_name="android.widget.EditText",
+            clickable=True,
+            bounds=(0, 0, 100, 40),
+            package="",
+        )
+
+    assert _is_money_screen([_el("To"), _field("com.x:id/amount_field"), _el("Send")])
+    assert not _is_money_screen([_el("Code"), _field("com.x:id/otp_code"), _el("Send code")])
+    assert not _is_money_screen([_field("com.x:id/phone_number"), _el("Send code")])
+
+
 def test_blocklist_matches_whole_words_not_substrings():
     # CR1(a): word-boundary matching — "pay" must not fire on "PayPal"/"Payment", "buy" not
     # on "Buyer", "send" not on "resend"/"sender" (the latter two pre-existed #469).
