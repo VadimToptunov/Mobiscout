@@ -52,6 +52,13 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.1 — crawl-safety follow-ups</h3>
+    <ul>
+        <li>A transfer form whose amount field is identified only by its id (no visible
+        currency symbol or hint word) is now recognised as a money screen, so its
+        Send/Confirm is blocked by default — while OTP, phone-OTP and messaging screens
+        stay crawlable.</li>
+    </ul>
     <h3>0.12.0 — tool-window polish, safer crawls, hardened engine</h3>
     <ul>
         <li><b>Native tool window</b>: the Devices/Screen/Logs/Inspector toolbars are now

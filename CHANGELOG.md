@@ -7,6 +7,22 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.1] — 2026-08-25
+
+Crawl-safety follow-ups.
+
+### Fixed
+- **Money-screen detection uses field-level evidence** — a transfer form whose amount input
+  is recognisable only from its id (e.g. `…/amount_field`), with no visible currency symbol
+  or hint word, is now treated as a money screen, so its "Send"/"Confirm" is blocked by
+  default. The "is this an amount field" test is single-sourced with the form-fill logic so
+  the two can't disagree. OTP ("Send code"), phone-OTP and messaging screens stay non-money
+  and are still crawled.
+
+### Changed
+- `CHANGELOG.md` is now checked against `framework.__version__` in CI, so a version bump
+  can't ship without a changelog entry (the two change-note homes can't drift again).
+
 ## [0.12.0] — 2026-08-25
 
 Tool-window polish, safer-by-default crawls, and a hardened Python↔Rust engine seam.
