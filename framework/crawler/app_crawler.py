@@ -253,7 +253,7 @@ class AppCrawler:
     def _money_screen(self, screen: CrawlScreen) -> bool:
         """Does this screen involve money (a currency symbol / amount field)? Gates the
         ambiguous financial verbs for :meth:`_blocked`."""
-        return _is_money_screen(e.label for e in screen.elements if self._own(e))
+        return _is_money_screen(e for e in screen.elements if self._own(e))
 
     def _own(self, element: CrawlElement) -> bool:
         """Does this element belong to the app under test? System bars, dialogs

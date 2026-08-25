@@ -594,7 +594,7 @@ def _submit_element(screen: CrawlScreen, app_package: str) -> Optional[CrawlElem
     crawler (CR1): always-financial verbs are skipped everywhere, the ambiguous ones only on
     a screen that shows a money field (so an OTP "Send code" still yields a case)."""
     owned = _owned(screen, app_package)
-    money = _is_money_screen((e.text or e.content_desc or e.resource_id or "") for e in owned)
+    money = _is_money_screen(owned)
     for e in owned:
         if not e.clickable or classify(e)[0] != "button":
             continue

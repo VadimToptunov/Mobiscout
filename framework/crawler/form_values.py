@@ -16,6 +16,22 @@ from typing import Iterable
 
 from framework.crawler.models import CrawlElement
 
+# Field hints that mark an input as holding a monetary amount / quantity. Single source of
+# truth: _sample_value / _invalid_value fill such a field, and _is_money_screen uses it as
+# field-level evidence that a screen involves money (so an amount input with no visible
+# currency symbol still gates the ambiguous financial verbs — MC1).
+_AMOUNT_FIELD_HINTS = ("amount", "qty", "quantity", "number", "count")
+
+
+def _is_amount_field(element: CrawlElement) -> bool:
+    """Whether this input holds a monetary amount / quantity, from its text/id/class. A
+    phone/OTP field is explicitly excluded — "phone number" is not money, and blocking it
+    would strand OTP-by-phone flows."""
+    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
+    if any(k in hint for k in ("phone", "tel", "mobile")):
+        return False
+    return any(k in hint for k in _AMOUNT_FIELD_HINTS)
+
 
 def _sample_value(element: CrawlElement) -> str:
     """A realistic value for a form field, inferred from its label/id/class — so the
@@ -28,7 +44,7 @@ def _sample_value(element: CrawlElement) -> str:
         return "Password123!"
     if any(k in hint for k in ("phone", "tel", "mobile")):
         return "1234567890"
-    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
+    if _is_amount_field(element):
         return "10"
     if "search" in hint or "query" in hint:
         return "test"
@@ -49,7 +65,7 @@ def _invalid_value(element: CrawlElement) -> str:
         return "1"  # too short to satisfy any real password policy
     if any(k in hint for k in ("phone", "tel", "mobile")):
         return "abc"  # letters where digits are required
-    if any(k in hint for k in ("amount", "qty", "quantity", "number", "count")):
+    if _is_amount_field(element):
         return "-1"  # negative where a positive quantity is required
     return ""
 
@@ -107,7 +123,7 @@ _CONTEXT_FINANCIAL_LABELS = (
 _FINANCIAL_LABELS = _ALWAYS_FINANCIAL_LABELS + _CONTEXT_FINANCIAL_LABELS
 
 # Signals that a screen involves money — a visible currency symbol, or an amount/account
-# hint in any label. Used to gate the ambiguous _CONTEXT_FINANCIAL_LABELS.
+# hint. Used to gate the ambiguous _CONTEXT_FINANCIAL_LABELS.
 _MONEY_SYMBOLS = ("$", "€", "£", "¥", "₽")
 _MONEY_HINTS = ("amount", "currency", "iban", "sort code", "account number", "recipient", "balance")
 
@@ -119,12 +135,18 @@ def _label_has_token(needle: str, label: str) -> bool:
     return re.search(r"\b" + re.escape(needle) + r"\b", label) is not None
 
 
-def _is_money_screen(labels: Iterable[str]) -> bool:
-    """Whether any label reveals a money field — a currency symbol or an amount/account hint."""
-    for text in labels:
-        if any(sym in text for sym in _MONEY_SYMBOLS):
+def _is_money_screen(elements: Iterable[CrawlElement]) -> bool:
+    """Whether the screen involves money. Consults FIELD-LEVEL evidence, not just visible
+    label text (MC1): a visible currency symbol, an amount input detected from its id/type
+    the same way _sample_value fills it (so a transfer form whose amount box shows no symbol
+    or hint *word* is still recognised), or a money hint (currency/iban/recipient/…) anywhere
+    in an element's text/id/class."""
+    for e in elements:
+        if any(sym in f"{e.text} {e.content_desc}" for sym in _MONEY_SYMBOLS):
             return True
-        low = text.lower()
-        if any(hint in low for hint in _MONEY_HINTS):
+        if _is_amount_field(e):
+            return True
+        hint = f"{e.text} {e.content_desc} {e.resource_id} {e.class_name}".lower()
+        if any(h in hint for h in _MONEY_HINTS):
             return True
     return False
