@@ -52,6 +52,25 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.2 — project-wide review: safer crawls, sturdier engine, honest UI</h3>
+    <ul>
+        <li><b>Deeper crawls</b>: the screen behind a mid-crawl gate (a login/OTP you tap
+        into) is now explored, not mapped as one dead node; forms are cleared before typing
+        so the invalid and valid passes are both real; a money field revealed by scrolling
+        re-arms the "don't move money" gate.</li>
+        <li><b>Never taps the wrong button</b>: a permission grant (and the blocking-dialog
+        handler) no longer taps "Don't Allow"; onboarding auto-skip no longer treats a
+        form's "Done" as a skip; a stale-coordinate tap after a failed back-out is prevented.</li>
+        <li><b>Sturdier engine</b>: iOS swipe direction fixed; screenshots are platform-aware
+        (a host without adb no longer crashes an iOS capture); a rejected Android tap is an
+        error, not a fake success; the device log stream actually stops when you stop it.</li>
+        <li><b>Tool-window polish</b>: the Generate dialog's collapsed "Advanced" no longer
+        leaves a dead gap; the screen mirror scales to a short window; Live stops and warns
+        once on failure instead of storming; actions report the real cause and never freeze
+        the IDE.</li>
+        <li><b>Honest feature list</b> and a packaging fix so iOS/Appium crawls no longer
+        fail with "No package metadata was found for Appium-Python-Client".</li>
+    </ul>
     <h3>0.12.1 — crawl-safety follow-ups</h3>
     <ul>
         <li>A transfer form whose amount field is identified only by its id (no visible

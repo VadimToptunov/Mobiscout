@@ -7,6 +7,49 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.2] — 2026-08-26
+
+Project-wide review pass: crawl-safety, engine robustness, and honest UI.
+
+### Fixed — crawler
+- The screen behind a mid-crawl gate (a login/OTP reached by tapping into it) is now
+  **explored**, not just recorded and abandoned — the whole post-auth app used to be
+  mapped as a single unexplored node.
+- Form fields are **cleared before typing**, so a negative-then-positive fill no longer
+  concatenates into `invalid@valid` and tests both branches for real.
+- A permission grant (and the blocking-dialog handler) never taps **"Don't Allow"**
+  again — "allow" is a substring of both, so an affirmative-only match is used.
+- A **money field revealed by scrolling** now re-arms the money gate, so a Send/Confirm
+  below the fold stays blocked by default.
+- Onboarding auto-skip no longer treats **"Done"** as a skip, so a real "Welcome back"
+  screen with a Done button is left alone.
+- After a failed return-to-parent the crawler **re-checks the live screen** instead of
+  tapping a frame's now-stale coordinates.
+- A TOTP waypoint with no secret is skipped instead of ending the crawl.
+
+### Fixed — engine / daemon
+- iOS swipe direction corrected (a finger-up swipe scrolls content the right way).
+- Screenshot capture is platform-aware — a host without adb no longer crashes the
+  request on iOS.
+- An Android tap that the device rejects is reported as an error, not a fake success.
+- TCP debug transport: log-stream notifications reach the connected client, and one
+  client disconnecting no longer takes the daemon down.
+- Stopping the log stream now actually stops it (terminate → kill → reap).
+- The Rust-core ABI gate accepts 2-part and prerelease version strings.
+
+### Fixed — IDE plugin
+- Generate dialog no longer leaves a large dead area when **Advanced** is collapsed.
+- The screen mirror scales to fit a short/narrow tool window; the Live toggle stops and
+  warns once on a capture failure instead of storming a balloon every refresh.
+- Engine start/stop, screenshot, refresh and detect actions report the real cause and
+  never freeze the UI thread; a stopped engine clears the live session.
+- Feature list trimmed to what's actually wired (tap, log streaming, a flat element
+  inventory) — no more overclaimed swipe/type, log filtering, or an XML tree viewer.
+
+### Fixed — packaging
+- The frozen engine bundles `Appium-Python-Client` metadata, so an iOS/Appium crawl no
+  longer fails with "No package metadata was found".
+
 ## [0.12.1] — 2026-08-25
 
 Crawl-safety follow-ups.

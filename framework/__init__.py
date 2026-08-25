@@ -4,7 +4,7 @@ Mobile Mobiscout & Test Framework
 Intelligent Mobile Testing Platform - Scout, Analyze, Automate
 """
 
-__version__ = "0.12.1"
+__version__ = "0.12.2"
 __author__ = "Vadim Toptunov"
 __license__ = "MIT"
 
