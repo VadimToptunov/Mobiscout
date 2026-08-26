@@ -12,7 +12,7 @@ import pytest
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from appium.webdriver.common.appiumby import AppiumBy
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 
 # Condition-based wait budget (seconds). We poll for the element instead of a
@@ -67,6 +67,15 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
                 return drv.find_element(by, value)
             except NoSuchElementException:
                 continue
+            except WebDriverException as exc:
+                # An animating screen (a splash, an onboarding carousel) can keep the
+                # accessibility tree busy: UiAutomator2 then answers "Timed out waiting
+                # for the root AccessibilityNodeInfo" instead of "not found". That is
+                # transient, so keep polling within the wait budget rather than failing
+                # a test for something that resolves a moment later.
+                if "AccessibilityNodeInfo" not in str(exc):
+                    raise
+                return False
         return False
 
     try:
@@ -132,7 +141,15 @@ def driver():
     if os.environ.get("MOBISCOUT_KEEP_APP_DATA") != "1":
         try:
             drv.execute_script("mobile: clearApp", {"appId": "com.example.app"})
-            drv.execute_script("mobile: activateApp", {"appId": "com.example.app"})
+            # Relaunch by explicit component, not activateApp: an app that declares more
+            # than one launcher entry (a debug build shipping LeakCanary adds a second icon)
+            # makes Android's launcher resolution ambiguous, and activateApp then quietly
+            # fails — leaving whatever app was already on screen, so the test would run
+            # against the wrong app instead of failing.
+            drv.execute_script(
+                "mobile: startActivity",
+                {"intent": "com.example.app/.MainActivity"},
+            )
         except Exception:
             pass  # older driver, or an app that can't be cleared — run against live state
     yield drv

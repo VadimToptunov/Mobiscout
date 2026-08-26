@@ -28,7 +28,7 @@ from appium.options.ios import XCUITestOptions
 from appium.options.android import UiAutomator2Options
 {% endif %}
 from appium.webdriver.common.appiumby import AppiumBy
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 
 # Condition-based wait budget (seconds). We poll for the element instead of a
@@ -91,6 +91,15 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
                 return drv.find_element(by, value)
             except NoSuchElementException:
                 continue
+            except WebDriverException as exc:
+                # An animating screen (a splash, an onboarding carousel) can keep the
+                # accessibility tree busy: UiAutomator2 then answers "Timed out waiting
+                # for the root AccessibilityNodeInfo" instead of "not found". That is
+                # transient, so keep polling within the wait budget rather than failing
+                # a test for something that resolves a moment later.
+                if "AccessibilityNodeInfo" not in str(exc):
+                    raise
+                return False
         return False
 
     try:
@@ -171,8 +180,25 @@ def driver():
     # that needs a manually provisioned account).
     if os.environ.get("MOBISCOUT_KEEP_APP_DATA") != "1":
         try:
-            drv.execute_script("mobile: clearApp", {{ '{"appId": ' ~ (model.app_package | py_str) ~ '}' if model.platform.value == "android" else '{"bundleId": ' ~ (model.app_package | py_str) ~ '}' }})
-            drv.execute_script("mobile: activateApp", {{ '{"appId": ' ~ (model.app_package | py_str) ~ '}' if model.platform.value == "android" else '{"bundleId": ' ~ (model.app_package | py_str) ~ '}' }})
+{% if model.platform.value == "android" %}
+            drv.execute_script("mobile: clearApp", {"appId": {{ model.app_package | py_str }}})
+{% if model.app_activity %}
+            # Relaunch by explicit component, not activateApp: an app that declares more
+            # than one launcher entry (a debug build shipping LeakCanary adds a second icon)
+            # makes Android's launcher resolution ambiguous, and activateApp then quietly
+            # fails — leaving whatever app was already on screen, so the test would run
+            # against the wrong app instead of failing.
+            drv.execute_script(
+                "mobile: startActivity",
+                {"intent": {{ (model.app_package ~ "/" ~ model.app_activity) | py_str }}},
+            )
+{% else %}
+            drv.execute_script("mobile: activateApp", {"appId": {{ model.app_package | py_str }}})
+{% endif %}
+{% else %}
+            drv.execute_script("mobile: clearApp", {"bundleId": {{ model.app_package | py_str }}})
+            drv.execute_script("mobile: activateApp", {"bundleId": {{ model.app_package | py_str }}})
+{% endif %}
         except Exception:
             pass  # older driver, or an app that can't be cleared — run against live state
     yield drv
