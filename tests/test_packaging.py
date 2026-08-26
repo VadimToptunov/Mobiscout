@@ -7,20 +7,27 @@ imports ``framework.model`` — so a real install was broken and non-importable,
 while editable installs (dev/CI) silently worked. This asserts the configured
 distribution would package every ``framework`` subpackage on disk.
 
-Deliberately depends only on the stdlib (``tomllib`` + ``fnmatch``): the test
-runtime doesn't install setuptools, and this guard must run in CI.
+Deliberately depends only on the stdlib (``tomllib`` + ``fnmatch`` + ``glob``): the
+test runtime doesn't install setuptools, and this guard must run in CI.
 """
 
 from __future__ import annotations
 
+import glob
 import os
 import tomllib
 from fnmatch import fnmatch
 
+import framework
+
+
+def _pyproject() -> dict:
+    with open("pyproject.toml", "rb") as fh:
+        return tomllib.load(fh)
+
 
 def _setuptools_cfg() -> dict:
-    with open("pyproject.toml", "rb") as fh:
-        return tomllib.load(fh)["tool"]["setuptools"]
+    return _pyproject()["tool"]["setuptools"]
 
 
 def _is_shipped(package: str, cfg: dict) -> bool:
@@ -60,3 +67,48 @@ def test_core_subpackages_are_packaged():
     cfg = _setuptools_cfg()
     for pkg in ("framework", "framework.model", "framework.crawler", "framework.codegen", "framework.licensing"):
         assert _is_shipped(pkg, cfg), f"{pkg} is not in the distribution"
+
+
+def _package_data_files() -> set[str]:
+    """Every file the ``[tool.setuptools.package-data]`` globs would ship, as paths
+    relative to ``framework/``. Resolved with ``glob(..., recursive=True)`` because
+    that is literally how setuptools expands these patterns — ``fnmatch`` would get
+    ``**`` wrong."""
+    cfg = _setuptools_cfg().get("package-data", {})
+    return {
+        match.replace(os.sep, "/")
+        for pattern in cfg.get("framework", [])
+        for match in glob.glob(pattern, root_dir="framework", recursive=True)
+    }
+
+
+def test_every_runtime_asset_is_in_package_data():
+    """Companion guard to the package list: a non-``.py`` file under ``framework/`` is
+    loaded by path at runtime, so it only reaches users if a package-data glob matches
+    it. This already shipped broken once (see the pyproject comment) and CI cannot
+    notice — every job installs editable, which reads the source tree. Assert instead
+    of trusting the two hardcoded globs to keep covering whatever gets added."""
+    on_disk = {
+        os.path.relpath(os.path.join(root, name), "framework").replace(os.sep, "/")
+        for root, _dirs, files in os.walk("framework")
+        if "__pycache__" not in root
+        for name in files
+        if not name.endswith(".py")
+    }
+    missing = sorted(on_disk - _package_data_files())
+    assert not missing, (
+        "these runtime assets match no [tool.setuptools.package-data] glob, so a real "
+        f"`pip install` (and the frozen engine) would ship without them: {missing}"
+    )
+
+
+def test_project_version_matches_framework_version():
+    """`[project].version` is the fourth release pin (with framework.__version__,
+    jetbrains-plugin/build.gradle.kts and EngineProvider.ENGINE_VERSION). It is what the
+    built wheel self-identifies as, and it silently sat three releases behind because no
+    gate compared it — same drift class as tests/test_changelog_version.py."""
+    project_version = _pyproject()["project"]["version"]
+    assert project_version == framework.__version__, (
+        f"pyproject.toml [project].version is {project_version} but framework.__version__ is "
+        f"{framework.__version__} — bump both together or the released wheel is misversioned"
+    )

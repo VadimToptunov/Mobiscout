@@ -5,20 +5,31 @@ import pytest
 
 from framework.analyzers import native
 
+_CONTENTS = [
+    "import MD5\nval token = random.random()\nsafe line",
+    "no matches here\nSHA-1 is used",
+]
+_PATTERNS = [r"\bMD5\b", r"random\.random", r"\bSHA[-_ ]?1\b"]
+# MD5 on file 0 line 1, random.random on file 0 line 2, SHA-1 on file 1 line 2.
+_EXPECTED = [(0, 1, 0), (0, 2, 1), (1, 2, 2)]
 
-def test_scan_lines_matches_the_python_reference():
-    contents = [
-        "import MD5\nval token = random.random()\nsafe line",
-        "no matches here\nSHA-1 is used",
-    ]
-    patterns = [r"\bMD5\b", r"random\.random", r"\bSHA[-_ ]?1\b"]
-    got = native.scan_lines(contents, patterns, ignore_case=True)
-    ref = native._scan_lines_py([c.splitlines() for c in contents], patterns, True)
-    assert sorted(got) == sorted(ref)  # active path (Rust here) == the reference
-    rules = set(got)
-    assert (0, 1, 0) in rules  # MD5 on file 0, line 1
-    assert (0, 2, 1) in rules  # random.random on file 0, line 2
-    assert (1, 2, 2) in rules  # SHA-1 on file 1, line 2
+
+def test_scan_lines_finds_every_pattern_at_its_line():
+    # Expected values, not a comparison against the reference implementation: the
+    # seam falls back to Python whenever the wheel is missing, so comparing the two
+    # here would compare Python with Python and pass for any behaviour at all.
+    assert sorted(native.scan_lines(_CONTENTS, _PATTERNS, ignore_case=True)) == _EXPECTED
+
+
+@pytest.mark.skipif(native._native_core() is None, reason="native wheel not installed / too old")
+def test_rust_and_python_backends_agree():
+    # V1: call the CORE directly. Through native.scan_lines this comparison is vacuous
+    # on any machine without the wheel — which includes CI, where the Test Suite job
+    # never installs it — because both sides would be the same Python function.
+    lines_per_file = [c.splitlines() for c in _CONTENTS]
+    rust = [tuple(t) for t in native._native_core().scan_lines(lines_per_file, _PATTERNS, True)]
+    py = native._scan_lines_py(lines_per_file, _PATTERNS, True)
+    assert sorted(rust) == sorted(py) == _EXPECTED
 
 
 def test_scan_lines_returns_file_line_rule_triples():

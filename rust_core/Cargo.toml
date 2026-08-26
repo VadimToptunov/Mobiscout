@@ -8,11 +8,21 @@ license = "MIT"
 
 [lib]
 name = "mobiscout_core"
-crate-type = ["cdylib"]  # Dynamic library for Python
+# cdylib is the Python extension module; rlib additionally lets `cargo test` link the
+# crate, so the #[cfg(test)] unit tests can actually run (see the `features` block).
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# `extension-module` tells pyo3 NOT to link libpython — required for the shipped wheel,
+# but it also means a test binary can't resolve Python symbols, which is why the unit
+# tests never ran. Keeping it a *default* feature leaves the wheel/build path unchanged
+# while `cargo test --no-default-features` links libpython and runs them.
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
 
 [dependencies]
 # Python bindings
-pyo3 = { version = "0.20", features = ["extension-module", "abi3-py38"] }
+pyo3 = { version = "0.20", features = ["abi3-py38"] }
 
 # AST parsing
 syn = { version = "2.0", features = ["full", "parsing"] }
@@ -54,9 +64,9 @@ criterion = "0.5"  # Benchmarking
 proptest = "1.4"   # Property testing
 tempfile = "3.8"   # Temporary files for testing
 
-# Native criterion benches aren't practical here: the pyo3 `extension-module` build
-# doesn't link libpython, so a standalone bench binary can't resolve Python symbols
-# (the same reason CI omits `cargo test` — see .github/workflows/ci.yml). The complexity
+# Native criterion benches aren't practical in the default build: `extension-module`
+# doesn't link libpython, so a standalone bench binary can't resolve Python symbols.
+# (Unit tests get around this with `cargo test --no-default-features`.) The complexity
 # accelerator is benchmarked at the Python level instead, against the pure-Python
 # fallback on identical inputs — see scripts/bench_native.py.
 

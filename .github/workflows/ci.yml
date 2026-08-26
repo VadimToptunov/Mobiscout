@@ -3,6 +3,10 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ main, master, develop ]
+    # Releasing by pushing a vX.Y.Z tag matched no branch filter, so the whole suite
+    # was skipped on exactly the commit being shipped — a release could go out with
+    # lint, tests, codegen and integration never run.
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, master, develop ]
   release:
@@ -92,10 +96,37 @@ jobs:
               print('✅ No hardcoded secrets found')
           "
 
-      - name: Check for vulnerable dependencies
+      - name: Audit dependencies for known vulnerabilities (findings informational)
+        # The AUDIT is a real gate now. `safety check --json || true` discarded every
+        # non-zero exit, including safety's own — `check` is deprecated and its removal
+        # from the unpinned install would have left the job green having scanned nothing.
+        # Pinned tool + "a report must exist" catches that. The FINDINGS stay
+        # informational deliberately: the advisory feed moves on its own, so a CVE
+        # published against a transitive dependency would otherwise red every unrelated
+        # PR until someone is free to act on it.
         run: |
-          pip install safety
-          safety check --json || true
+          pip install pip-audit==2.10.1
+          # --skip-editable: `pip install -e .` above leaves mobiscout itself in the
+          # environment, and it has no PyPI release to look up.
+          pip-audit --skip-editable --progress-spinner=off --format=json --output=audit.json || true
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          report = pathlib.Path("audit.json")
+          if not report.is_file():
+              sys.exit("pip-audit produced no report — the audit did not run")
+          data = json.loads(report.read_text())
+          findings = [
+              (dep["name"], dep["version"], vuln["id"], ", ".join(vuln.get("fix_versions") or []) or "none")
+              for dep in data["dependencies"]
+              for vuln in dep.get("vulns", [])
+          ]
+          for name, version, vuln_id, fix_versions in findings:
+              print(f"{name}=={version}  {vuln_id}  fixed in: {fix_versions}")
+          print(f"{len(findings)} known vulnerabilities across {len(data['dependencies'])} installed packages")
+          PY
 
   test:
     name: Test Suite
@@ -218,11 +249,14 @@ jobs:
 
       - name: Compile Rust core
         working-directory: rust_core
-        # `cargo test` is intentionally omitted: pyo3's always-on
-        # `extension-module` feature does not link libpython, so a test binary
-        # fails to resolve Python symbols. `cargo build` is the compile gate;
-        # maturin builds the actual wheel below with the correct link config.
         run: cargo build --release
+
+      - name: Run Rust unit tests
+        working-directory: rust_core
+        # --no-default-features drops pyo3's `extension-module`, which is what stops a
+        # test binary linking libpython; without this the crate's #[cfg(test)] tests were
+        # dead code that never compiled. The wheel below still builds WITH the feature.
+        run: cargo test --no-default-features
 
       - name: Build Python wheel
         working-directory: rust_core
@@ -264,7 +298,11 @@ jobs:
           path: wheels/
 
       - name: Install Rust core
-        run: pip install wheels/*.whl || echo "Rust core optional"
+        # No `|| echo "Rust core optional"` fallback: the wheel this job downloads is the
+        # same artifact the release ships, and build-engine.yml refuses to ship a binary
+        # whose native_backend isn't "rust". Swallowing a failed install let the whole
+        # integration suite run on the pure-Python fallback and still report green.
+        run: pip install wheels/*.whl
 
       - name: "End-to-end (device-free): crawl -> kit -> emitted kit runs green"
         run: |
@@ -359,7 +397,10 @@ jobs:
     # by setting the repo variable PUBLISH_PLUGIN=true AND the JETBRAINS_MARKETPLACE_TOKEN
     # secret. Off by default so a release doesn't red before the listing exists.
     if: github.event_name == 'release' && vars.PUBLISH_PLUGIN == 'true'
-    needs: [ build-plugin ]
+    # The plugin is a thin frontend over the Python engine, so the engine's gates decide
+    # whether it is shippable. Gating on build-plugin alone let a release publish with the
+    # whole Python suite red. Same set as publish-pypi, plus codegen and the plugin build.
+    needs: [ lint, test, codegen, build-rust, integration-test, build-plugin ]
     runs-on: ubuntu-latest
 
     steps:
@@ -371,8 +412,31 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
+      - name: Engine binaries for this tag must already be attached
+        # EngineProvider downloads mobiscout-engine-* from releases/download/<ENGINE_VERSION>.
+        # build-engine.yml is a separate workflow with no ordering against this one, so
+        # listing the plugin before it has attached the assets leaves every new user on
+        # "No engine available". Refuse to publish until they are there.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=$(gh release view "${{ github.ref_name }}" --json assets --jq '.assets[].name')
+          echo "$assets"
+          for asset in mobiscout-engine-macos-arm64 mobiscout-engine-macos-x64 \
+                       mobiscout-engine-linux-x64 mobiscout-engine-windows-x64.exe; do
+            echo "$assets" | grep -qx "$asset" || {
+              echo "release ${{ github.ref_name }} is missing engine asset: $asset"; exit 1; }
+          done
+
       - name: Publish plugin
         working-directory: jetbrains-plugin
         env:
-          JETBRAINS_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          # Must be PUBLISH_TOKEN — the name build.gradle.kts reads. This exported
+          # JETBRAINS_TOKEN, which nothing read, so publishPlugin ran without a token.
+          PUBLISH_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+          # Sign the archive before upload. Unset secrets arrive as empty strings, which
+          # build.gradle.kts filters out, so an unsigned upload stays possible.
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
         run: ./gradlew publishPlugin

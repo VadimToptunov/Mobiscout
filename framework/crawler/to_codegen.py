@@ -229,6 +229,11 @@ def _owned(screen: CrawlScreen, app_package: str) -> List[CrawlElement]:
 # text, images, prices and decoration are left to the inventory, not the tests.
 _MEANINGFUL_TYPES = {"button", "input", "checkbox", "switch", "radio"}
 _MAX_SCREEN_ELEMENTS = 8
+# The lowest locator score an assertion may rest on. Below it sit the fragile
+# tiers — a dynamic/short text, and the positional XPath _structural_selector mints
+# for an unlabelled control, which matches "the Nth View" on *any* screen. Asserting
+# through one proves nothing, so every assertion path shares this bar.
+_ASSERTABLE_SCORE = 0.5
 
 
 def _slug(text: str, max_len: int = 32) -> str:
@@ -308,6 +313,16 @@ def _value_elements(owned: List[CrawlElement]) -> List[CrawlElement]:
     return values
 
 
+def _pins_its_own_locator(selector: Selector, text: str) -> bool:
+    """Whether a TEXT_EQUALS pin on this element would compare it against the string it
+    was located by — Android's ``UiSelector().text()`` and the iOS ``@label``/``@name``
+    XPath are both exact matches, so such an assertion can never report a wrong value."""
+    value = text.strip()
+    if selector.strategy is SelectorStrategy.TEXT:
+        return selector.value == value
+    return selector.strategy is SelectorStrategy.XPATH and selector.value == _xpath_by_label(value)
+
+
 def _screen_cases(
     index: int,
     screen: CrawlScreen,
@@ -337,9 +352,9 @@ def _screen_cases(
         if selector is None or selector.value in seen:
             continue
         # Don't assert on an element whose only locator is a fragile dynamic/short
-        # text (score < 0.5, e.g. a bare "0"/"1" value): it flakes and isn't a
-        # dependable state check. Such elements are still tappable for navigation.
-        if selector.score < 0.5:
+        # text (e.g. a bare "0"/"1" value): it flakes and isn't a dependable state
+        # check. Such elements are still tappable for navigation.
+        if selector.score < _ASSERTABLE_SCORE:
             continue
         seen.add(selector.value)
         label = element.label or element.class_name
@@ -366,6 +381,13 @@ def _screen_cases(
         for element in _value_elements(owned):
             selector = selector_for(element, owned, screen.platform)
             if selector is None or selector.value in pinned:
+                continue
+            # Same fragility bar as the VISIBLE pass above, and skip a pin whose locator
+            # is built from the very value it asserts: the lookup already matched that
+            # string exactly, so the comparison cannot fail on a wrong value — only on
+            # the lookup. Value pins are kept for elements with an id/content-desc
+            # locator that is independent of what they display.
+            if selector.score < _ASSERTABLE_SCORE or _pins_its_own_locator(selector, element.text or ""):
                 continue
             pinned.add(selector.value)
             label = element.label or element.class_name
@@ -438,11 +460,20 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
             return bool(key) and key not in start_keys
 
         ranked_targets = sorted(target_elements, key=lambda e: 0 if _distinctive(e) else 1)
+        # The landmark must also clear the assertion score bar. A fully unlabelled
+        # destination (Compose/Flutter/game UI) otherwise lands on the positional
+        # XPath _structural_selector mints, which matches "the Nth View of that class"
+        # on the SOURCE screen too — so the navigation test passes without navigating.
         landmark = next(
-            (s for s in (selector_for(e, target_elements, target_platform) for e in ranked_targets) if s), None
+            (
+                s
+                for s in (selector_for(e, target_elements, target_platform) for e in ranked_targets)
+                if s and s.score >= _ASSERTABLE_SCORE
+            ),
+            None,
         )
         if landmark is None:
-            continue
+            continue  # nothing on the destination can prove arrival — don't emit a case that cannot fail
         seen_taps.add(tap.value)
         tapped = element.label or element.class_name
         # Name the test after what it does. A label-less Compose wrapper has only a

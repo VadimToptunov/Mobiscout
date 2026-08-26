@@ -54,6 +54,10 @@ class VisualAnalyzer:
         """
         self.baseline_dir = baseline_dir
         self.diffs: List[VisualDiff] = []
+        # Every comparison, regression or not. self.diffs holds only the
+        # regressions, so it cannot answer "how many screens were compared" or
+        # "how many passed" — the HTML report used to ask it anyway.
+        self.results: List[VisualDiff] = []
 
     def compare_screenshots(
         self, screen_name: str, current_image: Path, threshold: float = 0.01
@@ -93,6 +97,7 @@ class VisualAnalyzer:
             threshold=threshold,
         )
 
+        self.results.append(diff)
         if diff.has_regression:
             self.diffs.append(diff)
 
@@ -279,11 +284,13 @@ class VisualAnalyzer:
 </body>
 </html>
 """
-        passed = sum(1 for d in self.diffs if d.is_match)
-        failed = len(self.diffs) - passed
+        # Counted over every comparison: self.diffs holds regressions only, so
+        # "passed" was structurally 0 and "total" was the failure count.
+        passed = sum(1 for d in self.results if d.is_match)
+        failed = len(self.results) - passed
 
         diff_items = ""
-        for diff in self.diffs:
+        for diff in self.results:
             status = "passed" if diff.is_match else "failed"
             diff_items += f"""
         <div class="diff-item {status}">
@@ -297,7 +304,7 @@ class VisualAnalyzer:
         # embedded CSS contains literal `{ ... }` braces that would make
         # str.format raise KeyError (e.g. on "{ font-family").
         html = (
-            html_content.replace("{total}", str(len(self.diffs)))
+            html_content.replace("{total}", str(len(self.results)))
             .replace("{passed}", str(passed))
             .replace("{failed}", str(failed))
             .replace("{diff_items}", diff_items)

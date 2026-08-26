@@ -33,7 +33,11 @@ class AndroidAnalyzer:
     def __init__(self) -> None:
         # Patterns for detection
         self.composable_pattern = re.compile(r"@Composable\s+fun\s+(\w+)", re.MULTILINE)
-        self.screen_pattern = re.compile(r"(?:Screen|Page|View)\w*", re.IGNORECASE)
+        # Suffix-anchored and case-sensitive: the previous case-insensitive
+        # substring form matched "view" inside Preview/Review/Overview, so list
+        # rows and debug previews were classified as screens and reached codegen.
+        self.screen_pattern = re.compile(r"(?:Screen|Page|View)$")
+        self.preview_pattern = re.compile(r"@Preview\b")
         self.test_tag_pattern = re.compile(r'\.testTag\s*\(\s*["\']([^"\']+)["\']\s*\)')
         self.content_desc_pattern = re.compile(r'\.(?:contentDescription|semantics)\s*\(\s*["\']([^"\']+)["\']\s*\)')
         self.nav_route_pattern = re.compile(r"sealed\s+(?:class|object)\s+Screen.*?{", re.DOTALL)
@@ -113,6 +117,12 @@ class AndroidAnalyzer:
             if not self.screen_pattern.search(func_name):
                 continue
 
+            # @Preview composables are debug-only and have no runtime route, so
+            # generating page objects and smoke cases for them produces tests the
+            # app can never navigate to.
+            if self._is_preview(content, match.start()):
+                continue
+
             line_num = content[: match.start()].count("\n") + 1
 
             # Try to extract route if present
@@ -131,6 +141,51 @@ class AndroidAnalyzer:
             )
 
             result.screens.append(screen)
+
+    def _is_preview(self, content: str, composable_pos: int) -> bool:
+        """Whether the composable at ``composable_pos`` is annotated @Preview.
+
+        Annotations sit directly above the @Composable, separated only by other
+        annotations and blank lines, so scanning back until the first non-annotation
+        line is enough — except that an annotation's argument list may itself span
+        several lines::
+
+            @Preview(
+                showBackground = true,
+            )
+            @Composable
+            fun PreviewSettingsPage() { ... }
+
+        Scanning back naively stops at the lone ``)`` (it doesn't start with ``@``) and
+        the @Preview is never seen, so a debug-only preview reaches codegen as a real
+        screen. Track parenthesis depth while walking up so a wrapped annotation is read
+        as the single annotation it is.
+        """
+        depth = 0  # unclosed ")" seen while walking upward = inside an argument list
+        for line in reversed(content[:composable_pos].splitlines()):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            closers, openers = stripped.count(")"), stripped.count("(")
+            if depth > 0:
+                depth += closers - openers
+                if depth > 0:
+                    continue  # still inside the argument list
+                depth = 0  # this line opened it — it's the annotation itself
+                if not stripped.startswith("@"):
+                    return False
+                if self.preview_pattern.match(stripped):
+                    return True
+                continue
+            if not stripped.startswith("@"):
+                if closers > openers:
+                    depth = closers - openers  # the tail of a multi-line annotation
+                    continue
+                return False
+            if self.preview_pattern.match(stripped):
+                return True
+
+        return False
 
     def _detect_ui_elements(self, content: str, file_path: Path, lines: List[str], result: AnalysisResult) -> None:
         """Detect UI elements with test tags or content descriptions"""

@@ -9,11 +9,11 @@ import framework.crawler.pipeline as pipeline
 from framework.crawler.pipeline import build_kit, run_kit
 from tests.test_crawler import APP, FakeDriver
 
-
-@pytest.fixture(autouse=True)
-def _heuristic_only(monkeypatch):
-    monkeypatch.setenv("MOBISCOUT_ML_AUTOTRAIN", "0")
-    monkeypatch.setenv("MOBISCOUT_ML_MODEL", "/nonexistent.pkl")
+# The local `_heuristic_only` fixture that used to live here did nothing — the
+# classifier caches its model in a module global, so setting the env var after
+# another test had already classified something never dislodged it. The pin now
+# lives in tests/conftest.py, where it is paired with the cache reset that makes
+# it take effect.
 
 
 def test_run_kit_writes_full_kit(tmp_path):
@@ -78,10 +78,14 @@ def _limited(monkeypatch):
     """Install a limited entitlements provider for the duration of one test."""
     from framework.licensing import Entitlements, Tier, reset_provider, set_provider
 
-    def _install(*, max_screens=None, max_tests=None, features=frozenset()):
+    def _install(*, max_screens=None, max_tests=None, max_targets=None, features=frozenset()):
         set_provider(
             lambda: Entitlements(
-                tier=Tier.FREE, max_screens=max_screens, max_tests=max_tests, features=frozenset(features)
+                tier=Tier.FREE,
+                max_screens=max_screens,
+                max_tests=max_tests,
+                max_targets=max_targets,
+                features=frozenset(features),
             )
         )
 
@@ -129,6 +133,40 @@ def test_cli_write_kit_applies_the_same_caps(_limited, tmp_path):
     assert len(graph["nodes"]) == 2  # capped from the unlimited 4
     emitted = (tmp_path / "python_pytest" / "test_crawl_flow.py").read_text(encoding="utf-8")
     assert emitted.count("def test_") == 1  # capped from the unlimited 7
+
+
+def test_target_cap_trims_the_generated_languages(_limited, tmp_path):
+    # The third quota, wired the same way as screens/tests: without a test here the
+    # `allow_targets(...)` call can be unwrapped at either call site and CI stays green.
+    _limited(max_targets=2)
+    summary = run_kit(
+        {"package": APP, "targets": ["python_pytest", "js_webdriverio", "java_testng"], "output": str(tmp_path)},
+        driver=FakeDriver(),
+    )
+    assert summary["targets"] == ["python_pytest", "js_webdriverio"]  # order-preserving trim
+    assert (tmp_path / "python_pytest").is_dir() and (tmp_path / "js_webdriverio").is_dir()
+    assert not (tmp_path / "java_testng").exists()  # the dropped language emits nothing
+
+
+def test_cli_write_kit_applies_the_target_cap(_limited, tmp_path):
+    """The CLI kit path enforces the language quota too, from its comma-separated --targets."""
+    from framework.cli.crawl_service import write_kit
+    from framework.crawler.app_crawler import AppCrawler
+
+    _limited(max_targets=1)
+    write_kit(
+        result=AppCrawler(FakeDriver(), APP, max_steps=100).crawl(),
+        output=str(tmp_path),
+        package=APP,
+        targets="python_pytest,js_webdriverio",
+        style="flat",
+        scaffold=False,
+        server="http://localhost:4723",
+        app_activity=None,
+        launch_args=(),
+    )
+    assert (tmp_path / "python_pytest").is_dir()
+    assert not (tmp_path / "js_webdriverio").exists()
 
 
 def test_unlimited_default_caps_nothing(tmp_path):

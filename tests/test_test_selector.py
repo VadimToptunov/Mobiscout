@@ -118,10 +118,23 @@ def test_generate_report(project):
     assert "Selected" in report and "test_add" in report
 
 
-def test_test_impact_hash_is_keyed_on_file_and_name():
+def test_test_impact_identity_is_file_and_name():
     a = Impact(Path("t.py"), "test_x", ImpactLevel.HIGH, ["r1"])
     b = Impact(Path("t.py"), "test_x", ImpactLevel.MEDIUM, ["r2"])
-    same = Impact(Path("t.py"), "test_x", ImpactLevel.HIGH, ["r1"])
+    other = Impact(Path("t.py"), "test_y", ImpactLevel.HIGH, ["r1"])
     assert hash(a) == hash(b)  # hash keyed only on (file, name)
-    assert a == same and len({a, same}) == 1  # identical impacts dedupe in a set
-    assert a != b  # but dataclass equality still compares all fields
+    # Equality must agree with the hash: when it compared reasons/impact_level too,
+    # the same test found by two strategies was kept twice by a set.
+    assert a == b and len({a, b}) == 1
+    assert a != other
+
+
+def test_same_test_found_by_two_strategies_is_selected_once(project):
+    root, tests = project
+    selector = Selector(root, tests)
+    # test_calculator.py both matches the naming convention and imports the module.
+    impacts = selector.select_tests([_change(root / "pkg" / "calculator.py")], selection_strategy="smart")
+    keys = [(i.test_file, i.test_name) for i in impacts]
+    assert len(keys) == len(set(keys))
+    charge = next(i for i in impacts if i.test_name == "test_add")
+    assert len(charge.reasons) > 1  # both reasons merged onto the one entry

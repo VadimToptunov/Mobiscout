@@ -11,7 +11,6 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.notification.NotificationGroupManager
-import com.mobiletest.recorder.rpc.JsonRpcNotification
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.settings.MTRSettings
 import com.mobiletest.recorder.ui.GenerateKitDialog
@@ -92,10 +91,10 @@ class GenerateKitAction : AnAction() {
         ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating test kit", false) {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
-                // Reflect the crawl's streamed progress in the indicator instead of a static
-                // "Crawling…": the daemon emits a logs/message per screen it visits.
-                val progress = liveProgressListener(indicator)
-                daemonService.addNotificationListener(progress)
+                // The indicator text tracks the phases this action drives (boot, install,
+                // crawl). It cannot follow the crawl screen by screen: the engine emits no
+                // per-screen notification — its only server-initiated message is the device
+                // log stream — so there is nothing to mirror while kit/generate blocks.
                 try {
                     // 0. Auto-degrade: make sure a device is available before crawling. If
                     //    none is running for this platform, boot a candidate (an AVD, or a
@@ -130,6 +129,10 @@ class GenerateKitAction : AnAction() {
                     // surface it, it's usually the most valuable thing a crawl finds.
                     val crashes = result.get("crashes")?.asInt ?: 0
                     val crashNote = if (crashes > 0) " · ⚠️ $crashes crash(es) → crashes/" else ""
+                    // Set only when the crawl stopped on a device failure: the counts below
+                    // are how far it got, not the app's real shape, so this must not be
+                    // reported as a finished kit.
+                    val endedEarly = result.get("ended_early")?.let { if (it.isJsonNull) null else it.asString }
 
                     // 3. Cleanup: uninstall the app if asked. Best-effort — a crawl
                     //    that succeeded should still be reported, so note but don't fail.
@@ -166,6 +169,13 @@ class GenerateKitAction : AnAction() {
                                     "device/emulator isn't connected, Appium isn't running at the configured " +
                                     "server, or the app package / UDID is wrong. See the Logs tab for details.",
                             )
+                        } else if (endedEarly != null) {
+                            Notifier.warn(
+                                project,
+                                "Partial kit — the crawl ended early",
+                                "$endedEarly\nGenerated from what was reached: $screens screen(s), " +
+                                    "$cases test case(s)$extra$crashNote\nWritten to: $output$cleanupNote$tierNote",
+                            )
                         } else {
                             notifyGenerated(
                                 project,
@@ -179,25 +189,9 @@ class GenerateKitAction : AnAction() {
                     ApplicationManager.getApplication().invokeLater {
                         Notifier.error(project, "Generation failed", ex.message ?: "Unknown error")
                     }
-                } finally {
-                    daemonService.removeNotificationListener(progress)
                 }
             }
         })
-    }
-
-    /** A daemon-notification listener that mirrors each streamed `logs/message` into the
-     *  progress bar's text, so the crawl shows what it's doing (the screen it's on) rather
-     *  than a frozen "Crawling…". One trimmed line; ignores everything but logs/message. */
-    private fun liveProgressListener(
-        indicator: ProgressIndicator,
-    ): (JsonRpcNotification) -> Unit = { n ->
-        // Ignore the app-log stream (source="device") that the Logs tab may be streaming
-        // concurrently — only crawl progress belongs in this bar, not flickering logcat.
-        if (n.method == "logs/message" && n.params.get("source")?.asString != "device") {
-            val msg = n.params.get("message")?.asString?.trim().orEmpty()
-            if (msg.isNotEmpty()) indicator.text = msg.lineSequence().first().take(120)
-        }
     }
 
     /** Return a device id to crawl on. Auto-degradation: use the given one, else a running
@@ -217,7 +211,15 @@ class GenerateKitAction : AnAction() {
                 "No $platform device or emulator available. Connect a device or create an emulator, then try again.",
             )
         indicator.text = "No device running — booting $target…"
-        daemonService.startDevice(platform, target)
+        // The daemon watches the emulator/simulator for a moment and answers started:false
+        // with its own diagnosis (unknown or locked AVD, missing KVM, no emulator binary).
+        // Report that immediately — discarding it left the user watching a 2-minute poll
+        // end in "Timed out waiting to boot", which names the wrong cause.
+        val started = daemonService.startDevice(platform, target)
+        if (started?.get("started")?.asBoolean != true) {
+            val detail = started?.get("error")?.let { if (it.isJsonNull) null else it.asString }
+            throw IllegalStateException("Couldn't boot $target" + (detail?.let { ": $it" } ?: "."))
+        }
         val deadline = System.currentTimeMillis() + 120_000
         while (System.currentTimeMillis() < deadline) {
             runningDeviceFor(daemonService, platform)?.let { return it }
@@ -262,8 +264,6 @@ class GenerateKitAction : AnAction() {
             override fun run(indicator: ProgressIndicator) {
                 indicator.isIndeterminate = true
                 indicator.text = "Crawling ${configs.size} apps in parallel…"
-                val progress = liveProgressListener(indicator)
-                daemonService.addNotificationListener(progress)
                 try {
                     val result = daemonService.getClient()
                         ?.call(
@@ -293,8 +293,6 @@ class GenerateKitAction : AnAction() {
                     ApplicationManager.getApplication().invokeLater {
                         Notifier.error(project, "Generation failed", ex.message ?: "Unknown error")
                     }
-                } finally {
-                    daemonService.removeNotificationListener(progress)
                 }
             }
         })

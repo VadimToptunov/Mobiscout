@@ -48,12 +48,17 @@ intellijPlatform {
     }
 
     signing {
-        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
-        privateKey = providers.environmentVariable("PRIVATE_KEY")
-        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+        // An unset GitHub secret still exports the variable, as an empty string. Filtering
+        // blanks makes that read as "no signing credentials" (signPlugin is skipped) instead
+        // of "sign with an empty certificate", which would fail the release outright.
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN").filter { it.isNotBlank() }
+        privateKey = providers.environmentVariable("PRIVATE_KEY").filter { it.isNotBlank() }
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD").filter { it.isNotBlank() }
     }
 
     publishing {
+        // ci.yml's publish-plugin job must export exactly this name — it exported
+        // JETBRAINS_TOKEN, which nothing read, so publishPlugin had no token at all.
         token = providers.environmentVariable("PUBLISH_TOKEN")
     }
 
@@ -94,6 +99,19 @@ intellijPlatform {
                 channels = listOf(ProductRelease.Channel.RELEASE)
                 sinceBuild = "243"
                 untilBuild = "243.*"
+            }
+            // The descriptor declares no until-build (see ideaVersion above), so the plugin
+            // installs into every IDE from 2024.3 onward — but the `select` above verified
+            // 243 alone, leaving the whole 2025.x+ range we ship to unchecked. `latest` adds
+            // exactly one build per product (the newest RELEASE), so both ends of the
+            // declared range are verified without pulling every branch in between.
+            latest {
+                types = listOf(
+                    IntelliJPlatformType.IntellijIdeaCommunity,
+                    IntelliJPlatformType.AndroidStudio,
+                )
+                channels = listOf(ProductRelease.Channel.RELEASE)
+                sinceBuild = "243"
             }
         }
     }

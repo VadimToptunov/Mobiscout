@@ -13,7 +13,7 @@ Features:
 """
 
 import json
-from datetime import datetime
+from datetime import timedelta
 from framework.domain import ReportFormat, TestResult, TestStatus, TestSuiteResult
 from pathlib import Path
 from typing import Any, Dict
@@ -100,6 +100,7 @@ class HTMLReportGenerator:
         .summary-card.passed .value {{ color: #10b981; }}
         .summary-card.failed .value {{ color: #ef4444; }}
         .summary-card.skipped .value {{ color: #f59e0b; }}
+        .summary-card.error .value {{ color: #6b7280; }}
         .tests {{
             background: white;
             border-radius: 10px;
@@ -181,6 +182,7 @@ class HTMLReportGenerator:
         .progress-segment.passed {{ background: #10b981; }}
         .progress-segment.failed {{ background: #ef4444; }}
         .progress-segment.skipped {{ background: #f59e0b; }}
+        .progress-segment.error {{ background: #6b7280; }}
         .footer {{
             text-align: center;
             padding: 30px;
@@ -214,6 +216,10 @@ class HTMLReportGenerator:
             <div class="summary-card skipped">
                 <div class="label">Skipped</div>
                 <div class="value">{skipped_count}</div>
+            </div>
+            <div class="summary-card error">
+                <div class="label">Errors</div>
+                <div class="value">{error_count}</div>
             </div>
         </div>
         
@@ -251,6 +257,13 @@ class HTMLReportGenerator:
             width = (suite.skipped_count / suite.total_count) * 100
             progress_segments.append(
                 f'<div class="progress-segment skipped" style="width: {width}%">' f"{suite.skipped_count}</div>"
+            )
+        # Errored tests need their own segment, or the bar silently stops short of
+        # 100% and the summary cards no longer add up to the total.
+        if suite.error_count > 0:
+            width = (suite.error_count / suite.total_count) * 100
+            progress_segments.append(
+                f'<div class="progress-segment error" style="width: {width}%">' f"{suite.error_count}</div>"
             )
 
         # Generate test items
@@ -298,6 +311,7 @@ class HTMLReportGenerator:
             passed_count=suite.passed_count,
             failed_count=suite.failed_count,
             skipped_count=suite.skipped_count,
+            error_count=suite.error_count,
             progress_segments="".join(progress_segments),
             test_items="".join(test_items),
         )
@@ -324,6 +338,9 @@ class MarkdownReportGenerator:
             f"- ✅ **Passed:** {suite.passed_count}",
             f"- ❌ **Failed:** {suite.failed_count}",
             f"- ⏭️ **Skipped:** {suite.skipped_count}",
+            # Without its own line the error count is invisible and the four
+            # numbers below do not add up to the total.
+            f"- ⚠️ **Errors:** {suite.error_count}",
             f"- 📊 **Total:** {suite.total_count}",
             "",
         ]
@@ -339,6 +356,32 @@ class MarkdownReportGenerator:
             )
 
             for test in failed_tests:
+                lines.append(f"### {test.name}")
+                lines.append("")
+                lines.append(f"**Duration:** {test.duration:.2f}s  ")
+                if test.test_file:
+                    lines.append(f"**File:** `{test.test_file}`  ")
+                lines.append("")
+
+                if test.error_message:
+                    lines.append("**Error:**")
+                    lines.append("```")
+                    lines.append(test.error_message)
+                    lines.append("```")
+                    lines.append("")
+
+        # Errored tests section. Errors carry a message just like failures, and
+        # filtering the section above on FAILED dropped every one of them.
+        errored_tests = [t for t in suite.tests if t.status == TestStatus.ERROR]
+        if errored_tests:
+            lines.extend(
+                [
+                    "## ⚠️ Errored Tests",
+                    "",
+                ]
+            )
+
+            for test in errored_tests:
                 lines.append(f"### {test.name}")
                 lines.append("")
                 lines.append(f"**Duration:** {test.duration:.2f}s  ")
@@ -506,7 +549,16 @@ class ReportGenerator:
                 )
             )
 
+        # The suite's wall-clock has to come out of the XML: start_time defaults to
+        # "now" at construction, so stamping end_time with "now" as well reported
+        # 0.00s for every run, however long it took.
+        suite_time = root.get("time")
+        try:
+            elapsed = float(suite_time) if suite_time is not None else sum(t.duration for t in tests)
+        except ValueError:
+            elapsed = sum(t.duration for t in tests)
+
         suite = TestSuiteResult(name=suite_name, tests=tests)
-        suite.end_time = datetime.now()
+        suite.end_time = suite.start_time + timedelta(seconds=elapsed)
 
         return suite

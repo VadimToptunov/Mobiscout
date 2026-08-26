@@ -36,6 +36,13 @@ class MTRDaemonService : Disposable {
     @Volatile
     private var isRunning = false
 
+    // The engine keeps ONE device-log stream, but every open project has its own Logs panel
+    // over this application-level service. Track which panel owns the live stream: a second
+    // panel's logs/start silently REPLACES the stream engine-side, and without this the first
+    // panel stayed "streaming" and rendered the other project's device lines as its own.
+    @Volatile
+    private var logStreamOwner: Any? = null
+
     private companion object {
         private val LOG = logger<MTRDaemonService>()
 
@@ -154,6 +161,7 @@ class MTRDaemonService : Disposable {
         client?.close()
         client = null
         process = null
+        logStreamOwner = null // the stream died with the engine — don't leave a panel owning it
         if (wasRunning) notifyState(false)
     }
 
@@ -235,11 +243,45 @@ class MTRDaemonService : Disposable {
 
     /** Start streaming the app-under-test's device logs; each line arrives as a
      *  `logs/message` notification the Logs panel renders. iOS uses `simctl log
-     *  stream`, Android `adb logcat` scoped to the app's PID. */
-    fun startAppLogs(udid: String, bundleId: String, platform: String): JsonObject? =
-        rpc("logs/start", mapOf("udid" to udid, "bundle_id" to bundleId, "platform" to platform))
+     *  stream`, Android `adb logcat` scoped to the app's PID. [owner] is the panel that
+     *  will render the stream — see [ownsLogStream]. */
+    fun startAppLogs(owner: Any, udid: String, bundleId: String, platform: String): JsonObject? {
+        val result = rpc("logs/start", mapOf("udid" to udid, "bundle_id" to bundleId, "platform" to platform))
+        // Take the stream only when the engine actually started one: a failed start must not
+        // strip ownership from the panel that is still streaming.
+        if (result != null) logStreamOwner = owner
+        return result
+    }
 
-    fun stopAppLogs(): JsonObject? = rpc("logs/stop")
+    fun stopAppLogs(owner: Any): JsonObject? {
+        // Release first, and whether or not logs/stop succeeds: the panel is done streaming
+        // either way, and a stuck owner would silence every other panel's stream.
+        if (logStreamOwner === owner) logStreamOwner = null
+        return rpc("logs/stop")
+    }
+
+    /** Release [owner]'s claim on the stream now and stop it in the background.
+     *
+     *  For dispose(): that runs on the EDT, where the blocking [stopAppLogs] RPC is not
+     *  allowed. Dropping the reference synchronously is the part that matters — this is an
+     *  *application*-level service, so holding a disposed panel (and through it a Project)
+     *  would leak the whole project until some other panel touched the stream. */
+    fun stopAppLogsAsync(owner: Any) {
+        if (logStreamOwner !== owner) return // someone else took the stream over; leave theirs alone
+        logStreamOwner = null
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                rpc("logs/stop")
+            } catch (_: Exception) {
+                // The panel is gone either way; a failed stop must not surface on close.
+            }
+        }
+    }
+
+    /** True while [owner] holds the engine's single device-log stream. The panels ask this
+     *  instead of keeping their own flag, so one whose stream was replaced by another
+     *  project's Start heals instead of claiming to still be streaming. */
+    fun ownsLogStream(owner: Any): Boolean = logStreamOwner === owner
 
     fun getUiTree(sessionId: String): JsonObject? = rpc("ui/getTree", mapOf("session_id" to sessionId))
 

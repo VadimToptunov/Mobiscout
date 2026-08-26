@@ -42,3 +42,14 @@ updates:
     labels:
       - "dependencies"
       - "plugin"
+
+  # Rust core (mobiscout_core), which is compiled into every shipped engine binary.
+  # Its Cargo.lock is committed for reproducible builds, so without this entry a crate
+  # advisory would sit pinned in the released binary until someone bumped it by hand.
+  - package-ecosystem: "cargo"
+    directory: "/rust_core"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "rust"

@@ -20,25 +20,66 @@ const LOCATORS = {
 // Condition-based wait budget (ms) — poll for the element instead of a fixed
 // pause, so steps stay in sync with async UI without flaking at machine speed.
 const TIMEOUT = 10000;
+// How many times find() scrolls looking for an off-screen element before giving up.
+const SCROLL_TRIES = 4;
+
+// A generic loading indicator (no app-specific knowledge) — used by settle().
+const BUSY = '//android.widget.ProgressBar';
+
+// Middle beat of act -> wait-busy-clears -> assert: after an action that triggers a
+// transition, wait for a loading/activity indicator to disappear so the next step
+// doesn't act on a mid-transition screen. A stuck indicator is tolerated, not failed.
+async function settle() {
+    try {
+        await driver.waitUntil(async () => (await driver.$$(BUSY)).length === 0, { timeout: TIMEOUT, interval: 300 });
+    } catch (e) {
+        // tolerate a persistent indicator
+    }
+}
+
+// One scroll-down gesture — used by find() to bring a below-the-fold element into view.
+async function scrollDown() {
+    const scrollSize = await driver.getWindowSize();
+    await driver.execute('mobile: scrollGesture', { left: Math.round(scrollSize.width * 0.1), top: Math.round(scrollSize.height * 0.2), width: Math.round(scrollSize.width * 0.8), height: Math.round(scrollSize.height * 0.6), direction: 'down', percent: 0.8 });
+}
+
+// One pass over the ranked selectors — no waiting.
+async function locate(target) {
+    for (const selector of LOCATORS[target]) {
+        const el = await driver.$(selector);
+        if (await el.isExisting()) {
+            return el;
+        }
+    }
+    return null;
+}
 
 // Resolve a friendly target to an element, waiting for it to appear and
-// self-healing through its ranked selectors (each poll tries every selector).
+// self-healing through its ranked selectors (each poll tries every selector). On a
+// miss, scroll and retry: a control below the fold is not a missing control, and the
+// same crawl must not pass in one target and fail in another over that.
 async function find(target) {
     let found = null;
-    await driver.waitUntil(
-        async () => {
-            for (const selector of LOCATORS[target]) {
-                const el = await driver.$(selector);
-                if (await el.isExisting()) {
-                    found = el;
-                    return true;
-                }
-            }
-            return false;
-        },
-        { timeout: TIMEOUT, interval: 300, timeoutMsg: `No locator matched for target: ${target}` }
-    );
-    return found;
+    try {
+        await driver.waitUntil(
+            async () => {
+                found = await locate(target);
+                return found !== null;
+            },
+            { timeout: TIMEOUT, interval: 300 }
+        );
+        return found;
+    } catch (e) {
+        // not on screen yet — it may just need scrolling into view
+    }
+    for (let i = 0; i < SCROLL_TRIES; i += 1) {
+        await scrollDown();
+        found = await locate(target);
+        if (found) {
+            return found;
+        }
+    }
+    throw new Error(`No locator matched for target: ${target} within ${TIMEOUT}ms + ${SCROLL_TRIES} scrolls`);
 }
 
 Given('the app is launched', async () => {
@@ -47,15 +88,18 @@ Given('the app is launched', async () => {
 
 When('I enter {string} into {string}', async (text, target) => {
     await (await find(target)).setValue(text);
+    await settle();
 });
 
 When('I tap {string}', async (target) => {
     await (await find(target)).click();
+    await settle();
 });
 
 When('I swipe {word}', async (direction) => {
     const size = await driver.getWindowSize();
     await driver.execute('mobile: swipeGesture', { left: Math.round(size.width * 0.1), top: Math.round(size.height * 0.1), width: Math.round(size.width * 0.8), height: Math.round(size.height * 0.8), direction, percent: 0.75 });
+    await settle();
 });
 
 When('I wait {int} seconds', async (seconds) => {
@@ -65,10 +109,12 @@ When('I wait {int} seconds', async (seconds) => {
 
 When('I press back', async () => {
     await driver.back();
+    await settle();
 });
 
 When('I long-press {string}', async (target) => {
     await driver.execute('mobile: longClickGesture', { elementId: (await find(target)).elementId, duration: 1000 });
+    await settle();
 });
 
 When('I scroll to {string}', async (target) => {
@@ -77,11 +123,13 @@ When('I scroll to {string}', async (target) => {
 
 When('I open the deep link {string}', async (url) => {
     await driver.url(url);
+    await settle();
 });
 
 When('I press the {string} key', async (key) => {
     const codes = { BACK: 4, HOME: 3, ENTER: 66, TAB: 61, SEARCH: 84, APP_SWITCH: 187, DEL: 67 };
     await driver.pressKeyCode(codes[key.toUpperCase()] || 0);
+    await settle();
 });
 
 When('I switch to the {word} context', async (ctx) => {

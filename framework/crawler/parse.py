@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from framework.crawler.models import CrawlElement, CrawlScreen
 
@@ -122,21 +122,35 @@ def _ios_element(node: ET.Element, package: str) -> Optional[CrawlElement]:
     )
 
 
+def _primary_app(root: ET.Element) -> Optional[str]:
+    """Name of the application under test: the first XCUIElementTypeApplication that
+    isn't system UI.
+
+    Position alone is not enough. XCUITest can list SpringBoard *before* the app
+    (a permission alert, the home screen after the app briefly backgrounds), and
+    taking that as the app under test tags the real app's subtree as foreign — so
+    ``_own`` rejects every element on the screen and the crawl maps nothing.
+    """
+    names = [node.get("name", "") for node in root.iter() if (node.get("type") or node.tag).endswith("Application")]
+    for name in names:
+        if name.lower() not in _IOS_SYSTEM_APPS:
+            return name
+    return names[0] if names else None
+
+
 def _parse_ios(root: ET.Element) -> List[CrawlElement]:
     elements: List[CrawlElement] = []
-    # The app under test is the first XCUIElementTypeApplication in the tree; its
-    # subtree carries package="" (owned). Any *other* application (SpringBoard, a
-    # system permission alert) tags its subtree with that app's name, so _own
-    # excludes it — giving iOS the foreign-app guard Android has via `package`.
-    primary: Dict[str, Optional[str]] = {"name": None}
+    # The app under test's subtree carries package="" (owned). Any *other*
+    # application (SpringBoard, a system permission alert) tags its subtree with that
+    # app's name, so _own excludes it — giving iOS the foreign-app guard Android has
+    # via `package`.
+    primary = _primary_app(root)
 
     def _walk(node: ET.Element, package: str) -> None:
         itype = node.get("type") or node.tag
         if itype.endswith("Application"):
             name = node.get("name", "")
-            if primary["name"] is None:
-                primary["name"] = name
-            is_own = name == primary["name"] and name.lower() not in _IOS_SYSTEM_APPS
+            is_own = name == primary and name.lower() not in _IOS_SYSTEM_APPS
             package = "" if is_own else (name or "system")
         element = _ios_element(node, package)
         if element is not None:

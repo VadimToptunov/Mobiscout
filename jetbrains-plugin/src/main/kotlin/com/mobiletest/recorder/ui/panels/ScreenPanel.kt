@@ -192,8 +192,19 @@ class ScreenPanel(
         AnAction("Start Session", "Start mirroring the selected device", AllIcons.Actions.Execute) {
         override fun getActionUpdateThread() = ActionUpdateThread.EDT
         override fun update(e: AnActionEvent) {
-            // A session needs a device, and only one at a time.
-            e.presentation.isEnabled = currentSessionId == null && deviceCombo.selectedItem is DeviceItem
+            // A session needs a device, and only one at a time. iOS also needs the app's bundle
+            // id: without one the daemon opens the Appium session against an empty bundle, which
+            // still "starts" (the mirror keeps working because screenshots go through simctl) but
+            // fails on the first tap. Don't offer a start that can't act.
+            val device = deviceCombo.selectedItem as? DeviceItem
+            val needsBundleId =
+                device != null && device.platform.equals("ios", ignoreCase = true) && appField.text.isBlank()
+            e.presentation.isEnabled = currentSessionId == null && device != null && !needsBundleId
+            e.presentation.description = if (needsBundleId) {
+                "Enter the app's bundle id to start an iOS session"
+            } else {
+                "Start mirroring the selected device"
+            }
         }
 
         override fun actionPerformed(e: AnActionEvent) {

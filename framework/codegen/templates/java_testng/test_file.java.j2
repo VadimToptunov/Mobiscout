@@ -76,30 +76,64 @@ public class {{ class_name }} {
 
     /** Condition-based wait budget for locating elements. */
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    /** How many times find() scrolls looking for an off-screen element before giving up. */
+    private static final int SCROLL_TRIES = 4;
+
+    /** One pass over the ranked locators — no waiting. */
+    private static WebElement locate(org.openqa.selenium.SearchContext context, List<By> locators) {
+        for (By by : locators) {
+            try {
+                return context.findElement(by);
+            } catch (NoSuchElementException ignored) {
+            }
+        }
+        return null;
+    }
+
+    /**
+     * One scroll-down gesture — used by find() to bring a below-the-fold element into view.
+     */
+    private void scrollDown() {
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: scroll", java.util.Map.of("direction", "down"));
+{% else %}
+        org.openqa.selenium.Dimension scrollSize = driver.manage().window().getSize();
+        java.util.Map<String, Object> scrollArgs = new java.util.HashMap<>();
+        scrollArgs.put("left", (int) (scrollSize.getWidth() * 0.1));
+        scrollArgs.put("top", (int) (scrollSize.getHeight() * 0.2));
+        scrollArgs.put("width", (int) (scrollSize.getWidth() * 0.8));
+        scrollArgs.put("height", (int) (scrollSize.getHeight() * 0.6));
+        scrollArgs.put("direction", "down");
+        scrollArgs.put("percent", 0.8);
+        driver.executeScript("mobile: scrollGesture", scrollArgs);
+{% endif %}
+    }
 
     /**
      * Locate an element, waiting for it to appear and self-healing through ranked
      * alternatives — each poll tries every locator until one resolves or we time
      * out. A real condition-based wait, not an instant lookup that flakes on async UI.
+     * On a miss, scroll and retry: a control below the fold is not a missing control,
+     * and the same crawl must not pass in one target and fail in another over that.
      */
     private WebElement find(By primary, By[] fallbacks) {
         List<By> locators = new ArrayList<>();
         locators.add(primary);
         locators.addAll(Arrays.asList(fallbacks));
         try {
-            return new WebDriverWait(driver, TIMEOUT).until(d -> {
-                for (By by : locators) {
-                    try {
-                        return d.findElement(by);
-                    } catch (NoSuchElementException ignored) {
-                    }
-                }
-                return null;
-            });
-        } catch (TimeoutException e) {
-            throw new NoSuchElementException(
-                "No locator matched within " + TIMEOUT.getSeconds() + "s (primary + " + fallbacks.length + " fallbacks)");
+            return new WebDriverWait(driver, TIMEOUT).until(d -> locate(d, locators));
+        } catch (TimeoutException ignored) {
         }
+        for (int i = 0; i < SCROLL_TRIES; i++) {
+            scrollDown();
+            WebElement found = locate(driver, locators);
+            if (found != null) {
+                return found;
+            }
+        }
+        throw new NoSuchElementException(
+            "No locator matched within " + TIMEOUT.getSeconds() + "s + " + SCROLL_TRIES
+                + " scrolls (primary + " + fallbacks.length + " fallbacks)");
     }
 
     /** A generic loading indicator (no app-specific knowledge) — used by settle(). */

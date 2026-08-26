@@ -104,9 +104,9 @@
         real IDE ActionToolbars; the Generate dialog groups the rarely-used knobs under a
         collapsible "Advanced", browses for the output folder, and validates before it runs.</li>
         <li><b>Honest feedback</b>: the generated kit lands in your project with an "Open
-        folder" action; the progress bar shows the live crawl, not a frozen "Crawling…";
-        errors are non-modal balloons; the Logs view is bounded and no longer yanks you to
-        the bottom while you read.</li>
+        folder" action; the progress bar names the phase it is in (booting, installing,
+        crawling); errors are non-modal balloons; the Logs view is bounded and no longer
+        yanks you to the bottom while you read.</li>
         <li><b>Live screen mirror</b>: a "Live" toggle auto-refreshes while a session is
         active; the Inspector lets you copy a locator or generate a ranked, self-healing
         selector for the selected element.</li>

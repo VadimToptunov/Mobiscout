@@ -89,6 +89,9 @@ class NativeLibInfo:
     path: str
     architectures: List[str] = field(default_factory=list)
     size: int = 0
+    # Empty unless the library was actually read (see Decompiler._analyze_native_libs);
+    # the path-derived fallback below cannot know them.
+    protections: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -96,6 +99,7 @@ class NativeLibInfo:
             "path": self.path,
             "architectures": self.architectures,
             "size": self.size,
+            "protections": self.protections,
         }
 
 

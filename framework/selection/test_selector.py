@@ -22,7 +22,7 @@ class ImpactLevel(Enum):
     NONE = "none"  # No impact
 
 
-@dataclass
+@dataclass(eq=False)
 class TestImpact:
     """Represents test impact from changes"""
 
@@ -31,8 +31,26 @@ class TestImpact:
     impact_level: ImpactLevel
     reasons: List[str]  # Why this test is impacted
 
+    # A test is identified by its file and name alone. The generated __eq__ also
+    # compared impact_level and reasons, so the same test found by two selection
+    # strategies compared unequal while hashing equal, and a set kept both — which
+    # double-counted it in the report and in the runtime estimate.
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TestImpact):
+            return NotImplemented
+        return (self.test_file, self.test_name) == (other.test_file, other.test_name)
+
     def __hash__(self) -> int:
         return hash((self.test_file, self.test_name))
+
+
+# Strongest impact first, for merging two findings about the same test.
+_IMPACT_RANK = {
+    ImpactLevel.HIGH: 0,
+    ImpactLevel.MEDIUM: 1,
+    ImpactLevel.LOW: 2,
+    ImpactLevel.NONE: 3,
+}
 
 
 class TestSelector:
@@ -70,7 +88,7 @@ class TestSelector:
         if selection_strategy == "all":
             return self._select_all_tests()
 
-        impacted_tests = set()
+        impacted_tests: Dict[tuple, TestImpact] = {}
 
         for change in changes:
             if change.change_type == ChangeType.DELETED:
@@ -80,22 +98,45 @@ class TestSelector:
             if self._is_test_file(change.path):
                 tests = self._get_tests_from_file(change.path)
                 for test_name in tests:
-                    impacted_tests.add(
+                    self._merge_impact(
+                        impacted_tests,
                         TestImpact(
                             test_file=change.path,
                             test_name=test_name,
                             impact_level=ImpactLevel.HIGH,
                             reasons=["Test file directly modified"],
-                        )
+                        ),
                     )
 
             # Source file changes - find dependent tests
             elif selection_strategy == "smart":
-                dependent_tests = self._find_dependent_tests(change.path)
-                impacted_tests.update(dependent_tests)
+                for dependent in self._find_dependent_tests(change.path):
+                    self._merge_impact(impacted_tests, dependent)
 
         # Sort by impact level
-        return sorted(impacted_tests, key=lambda t: (t.impact_level.value, str(t.test_file), t.test_name))
+        return sorted(impacted_tests.values(), key=lambda t: (t.impact_level.value, str(t.test_file), t.test_name))
+
+    @staticmethod
+    def _merge_impact(impacted: Dict[tuple, TestImpact], impact: TestImpact) -> None:
+        """Record an impact, folding it into an existing entry for the same test.
+
+        Several strategies routinely find the same test (a test both named after
+        the changed module and importing it); keeping one entry per strategy
+        inflated the selected-test count and the runtime estimate built from it.
+        """
+        key = (impact.test_file, impact.test_name)
+        existing = impacted.get(key)
+
+        if existing is None:
+            impacted[key] = impact
+            return
+
+        for reason in impact.reasons:
+            if reason not in existing.reasons:
+                existing.reasons.append(reason)
+
+        if _IMPACT_RANK[impact.impact_level] < _IMPACT_RANK[existing.impact_level]:
+            existing.impact_level = impact.impact_level
 
     def _is_test_file(self, path: Path) -> bool:
         """Check if file is a test file"""
@@ -135,47 +176,50 @@ class TestSelector:
         self._test_cache[test_file] = tests
         return tests
 
-    def _find_dependent_tests(self, source_file: Path) -> Set[TestImpact]:
+    def _find_dependent_tests(self, source_file: Path) -> List[TestImpact]:
         """Find tests that depend on a source file"""
-        impacted = set()
+        impacted: Dict[tuple, TestImpact] = {}
 
         # Strategy 1: Find tests in same directory
         directory_tests = self._find_tests_in_directory(source_file.parent)
         for test_file, test_name in directory_tests:
-            impacted.add(
+            self._merge_impact(
+                impacted,
                 TestImpact(
                     test_file=test_file,
                     test_name=test_name,
                     impact_level=ImpactLevel.MEDIUM,
                     reasons=[f"Located in same directory as {source_file.name}"],
-                )
+                ),
             )
 
         # Strategy 2: Find tests with similar names
         similar_tests = self._find_tests_by_naming_convention(source_file)
         for test_file, test_name in similar_tests:
-            impacted.add(
+            self._merge_impact(
+                impacted,
                 TestImpact(
                     test_file=test_file,
                     test_name=test_name,
                     impact_level=ImpactLevel.HIGH,
                     reasons=[f"Naming convention matches {source_file.name}"],
-                )
+                ),
             )
 
         # Strategy 3: Find tests that import this file
         importing_tests = self._find_tests_importing_file(source_file)
         for test_file, test_name in importing_tests:
-            impacted.add(
+            self._merge_impact(
+                impacted,
                 TestImpact(
                     test_file=test_file,
                     test_name=test_name,
                     impact_level=ImpactLevel.HIGH,
                     reasons=[f"Imports {source_file.name}"],
-                )
+                ),
             )
 
-        return impacted
+        return list(impacted.values())
 
     def _find_tests_in_directory(self, directory: Path) -> List[tuple]:
         """Find all tests in a directory"""
@@ -216,9 +260,12 @@ class TestSelector:
         tests = []
 
         try:
-            # Get relative import path
+            # Get relative import path. Join the path *parts* rather than replacing "/"
+            # in the string form: on Windows that separator is "\", so the replace was a
+            # no-op and module_name stayed "pkg\calculator" — matching no import at all,
+            # which silently disabled this whole strategy on Windows.
             relative_path = source_file.relative_to(self.project_root)
-            module_name = str(relative_path.with_suffix("")).replace("/", ".")
+            module_name = ".".join(relative_path.with_suffix("").parts)
 
             # Search all test files
             for test_file in self.test_root.rglob("test_*.py"):

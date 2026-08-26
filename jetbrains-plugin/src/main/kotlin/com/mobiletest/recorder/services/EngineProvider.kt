@@ -1,6 +1,7 @@
 package com.mobiletest.recorder.services
 
 import java.io.File
+import java.io.InputStream
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -46,11 +47,24 @@ object EngineProvider {
     private fun cacheDir(): File =
         File(System.getProperty("user.home"), ".mobiscout/engine/$ENGINE_VERSION").apply { mkdirs() }
 
-    /** The standalone binary, downloading it on first use; null if unavailable. */
-    private fun ensureEngineBinary(): File? {
-        val asset = assetName() ?: return null
-        val target = File(cacheDir(), asset)
-        val localDigest = File(cacheDir(), "$asset.sha256")
+    /**
+     * The standalone binary, downloading it on first use; null if unavailable.
+     *
+     * The cache dir and the two network reads are parameters — production always uses the
+     * defaults — so EngineProviderTest can drive the download → verify → publish gate without
+     * a release server. That gate is the plugin's whole supply-chain check (bytes are executed
+     * only once their SHA-256 matches the published digest), and it was untestable while the
+     * network reads were hard-wired.
+     */
+    internal fun ensureEngineBinary(
+        asset: String? = assetName(),
+        dir: File = cacheDir(),
+        fetch: (String) -> InputStream = ::openRelease,
+        publishedDigest: (String) -> String? = ::publishedChecksum,
+    ): File? {
+        if (asset == null) return null
+        val target = File(dir, asset)
+        val localDigest = File(dir, "$asset.sha256")
 
         // Cache hit: only trust a binary whose bytes STILL match the digest we verified at
         // download time. A truncated (interrupted copy) or tampered file is re-fetched
@@ -73,15 +87,11 @@ object EngineProvider {
         // failing the digest and leaving both IDEs with "No engine available".
         var part: File? = null
         return try {
-            val scratch = File.createTempFile("$asset-", ".part", cacheDir())
+            val scratch = File.createTempFile("$asset-", ".part", dir)
             part = scratch
-            val conn = URI("$RELEASE_BASE/$ENGINE_VERSION/$asset").toURL().openConnection().apply {
-                connectTimeout = CONNECT_TIMEOUT_MS
-                readTimeout = READ_TIMEOUT_MS
-            }
-            conn.getInputStream().use { input -> scratch.outputStream().use { input.copyTo(it) } }
+            fetch(asset).use { input -> scratch.outputStream().use { input.copyTo(it) } }
             val digest = sha256Hex(scratch)
-            if (scratch.length() == 0L || digest != publishedChecksum(asset)) {
+            if (scratch.length() == 0L || digest != publishedDigest(asset)) {
                 scratch.delete()
                 return null
             }
@@ -112,6 +122,13 @@ object EngineProvider {
         }
     }
 
+    /** The release asset's bytes, streamed from the matching GitHub release. */
+    private fun openRelease(asset: String): InputStream =
+        URI("$RELEASE_BASE/$ENGINE_VERSION/$asset").toURL().openConnection().apply {
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+        }.getInputStream()
+
     /** The published `<asset>.sha256` digest, or null if unavailable/malformed. */
     private fun publishedChecksum(asset: String): String? {
         return try {
@@ -125,7 +142,8 @@ object EngineProvider {
         }
     }
 
-    private fun sha256Hex(file: File): String {
+    /** `internal` so EngineProviderTest can anchor it to a published SHA-256 test vector. */
+    internal fun sha256Hex(file: File): String {
         val md = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { stream ->
             val buffer = ByteArray(8192)

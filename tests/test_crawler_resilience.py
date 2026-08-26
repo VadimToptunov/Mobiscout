@@ -29,8 +29,12 @@ _SCREEN = (
 
 
 class _FakeProc:
-    def __init__(self, stdout: str):
+    # returncode/stderr are what a real CompletedProcess carries; _run reads them to
+    # tell a rejected command ("device offline") from a successful one.
+    def __init__(self, stdout: str, returncode: int = 0, stderr: str = ""):
         self.stdout = stdout
+        self.returncode = returncode
+        self.stderr = stderr
 
 
 def _no_sleep(monkeypatch):

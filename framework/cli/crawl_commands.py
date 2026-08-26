@@ -234,7 +234,15 @@ def crawl(
     finally:
         if appium_session:
             appium_session.quit()
-    print_success(f"Discovered {len(result.screens)} screen(s), {len(result.transitions)} transition(s)")
+    # A crawl that died on a device failure kept its partial map — report it as partial,
+    # not as a finished discovery whose counts describe the app.
+    if getattr(result, "ended_early", None):
+        print_warning(
+            f"Crawl ended early ({result.ended_early}). "
+            f"Partial map: {len(result.screens)} screen(s), {len(result.transitions)} transition(s)"
+        )
+    else:
+        print_success(f"Discovered {len(result.screens)} screen(s), {len(result.transitions)} transition(s)")
 
     # Opt-in: persist the crawl as a queryable event session. Derived from the
     # finished result, so it adds nothing to crawl latency.

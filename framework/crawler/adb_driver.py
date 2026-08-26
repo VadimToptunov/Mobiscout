@@ -21,6 +21,16 @@ from framework.crawler.settle import settle_until_stable
 _RESUMED_RE = re.compile(r"(?:topResumedActivity|ResumedActivity:|mResumedActivity)[^\n]*?\s([\w.]+)/[\w.$]+")
 _FOCUS_RE = re.compile(r"mCurrentFocus=Window\{[^}]*\s([\w.]+)/[\w.$]+\}")
 
+# `dumpsys window displays` reports the display's CURRENT size as `cur=WxH` (it
+# follows rotation), while `wm size` — the fallback — reports the device's natural,
+# portrait size.
+_DISPLAY_CUR_RE = re.compile(r"\bcur=(\d+)x(\d+)")
+_WM_SIZE_RE = re.compile(r"\b(\d+)x(\d+)\b")
+
+# Where the fallback dump is written. The conventional path every adb-based tool
+# uses, so anything left there may well be someone else's (stale) dump.
+_DUMP_FILE = "/sdcard/window_dump.xml"
+
 
 def _extract_hierarchy(raw: str) -> Optional[str]:
     """From `uiautomator dump /dev/tty` stdout, return the XML up to the closing
@@ -32,6 +42,22 @@ def _extract_hierarchy(raw: str) -> Optional[str]:
     start = raw.find("<?xml")
     start = start if start != -1 else raw.find("<hierarchy")
     return raw[start if start != -1 else 0 : end + len("</hierarchy>")]
+
+
+def _encode_text(text: str) -> str:
+    """Encode ``text`` for ``adb shell input text``. Two hazards, two layers:
+
+    1. ``input text`` maps ``%s`` to a space, so spaces are encoded as ``%s``.
+    2. adb concatenates its ``shell`` argv into a command line that the DEVICE
+       shell re-parses, so ``&``, ``;``, ``$``, backticks, quotes are interpreted
+       rather than typed — a waypoint password like ``S&p500`` types "S" and hands
+       the rest to the shell, and the gate never opens. Wrapping the whole token in
+       single quotes (embedded quote escaped as ``'\\''``) makes it all literal.
+
+    Mirrors ``JSONRPCServer._encode_adb_text``, which solves the same problem for
+    the recorder's taps; the two should share one helper.
+    """
+    return "'" + text.replace(" ", "%s").replace("'", "'\\''") + "'"
 
 
 class AdbCrawlerDriver:
@@ -75,6 +101,15 @@ class AdbCrawlerDriver:
         :class:`CrawlerDriverError`, which the crawl loop catches to finish
         gracefully with the screens gathered so far.
 
+        A command adb or the device *rejected* ("more than one device/emulator",
+        "device offline", an input the device refused) raises the same error rather
+        than returning its empty stdout: served as an empty dump it would read as
+        "the app has no screens", and the whole broken-device run would be reported
+        as a successful crawl of nothing. Only a non-zero exit that also wrote to
+        stderr counts — an on-device ``grep`` that simply found no match exits 1
+        silently and is a normal result. Calls that report failure themselves go
+        through :meth:`_try_run`.
+
         Args:
             *args: adb arguments (after any ``-s <serial>``), e.g. ``"shell",
                 "input", "tap", "10", "20"``.
@@ -83,20 +118,44 @@ class AdbCrawlerDriver:
             The command's stdout as text.
 
         Raises:
-            CrawlerDriverError: the command timed out on every attempt.
+            CrawlerDriverError: the command timed out on every attempt, or adb /
+                the device rejected it.
         """
         last: Optional[subprocess.TimeoutExpired] = None
         for attempt in range(self._retries + 1):
             try:
-                proc = subprocess.run(self._cmd(*args), capture_output=True, text=True, timeout=self._timeout)
-                return proc.stdout
+                # text=True alone decodes with the locale codepage (cp125x on
+                # Windows); uiautomator dumps are UTF-8, so any Cyrillic/CJK app
+                # text would raise UnicodeDecodeError and kill the crawl.
+                proc = subprocess.run(
+                    self._cmd(*args),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=self._timeout,
+                )
             except subprocess.TimeoutExpired as exc:
                 last = exc
                 if attempt < self._retries:
                     time.sleep(0.5)  # let the device settle before retrying
+                continue
+            err = (proc.stderr or "").strip()
+            if proc.returncode != 0 and err:
+                raise CrawlerDriverError(f"adb {' '.join(args[:2])} failed: {err}")
+            return proc.stdout
         raise CrawlerDriverError(
             f"adb command timed out after {self._retries + 1} attempt(s): {' '.join(args)}"
         ) from last
+
+    def _try_run(self, *args: str) -> str:
+        """Run an adb command whose failure the caller judges for itself — a dump we
+        validate before serving, a launch we confirm by polling the foreground —
+        returning "" instead of ending the crawl on it."""
+        try:
+            return self._run(*args)
+        except CrawlerDriverError:
+            return ""
 
     def _dump(self) -> str:
         """Capture the current UI hierarchy as XML in one adb round-trip.
@@ -110,8 +169,15 @@ class AdbCrawlerDriver:
         if xml is not None:
             return xml
         # Fallback for devices that won't stream to /dev/tty: file then read back.
-        self._run("shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
-        return self._run("shell", "cat", "/sdcard/window_dump.xml")
+        # Delete the file first and validate what comes back, because the usual
+        # reason a dump fails is transient (uiautomator's "could not get idle
+        # state." on a busy screen) and a failed dump leaves the PREVIOUS one in
+        # place: cat would then serve a screen that is no longer displayed, and the
+        # crawler would fingerprint it and tap coordinates read off it. An empty
+        # read is the honest answer — the next dump gets the real screen.
+        self._try_run("shell", "rm", "-f", _DUMP_FILE)
+        self._try_run("shell", "uiautomator", "dump", _DUMP_FILE)
+        return _extract_hierarchy(self._try_run("shell", "cat", _DUMP_FILE)) or ""
 
     def page_source(self) -> str:
         """Return the current screen's UI-tree XML (CrawlerDriver protocol).
@@ -151,10 +217,11 @@ class AdbCrawlerDriver:
     def type_text(self, text: str) -> None:
         """Type ``text`` into the focused field and wait for the UI to settle.
 
-        ``adb shell input text`` needs spaces as ``%s``; good enough for waypoint
-        form-filling (emails, sample data, OTP codes).
+        The text is encoded for the device shell (see :func:`_encode_text`) so
+        waypoint values with shell metacharacters — passwords, sample data — are
+        typed as written instead of being re-parsed as commands.
         """
-        self._run("shell", "input", "text", text.replace(" ", "%s"))
+        self._run("shell", "input", "text", _encode_text(text))
         self._settle_wait()
 
     def clear_field(self) -> None:
@@ -175,17 +242,52 @@ class AdbCrawlerDriver:
         self._run("shell", "input", "keyevent", "4")
         self._settle_wait()
 
+    def _screen_size(self) -> Tuple[int, int]:
+        """Screen size in pixels for the CURRENT orientation, or (0, 0) if unknown.
+
+        Read fresh (rotation changes mid-crawl) and from `dumpsys window displays`
+        rather than `wm size`, which always reports the device's *natural* portrait
+        size — on a landscape screen that would put a gesture off-display.
+        """
+        m = _DISPLAY_CUR_RE.search(self._try_run("shell", "dumpsys window displays | grep -E 'cur='"))
+        if m:
+            return int(m.group(1)), int(m.group(2))
+        # Fallback: "Physical size: 1080x2340" plus, when one is set, an "Override
+        # size:" line that supersedes it — so take the last match.
+        sizes = _WM_SIZE_RE.findall(self._try_run("shell", "wm", "size"))
+        return (int(sizes[-1][0]), int(sizes[-1][1])) if sizes else (0, 0)
+
     def scroll(self, direction: str = "down") -> None:
         """Swipe to reveal off-screen content, then wait for the UI to settle.
 
         ``down`` scrolls the content up (swipe from lower to upper) so below-the-
-        fold rows and links come into view; any other value scrolls back up. Uses
-        a fixed 1080x1920-relative gesture — coarse but device-agnostic enough for
-        exploration.
+        fold rows and links come into view; any other value scrolls back up. The
+        gesture is derived from the device's real screen size: the old fixed
+        1080x1920-relative swipe started at y=1500, which is off-display on a
+        720x1280 phone and on *any* device in landscape — Android drops a motion
+        event that starts outside the display, so the scroll was a silent no-op and
+        everything below the fold went uncrawled.
         """
-        x, lo, hi = 540, 1500, 500
+        w, h = self._screen_size()
+        if w <= 0 or h <= 0:
+            return  # unknown geometry — a blind swipe would likely be dropped anyway
+        x, lo, hi = w // 2, int(h * 0.75), int(h * 0.25)
         from_y, to_y = (lo, hi) if direction == "down" else (hi, lo)
         self._run("shell", "input", "swipe", str(x), str(from_y), str(x), str(to_y), "300")
+        self._settle_wait()
+
+    def hide_keyboard(self) -> None:
+        """Dismiss the soft keyboard after form-filling, so it doesn't cover the
+        control the crawler taps next (submit sits under the IME on most forms).
+
+        Back is what dismisses an IME on Android — but Back with no IME up
+        *navigates*, silently moving the crawl off the screen it is working on — so
+        the keyevent is only sent when the IME is actually showing.
+        """
+        shown = self._try_run("shell", "dumpsys input_method | grep -E 'mInputShown'")
+        if "mInputShown=true" not in shown:
+            return
+        self._run("shell", "input", "keyevent", "4")
         self._settle_wait()
 
     def current_package(self) -> str:
@@ -219,19 +321,22 @@ class AdbCrawlerDriver:
 
         Returns whether the app reached the foreground.
         """
+        # The three launch commands tolerate failure: a package that won't resolve or
+        # an intent the device refuses is reported by the foreground poll below (this
+        # returns a bool), not by raising out of the caller's recovery path.
         activity = ""
-        resolved = self._run(
+        resolved = self._try_run(
             "shell", "cmd", "package", "resolve-activity", "--brief", "-c", "android.intent.category.LAUNCHER", package
         )
         for line in resolved.strip().splitlines():
             if "/" in line and package in line:
                 activity = line.strip()
         if activity:
-            self._run("shell", "am", "start", "-n", activity, *self._launch_args)
+            self._try_run("shell", "am", "start", "-n", activity, *self._launch_args)
         else:
             # monkey can't carry intent extras; without a resolvable activity the
             # launch args are lost, but this path is a rare fallback.
-            self._run("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
+            self._try_run("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
         for _ in range(tries):
             if self.current_package() == package:
                 return True
@@ -243,7 +348,9 @@ class AdbCrawlerDriver:
         target screen. When ``package`` is given, confirm the app under test — not a
         browser or another handler — actually came to the foreground; returns that.
         """
-        self._run("shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", uri)
+        # A URI no app handles is a "no" for this seed (the poll below), not a
+        # crawl-ending device failure — so tolerate the intent being refused.
+        self._try_run("shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", uri)
         if package is None:
             return True
         for _ in range(tries):
