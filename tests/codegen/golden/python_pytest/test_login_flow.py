@@ -122,9 +122,10 @@ def driver():
     #
     # `noReset` alone does NOT clear an already-installed app's data, so tests inherit
     # whatever the last run left behind — and these tests were generated from a crawl that
-    # itself changed things (it taps buttons: adds items, dismisses onboarding). A case
-    # asserting the empty state then fails for a reason that has nothing to do with the app
-    # being broken. Clearing makes the starting point the one the crawl described.
+    # itself changed things (it taps buttons: adds items, dismisses onboarding, leaves a
+    # sheet open). A case asserting the first screen then fails for a reason that has
+    # nothing to do with the app being broken. Clearing makes the starting point the one
+    # the crawl described.
     #
     # Set MOBISCOUT_KEEP_APP_DATA=1 to keep the device's existing state instead (e.g. an app
     # that needs a manually provisioned account).
@@ -133,7 +134,7 @@ def driver():
             drv.execute_script("mobile: clearApp", {"appId": "com.example.app"})
             drv.execute_script("mobile: activateApp", {"appId": "com.example.app"})
         except Exception:
-            pass  # older driver, or a system app that can't be cleared — run against live state
+            pass  # older driver, or an app that can't be cleared — run against live state
     yield drv
     drv.quit()
 

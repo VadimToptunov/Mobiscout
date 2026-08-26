@@ -42,3 +42,47 @@ def test_ignores_a_different_app_in_the_foreground():
 
 def test_no_resumed_activity_is_empty_not_a_guess():
     assert _driver_returning("").current_activity(PKG) == ""
+
+
+# --- both platforms must start each test from a known state -------------------------
+#
+# Found by running the iOS kit: 7 tests, 0 passing. The crawl had started on a modal sheet
+# left open by an earlier run, so it recorded that sheet as the app's entry screen and the
+# generated cases asserted its contents straight after launch. Android already cleared app
+# data per test; iOS cleared nothing. With the reset in place the same app went to 9 passed.
+
+import re
+
+from framework.codegen.ir import ActionType, Platform, Step, TestCase, TestModel
+from framework.codegen.targets import get_emitter
+
+
+def _model(platform: Platform, package: str) -> TestModel:
+    return TestModel(
+        name="Flow",
+        app_package=package,
+        platform=platform,
+        cases=[TestCase(name="c", description="d", steps=[Step(ActionType.LAUNCH, description="Open app")])],
+    )
+
+
+def _emitted(platform: Platform, package: str) -> str:
+    files = get_emitter("python_pytest").emit(_model(platform, package))
+    return "\n".join(files.values())
+
+
+def test_android_kit_clears_app_data_with_the_android_key():
+    body = _emitted(Platform.ANDROID, "com.example.app")
+    assert 'mobile: clearApp", {"appId": "com.example.app"}' in body
+
+
+def test_ios_kit_clears_app_data_with_the_ios_key():
+    # XCUITest names it bundleId, not appId — the wrong key is silently ignored, which is
+    # how a kit ends up inheriting state while looking like it resets.
+    body = _emitted(Platform.IOS, "com.example.App")
+    assert 'mobile: clearApp", {"bundleId": "com.example.App"}' in body
+
+
+def test_the_reset_can_be_opted_out_of():
+    for platform in (Platform.ANDROID, Platform.IOS):
+        assert re.search(r'MOBISCOUT_KEEP_APP_DATA"\)\s*!=\s*"1"', _emitted(platform, "com.example.app"))
