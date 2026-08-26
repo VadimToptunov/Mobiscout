@@ -16,6 +16,8 @@ Config keys (all but ``package`` optional):
     scaffold       also write a runnable project shell (new framework) [False]
     max_steps      crawl step budget                                 [40]
     max_depth      crawl depth budget                                [8]
+    style          "flat" | "pom" (page-object layout)               [flat]
+    allow_destructive  explore controls a safe crawl skips (sandbox app) [False]
     serial/udid/device_name/server/extra_caps   driver connection details
 
     build_kit(result, config)  — device-free: turn a CrawlResult into artifacts.
@@ -161,9 +163,23 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
     targets: List[str] = allow_targets([t for t in (config.get("targets") or _DEFAULT_TARGETS) if t])
     written: List[str] = []
+
+    # Page-object layout (``style: "pom"``, the CLI's --style): page objects + conftest +
+    # tests driven through them. This path ignored the key, so a caller who asked for a
+    # framework kit got a flat one back with a success summary that never said so.
+    framework_files: Dict[str, str] = {}
+    if config.get("style") == "pom" and model.cases:
+        from framework.crawler.page_kit import build_framework_kit
+
+        framework_files = build_framework_kit(result, model, package)
+        for rel, content in framework_files.items():
+            _write(out / rel, content)
+
     for target in targets:
         if target not in target_ids:
             continue
+        if framework_files and target == "python_pytest":
+            continue  # the page-object layout above already covers pytest
         for name, content in get_emitter(target).emit(model).items():
             _write(out / target / name, content)
         written.append(target)
@@ -213,6 +229,9 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "mocks": mocks,
         "deeplinks": len(deeplinks),
         "targets": written,
+        # What the kit actually is, not what was asked for: "pom" only when page objects
+        # were written (an app with no locatable pages still yields a flat kit).
+        "style": "pom" if framework_files else "flat",
         "scaffolded": scaffolded,
         "gap": gap,
         "invariants": invariant_count,
@@ -334,7 +353,20 @@ def _make_driver(config: Dict[str, Any]) -> Any:
             return drv, True
     from framework.crawler.adb_driver import AdbCrawlerDriver
 
-    return AdbCrawlerDriver(serial=config.get("serial")), False
+    # The device the user picked arrives as ``udid`` — the IDE plugin has no ``serial``
+    # key at all — so reading only ``serial`` dropped the selection and every adb command
+    # ran with no ``-s``: on a machine with two devices attached (an emulator plus a
+    # phone) the whole crawl died with "more than one device/emulator". Resolve it the
+    # way the rest of run_kit does (prepare_device, _android_crashes), and thread the
+    # launch args through as the CLI's builder does, so the crawl — and the crawler's own
+    # recovery relaunches — start the app the way the caller asked for.
+    return (
+        AdbCrawlerDriver(
+            serial=config.get("serial") or config.get("udid"),
+            launch_args=list(config.get("process_args") or []) or None,
+        ),
+        False,
+    )
 
 
 def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
@@ -383,7 +415,13 @@ def _seed_deeplinks(config: Dict[str, Any], driver: Any, result: CrawlResult, wa
         except Exception:
             continue
         seeded = AppCrawler(
-            driver, package, max_steps=steps, max_depth=depth, waypoints=waypoints, max_seconds=seconds
+            driver,
+            package,
+            max_steps=steps,
+            max_depth=depth,
+            waypoints=waypoints,
+            max_seconds=seconds,
+            allow_destructive=bool(config.get("allow_destructive")),  # same safety mode as the main crawl
         ).crawl()
         result = _merge_results(result, seeded)
     return result
@@ -413,6 +451,10 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
             max_depth=int(config.get("max_depth", 8)),
             waypoints=waypoints,
             max_seconds=float(config.get("max_seconds", 0) or 0),
+            # Sandbox mode (throwaway test app): the CLI's --allow-destructive. Dropping it
+            # here made it a silent no-op for every daemon/MCP caller, who then got a crawl
+            # that still skipped the controls they explicitly opted into.
+            allow_destructive=bool(config.get("allow_destructive")),
         ).crawl()
         # Extra entry way: seed the graph from deeplinks the UI walk can't reach.
         return _seed_deeplinks(config, driver, result, waypoints)
@@ -588,14 +630,13 @@ def run_kits(configs: List[Dict[str, Any]], parallel: bool = True) -> List[Dict[
 
 def _device_key(config: Dict[str, Any]) -> str:
     """The device a config will actually drive, resolved the way :func:`_make_driver` does:
-    the udid for an Appium session (iOS, or Android with ``driver: appium``), the adb serial
-    otherwise. Deliberately not "serial or udid" — the adb driver reads only ``serial``, so
-    two Android configs carrying different udids still drive the same attached device. An
-    empty key is not "no device" but "whichever device is attached", i.e. the same one for
-    every config that omits it."""
+    the udid for an Appium session (iOS, or Android with ``driver: appium``), and ``serial``
+    or ``udid`` — whichever the config carries — on the adb path. An empty key is not "no
+    device" but "whichever device is attached", i.e. the same one for every config that
+    omits it."""
     if config.get("platform") == "ios" or config.get("driver") == "appium":
         return str(config.get("udid") or "")
-    return str(config.get("serial") or "")
+    return str(config.get("serial") or config.get("udid") or "")
 
 
 def _safe_dir(name: str) -> str:

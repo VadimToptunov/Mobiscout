@@ -341,6 +341,13 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                     uninstallAfterCheck,
                 )
             }
+            // One form, apps of both platforms: the chosen framework has to run on every one
+            // of them. The Framework list only hides Espresso when the *form's* platform is
+            // iOS, so android+Espresso+"generate all" used to emit androidx.test sources for
+            // the iOS bundle too — a kit that can never compile.
+            multiAppTargetError(selectedTarget(), detectedApps.mapNotNull { it.get("platform")?.asString })?.let {
+                return ValidationInfo(it, frameworkCombo)
+            }
         }
         // "Install build first" needs a target device — catch it here instead of after the
         // dialog closes (the action rejected it with a notification and made you reopen).
@@ -366,6 +373,11 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     private fun resolveOutput(out: String): String = resolveOutputPath(out, project.basePath)
 
     companion object {
+        /** Codegen targets that only produce runnable tests on one platform. Espresso is an
+         *  Android instrumentation runner; its emitter happily writes androidx.test sources
+         *  for an iOS bundle id, so the pairing has to be rejected here. */
+        private val PLATFORM_ONLY_TARGETS = mapOf("kotlin_espresso" to "android")
+
         /** Resolve a relative output dir against the project root, so the kit lands where the
          *  user can find it — not in the IDE's working directory (which for a GUI launch is `/`
          *  or the install dir), where the engine would either fail mkdir or hide the result.
@@ -373,6 +385,18 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         fun resolveOutputPath(out: String, basePath: String?): String {
             if (File(out).isAbsolute || basePath == null) return out
             return File(basePath, out).path
+        }
+
+        /** Why [target] can't be used for a "generate all" run over [platforms], or null when
+         *  it runs on all of them. "Generate all" applies the one selected framework to every
+         *  detected app, so a platform-only target is a hard mismatch, not a preference. */
+        fun multiAppTargetError(target: String, platforms: Collection<String>): String? {
+            val only = PLATFORM_ONLY_TARGETS[target] ?: return null
+            val foreign = platforms.filter { it != only }.distinct()
+            if (foreign.isEmpty()) return null
+            return "The selected framework is $only-only, but the detected apps include " +
+                "${foreign.joinToString("/")} — pick a framework that runs on both, or clear " +
+                "\"Generate all detected apps\""
         }
     }
 

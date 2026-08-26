@@ -244,8 +244,10 @@ class JSONRPCServer:
         PRO-only actions. Reads ``framework.licensing`` — the open-core engine is
         UNLIMITED until a paid layer (Mobiscout-PRO) installs a limited provider,
         so this is ``pro``/unlimited on a plain engine and ``free`` with quotas
-        once a FREE licence is active."""
-        from framework.licensing import entitlements
+        once a FREE licence is active. ``licensed`` says whether a paid layer is
+        installed at all — the field the IDE must key its "PRO — licensed" label on,
+        since tier+unlimited alone can't tell a licensed PRO from the open-core default."""
+        from framework.licensing import UNLIMITED, entitlements
 
         ent = entitlements()
         features = sorted(ent.features)
@@ -260,6 +262,12 @@ class JSONRPCServer:
             and ent.max_tests is None
             and ent.max_targets is None
             and ("*" in features or not features or ent.tier.value == "pro"),
+            # Whether a paid layer answered at all. The open-core default is itself
+            # tier=pro + unlimited, so neither field can tell a licensed PRO from a plain
+            # engine — a paying user read as "Open-core (unlimited)" unless their licence
+            # carried a quota. Anything other than the open-core UNLIMITED singleton means
+            # a provider was installed (see framework.licensing.set_provider).
+            "licensed": ent is not UNLIMITED,
         }
 
     def handle_selector_generate(self, params: Dict[str, Any]) -> Dict[str, Any]:
