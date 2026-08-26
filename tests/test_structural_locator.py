@@ -44,14 +44,44 @@ def test_labelled_element_prefers_its_real_locator():
 
 def test_ios_positional_uses_full_type():
     # iOS class_name has the XCUIElementType prefix stripped by the parser; the
-    # positional xpath must put it back.
+    # positional xpath must put it back — and count only visible nodes, since that is
+    # what the parser kept (see test_ios_positional_index_skips_invisible_nodes).
     scr = parse_screen(
-        '<AppiumAUT><XCUIElementTypeButton name="" label="" value="" '
+        '<AppiumAUT><XCUIElementTypeButton name="" label="" value="" visible="true" '
         'x="0" y="0" width="40" height="40"/></AppiumAUT>'
     )
     btn = next(e for e in scr.elements if e.class_name == "Button")
     sel = selector_for(btn, scr.elements, "ios")
-    assert sel is not None and sel.value == "(//XCUIElementTypeButton)[1]"
+    assert sel is not None and sel.value == '(//XCUIElementTypeButton[@visible="true"])[1]'
+
+
+def test_ios_positional_index_skips_invisible_nodes():
+    # The parser drops visible="false" nodes but the XCUITest source the xpath runs
+    # against still holds them, so an unscoped (//Button)[1] would resolve to the
+    # invisible one — a tap on the wrong element.
+    scr = parse_screen(
+        "<AppiumAUT>"
+        '<XCUIElementTypeButton name="" label="" value="" visible="false" x="0" y="0" width="40" height="40"/>'
+        '<XCUIElementTypeButton name="" label="" value="" visible="true" x="0" y="50" width="40" height="40"/>'
+        "</AppiumAUT>"
+    )
+    btn = next(e for e in scr.elements if e.class_name == "Button")
+    sel = selector_for(btn, scr.elements, "ios")
+    assert sel is not None and sel.value == '(//XCUIElementTypeButton[@visible="true"])[1]'
+
+
+def test_android_positional_is_scoped_to_the_app_package():
+    # A system-UI / IME node of the same class ahead of the target would shift a
+    # document-wide index, so the xpath is scoped to the app's package.
+    scr = _screen(
+        '<node class="android.widget.ImageButton" resource-id="" text="" content-desc="" '
+        'clickable="true" bounds="[0,0][50,50]" package="com.android.systemui"/>',
+        '<node class="android.widget.ImageButton" resource-id="" text="" content-desc="" '
+        'clickable="true" bounds="[50,0][100,50]" package="com.example.app"/>',
+    )
+    owned = [e for e in scr.elements if e.package == "com.example.app"]
+    sel = selector_for(owned[0], owned, "android")
+    assert sel is not None and sel.value == "(//android.widget.ImageButton[@package='com.example.app'])[1]"
 
 
 def test_no_siblings_labelless_stays_none():

@@ -12,7 +12,27 @@ four escapers can never drift; each language module builds its function from it.
 
 from __future__ import annotations
 
+import re
 from typing import Callable, Dict, Optional
+
+# Everything a line comment ends at. \n/\r are the obvious ones; U+2028/U+2029
+# also terminate a line in JavaScript source, so a label containing one would
+# end a ``//`` comment there too.
+_LINE_BREAK = re.compile(r"[\r\n\u2028\u2029]+")
+
+
+def single_line(value: Optional[str]) -> str:
+    """Flatten a description/label onto one line, for the sites that need it:
+    a ``#`` / ``//`` comment and a Gherkin ``Scenario:`` title.
+
+    Element labels reach the emitters with their interior newlines intact (a
+    Compose paragraph, a uiautomator dump that decoded ``&#10;``), and every
+    imperative target renders a step description into a *line* comment. The
+    label's second line would land in the file as bare source — the generated
+    Python fails to parse, the Java/JS fails to compile and the Maestro YAML
+    fails to scan. One space per break keeps the whole label on that one line.
+    """
+    return _LINE_BREAK.sub(" ", value or "")
 
 
 def make_escaper(quote: str, extra: Optional[Dict[str, str]] = None) -> Callable[[Optional[str]], str]:

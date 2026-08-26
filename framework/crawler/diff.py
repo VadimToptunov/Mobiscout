@@ -22,20 +22,48 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
-from framework.codegen.ir import TestCase, TestModel
+from framework.codegen.ir import Selector, Step, TestCase, TestModel
 
 MANIFEST_NAME = "manifest.json"
+
+
+def _selector_shape(selector: Selector) -> Dict[str, Any]:
+    """How a selector *locates*: strategy + value, recursed into its fallbacks. The human
+    description and the stability score are left out — neither changes what the step does."""
+    return {
+        "strategy": selector.strategy.value,
+        "value": selector.value,
+        "fallbacks": [_selector_shape(f) for f in selector.fallbacks],
+    }
+
+
+def _step_shape(step: Step) -> Dict[str, Any]:
+    """What a step *does*: the action, its target, and the data it types or expects."""
+    return {
+        "action": step.action.value,
+        "selector": _selector_shape(step.selector) if step.selector is not None else None,
+        "text": step.text,
+        "assertion": step.assertion.value if step.assertion is not None else None,
+        "expected": step.expected,
+        "direction": step.direction,
+        "timeout": step.timeout,
+    }
 
 
 def _case_signature(case: TestCase) -> str:
     """A stable hash of a case's *steps* — actions, locators, and inputs. Changing a
     step (new locator, new action, different typed value) changes the signature; editing
-    only a human description does not."""
-    blob = json.dumps([s.to_dict() for s in case.steps], sort_keys=True, ensure_ascii=False)
+    only a human description does not.
+
+    Hashing ``Step.to_dict()`` would break that promise: it carries the step description
+    and the selector's score, both of which move on cosmetic changes (a relabelled control
+    lands in "Tap Cart (2)", a text locator re-scores when its text starts to look dynamic),
+    so an unchanged case showed up as "changed" in CHANGES.md and was regenerated."""
+    blob = json.dumps([_step_shape(s) for s in case.steps], sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
 
@@ -143,11 +171,8 @@ def filter_to_changed(model: TestModel, report: DiffReport) -> TestModel:
     if report.first_run:
         return model
     keep = set(report.added) | set(report.changed)
-    return TestModel(
-        name=model.name,
-        app_package=model.app_package,
-        platform=model.platform,
-        app_activity=model.app_activity,
-        cases=[c for c in model.cases if c.name in keep],
-        description=model.description,
-    )
+    # ``replace`` (not a hand-listed TestModel) so nothing else on the model is silently
+    # dropped: rebuilding it field by field reset toolkit to "native" and launch_args to
+    # [], so an only-changed kit lost the crawl's launch arguments (an auth-bypass flag)
+    # and the emitter's toolkit guidance — and any field added later would be lost too.
+    return replace(model, cases=[c for c in model.cases if c.name in keep])

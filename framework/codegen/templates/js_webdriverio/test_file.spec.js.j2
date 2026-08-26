@@ -61,7 +61,7 @@ describe({{ model.name | js_str }}, () => {
     it({{ case.name | js_str }}, async () => {
 {% for step in case.steps %}
 {% if step.description %}
-        // {{ step.description }}
+        // {{ step.description | single_line }}
 {% endif %}
 {% if step.action.value == "launch" %}
         await driver.activateApp(APP_PACKAGE);
@@ -100,7 +100,7 @@ describe({{ model.name | js_str }}, () => {
 {% endif %}
 {% elif step.action.value == "press_key" %}
 {% if model.platform.value == "ios" %}
-        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text | single_line }}; press the key via the on-screen keyboard instead.
 {% else %}
         await driver.pressKeyCode({{ step.text | keycode }});
 {% endif %}

@@ -4,12 +4,23 @@ Device Management CLI commands
 Commands for managing mobile devices and device pools.
 """
 
+from typing import Any, Dict, List
+
 import click
 from rich.table import Table
 
 from framework.cli.rich_output import print_header, print_info, print_success, print_error, console
 from framework.devices.device_manager import DeviceManager
 from framework.devices.device_pool import PoolManager, PoolStrategy, device_from_info
+
+# The CLI's status vocabulary against what the tools actually report: adb says
+# "device" (surfaced as "online"), "offline" or "unauthorized"; simctl says
+# "booted" or "shutdown". Without this mapping --status available matched nothing.
+# There is no "busy" — reservation is a device-pool concept, not a device state.
+_STATUS_ALIASES = {
+    "available": {"online", "booted"},
+    "offline": {"offline", "shutdown", "unauthorized"},
+}
 
 
 @click.group(name="devices")
@@ -22,7 +33,7 @@ def devices() -> None:
     "--platform", "-p", type=click.Choice(["android", "ios", "all"]), default="all", help="Filter by platform"
 )
 @click.option(
-    "--status", "-s", type=click.Choice(["available", "busy", "offline", "all"]), default="all", help="Filter by status"
+    "--status", "-s", type=click.Choice(["available", "offline", "all"]), default="all", help="Filter by status"
 )
 def list(platform: str, status: str) -> None:
     """List available devices"""
@@ -32,16 +43,25 @@ def list(platform: str, status: str) -> None:
         manager = DeviceManager()
 
         # Get Android devices
-        android_devices = []
+        android_devices: List[Dict[str, Any]] = []
+        errors: List[str] = []
         if platform in ["android", "all"]:
-            android_devices = manager.list_android_devices()
+            android_devices, error = manager.probe_android_devices()
+            if error:
+                errors.append(error)
 
         # Get iOS devices
-        ios_devices = []
+        ios_devices: List[Dict[str, Any]] = []
         if platform in ["ios", "all"]:
-            ios_devices = manager.list_ios_devices()
+            ios_devices, error = manager.probe_ios_simulators()
+            if error:
+                errors.append(error)
 
         all_devices = android_devices + ios_devices
+
+        # A failed probe is not "no devices" — say which tool failed and why.
+        for error in errors:
+            print_error(f"Device listing failed: {error}")
 
         if not all_devices:
             print_info("No devices found")
@@ -49,7 +69,8 @@ def list(platform: str, status: str) -> None:
 
         # Filter by status if specified
         if status != "all":
-            all_devices = [d for d in all_devices if d["status"].lower() == status]
+            wanted = _STATUS_ALIASES[status]
+            all_devices = [d for d in all_devices if d["status"].lower() in wanted]
 
         if not all_devices:
             print_info(f"No {status} devices found")
@@ -101,11 +122,16 @@ def info(device_id: str) -> None:
     try:
         manager = DeviceManager()
 
-        # Try to find device
-        device = manager.get_device(device_id)
+        # Try to find device. Probe rather than list so a broken adb/simctl is reported as
+        # such — "not found" would otherwise blame the device for a tooling failure.
+        devices, listing_error = manager.probe_all_devices("all")
+        device = next((d for d in devices if d.get("id") == device_id), None)
 
         if not device:
-            print_error(f"Device {device_id} not found")
+            if listing_error:
+                print_error(f"Device listing failed: {listing_error}")
+            else:
+                print_error(f"Device {device_id} not found")
             raise click.Abort()
 
         print_success("📱 Device Details:")
@@ -134,10 +160,12 @@ def health() -> None:
     try:
         manager = DeviceManager()
 
-        # Get all devices
-        android_devices = manager.list_android_devices()
-        ios_devices = manager.list_ios_devices()
-        all_devices = android_devices + ios_devices
+        # Get all devices. probe_* reports *why* a listing failed, so a broken adb/simctl
+        # isn't reported as the (identical-looking) "no devices found".
+        all_devices, listing_error = manager.probe_all_devices("all")
+
+        if listing_error:
+            print_error(f"Device listing failed: {listing_error}")
 
         if not all_devices:
             print_info("No devices found")
@@ -281,9 +309,12 @@ def pool_info(pool_name: str) -> None:
         # Health check
         health = pool.health_check()
         print_info("\n  Health:")
+        # These are the keys health_check() actually returns; reading 'available' /
+        # 'busy' here made every `pool info` run abort with a KeyError.
         print_info(f"    Total: {health['total']}")
-        print_info(f"    Available: {health['available']}")
-        print_info(f"    Busy: {health['busy']}")
+        print_info(f"    Healthy: {health['healthy']}")
+        print_info(f"    Offline: {health['offline']}")
+        print_info(f"    Utilization: {health['utilization']:.1%}")
 
     except Exception as e:
         print_error(f"Failed to get pool info: {e}")

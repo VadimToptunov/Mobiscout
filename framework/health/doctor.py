@@ -18,6 +18,10 @@ from rich.panel import Panel
 from rich.progress import track
 from rich.table import Table
 
+# Where the framework itself lives (…/framework/health/doctor.py -> repo root), so
+# the config check looks at *our* files instead of whatever is in the user's CWD.
+_FRAMEWORK_ROOT = Path(__file__).resolve().parents[2]
+
 
 class CheckStatus(Enum):
     """Status of a health check"""
@@ -179,6 +183,10 @@ class SystemDoctor:
                 ["git", "config", "user.name"],
                 capture_output=True,
                 text=True,
+                # text=True alone decodes with the locale codepage on Windows,
+                # where a non-ASCII user.name raises UnicodeDecodeError.
+                encoding="utf-8",
+                errors="replace",
                 timeout=5,
             )
 
@@ -241,6 +249,8 @@ class SystemDoctor:
                 ["appium", "--version"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=5,
             )
 
@@ -317,27 +327,40 @@ class SystemDoctor:
     def _check_android_sdk(self, verbose: bool) -> HealthCheck:
         """Check that an Android SDK is available (needed by Appium/UiAutomator2).
 
-        PASS when ``ANDROID_HOME``/``ANDROID_SDK_ROOT`` is set; WARN (with an
-        ``export`` fix) when an SDK is detected on disk but the env var is unset;
-        FAIL when no SDK can be found at all.
+        PASS when ``ANDROID_HOME``/``ANDROID_SDK_ROOT`` points at a real SDK; WARN
+        (with an ``export`` fix) when an SDK is detected on disk but the env var is
+        unset or points at a directory with no ``platform-tools/adb``; FAIL when no
+        SDK can be found at all. ``resolve_android_home`` only ever returns a path
+        that holds an adb, so a set-but-broken var never passes — it looks
+        configured while UiAutomator2 dies on it.
         """
         from framework.health.preflight import resolve_android_home
 
         existing = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
-        if existing:
+        detected = resolve_android_home()
+        if existing and detected == existing:
             return HealthCheck(
                 name="Android SDK",
                 status=CheckStatus.PASS,
                 message=f"ANDROID_HOME={existing}",
             )
 
-        detected = resolve_android_home()
         if detected:
+            unset = f"SDK detected but ANDROID_HOME unset: {detected}"
+            broken = f"ANDROID_HOME={existing} has no platform-tools/adb; SDK detected at {detected}"
             return HealthCheck(
                 name="Android SDK",
                 status=CheckStatus.WARN,
-                message=f"SDK detected but ANDROID_HOME unset: {detected}",
+                message=broken if existing else unset,
                 fix_command=f"export ANDROID_HOME={detected}",
+            )
+
+        if existing:
+            return HealthCheck(
+                name="Android SDK",
+                status=CheckStatus.FAIL,
+                message=f"ANDROID_HOME={existing} has no platform-tools/adb, and no SDK was found elsewhere",
+                fix_command="Point ANDROID_HOME at a real Android SDK (the directory holding platform-tools/adb)",
             )
 
         return HealthCheck(
@@ -375,10 +398,17 @@ class SystemDoctor:
             )
 
     def _check_config(self, verbose: bool) -> HealthCheck:
-        """Check configuration files"""
+        """Check the framework's own configuration files.
+
+        Anchored to where the framework is installed, not the current directory: a
+        user running ``mobiscout doctor`` inside their own project has none of our
+        files there, and the CWD-relative check turned their whole report red for a
+        condition that is meaningless outside this repo. An installed or frozen
+        engine ships neither file, so their absence is SKIP, never FAIL.
+        """
         config_files = [
-            Path("pyproject.toml"),
-            Path("requirements.txt"),
+            _FRAMEWORK_ROOT / "pyproject.toml",
+            _FRAMEWORK_ROOT / "requirements.txt",
         ]
 
         missing = [f for f in config_files if not f.exists()]
@@ -393,13 +423,13 @@ class SystemDoctor:
             return HealthCheck(
                 name="Configuration",
                 status=CheckStatus.WARN,
-                message=f"Missing: {', '.join(str(f) for f in missing)}",
+                message=f"Missing: {', '.join(f.name for f in missing)}",
             )
         else:
             return HealthCheck(
                 name="Configuration",
-                status=CheckStatus.FAIL,
-                message="Configuration files not found",
+                status=CheckStatus.SKIP,
+                message=f"No framework config files at {_FRAMEWORK_ROOT} (not a source checkout)",
             )
 
     def _check_performance(self, verbose: bool) -> HealthCheck:

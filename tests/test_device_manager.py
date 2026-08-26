@@ -82,12 +82,42 @@ def test_list_ios_simulators_only_available(patched_run):
     assert d["id"] == "AAA" and d["platform"] == "ios" and d["status"] == "booted"
 
 
+def test_ios_version_is_a_version_not_a_runtime_id(patched_run):
+    """simctl reports runtime *identifiers* ("...SimRuntime.iOS-18-2"); the raw
+    trailing token is not a version and makes pool min_version filters compare
+    strings lexicographically."""
+    assert DeviceManager.list_ios_simulators()[0]["ios_version"] == "18.2"
+
+
 def test_list_ios_handles_bad_json():
     with mock.patch(
         "framework.devices.device_manager.subprocess.run",
         return_value=SimpleNamespace(returncode=0, stdout="not json"),
     ):
         assert DeviceManager.list_ios_simulators() == []
+
+
+def test_probe_reports_why_a_listing_failed():
+    """An empty list must be distinguishable from a broken toolchain — otherwise
+    "adb is missing" reads to the user as "no devices attached"."""
+    with mock.patch("framework.devices.device_manager.subprocess.run", side_effect=FileNotFoundError):
+        devices, error = DeviceManager.probe_android_devices()
+    assert devices == [] and error is not None and "adb not found" in error
+
+    with mock.patch(
+        "framework.devices.device_manager.subprocess.run",
+        side_effect=subprocess.TimeoutExpired("adb", 10),
+    ):
+        assert "timed out" in DeviceManager.probe_android_devices()[1]
+
+    with mock.patch("framework.devices.device_manager.subprocess.run", side_effect=FileNotFoundError):
+        devices, error = DeviceManager.probe_ios_simulators()
+    assert devices == [] and error is not None and "xcrun not found" in error
+
+
+def test_probe_reports_no_error_on_a_clean_listing(patched_run):
+    assert DeviceManager.probe_android_devices()[1] is None
+    assert DeviceManager.probe_ios_simulators()[1] is None
 
 
 def test_list_all_respects_platform_filter(patched_run):

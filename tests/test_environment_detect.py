@@ -49,6 +49,25 @@ def test_missing_tools_get_hints_and_not_ready():
     assert env.appium_drivers == []
 
 
+def test_broken_tool_is_not_reported_as_found():
+    """A probe that exits non-zero with nothing to say (a hung adb, a broken shim,
+    `xcrun simctl` refusing on an unaccepted Xcode license) is not a usable tool —
+    reporting it as found made android_ready/ios_ready claim a dead toolchain."""
+    env = detect_environment(run=_runner({"adb": (1, ""), "xcrun": (1, "")}))
+    by_name = {t.name: t for t in env.tools}
+    assert not by_name["adb (Android SDK)"].found
+    assert not by_name["Xcode (simctl)"].found
+    assert not env.android_ready and not env.ios_ready
+
+
+def test_nonzero_exit_with_output_still_counts_as_found():
+    """`java -version` and friends print to stderr; only silence plus a failure
+    means missing."""
+    env = detect_environment(run=_runner({"java": (1, 'openjdk version "21.0.2"')}))
+    java = {t.name: t for t in env.tools}["Java (JDK)"]
+    assert java.found and java.version == "21.0.2"
+
+
 def test_android_ready_over_adb_without_appium():
     # Android only needs adb (crawls over adb, no Appium).
     env = detect_environment(run=_runner({"adb": (0, "Android Debug Bridge version 1.0.41")}))

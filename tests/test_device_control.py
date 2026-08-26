@@ -12,9 +12,22 @@ from framework.devices.device_manager import DeviceManager
 _MOD = "framework.devices.device_manager.subprocess"
 
 
+def _still_running(popen):
+    """Make a mocked Popen behave like an emulator that is still booting."""
+    popen.return_value.wait.side_effect = subprocess.TimeoutExpired("emulator", 1.5)
+
+
 def test_list_avds_parses_lines():
     with mock.patch(f"{_MOD}.run", return_value=SimpleNamespace(returncode=0, stdout="Pixel_7\nPixel_3a_API_34\n\n")):
         assert DeviceManager.list_avds() == ["Pixel_7", "Pixel_3a_API_34"]
+
+
+def test_list_avds_drops_emulator_info_diagnostics():
+    """Emulator 34.x/35.x print an INFO line on stdout; only AVD-name-shaped lines
+    may be listed, or the plugin offers the diagnostic as a bootable target."""
+    stdout = "INFO    | Storing crashdata in: /tmp/crash, detection is enabled\nPixel_7\n"
+    with mock.patch(f"{_MOD}.run", return_value=SimpleNamespace(returncode=0, stdout=stdout)):
+        assert DeviceManager.list_avds() == ["Pixel_7"]
 
 
 def test_list_avds_empty_when_emulator_absent():
@@ -24,10 +37,27 @@ def test_list_avds_empty_when_emulator_absent():
 
 def test_start_android_launches_detached():
     with mock.patch(f"{_MOD}.Popen") as popen:
+        _still_running(popen)
         result = DeviceManager.start_device("android", "Pixel_7")
     assert result == {"started": True, "platform": "android", "target": "Pixel_7", "status": "starting"}
     args = popen.call_args[0][0]
     assert args[:2] == ["emulator", "-avd"] and args[2] == "Pixel_7"
+
+
+def test_start_android_reports_an_emulator_that_died_immediately():
+    """An unknown/locked AVD kills the emulator in milliseconds; reporting
+    started=True there leaves the caller waiting for a device that never appears."""
+
+    def popen(cmd, stdout=None, stderr=None):
+        # The emulator logs this on stdout on current versions, stderr on older ones.
+        stdout.write("INFO | Android emulator version 36.6.11.0\n")
+        stdout.write("ERROR | Unknown AVD name [Ghost], use -list-avds to see valid list.\n")
+        return SimpleNamespace(wait=lambda timeout: 1, returncode=1)
+
+    with mock.patch(f"{_MOD}.Popen", side_effect=popen):
+        result = DeviceManager.start_device("android", "Ghost")
+    assert result["started"] is False
+    assert "Unknown AVD name" in result["error"]
 
 
 def test_start_requires_target():
@@ -79,6 +109,15 @@ def test_stop_requires_device_id_and_reports_failure():
     assert result["stopped"] is False and result["error"] == "not found"
 
 
+def test_stop_ios_already_shutdown_is_success():
+    """simctl exits non-zero when the simulator is already off — the desired state
+    holds, so a second Stop must not surface an error."""
+    stderr = "An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405): "
+    stderr += "Unable to shutdown device in current state: Shutdown"
+    with mock.patch(f"{_MOD}.run", return_value=SimpleNamespace(returncode=149, stderr=stderr)):
+        assert DeviceManager.stop_device("ios", "UDID-1")["stopped"] is True
+
+
 def test_stop_timeout_is_handled():
     with mock.patch(f"{_MOD}.run", side_effect=subprocess.TimeoutExpired("adb", 15)):
         assert DeviceManager.stop_device("android", "emulator-5554")["stopped"] is False
@@ -90,6 +129,7 @@ def test_daemon_routes_device_control():
         assert m in srv.handlers
 
     with mock.patch(f"{_MOD}.Popen") as popen:
+        _still_running(popen)
         resp = srv.handle_request(
             {
                 "jsonrpc": "2.0",

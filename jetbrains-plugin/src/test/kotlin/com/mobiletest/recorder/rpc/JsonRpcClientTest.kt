@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.BufferedReader
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
@@ -68,6 +70,40 @@ private class FakeDaemon(
         running = false
     }
     override fun isAlive(): Boolean = running
+}
+
+/**
+ * A daemon that is alive but silent — the state the engine is in for the whole of a crawl,
+ * where it neither reads its stdin nor writes to stdout until the call returns. Its stdout
+ * closes only when the process is destroyed, as a real one's does when it exits.
+ */
+private class SilentDaemon : Process() {
+    private val exited = CountDownLatch(1)
+    private val clientStdin = ByteArrayOutputStream()
+    // The read blocks until the process exits and, like a real pipe read, does NOT observe
+    // an interrupt — which is exactly why interrupting the reader thread can't free it and
+    // the process has to be killed instead.
+    private val clientStdout = object : InputStream() {
+        override fun read(): Int {
+            while (true) {
+                try {
+                    exited.await()
+                    return -1
+                } catch (e: InterruptedException) {
+                    // a blocked native read doesn't unwind on interrupt; neither does this
+                }
+            }
+        }
+    }
+
+    override fun getOutputStream(): OutputStream = clientStdin
+    override fun getInputStream(): InputStream = clientStdout
+    override fun getErrorStream(): InputStream = ByteArrayInputStream(ByteArray(0))
+    override fun waitFor(): Int = 0
+    override fun waitFor(timeout: Long, unit: TimeUnit): Boolean = exited.count == 0L
+    override fun exitValue(): Int = 0
+    override fun destroy() = exited.countDown()
+    override fun isAlive(): Boolean = exited.count > 0L
 }
 
 class JsonRpcClientTest {
@@ -180,6 +216,49 @@ class JsonRpcClientTest {
         assertTrue(resp.isError())
         val ex = assertThrows(JsonRpcException::class.java) { resp.getResultOrThrow() }
         assertEquals(-32000, ex.code)
+    }
+
+    @Test
+    fun `a throwing notification listener does not kill the connection`() {
+        val daemon = echoingDaemon()
+        val c = JsonRpcClient(daemon).also { client = it }
+        c.startListening { throw IllegalStateException("boom") }
+
+        daemon.pushNotification("""{"jsonrpc":"2.0","method":"logs/message","params":{"line":"x"}}""")
+        // The reader thread must survive the listener. Before, the throw escaped readLoop's
+        // IOException-only catch, marked the connection closed for good and left the UI
+        // reporting "Running" over an RPC that failed every later call.
+        val after = c.call("ok/after", emptyMap(), timeoutMs = 5_000)
+        assertEquals("ok/after", after.getResultOrThrow().get("method").asString)
+    }
+
+    @Test
+    fun `a JSON line that is not a response we can map does not kill the connection`() {
+        val daemon = echoingDaemon()
+        val c = JsonRpcClient(daemon).also { client = it }
+        // Valid JSON with an id, so it passes the first parse, but the id isn't an int —
+        // Gson throws on the SECOND parse, which used to escape the reader loop.
+        daemon.pushNotification("""{"jsonrpc":"2.0","id":"not-an-int","result":{}}""")
+        val after = c.call("ok/after", emptyMap(), timeoutMs = 5_000)
+        assertEquals("ok/after", after.getResultOrThrow().get("method").asString)
+    }
+
+    @Test
+    fun `close returns promptly against an alive-but-silent daemon`() {
+        // The reader thread is parked in readLine() on a pipe no one writes to, and
+        // interrupt() can't unblock a pipe read. close() used to run reader.close() BEFORE
+        // process.destroy() — and BufferedReader.close() waits on the lock the parked read
+        // holds — so Stop Engine (and IDE shutdown behind its @Synchronized stop()) blocked
+        // for the rest of the crawl. Destroying the process first is what frees the reader.
+        val daemon = SilentDaemon()
+        val c = JsonRpcClient(daemon).also { client = it }
+        Thread.sleep(200) // let the reader thread reach readLine()
+
+        val closer = Thread { c.close() }.apply { start() }
+        closer.join(10_000)
+        val blocked = closer.isAlive
+        daemon.destroy() // release a close() that blocked, so the rest of the suite can run
+        assertFalse(blocked, "close() blocked — it did not kill the process before closing the reader")
     }
 
     @Test

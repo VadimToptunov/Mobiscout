@@ -37,6 +37,11 @@ public class {{ class_name }} {
 
     private AppiumDriver driver;
 
+    // Run anywhere without regenerating: point at a different Appium/cloud-grid
+    // hub with MOBISCOUT_APPIUM_SERVER.
+    private static final String SERVER =
+        System.getenv().getOrDefault("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723");
+
     @BeforeMethod
     public void setUp() throws Exception {
 {% if model.platform.value == "ios" %}
@@ -44,7 +49,12 @@ public class {{ class_name }} {
         options.setPlatformName("iOS");
         options.setAutomationName("XCUITest");
         options.setBundleId({{ model.app_package | java_str }});
-        driver = new IOSDriver(new URL("http://localhost:4723"), options);
+{% if model.launch_args %}
+        // Launch arguments used during the crawl (e.g. skip a login gate) — pass them
+        // so the test starts in the same state the flow was recorded in.
+        options.setCapability("processArguments", java.util.Map.of("args", java.util.List.of({% for a in model.launch_args %}{{ a | java_str }}{% if not loop.last %}, {% endif %}{% endfor %})));
+{% endif %}
+        driver = new IOSDriver(new URL(SERVER), options);
 {% else %}
         UiAutomator2Options options = new UiAutomator2Options();
         options.setPlatformName("Android");
@@ -53,7 +63,7 @@ public class {{ class_name }} {
 {% if model.app_activity %}
         options.setAppActivity({{ model.app_activity | java_str }});
 {% endif %}
-        driver = new AndroidDriver(new URL("http://localhost:4723"), options);
+        driver = new AndroidDriver(new URL(SERVER), options);
 {% endif %}
     }
 
@@ -113,7 +123,7 @@ public class {{ class_name }} {
     public void {{ case.name | camel }}() {
 {% for step in case.steps %}
 {% if step.description %}
-        // {{ step.description }}
+        // {{ step.description | single_line }}
 {% endif %}
 {% if step.action.value == "launch" %}
         driver.activateApp({{ model.app_package | java_str }});
@@ -155,7 +165,7 @@ public class {{ class_name }} {
 {% endif %}
 {% elif step.action.value == "press_key" %}
 {% if model.platform.value == "ios" %}
-        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text | single_line }}; press the key via the on-screen keyboard instead.
 {% else %}
         ((io.appium.java_client.android.AndroidDriver) driver).pressKey(new io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | java_str }})));
 {% endif %}

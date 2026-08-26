@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from framework.model.app_model import AppModel, Screen
 
+import keyword
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List
@@ -23,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from framework.codegen.app_model_adapter import _selector_for
 from framework.codegen.emitters._naming import pascal, snake
-from framework.codegen.emitters._python_common import locator_chain
+from framework.codegen.emitters._python_common import locator_chain, py_str
 from framework.codegen.ir import Selector
 
 _TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "templates", "page_object")
@@ -55,6 +56,11 @@ def build_page_object(screen: Screen) -> PageObject:
         if selector is None:
             continue
         name = snake(element.id)
+        # snake() leaves an identifier, but not necessarily a *usable* one: element
+        # ids like "class" or "for" come straight from the app and `def class(self)`
+        # is a syntax error, so the module wouldn't import at all.
+        if keyword.iskeyword(name):
+            name = f"{name}_"
         if name in seen:  # avoid duplicate accessors
             continue
         seen.add(name)
@@ -71,6 +77,7 @@ def _env() -> Environment:
         undefined=StrictUndefined,
     )
     env.filters["locator_chain"] = locator_chain
+    env.filters["py_str"] = py_str
     return env
 
 

@@ -163,16 +163,28 @@ def _structural_selector(element: CrawlElement, siblings: List[CrawlElement], pl
     for a control with no id/label/text at all (an icon button, an image). Fragile
     (score 0.3, flagged) and never good enough to assert on, but it keeps an
     otherwise-unlocatable element *tappable*, so navigation through it is still
-    generated instead of dropped."""
+    generated instead of dropped.
+
+    The index is counted over the same nodes the emitted XPath will match at runtime, so
+    the predicate mirrors how the parsed list was filtered: to the app's package on Android
+    (a dump also carries system-UI / IME / dialog nodes) and to visible nodes on iOS (parse
+    drops visible="false", the XCUITest source it runs against does not). Unscoped, any
+    foreign or off-screen node of the same class ahead of the target shifts the index and
+    the generated tap lands on a different element than the crawl recorded."""
     cls = (element.class_name or "").strip()
     if not cls:
         return None
-    same = [e for e in siblings if e.class_name == cls]
+    if platform == "ios":
+        tag, predicate = f"XCUIElementType{cls}", '[@visible="true"]'
+        same = [e for e in siblings if e.class_name == cls]
+    else:
+        package = (element.package or "").strip()
+        tag, predicate = cls, f"[@package='{package}']" if package else ""
+        same = [e for e in siblings if e.class_name == cls and (not package or e.package == package)]
     index = next((i for i, e in enumerate(same) if e is element), None)
     if index is None:
         return None
-    tag = f"XCUIElementType{cls}" if platform == "ios" else cls
-    return Selector(SelectorStrategy.XPATH, f"(//{tag})[{index + 1}]", score=0.3, description=cls)
+    return Selector(SelectorStrategy.XPATH, f"(//{tag}{predicate})[{index + 1}]", score=0.3, description=cls)
 
 
 def selector_for(
@@ -302,21 +314,19 @@ def _screen_cases(
     app_package: str,
     nav_prefix: Optional[List[Step]] = None,
     assert_values: bool = False,
-    auth_prefix: Optional[List[Step]] = None,
 ) -> Optional[TestCase]:
     """A per-screen state case — meaningful, not exhaustive: assert the screen's
     landmark and its actionable elements (buttons/inputs/…), not every label.
 
-    ``nav_prefix`` are the TAP steps that reach this screen from the entry (empty
-    for the entry screen). They run after launch so the assertions are made on the
-    right screen, not a bare launch.
+    ``nav_prefix`` are the steps that reach this screen from launch — the navigation
+    taps, with the auth steps spliced in when the screen is behind a gate (empty for
+    the entry screen). They run after launch so the assertions are made on the right
+    screen, not a bare launch.
 
     When ``assert_values`` is True, ALSO pin the observed text of stable static
     values (TEXT_EQUALS) on top of the VISIBLE checks, so a defect that changes a
     displayed value makes the test fail. Off by default (byte-identical output)."""
     steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
-    if auth_prefix:
-        steps.extend(auth_prefix)  # pass the gate(s) before navigating/asserting
     if nav_prefix:
         steps.extend(nav_prefix)
     web_prefix_len = len(steps)  # asserts appended below get wrapped in a web context switch
@@ -496,30 +506,28 @@ def build_test_model(
     from framework.crawler.graph import build_graph, multi_step_cases, navigation_steps
 
     graph = graph if graph is not None else build_graph(result, app_package)
-    nav = navigation_steps(result, app_package, graph=graph)
 
-    # Auth steps (login/OTP/passcode) reproduced from the waypoints, prepended to the
-    # cases for screens the crawl reached only past a gate — so those tests can get
-    # there instead of stalling on the login. Empty when no waypoints, so a
-    # gate-free crawl's output is byte-identical.
+    # Auth steps (login/OTP/passcode) reproduced from the waypoints, spliced into the nav
+    # path of screens the crawl reached only past a gate — so those tests can get there
+    # instead of stalling on the login. Empty when no waypoints, so a gate-free crawl's
+    # output is byte-identical.
     platform_str = next(iter(result.screens.values())).platform if result.screens else "android"
     # Prefer the order the gates were actually passed (login -> OTP -> passcode) over
     # the config's specificity order, so the emitted auth prefix is executable.
     auth_order = getattr(result, "auth_sequence", None) or waypoints
     auth_steps = waypoints_to_steps(auth_order, platform_str)
+    nav = navigation_steps(result, app_package, graph=graph, auth_steps=auth_steps)
 
     cases: List[TestCase] = []
     for index, screen in enumerate(result.screens.values()):
         if screen.fingerprint not in nav:
             continue
-        auth = auth_steps if (auth_steps and screen.fingerprint in result.gated) else None
         case = _screen_cases(
             index,
             screen,
             app_package,
             nav_prefix=nav[screen.fingerprint],
             assert_values=assert_values,
-            auth_prefix=auth,
         )
         if case is not None:
             cases.append(case)
@@ -556,7 +564,11 @@ def build_test_model(
 
     # UI toolkit drives locator caveats (Compose/Flutter/WebView locate differently).
     # A non-native toolkit anywhere wins, since it changes how the tester must locate.
-    toolkits = {s.toolkit for s in result.screens.values()}
+    # parse tags a Mode-2 WebView page "webview"; at the model level that is "hybrid" (a
+    # native shell serving web content), the value emitters carry the switch-to-web-context
+    # guidance for. Unmapped, an all-WebView crawl claimed "native" and its kit shipped no
+    # hint that the elements live in the web DOM.
+    toolkits = {("hybrid" if s.toolkit == "webview" else s.toolkit) for s in result.screens.values()}
     toolkit = next((t for t in ("flutter", "hybrid", "compose") if t in toolkits), "native")
 
     return TestModel(

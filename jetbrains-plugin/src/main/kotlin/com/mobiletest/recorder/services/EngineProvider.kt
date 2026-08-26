@@ -2,6 +2,8 @@ package com.mobiletest.recorder.services
 
 import java.io.File
 import java.net.URI
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 /**
@@ -63,30 +65,50 @@ object EngineProvider {
             localDigest.delete()
         }
 
-        // Download to a .part file, verify, then atomically publish — so a crash mid-copy
-        // can never leave a half-written binary that a later launch would trust and run.
-        val part = File(cacheDir(), "$asset.part")
+        // Download to a scratch file, verify, then atomically publish — so a crash mid-copy
+        // can never leave a half-written binary that a later launch would trust and run. The
+        // scratch name must be unique per download: IDEA, Android Studio and PyCharm are
+        // separate processes over this one cache dir, and two of them auto-starting the engine
+        // both truncated the same fixed "$asset.part" and corrupted each other's bytes —
+        // failing the digest and leaving both IDEs with "No engine available".
+        var part: File? = null
         return try {
+            val scratch = File.createTempFile("$asset-", ".part", cacheDir())
+            part = scratch
             val conn = URI("$RELEASE_BASE/$ENGINE_VERSION/$asset").toURL().openConnection().apply {
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
             }
-            conn.getInputStream().use { input -> part.outputStream().use { input.copyTo(it) } }
-            val digest = sha256Hex(part)
-            if (part.length() == 0L || digest != publishedChecksum(asset)) {
-                part.delete()
+            conn.getInputStream().use { input -> scratch.outputStream().use { input.copyTo(it) } }
+            val digest = sha256Hex(scratch)
+            if (scratch.length() == 0L || digest != publishedChecksum(asset)) {
+                scratch.delete()
                 return null
             }
-            if (!part.renameTo(target)) {
-                part.copyTo(target, overwrite = true)
-                part.delete()
-            }
+            publish(scratch, target)
             localDigest.writeText(digest) // record for the cache-hit re-verify above
             target.setExecutable(true)
             target
         } catch (e: Exception) {
-            part.delete() // don't leave a half-written binary behind
+            part?.delete() // don't leave a half-written binary behind
             null
+        }
+    }
+
+    /** Move a verified download onto the cached path, atomically where the filesystem allows
+     *  it — a rename swaps the whole file in, so another IDE publishing the same asset at the
+     *  same moment can never expose a partially written binary (or, on Linux, an ETXTBSY). */
+    private fun publish(part: File, target: File) {
+        try {
+            Files.move(
+                part.toPath(),
+                target.toPath(),
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (e: Exception) {
+            part.copyTo(target, overwrite = true)
+            part.delete()
         }
     }
 

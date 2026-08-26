@@ -80,15 +80,31 @@ def test_ensure_injects_both_vars_when_unset(tmp_path, monkeypatch):
     assert os.environ["ANDROID_SDK_ROOT"] == str(sdk)
 
 
-def test_ensure_is_a_noop_when_already_set(tmp_path, monkeypatch):
-    monkeypatch.setenv("ANDROID_HOME", "/preset/sdk")
+def test_ensure_is_a_noop_when_already_set_to_a_real_sdk(tmp_path, monkeypatch):
+    import os
+
+    sdk = _fake_sdk(tmp_path / "sdk")
+    monkeypatch.setenv("ANDROID_HOME", str(sdk))
     monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    assert ensure_android_home() == str(sdk)
+    assert "ANDROID_SDK_ROOT" not in os.environ  # a valid env is left untouched
 
-    def _boom():
-        raise AssertionError("resolve must not be called when already set")
 
-    monkeypatch.setattr(pf, "resolve_android_home", _boom)
-    assert ensure_android_home() == "/preset/sdk"
+def test_ensure_replaces_a_broken_android_home(tmp_path, monkeypatch):
+    """A set-but-broken SDK path (moved/deleted SDK) must not be trusted: it looks
+    configured while UiAutomator2 dies on it."""
+    import os
+
+    broken = tmp_path / "moved-sdk"
+    broken.mkdir()
+    sdk = _fake_sdk(tmp_path / "sdk")
+    monkeypatch.setenv("ANDROID_HOME", str(broken))
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr(pf, "_candidate_sdk_dirs", lambda: [sdk])
+
+    assert ensure_android_home() == str(sdk)
+    assert os.environ["ANDROID_HOME"] == str(sdk)
+    assert os.environ["ANDROID_SDK_ROOT"] == str(sdk)
 
 
 def test_ensure_returns_none_when_unset_and_undetectable(monkeypatch):
@@ -295,6 +311,34 @@ def test_preflight_android_adb_skips_server_checks(tmp_path, monkeypatch):
     monkeypatch.setenv("ANDROID_SDK_ROOT", str(sdk))
     results = preflight("android", "adb", "http://localhost:4723")
     assert [r.name for r in results] == ["ANDROID_HOME"]
+
+
+def test_preflight_warns_when_android_home_points_at_a_non_sdk(tmp_path, monkeypatch):
+    """A stale ANDROID_HOME (SDK moved) must not pass: it is reported, with the
+    real SDK found on disk as the fix."""
+    broken = tmp_path / "moved-sdk"
+    broken.mkdir()
+    sdk = _fake_sdk(tmp_path / "sdk")
+    monkeypatch.setenv("ANDROID_HOME", str(broken))
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr(pf, "_candidate_sdk_dirs", lambda: [sdk])
+
+    result = next(r for r in preflight("android", "adb", "http://localhost:4723") if r.name == "ANDROID_HOME")
+    assert result.level == "warn"
+    assert str(broken) in result.detail and str(sdk) in result.detail
+    assert result.fix == f"export ANDROID_HOME={sdk}"
+
+
+def test_preflight_fails_when_android_home_is_broken_and_nothing_detected(tmp_path, monkeypatch):
+    broken = tmp_path / "moved-sdk"
+    broken.mkdir()
+    monkeypatch.setenv("ANDROID_HOME", str(broken))
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr(pf, "_candidate_sdk_dirs", lambda: [])
+
+    result = next(r for r in preflight("android", "adb", "http://localhost:4723") if r.name == "ANDROID_HOME")
+    assert result.level == "fail" and not result.ok
+    assert str(broken) in result.detail
 
 
 def test_preflight_ios_needs_no_android_home(monkeypatch):

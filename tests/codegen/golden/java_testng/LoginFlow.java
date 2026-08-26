@@ -30,6 +30,11 @@ public class LoginFlow {
 
     private AppiumDriver driver;
 
+    // Run anywhere without regenerating: point at a different Appium/cloud-grid
+    // hub with MOBISCOUT_APPIUM_SERVER.
+    private static final String SERVER =
+        System.getenv().getOrDefault("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723");
+
     @BeforeMethod
     public void setUp() throws Exception {
         UiAutomator2Options options = new UiAutomator2Options();
@@ -37,7 +42,7 @@ public class LoginFlow {
         options.setAutomationName("UiAutomator2");
         options.setAppPackage("com.example.app");
         options.setAppActivity(".MainActivity");
-        driver = new AndroidDriver(new URL("http://localhost:4723"), options);
+        driver = new AndroidDriver(new URL(SERVER), options);
     }
 
     @AfterMethod

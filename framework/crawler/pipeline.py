@@ -28,7 +28,7 @@ import re
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from framework.codegen import available_targets, get_emitter
 from framework.crawler.app_crawler import AppCrawler, CrawlResult
@@ -111,12 +111,32 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     _write(out / "coverage.md", coverage.to_markdown(package))
     _write(out / "coverage.json", coverage.to_json())
 
+    # Diff-aware regeneration: compare this crawl's cases against a baseline manifest
+    # (a prior kit's manifest.json) and write a CHANGES.md of what was added/changed/
+    # removed. With ``only_changed``, keep just the added+changed cases so re-crawling an
+    # evolving app yields tests for the delta, not the whole app regenerated. The baseline
+    # is always recorded (manifest.json) so the *next* run can diff. Same premium family as
+    # only-new — a no-op filter on the unlimited open-core tier.
+    #
+    # Both the diff and the recorded baseline run on the FULL model, before any filtering:
+    # persisting a filtered model would record only the delta, so every case only-new
+    # dropped this run — one the team's own tests already cover — would come back as
+    # "removed" next run, on an app that never changed.
+    from framework.licensing import has_feature
+
+    diff = None
+    if config.get("diff") and has_feature("incremental"):
+        from framework.crawler.diff import diff_models, load_manifest, write_manifest
+
+        baseline = load_manifest(config.get("baseline") or out)
+        diff = diff_models(baseline, model)
+        _write(out / "CHANGES.md", diff.to_markdown(model.app_package))
+        write_manifest(out, model)  # baseline for the next crawl — the FULL case set
+
     # Only-new mode: drop cases already covered by the team's existing tests, so a
     # crawl of a new feature yields tests for just that feature. A premium (team/CI)
     # feature — gated by ``has_feature`` so a limited tier falls back to the full kit;
     # a no-op on the open-core (unlimited) tier, which has every feature.
-    from framework.licensing import has_feature
-
     gap = None
     if config.get("only_new") and has_feature("incremental"):
         from framework.crawler.coverage import existing_test_text, filter_to_new
@@ -126,21 +146,10 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         gap = report.summary()
         _write(out / "coverage_gap.txt", gap + "\n" + "\n".join(f"- {n}" for n in report.new_case_names) + "\n")
 
-    # Diff-aware regeneration: compare this crawl's cases against a baseline manifest
-    # (a prior kit's manifest.json) and write a CHANGES.md of what was added/changed/
-    # removed. With ``only_changed``, keep just the added+changed cases so re-crawling an
-    # evolving app yields tests for the delta, not the whole app regenerated. The baseline
-    # is always recorded (manifest.json) so the *next* run can diff. Same premium family as
-    # only-new — a no-op filter on the unlimited open-core tier.
-    if config.get("diff") and has_feature("incremental"):
-        from framework.crawler.diff import diff_models, filter_to_changed, load_manifest, write_manifest
+    if diff is not None and config.get("only_changed"):
+        from framework.crawler.diff import filter_to_changed
 
-        baseline = load_manifest(config.get("baseline") or out)
-        diff = diff_models(baseline, model)
-        _write(out / "CHANGES.md", diff.to_markdown(model.app_package))
-        write_manifest(out, model)  # baseline for the next crawl — the FULL case set
-        if config.get("only_changed"):
-            model = filter_to_changed(model, diff)
+        model = filter_to_changed(model, diff)
 
     # Entitlement quota: cap generated test cases for the free tier (after only-new
     # filtering, so the final kit carries at most N cases). No-op when unlimited.
@@ -331,7 +340,7 @@ def _make_driver(config: Dict[str, Any]) -> Any:
 def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
     """Fold a seed crawl's screens/transitions into the main result — union screens
     by fingerprint, append not-yet-seen transitions (keyed by src/label/dst since a
-    CrawlElement isn't hashable), sum steps."""
+    CrawlElement isn't hashable), sum steps, and carry over the gates it passed."""
     for fingerprint, screen in extra.screens.items():
         into.screens.setdefault(fingerprint, screen)
     seen = {(src, el.label, dst) for src, el, dst in into.transitions}
@@ -342,6 +351,15 @@ def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
             into.transitions.append(t)  # preserve the transition's kind (tap/gate/probe)
             seen.add(key)
     into.steps += extra.steps
+    # A seed crawl runs with the same waypoints and can pass a gate of its own. Dropping
+    # what it learned left behind-auth screens untagged — omitted from the coverage
+    # artifact's "Behind auth" list, and (when also reachable from the main entry)
+    # generated without the auth prefix, i.e. red. Fire order is preserved; a Waypoint
+    # isn't hashable, so dedup is by equality.
+    into.gated |= extra.gated
+    for waypoint in extra.auth_sequence:
+        if waypoint not in into.auth_sequence:
+            into.auth_sequence.append(waypoint)
     return into
 
 
@@ -527,10 +545,11 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
 
 def run_kits(configs: List[Dict[str, Any]], parallel: bool = True) -> List[Dict[str, Any]]:
     """Build a kit for each config — one crawl per app, so a project's Android and iOS
-    apps (or several apps in a monorepo) generate in a single action. Each config targets
-    its own device, so the crawls are independent; ``parallel`` runs them at once (bounded
-    pool), else one after another. A config that fails yields an error entry instead of
-    sinking the whole batch, so a bad app doesn't lose the others' kits."""
+    apps (or several apps in a monorepo) generate in a single action. ``parallel`` runs
+    configs on *distinct* devices at once (bounded pool); configs that resolve to the same
+    device run one after another either way, since two crawls of one device interleave and
+    corrupt each other. A config that fails yields an error entry instead of sinking the
+    whole batch, so a bad app doesn't lose the others' kits."""
     if not configs:
         return []
 
@@ -545,10 +564,43 @@ def run_kits(configs: List[Dict[str, Any]], parallel: bool = True) -> List[Dict[
     if not parallel or len(configs) == 1:
         return [_one(c) for c in configs]
 
+    # Configs that drive the SAME device must never crawl at once: their taps and dumps
+    # interleave, so each crawler reads a screen the other has already navigated away from
+    # — corrupt graphs reported as success, and coordinate taps computed from a stale
+    # screen (a control the safety classifier never vetted). Group by device — an unset
+    # serial/udid means "the one attached device", the same device for every config that
+    # omits it — and run each group in order; the pool spans distinct devices only.
+    groups: Dict[str, List[Tuple[int, Dict[str, Any]]]] = {}
+    for i, config in enumerate(configs):
+        groups.setdefault(_device_key(config), []).append((i, config))
+    if len(groups) == 1:
+        return [_one(c) for c in configs]
+
     from concurrent.futures import ThreadPoolExecutor
 
-    with ThreadPoolExecutor(max_workers=min(4, len(configs))) as pool:
-        return list(pool.map(_one, configs))
+    def _sequentially(group: List[Tuple[int, Dict[str, Any]]]) -> List[Tuple[int, Dict[str, Any]]]:
+        return [(i, _one(c)) for i, c in group]
+
+    with ThreadPoolExecutor(max_workers=min(4, len(groups))) as pool:
+        done = [pair for batch in pool.map(_sequentially, groups.values()) for pair in batch]
+    return [summary for _, summary in sorted(done, key=lambda pair: pair[0])]  # back in config order
+
+
+def _device_key(config: Dict[str, Any]) -> str:
+    """The device a config will actually drive, resolved the way :func:`_make_driver` does:
+    the udid for an Appium session (iOS, or Android with ``driver: appium``), the adb serial
+    otherwise. Deliberately not "serial or udid" — the adb driver reads only ``serial``, so
+    two Android configs carrying different udids still drive the same attached device. An
+    empty key is not "no device" but "whichever device is attached", i.e. the same one for
+    every config that omits it."""
+    if config.get("platform") == "ios" or config.get("driver") == "appium":
+        return str(config.get("udid") or "")
+    return str(config.get("serial") or "")
+
+
+def _safe_dir(name: str) -> str:
+    """A filesystem-safe directory name."""
+    return re.sub(r"[^A-Za-z0-9._-]", "_", name)
 
 
 def _isolate_colliding_outputs(configs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -556,20 +608,34 @@ def _isolate_colliding_outputs(configs: List[Dict[str, Any]]) -> List[Dict[str, 
     one. ``run_kit`` writes a kit's files into ``config["output"]`` (default ``crawl-kit``),
     so two configs sharing an output dir would overwrite each other — silently interleaved
     when run in parallel, last-wins when sequential. Configs that already have distinct
-    outputs (the usual case — the IDE gives each app its own subdir) are returned unchanged."""
-    outputs = [str(c.get("output", "crawl-kit")) for c in configs]
-    clashing = {out for out, count in Counter(outputs).items() if count > 1}
+    outputs (the usual case — the IDE gives each app its own subdir) are returned unchanged.
+
+    Clashes are detected on the resolved path, so "kit" and "./kit" (one directory) count as
+    one, and the isolated subdir falls back from the package name to the device and then to
+    the config's position — the same app crawled on two devices shares a package, so naming
+    the subdir after it alone left both kits in the very same directory."""
+    keys = [str(Path(str(c.get("output", "crawl-kit"))).resolve()) for c in configs]
+    clashing = {key for key, count in Counter(keys).items() if count > 1}
     if not clashing:
         return configs
 
+    names = [_safe_dir(str(c.get("package") or f"app{i}")) for i, c in enumerate(configs)]
+    shared = {pair for pair, count in Counter(zip(keys, names)).items() if count > 1}
+
     isolated: List[Dict[str, Any]] = []
-    for i, config in enumerate(configs):
-        out = str(config.get("output", "crawl-kit"))
-        if out in clashing:
-            pkg = str(config.get("package") or f"app{i}")
-            safe = re.sub(r"[^A-Za-z0-9._-]", "_", pkg)
-            config = {**config, "output": str(Path(out) / safe)}
-        isolated.append(config)
+    taken = {key for key in keys if key not in clashing}
+    for i, (config, key, name) in enumerate(zip(configs, keys, names)):
+        if key not in clashing:
+            isolated.append(config)
+            continue
+        if (key, name) in shared:  # same app, two devices — the package alone names both
+            name = f"{name}-{_safe_dir(_device_key(config)) or i}"
+        out = Path(str(config.get("output", "crawl-kit")))
+        path = out / name
+        if str(path.resolve()) in taken:  # even the device repeats — fall back to the position
+            path = out / f"{name}-{i}"
+        taken.add(str(path.resolve()))
+        isolated.append({**config, "output": str(path)})
     return isolated
 
 

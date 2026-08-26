@@ -104,6 +104,22 @@ def _case_name(screen_name: str) -> str:
     return "_".join(filter(None, cleaned.split("_"))) or "screen"
 
 
+def _unique(name: str, used: set) -> str:
+    """Ensure a case name is unique, appending _2, _3… on collision.
+
+    Two screens can sanitise to the same name ('Home' and 'home!'), and the case
+    name becomes a method name: the pytest module would define ``test_home``
+    twice (the second silently shadowing the first, so a test disappears without
+    a signal) and the Java class two ``home()`` methods, which is a compile error.
+    """
+    candidate, n = name, 2
+    while candidate in used:
+        candidate = f"{name}_{n}"
+        n += 1
+    used.add(candidate)
+    return candidate
+
+
 def build_smoke_model(
     app_model: AppModel,
     app_package: str,
@@ -113,6 +129,7 @@ def build_smoke_model(
     """Build a smoke TestModel from a recorded AppModel: one TestCase per screen
     that launches the app and asserts each locatable element is visible."""
     cases: List[TestCase] = []
+    used_names: set = set()
     for screen in app_model.screens.values():
         steps: List[Step] = [Step(ActionType.LAUNCH, description=f"Open {screen.name}")]
         for element in screen.elements:
@@ -130,7 +147,7 @@ def build_smoke_model(
         if len(steps) > 1:  # only emit a case that checks something
             cases.append(
                 TestCase(
-                    name=_case_name(screen.name),
+                    name=_unique(_case_name(screen.name), used_names),
                     steps=steps,
                     description=f"Smoke test for {screen.name}",
                 )

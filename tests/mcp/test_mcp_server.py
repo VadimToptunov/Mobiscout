@@ -38,7 +38,7 @@ def test_initialize_reports_capabilities_and_server_info():
         {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18"}}
     )
     result = resp["result"]
-    assert result["protocolVersion"] == "2025-06-18"  # echoes the client's version
+    assert result["protocolVersion"] == PROTOCOL_VERSION  # the version we implement, not the client's
     assert "tools" in result["capabilities"]
     assert result["serverInfo"]["name"] == "mobiscout"
 
@@ -112,9 +112,61 @@ def test_crawl_app_requires_a_package():
     assert "`package`" in result["content"][0]["text"]
 
 
+def test_crawl_app_bounds_the_crawl_by_wall_clock(monkeypatch):
+    from framework.mcp.server import _DEFAULT_CRAWL_MAX_SECONDS
+
+    seen = {}
+    monkeypatch.setattr("framework.crawler.pipeline.run_kit", lambda config: seen.update(config) or {"ok": True})
+    _call("crawl_app", {"package": "com.example.app"})
+    assert seen["max_seconds"] == _DEFAULT_CRAWL_MAX_SECONDS
+    _call("crawl_app", {"package": "com.example.app", "max_seconds": 30})
+    assert seen["max_seconds"] == 30  # a caller-supplied budget still wins
+
+
 def test_unknown_tool_is_an_error_result_not_a_crash():
     result = _call("nope", {})
     assert result["isError"] is True
+
+
+def test_a_handler_raising_a_non_tool_error_is_reported_not_fatal():
+    # An assert step with no selector passes TestModel.from_dict but breaks the emitters.
+    model = _model_dict()
+    model["cases"] = [{"name": "c", "steps": [{"action": "assert", "assertion": "text_equals"}]}]
+    result = _call("generate_tests", {"model": model})
+    assert result["isError"] is True
+    assert "AttributeError" in result["content"][0]["text"]
+
+
+def test_serve_stdio_survives_a_crashing_tool_call():
+    model = _model_dict()
+    model["cases"] = [{"name": "c", "steps": [{"action": "assert", "assertion": "text_equals"}]}]
+    requests = "\n".join(
+        [
+            json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {"name": "generate_tests", "arguments": {"model": model}},
+                }
+            ),
+            json.dumps({"jsonrpc": "2.0", "id": 3, "method": "ping"}),
+        ]
+    )
+    out = io.StringIO()
+    serve_stdio(stdin=io.StringIO(requests), stdout=out)
+    lines = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert [m["id"] for m in lines] == [1, 2, 3]  # the bad call answered; the session lived on
+    assert lines[1]["result"]["isError"] is True
+
+
+def test_serve_stdio_answers_a_non_object_message_instead_of_dying():
+    out = io.StringIO()
+    serve_stdio(stdin=io.StringIO("3\n" + json.dumps({"jsonrpc": "2.0", "id": 9, "method": "ping"})), stdout=out)
+    lines = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert lines[0]["error"]["code"] == -32603
+    assert lines[1]["id"] == 9
 
 
 def test_serve_stdio_rejects_an_oversized_line():

@@ -108,19 +108,24 @@ def resolve_android_home() -> Optional[str]:
     return None
 
 
-def ensure_android_home() -> Optional[str]:
-    """Self-heal this process's env with a detected SDK when it's unset.
+def _env_android_home() -> Optional[str]:
+    """The SDK path exported in this process's env (``ANDROID_HOME`` first), or ``None``."""
+    return os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
 
-    If ``ANDROID_HOME``/``ANDROID_SDK_ROOT`` is already set, return it untouched.
-    Otherwise, if :func:`resolve_android_home` finds an SDK, set *both* variables
-    in ``os.environ`` (so the adb subprocesses Mobiscout spawns inherit them) and
-    return the path. Returns ``None`` when nothing is set and nothing is found.
+
+def ensure_android_home() -> Optional[str]:
+    """Self-heal this process's env with a detected SDK when it's unset or broken.
+
+    A *valid* ``ANDROID_HOME``/``ANDROID_SDK_ROOT`` (set and holding a
+    ``platform-tools/adb``) is returned untouched. A set-but-broken one — a moved
+    or deleted SDK — is not trusted: passing it on reproduces the exact opaque
+    UiAutomator2 failure this module exists to catch. In both the unset and the
+    broken case, if :func:`resolve_android_home` finds a real SDK, set *both*
+    variables in ``os.environ`` (so the adb subprocesses Mobiscout spawns inherit
+    them) and return that path. Returns ``None`` when nothing usable is found.
     """
-    existing = os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT")
-    if existing:
-        return existing
     detected = resolve_android_home()
-    if detected:
+    if detected and detected != _env_android_home():
         os.environ["ANDROID_HOME"] = detected
         os.environ["ANDROID_SDK_ROOT"] = detected
     return detected
@@ -201,6 +206,10 @@ def installed_appium_drivers() -> Dict[str, str]:
             ["appium", "driver", "list", "--installed", "--json"],
             capture_output=True,
             text=True,
+            # text=True alone decodes with the locale codepage on Windows, where
+            # Appium's ✔/✖ glyphs raise UnicodeDecodeError; pin UTF-8 instead.
+            encoding="utf-8",
+            errors="replace",
             timeout=_DRIVER_LIST_TIMEOUT,
         )
     except (OSError, subprocess.SubprocessError):
@@ -222,6 +231,8 @@ def _tool_version(cmd: List[str]) -> Optional[str]:
             cmd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=_VERSION_TIMEOUT,
         )
     except (OSError, subprocess.SubprocessError):
@@ -315,10 +326,23 @@ def required_driver(platform: str) -> str:
 
 def _check_android_home(results: List[PreflightResult]) -> None:
     """Append the ANDROID_HOME check, self-healing this process's env when possible."""
-    pre_set = bool(os.environ.get("ANDROID_HOME") or os.environ.get("ANDROID_SDK_ROOT"))
+    pre_set = _env_android_home()
+    # A set-but-broken path is worse than an unset one: it looks configured while
+    # UiAutomator2 dies on it, so it is reported rather than passed.
+    pre_valid = _has_adb(Path(pre_set)) if pre_set else False
     detected = ensure_android_home()
-    if detected and pre_set:
+    if detected and pre_valid:
         results.append(PreflightResult("ANDROID_HOME", True, "pass", f"Android SDK at {detected}"))
+    elif detected and pre_set:
+        results.append(
+            PreflightResult(
+                "ANDROID_HOME",
+                True,
+                "warn",
+                f"ANDROID_HOME={pre_set} has no platform-tools/adb; using the SDK detected at {detected}",
+                fix=f"export ANDROID_HOME={detected}",
+            )
+        )
     elif detected:
         # Healed our own env, but a *separately launched* Appium server won't have it.
         results.append(
@@ -328,6 +352,16 @@ def _check_android_home(results: List[PreflightResult]) -> None:
                 "warn",
                 f"ANDROID_HOME was unset; detected an Android SDK at {detected}",
                 fix=f"export ANDROID_HOME={detected}",
+            )
+        )
+    elif pre_set:
+        results.append(
+            PreflightResult(
+                "ANDROID_HOME",
+                False,
+                "fail",
+                f"ANDROID_HOME={pre_set} has no platform-tools/adb, and no Android SDK was found elsewhere",
+                fix="Point ANDROID_HOME at a real Android SDK (the directory holding platform-tools/adb)",
             )
         )
     else:

@@ -107,6 +107,30 @@ def test_test_cap_trims_generated_cases(_limited, tmp_path):
     assert summary["screens"] == 4  # screens untouched by the test cap
 
 
+def test_cli_write_kit_applies_the_same_caps(_limited, tmp_path):
+    """The CLI kit path enforces the quota too — a limited install must not be unlimited
+    just because the crawl ran from the terminal instead of the IDE."""
+    from framework.cli.crawl_service import write_kit
+    from framework.crawler.app_crawler import AppCrawler
+
+    _limited(max_screens=2, max_tests=1)
+    write_kit(
+        result=AppCrawler(FakeDriver(), APP, max_steps=100).crawl(),
+        output=str(tmp_path),
+        package=APP,
+        targets="python_pytest",
+        style="flat",
+        scaffold=False,
+        server="http://localhost:4723",
+        app_activity=None,
+        launch_args=(),
+    )
+    graph = json.loads((tmp_path / "graph.json").read_text(encoding="utf-8"))
+    assert len(graph["nodes"]) == 2  # capped from the unlimited 4
+    emitted = (tmp_path / "python_pytest" / "test_crawl_flow.py").read_text(encoding="utf-8")
+    assert emitted.count("def test_") == 1  # capped from the unlimited 7
+
+
 def test_unlimited_default_caps_nothing(tmp_path):
     from framework.licensing import reset_provider
 

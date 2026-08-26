@@ -40,6 +40,10 @@ class {{ class_name }} {
     // a global implicit wait, so tests stay in sync with async UI.
     private val TIMEOUT: Duration = Duration.ofSeconds(10)
 
+    // Run anywhere without regenerating: point at a different Appium/cloud-grid
+    // hub with MOBISCOUT_APPIUM_SERVER.
+    private val SERVER: String = System.getenv("MOBISCOUT_APPIUM_SERVER") ?: "http://localhost:4723"
+
     @BeforeEach
     fun setUp() {
 {% if model.platform.value == "ios" %}
@@ -47,7 +51,12 @@ class {{ class_name }} {
         options.setPlatformName("iOS")
         options.setAutomationName("XCUITest")
         options.setBundleId({{ model.app_package | kotlin_str }})
-        driver = IOSDriver(URL("http://localhost:4723"), options)
+{% if model.launch_args %}
+        // Launch arguments used during the crawl (e.g. skip a login gate) — pass them
+        // so the test starts in the same state the flow was recorded in.
+        options.setCapability("processArguments", mapOf("args" to listOf({% for a in model.launch_args %}{{ a | kotlin_str }}{% if not loop.last %}, {% endif %}{% endfor %})))
+{% endif %}
+        driver = IOSDriver(URL(SERVER), options)
 {% else %}
         val options = UiAutomator2Options()
         options.setPlatformName("Android")
@@ -55,7 +64,7 @@ class {{ class_name }} {
 {% if model.app_activity %}
         options.setAppActivity({{ model.app_activity | kotlin_str }})
 {% endif %}
-        driver = AndroidDriver(URL("http://localhost:4723"), options)
+        driver = AndroidDriver(URL(SERVER), options)
 {% endif %}
     }
 
@@ -108,7 +117,7 @@ class {{ class_name }} {
     fun {{ case.name | camel }}() {
 {% for step in case.steps %}
 {% if step.description %}
-        // {{ step.description }}
+        // {{ step.description | single_line }}
 {% endif %}
 {% if step.action.value == "launch" %}
         driver.activateApp({{ model.app_package | kotlin_str }})
@@ -143,7 +152,7 @@ class {{ class_name }} {
 {% endif %}
 {% elif step.action.value == "press_key" %}
 {% if model.platform.value == "ios" %}
-        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+        // UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text | single_line }}; press the key via the on-screen keyboard instead.
 {% else %}
         (driver as io.appium.java_client.android.AndroidDriver).pressKey(io.appium.java_client.android.nativekey.KeyEvent(io.appium.java_client.android.nativekey.AndroidKey.valueOf({{ step.text | upper | kotlin_str }})))
 {% endif %}

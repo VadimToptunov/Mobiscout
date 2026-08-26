@@ -28,6 +28,11 @@ SERVER_INFO = {"name": "mobiscout", "version": __version__}
 # runaway/hostile client can't push us to json.loads a giant payload.
 _MAX_MESSAGE_BYTES = 8 * 1024 * 1024
 
+# Wall-clock backstop for an agent-driven crawl, mirroring the daemon's kit/generate default:
+# a wedged device (adb call hanging, dead WDA) would otherwise hold this single-threaded
+# server for as long as the crawl takes. A caller-supplied max_seconds still wins.
+_DEFAULT_CRAWL_MAX_SECONDS = 600
+
 
 class ToolError(Exception):
     """A tool-execution failure surfaced to the agent as an ``isError`` result (not a
@@ -83,8 +88,19 @@ def _tool_crawl_app(args: Dict[str, Any]) -> str:
         "package": package,
         "platform": args.get("platform", "android"),
         "output": args.get("output", "crawl-kit"),
+        "max_seconds": _DEFAULT_CRAWL_MAX_SECONDS,
     }
-    for key in ("targets", "app_activity", "serial", "udid", "device_name", "server", "max_steps", "max_depth"):
+    for key in (
+        "targets",
+        "app_activity",
+        "serial",
+        "udid",
+        "device_name",
+        "server",
+        "max_steps",
+        "max_depth",
+        "max_seconds",
+    ):
         if args.get(key) is not None:
             config[key] = args[key]
     from framework.crawler.pipeline import run_kit
@@ -154,6 +170,10 @@ _TOOL_TABLE: Dict[str, tuple] = {
                     "server": {"type": "string", "description": "Appium server URL."},
                     "max_steps": {"type": "integer"},
                     "max_depth": {"type": "integer"},
+                    "max_seconds": {
+                        "type": "integer",
+                        "description": f"Wall-clock crawl budget (default {_DEFAULT_CRAWL_MAX_SECONDS}).",
+                    },
                 },
                 "required": ["package"],
             },
@@ -191,6 +211,11 @@ def _call_tool(params: Dict[str, Any]) -> Dict[str, Any]:
         text = handler(params.get("arguments") or {})
     except ToolError as e:
         return {"content": [{"type": "text", "text": str(e)}], "isError": True}
+    except Exception as e:
+        # Arguments the schema permits can still break a handler (an IR the emitters
+        # choke on, an unreadable path). Report it to the agent instead of letting it
+        # unwind through the stdio loop and end the session for every later request.
+        return {"content": [{"type": "text", "text": f"{type(e).__name__}: {e}"}], "isError": True}
     return {"content": [{"type": "text", "text": text}], "isError": False}
 
 
@@ -207,11 +232,14 @@ def handle_message(msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         return None
 
     if method == "initialize":
-        requested = (msg.get("params") or {}).get("protocolVersion")
+        # Answer with the version we actually implement, never the client's. Echoing e.g.
+        # "2025-06-18" would claim semantics this server does not have (structured tool
+        # output, elicitation); the spec's rule for an unsupported request is to reply with
+        # a version the server does support, and this server supports exactly one.
         return _result(
             msg_id,
             {
-                "protocolVersion": requested or PROTOCOL_VERSION,
+                "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {"listChanged": False}},
                 "serverInfo": SERVER_INFO,
             },
@@ -241,7 +269,13 @@ def serve_stdio(stdin: Any = None, stdout: Any = None) -> None:
         except ValueError:
             _write(stdout, _error(None, -32700, "Parse error"))
             continue
-        response = handle_message(msg)
+        try:
+            response = handle_message(msg)
+        except Exception as e:
+            # Last resort, mirroring the daemon's _process_line: one malformed message or
+            # dispatch bug costs that request, not the whole session.
+            msg_id = msg.get("id") if isinstance(msg, dict) else None
+            response = _error(msg_id, -32603, f"Internal error: {e}")
         if response is not None:
             _write(stdout, response)
 

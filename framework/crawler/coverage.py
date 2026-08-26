@@ -16,7 +16,7 @@ existing test sources — regardless of framework or language. A generated test
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable, List, Set, Tuple
 
@@ -92,15 +92,11 @@ def filter_to_new(model: TestModel, covered_text: str) -> Tuple[TestModel, GapRe
         covered_cases=len(model.cases) - len(kept),
         new_case_names=[c.name for c in kept],
     )
-    trimmed = TestModel(
-        name=model.name,
-        app_package=model.app_package,
-        platform=model.platform,
-        app_activity=model.app_activity,
-        cases=kept,
-        description=model.description,
-    )
-    return trimmed, report
+    # ``replace`` (not a hand-listed TestModel) so nothing else on the model is silently
+    # dropped: rebuilding it field by field reset toolkit to "native" and launch_args to
+    # [], so an only-new kit lost the crawl's launch arguments (an auth-bypass flag) and
+    # the emitter's toolkit guidance — and any field added later would be lost too.
+    return replace(model, cases=kept), report
 
 
 def new_locators(selectors: Iterable[Selector], covered_text: str) -> List[str]:

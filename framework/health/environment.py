@@ -34,7 +34,9 @@ _VERSION = re.compile(r"(\d+\.\d+(?:\.\d+)?)")
 def _run(cmd: List[str]) -> Tuple[int, str]:
     """Run a command, returning (exit_code, combined_output). 127 if not found."""
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        # text=True alone decodes with the locale codepage on Windows, where the
+        # non-ASCII output of these tools raises UnicodeDecodeError; pin UTF-8.
+        p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20)
         return p.returncode, (p.stdout or "") + (p.stderr or "")
     except FileNotFoundError:
         return 127, ""
@@ -65,7 +67,11 @@ def _tool_version(cmd: List[str], run: Runner) -> Optional[str]:
 
 def _probe(name: str, cmd: List[str], hint: str, run: Runner) -> Tool:
     code, out = run(cmd)
-    if code == 127 and not out:
+    # A tool that exits non-zero with nothing to say is not usable: a hung probe
+    # (the timeout maps to code 1), a broken shim, or `xcrun simctl` refusing on an
+    # unaccepted Xcode license. Reporting those as found makes android_ready /
+    # ios_ready claim a toolchain that cannot actually run.
+    if code != 0 and not out:
         return Tool(name, False, hint=hint)
     m = _VERSION.search(out)
     return Tool(name, True, version=m.group(1) if m else "")

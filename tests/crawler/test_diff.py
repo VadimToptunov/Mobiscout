@@ -56,6 +56,20 @@ def test_signature_ignores_description_but_tracks_steps():
     b = TestCase(name="t", description="reworded", steps=[Step(action=ActionType.TAP, selector=_sel("x"))])
     # Only the description differs → same signature → unchanged.
     assert diff_models(build_manifest(_model(a)), _model(b)).unchanged == ["t"]
+    # Same for a step description and a selector score: a relabelled control ("Tap Cart" →
+    # "Tap Cart (2)") and a re-scored locator are cosmetic, and marking such a case
+    # "changed" churned CHANGES.md and regenerated tests for an app that hadn't moved.
+    cosmetic = TestCase(
+        name="t",
+        steps=[
+            Step(
+                action=ActionType.TAP,
+                selector=Selector(strategy=SelectorStrategy.ID, value="x", score=0.42, description="Cart (2)"),
+                description="Tap Cart (2)",
+            )
+        ],
+    )
+    assert diff_models(build_manifest(_model(a)), _model(cosmetic)).unchanged == ["t"]
     # A different action on the same locator IS a real change.
     c = TestCase(name="t", steps=[Step(action=ActionType.LONG_PRESS, selector=_sel("x"))])
     assert diff_models(build_manifest(_model(a)), _model(c)).changed == ["t"]

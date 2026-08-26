@@ -47,6 +47,11 @@ public class {{ class_name }} {
 
     private AppiumDriver driver;
 
+    // Run anywhere without regenerating: point at a different Appium/cloud-grid
+    // hub with MOBISCOUT_APPIUM_SERVER.
+    private static final String SERVER =
+        System.getenv().getOrDefault("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723");
+
     @Before
     public void setUp() throws Exception {
 {% if model.platform.value == "ios" %}
@@ -54,7 +59,12 @@ public class {{ class_name }} {
         options.setPlatformName("iOS");
         options.setAutomationName("XCUITest");
         options.setBundleId(APP_PACKAGE);
-        driver = new IOSDriver(new URL("http://localhost:4723"), options);
+{% if model.launch_args %}
+        // Launch arguments used during the crawl (e.g. skip a login gate) — pass them
+        // so the steps start in the same state the flow was recorded in.
+        options.setCapability("processArguments", java.util.Map.of("args", java.util.List.of({% for a in model.launch_args %}{{ a | java_str }}{% if not loop.last %}, {% endif %}{% endfor %})));
+{% endif %}
+        driver = new IOSDriver(new URL(SERVER), options);
 {% else %}
         UiAutomator2Options options = new UiAutomator2Options();
         options.setPlatformName("Android");
@@ -63,7 +73,7 @@ public class {{ class_name }} {
 {% if model.app_activity %}
         options.setAppActivity({{ model.app_activity | java_str }});
 {% endif %}
-        driver = new AndroidDriver(new URL("http://localhost:4723"), options);
+        driver = new AndroidDriver(new URL(SERVER), options);
 {% endif %}
     }
 

@@ -47,8 +47,22 @@ def matcher_expr(sel: Optional[Selector]) -> Optional[str]:
     raise ValueError(f"Unsupported selector strategy for Espresso: {s}")
 
 
+def activity_fqn(model: TestModel) -> str:
+    """The fully-qualified Activity class to import.
+
+    Appium accepts the activity either package-relative (``.MainActivity``) or
+    fully qualified (``com.example.app.ui.LoginActivity``), and users normally
+    paste the latter. Joining the app package onto a qualified name would import
+    ``com.example.app.LoginActivity`` — a class that doesn't exist, so the
+    generated instrumented test never compiles. Only the relative form is joined.
+    """
+    activity = model.app_activity or ".MainActivity"
+    if activity.startswith("."):
+        return f"{model.app_package}{activity}"
+    return activity if "." in activity else f"{model.app_package}.{activity}"
+
+
 def activity_class(model: TestModel) -> str:
     """The simple Activity class name for ActivityScenarioRule (from the IR's
     app_activity, defaulting to MainActivity)."""
-    activity = model.app_activity or ".MainActivity"
-    return activity.split(".")[-1] or "MainActivity"
+    return activity_fqn(model).split(".")[-1] or "MainActivity"
