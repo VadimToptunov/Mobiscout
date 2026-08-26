@@ -52,6 +52,25 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.4 — generated tests that actually test</h3>
+    <ul>
+        <li><b>A passing test now means something.</b> A "rejects invalid input" test could
+        go green <i>while the app accepted the bad input</i> — the check was satisfied by the
+        next screen's matching button. Page-object tests could be generated with no
+        assertion at all, "prove" arrival using a logo or app bar shared by every screen, or
+        crash on a perfectly healthy app. All fixed, and the CI harness that runs generated
+        kits now exercises the self-healing fallbacks that hid these.</li>
+        <li><b>Honest results</b>: a crawl that stops on a device failure is reported as a
+        partial kit instead of a finished one; APK analysis and root detection no longer
+        report a confident answer they never actually computed; errored tests no longer
+        disappear from report summaries.</li>
+        <li><b>Deeper crawls</b>: the keyboard is dismissed before a login/OTP is submitted,
+        so gates whose button sat under it now open — and everything behind them is
+        crawled.</li>
+        <li><b>Android reliability</b>: adb failures are surfaced instead of ignored, text
+        with special characters types correctly, scrolling adapts to the real screen size,
+        and a stale screen dump is never reused.</li>
+    </ul>
     <h3>0.12.3 — kits that compile, reachable gated screens, Windows-safe engine</h3>
     <ul>
         <li><b>Generated kits compile on real apps.</b> A label containing a line break, or
