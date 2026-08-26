@@ -50,6 +50,13 @@ updates:
     directory: "/rust_core"
     schedule:
       interval: "weekly"
+    groups:
+      # The core and every grammar share one tree-sitter ABI generation, so bumping a
+      # single grammar cannot compile (0.23+ replaced `language()` with `LANGUAGE`).
+      # One grouped PR keeps them upgradeable; six separate ones are six red builds.
+      tree-sitter:
+        patterns:
+          - "tree-sitter*"
     labels:
       - "dependencies"
       - "rust"
