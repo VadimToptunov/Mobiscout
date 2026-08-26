@@ -149,17 +149,27 @@ class JsonRpcClientTest {
         val start = CountDownLatch(1)
         val done = CountDownLatch(n)
         val mismatches = AtomicInteger(0)
+        // Record what actually went wrong. Without this an exception in a worker kills the
+        // thread BEFORE countDown(), the latch never reaches zero, and the failure reads as
+        // "calls did not all complete" — hiding the real cause on a slow CI runner.
+        val failures = java.util.Collections.synchronizedList(mutableListOf<String>())
         for (i in 0 until n) {
             Thread {
-                start.await()
                 val method = "m$i"
-                val got = c.call(method).getResultOrThrow().get("method").asString
-                if (got != method) mismatches.incrementAndGet()
-                done.countDown()
+                try {
+                    start.await()
+                    val got = c.call(method, timeoutMs = 15_000).getResultOrThrow().get("method").asString
+                    if (got != method) mismatches.incrementAndGet()
+                } catch (e: Throwable) {
+                    failures.add("$method: $e")
+                } finally {
+                    done.countDown() // always, so the barrier measures completion, not survival
+                }
             }.start()
         }
         start.countDown()
-        assertTrue(done.await(30, TimeUnit.SECONDS), "calls did not all complete")
+        assertTrue(done.await(60, TimeUnit.SECONDS), "calls did not all complete; errors so far: $failures")
+        assertEquals(emptyList<String>(), failures.toList(), "a call failed outright")
         assertEquals(0, mismatches.get(), "a call received another call's response")
     }
 

@@ -107,10 +107,12 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Coverage artifact — what the crawl reached vs what the kit tests. Full model, before
     # any diff/only-new filtering, so it describes the whole crawl.
-    from framework.crawler.coverage_report import build_coverage
+    from framework.crawler.coverage_report import build_coverage, locator_advice
 
     coverage = build_coverage(result, graph, model)
-    _write(out / "coverage.md", coverage.to_markdown(package))
+    _write(
+        out / "coverage.md", coverage.to_markdown(package, locator_advice(model.toolkit, model.platform.value, result))
+    )
     _write(out / "coverage.json", coverage.to_json())
 
     # Diff-aware regeneration: compare this crawl's cases against a baseline manifest

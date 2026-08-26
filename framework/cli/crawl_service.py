@@ -273,6 +273,49 @@ def ensure_foreground(crawl_driver: Any, package: str, platform: str) -> Foregro
     return ForegroundCheck(ok=False, current=current, found=found, launched=launched, hint=hint)
 
 
+def _write_coverage(out: Path, package: str, result: Any, graph: Any, model: Any) -> List[str]:
+    """Write coverage.md / coverage.json and return the lines to show in the summary.
+
+    Computed from the FULL model, before any diff filtering, so it describes the whole
+    crawl rather than the delta.
+    """
+    from framework.crawler.coverage_report import build_coverage, locator_advice
+
+    coverage = build_coverage(result, graph, model)
+    advice = locator_advice(model.toolkit, model.platform.value, result)
+    (out / "coverage.md").write_text(coverage.to_markdown(package, advice), encoding="utf-8", newline="\n")
+    (out / "coverage.json").write_text(coverage.to_json(), encoding="utf-8", newline="\n")
+    lines = [
+        f"Coverage: {coverage.screens_tested}/{coverage.screens_reachable} screens, "
+        f"{coverage.element_coverage_pct()}% of elements (see {out / 'coverage.md'})"
+    ]
+    return lines + [ln for ln in (_locator_advice_line(advice, model.platform.value),) if ln]
+
+
+def _locator_advice_line(advice: str, platform: str) -> str:
+    """One-line locator guidance for the CLI summary, or "" when none applies.
+
+    Neither toolkit gives the crawl a stable id of its own, so the kit locates by visible
+    caption — which breaks on a copy change or a translation. coverage.md carries the long
+    form; this is the version the user sees right after the numbers, because that is where
+    they decide whether to act on it.
+    """
+    if not advice:
+        return ""
+    from framework.crawler.coverage_report import COMPOSE_TESTTAG_DOCS, IOS_A11Y_DOCS
+
+    if platform.lower() == "ios":
+        return (
+            "iOS: most controls expose no accessibility identifier, so tests locate by visible "
+            f'label. Add .accessibilityIdentifier("...") for stable locators — {IOS_A11Y_DOCS}'
+        )
+    return (
+        "Jetpack Compose: tests locate by text/content-description. For stable locators add "
+        "Modifier.testTag(...) and set testTagsAsResourceId = true in the DEBUG/test variant "
+        f"only — {COMPOSE_TESTTAG_DOCS}"
+    )
+
+
 def write_kit(
     *,
     result: Any,
@@ -366,15 +409,7 @@ def write_kit(
     # Coverage artifact — an honest map of what the crawl reached vs what the kit tests
     # (screens reachable/gated/dead-end/unreachable, element + screen test coverage, gaps).
     # Computed from the FULL model, before any diff filtering, so it describes the whole crawl.
-    from framework.crawler.coverage_report import build_coverage
-
-    coverage = build_coverage(result, graph, model)
-    (out / "coverage.md").write_text(coverage.to_markdown(package), encoding="utf-8", newline="\n")
-    (out / "coverage.json").write_text(coverage.to_json(), encoding="utf-8", newline="\n")
-    report.info.append(
-        f"Coverage: {coverage.screens_tested}/{coverage.screens_reachable} screens, "
-        f"{coverage.element_coverage_pct()}% of elements (see {out / 'coverage.md'})"
-    )
+    report.info.extend(_write_coverage(out, package, result, graph, model))
 
     # Diff-aware regeneration: compare against a baseline manifest (a prior kit's
     # manifest.json) and write CHANGES.md; with only_changed, keep just the added+changed

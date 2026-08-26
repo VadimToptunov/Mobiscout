@@ -187,6 +187,10 @@ class AppCrawler:
         # The waypoints that fired, in execution order (login -> OTP -> passcode),
         # deduped — codegen emits the auth prefix in this order.
         self._fired_waypoints: List["Waypoint"] = []
+        # Element keys of the app's persistent bottom bar, learned from the entry screen
+        # (see _learn_nav_bar). Empty until the first screen is read, and for apps with no
+        # bar at all.
+        self._nav_keys: set = set()
 
     def _note_screen(self, result: CrawlResult, fingerprint: str) -> None:
         """Tag a just-recorded screen as behind-auth if a gate has been passed."""
@@ -406,17 +410,36 @@ class AppCrawler:
         """
         if element.class_name in ("Tab", "TabBar", "SegmentedControl"):
             return True
+        # Learned from the entry screen: the controls that make up the app's persistent
+        # bottom bar (see _learn_nav_bar). Identity, not class name — the old check compared
+        # against iOS's short type names ("Button", "Cell", "Tab"), which an Android class
+        # name ("android.widget.Button", and under Compose "android.view.View") can never
+        # equal, so on Android this returned False for every element and the tab-driven
+        # crawl never ran at all.
+        return self._element_key(element) in self._nav_keys
+
+    # A bottom row of this many labelled controls reads as primary navigation. Two is
+    # deliberate: real apps ship two-tab bars (Sunflower's "My garden" / "Plant list"), and
+    # the persistence check below is what keeps a form's "Cancel"/"Save" pair out.
+    _MIN_NAV_ENTRIES = 2
+
+    def _learn_nav_bar(self, screen: CrawlScreen) -> None:
+        """Record the entry screen's bottom bar so :meth:`_is_primary_nav` can recognise it.
+
+        A tab bar's defining property is that it *persists* — the same controls sit at the
+        bottom of every section. Learning it once from the entry screen identifies it by
+        identity rather than by class name or geometry alone, which is what makes this work
+        across iOS, Android views and Compose (where every control is a generic View).
+        """
         bottom = self._screen_bottom(screen)
-        if bottom <= 0 or element.class_name not in ("Button", "Cell", "Tab"):
-            return False
-        if not self._in_bottom_strip(element, bottom):
-            return False
-        row = sum(
-            1
-            for e in screen.interactive()
-            if e.class_name in ("Button", "Cell", "Tab") and self._in_bottom_strip(e, bottom)
-        )
-        return row >= 3
+        if bottom <= 0:
+            return
+        row = [e for e in screen.interactive() if self._own(e) and self._in_bottom_strip(e, bottom)]
+        # Every entry must be labelled: an unlabelled bottom control is decoration or a
+        # single action, not a named destination.
+        row = [e for e in row if e.label.strip()]
+        if len(row) >= self._MIN_NAV_ENTRIES:
+            self._nav_keys = {self._element_key(e) for e in row}
 
     def _own_interactive(self, screen: CrawlScreen, exclude_nav: bool = False) -> Deque[CrawlElement]:
         """App-owned tappable elements, ordered by how much they're worth tapping.
@@ -519,6 +542,9 @@ class AppCrawler:
         if not screen.fingerprint:
             return
         result.screens[screen.fingerprint] = screen
+        # Learn the persistent bottom bar here, from the app's own entry screen, before any
+        # exploration: every later screen is judged against it.
+        self._learn_nav_bar(screen)
 
         # Pass any gate on the entry screen (e.g. a login form) before exploring.
         entry_fp = screen.fingerprint
@@ -797,6 +823,76 @@ class AppCrawler:
             return False
         return True
 
+    def _resync(
+        self,
+        frame: "_Frame",
+        stack: List["_Frame"],
+        pending: Dict[str, Deque["CrawlElement"]],
+        result: CrawlResult,
+    ) -> bool:
+        """Re-establish that we are standing on ``frame``'s screen. True when we are.
+
+        A prior return-to-parent didn't land us back here, so the frame's queued coordinates
+        are stale — tapping them would hit whatever is on screen now. If the screen did come
+        back, carry on; otherwise park what this frame still owed us (so a later visit can
+        finish it), drop the frame and head for its parent.
+        """
+        if self._current_fp() == frame.fingerprint:
+            frame.synced = True
+            return True
+        if frame.todo:
+            pending.setdefault(frame.fingerprint, deque()).extend(frame.todo)
+        stack.pop()
+        if stack:
+            result.steps += 1
+            stack[-1].synced = self._go_back(stack[-1].fingerprint)
+        return False
+
+    def _refill(
+        self,
+        frame: "_Frame",
+        pending: Dict[str, Deque["CrawlElement"]],
+        result: CrawlResult,
+        exclude_nav: bool,
+    ) -> bool:
+        """Find this screen more to do before we call it finished. True if the queue refilled.
+
+        Two sources, cheapest first: work parked from an earlier visit that was cut short
+        here, then a scroll to reveal what sits below the fold.
+        """
+        parked = pending.pop(frame.fingerprint, None)
+        if parked:
+            frame.todo.extend(parked)
+            return True
+        if frame.scrolls >= self._MAX_SCROLLS:
+            return False
+        frame.scrolls += 1
+        result.steps += 1
+        fresh = self._reveal_more(frame, exclude_nav)
+        if not fresh:
+            return False
+        frame.todo.extend(fresh)
+        return True
+
+    def _resume_parked(
+        self, pending: Dict[str, Deque["CrawlElement"]], screen: CrawlScreen, depth: int
+    ) -> Optional["_Frame"]:
+        """A frame to finish this screen's parked work, or None when there is none.
+
+        Work is parked when a tap carried the crawl off a screen it had not finished (a tab,
+        a "home" link) and Back could not bring it back. Standing on that screen again is the
+        only moment the leftovers are reachable, so pick them up rather than back out twice.
+        """
+        parked = pending.pop(screen.fingerprint, None)
+        if not parked or depth >= self.max_depth:
+            return None
+        return _Frame(
+            screen.fingerprint,
+            parked,
+            {self._element_key(e) for e in parked},
+            money=self._money_screen(screen),
+        )
+
     def _dfs(
         self,
         result: CrawlResult,
@@ -808,6 +904,14 @@ class AppCrawler:
         """Depth-first walk from one root screen, tapping untried elements and
         backing out of dead ends. Shared by the single-root and per-tab crawls."""
         stack: List[_Frame] = [_Frame(root_fp, root_todo, {self._element_key(e) for e in root_todo}, money=root_money)]
+        # Controls a screen still owed us when we were forced off it. Tapping a persistent
+        # control (a tab, a "home" link) navigates to a screen we have already mapped, and
+        # Back does not come back — so the frame we were exploring is abandoned with its
+        # queue half-full, and everything it still had to offer is lost. On Sunflower that
+        # cost the entire plant list: the crawl left for the "My garden" tab and never
+        # returned to tap a single plant. Keyed by fingerprint, so the work is picked up
+        # again the next time the crawl stands on that screen.
+        pending: Dict[str, Deque[CrawlElement]] = {}
 
         while stack and self._within_budget(result):
             frame = stack[-1]
@@ -818,26 +922,12 @@ class AppCrawler:
             # with them; if we still can't get here, abandon the frame and head for its
             # parent instead of tapping (or scrolling) blind. Only runs when a go_back
             # reported failure, so the happy path pays no extra dump.
-            if not frame.synced:
-                if self._current_fp() == current_fp:
-                    frame.synced = True
-                else:
-                    stack.pop()
-                    if stack:
-                        result.steps += 1
-                        stack[-1].synced = self._go_back(stack[-1].fingerprint)
-                    continue
+            if not frame.synced and not self._resync(frame, stack, pending, result):
+                continue
 
             if not todo:
-                # Before giving up on this screen, scroll to see if there is more
-                # below the fold; only pop once scrolling reveals nothing new.
-                if frame.scrolls < self._MAX_SCROLLS:
-                    frame.scrolls += 1
-                    result.steps += 1
-                    fresh = self._reveal_more(frame, exclude_nav)
-                    if fresh:
-                        todo.extend(fresh)
-                        continue
+                if self._refill(frame, pending, result, exclude_nav):
+                    continue
                 stack.pop()
                 if stack:  # return to the parent screen (dismissing any modal)
                     result.steps += 1
@@ -921,6 +1011,9 @@ class AppCrawler:
                     continue
                 self._handle_form(result, new_screen)  # exercise its form both ways (invalid→error, valid)
                 child = self._own_interactive(new_screen, exclude_nav=exclude_nav)
+                parked = pending.pop(new_screen.fingerprint, None)
+                if parked:  # a previous visit was cut short here — finish what it started
+                    child.extend(parked)
                 stack.append(
                     _Frame(
                         new_screen.fingerprint,
@@ -930,6 +1023,13 @@ class AppCrawler:
                     )
                 )
             else:
-                # Already seen (or depth cap): don't re-explore, return to parent.
+                # Already seen — but if an earlier visit was cut short here, we are standing
+                # on that screen again, which is the one moment its parked work is reachable.
+                # Take it now instead of backing out and losing it a second time.
+                resumed = self._resume_parked(pending, new_screen, len(stack))
+                if resumed is not None:
+                    stack.append(resumed)
+                    continue
+                # Otherwise: don't re-explore, return to parent.
                 result.steps += 1
                 frame.synced = self._go_back(current_fp)
