@@ -23,16 +23,21 @@ def runner(monkeypatch):
     return CliRunner()
 
 
-def _unwrapped(result) -> str:
-    """Output with all whitespace removed.
+_BOX_CHARS = "│─╭╮╰╯┃━┏┓┗┛"
 
-    These commands render through Rich, which wraps to the detected terminal width and
-    will break *inside* a long token — a CI runner's long tmp path pushed the location
-    onto a continuation line, so "cfg.py:1" was split and a plain substring check failed
-    on Linux/Windows while passing on a developer's wide terminal. Comparing without
-    whitespace asserts the same fact independently of where the wrap lands.
+
+def _unwrapped(result) -> str:
+    """Output with whitespace and Rich's box-drawing characters removed.
+
+    These commands render findings inside a Rich Panel, which wraps to the detected
+    terminal width and will break *inside* a long token — a CI runner's tmp path is long
+    enough that "…/cfg.py:1" split across lines, and each continuation line carries the
+    panel's own "│" border. So a raw substring check failed on Linux while passing on a
+    developer's wider terminal, and stripping whitespace alone was not enough: the border
+    character sat in the middle of the token. Dropping both asserts the same fact
+    wherever the wrap happens to land.
     """
-    return "".join(result.output.split())
+    return "".join(c for c in result.output if not c.isspace() and c not in _BOX_CHARS)
 
 
 def _no_crash(result):
