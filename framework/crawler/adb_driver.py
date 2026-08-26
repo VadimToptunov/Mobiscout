@@ -19,6 +19,10 @@ from framework.crawler.settle import settle_until_stable
 # The foreground app is the RESUMED activity. mCurrentFocus is unreliable — it
 # points at dialogs / ANR ("Application Not Responding: ...") / system windows.
 _RESUMED_RE = re.compile(r"(?:topResumedActivity|ResumedActivity:|mResumedActivity)[^\n]*?\s([\w.]+)/[\w.$]+")
+# Same line, but keeping the activity half too — what a generated kit needs for appActivity.
+_RESUMED_COMPONENT_RE = re.compile(
+    r"(?:topResumedActivity|ResumedActivity:|mResumedActivity)[^\n]*?\s([\w.]+)/([\w.$]+)"
+)
 _FOCUS_RE = re.compile(r"mCurrentFocus=Window\{[^}]*\s([\w.]+)/[\w.$]+\}")
 
 # `dumpsys window displays` reports the display's CURRENT size as `cur=WxH` (it
@@ -308,6 +312,25 @@ class AdbCrawlerDriver:
                 fm = _FOCUS_RE.search(line)
                 if fm:
                     return fm.group(1)
+        return ""
+
+    def current_activity(self, package: str) -> str:
+        """The activity of ``package`` currently in the foreground, or "".
+
+        Returned fully qualified (``it.feio.android.omninotes.MainActivity``), which is what
+        a generated kit needs for ``appActivity``. Without it Appium resolves the launcher
+        itself, and for an app declaring several launcher entries that resolution returns
+        Android's chooser (``com.android.internal.app.ResolverActivity``) — which is not
+        launchable, so every test errors out before it starts. Reading the activity the
+        crawl actually ran sidesteps the ambiguity entirely.
+        """
+        dump = self._run("shell", "dumpsys activity activities | grep -E 'ResumedActivity'")
+        for match in _RESUMED_COMPONENT_RE.finditer(dump):
+            if match.group(1) != package:
+                continue
+            activity = match.group(2)
+            # dumpsys abbreviates an activity in the package's own namespace as ".Name".
+            return f"{package}{activity}" if activity.startswith(".") else activity
         return ""
 
     def launch(self, package: str, tries: int = 8) -> bool:
