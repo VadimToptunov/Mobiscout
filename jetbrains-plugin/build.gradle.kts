@@ -11,7 +11,7 @@ plugins {
 }
 
 group = "com.mobiletest"
-version = "0.12.3"
+version = "0.12.4"
 
 repositories {
     mavenCentral()

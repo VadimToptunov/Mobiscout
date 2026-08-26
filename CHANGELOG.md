@@ -7,6 +7,49 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.4] — 2026-08-26
+
+Third deep-review pass: 60 independently verified defects. This one went after the
+generated tests themselves — several could pass while the app was broken.
+
+### Fixed — generated tests that passed for the wrong reason
+- **A "rejected invalid input" test could go green while the app accepted it.** The
+  check that the form had not advanced was satisfied by the *next* screen's equivalent
+  button through the self-healing fallback. It now anchors on something unique to the
+  form, and the case is dropped when nothing unique exists.
+- A page-object flow test could be generated with **no assertion at all** and pass
+  unconditionally; navigation tests could "prove" arrival with shared chrome (a logo, an
+  app bar) or with a positional XPath the ranker itself rates as too weak to assert on.
+- Page-object navigation could crash with `AttributeError` **on a healthy app**, because
+  page classes were named one way and referenced another.
+- The harness that runs generated kits in CI only exercised primary locators, which is
+  why none of the above was caught; it now runs the full self-healing chain.
+
+### Fixed — crawling and reporting honesty
+- A crawl that stopped on a device failure kept what it had found but was reported as a
+  **finished** kit. It is now clearly reported as partial — in the CLI and in the IDE.
+- The keyboard was never dismissed before a login/OTP form was submitted, so on screens
+  where it covered the button the gate never opened and everything behind it went
+  uncrawled.
+- Android: `adb` failures were discarded, text with shell characters was mangled,
+  scrolling assumed a 1080×1920 screen, and a stale UI dump could be served after a
+  failed re-read.
+- APK manifest analysis returned an empty result for every real (binary-manifest) APK —
+  reading as "nothing found" — and root-detection was inferred from a bare `"su"` match.
+  Both now report honestly.
+- Reports no longer state counts they never measured, and tests that errored (device
+  disconnected, session died) no longer vanish from the summaries.
+
+### Fixed — packaging and release
+- The Marketplace publish job could never authenticate (wrong variable name), and a
+  fourth version pin had silently drifted — it is now checked with the others.
+- The Rust core's own unit tests had never compiled; they now run in CI, and they
+  immediately caught that JavaScript `for…of` loops and Java for-each loops were missing
+  from the complexity analysis.
+- The Rust dependency lock is now committed and monitored, and the check meant to catch
+  a missing module in the shipped engine was replaced with one that cannot silently
+  pass: the built binary imports everything and renders every code target.
+
 ## [0.12.3] — 2026-08-26
 
 Second deep-review pass: 57 independently verified defects. The headline is that a
