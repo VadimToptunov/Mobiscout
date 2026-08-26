@@ -228,6 +228,15 @@ def crawl(
         print_info("Sandbox mode: destructive/financial actions are tappable (Logout stays blocked).")
 
     try:
+        # Record the activity the app is actually running, while it is on screen. The kit
+        # needs it for appActivity: left unset, Appium resolves the launcher itself, and an
+        # app that declares more than one launcher entry (a debug build shipping LeakCanary,
+        # say) resolves to Android's chooser — not launchable, so every generated test errors
+        # out before it starts. An explicit --app-activity always wins.
+        if not app_activity:
+            detect = getattr(crawl_driver, "current_activity", None)
+            if callable(detect):
+                app_activity = detect(package) or None
         result = AppCrawler(
             crawl_driver, package, max_steps=max_steps, max_depth=max_depth, allow_destructive=allow_destructive
         ).crawl()
