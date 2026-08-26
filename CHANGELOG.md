@@ -7,6 +7,54 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.3] — 2026-08-26
+
+Second deep-review pass: 57 independently verified defects. The headline is that a
+generated kit now compiles on realistic input — several targets did not.
+
+### Fixed — generated kits
+- **A test kit no longer breaks on ordinary labels.** An element label containing a
+  newline (common in Compose paragraphs) used to push text out of a comment as raw
+  source, breaking the emitted Python, Java, Kotlin, JavaScript *and* Maestro files;
+  a screen titled like "2FA Setup" produced a method name starting with a digit that
+  Java and Kotlin reject. Verified with the real toolchains (`javac`, `node --check`,
+  `ast.parse`, YAML): 11 failures before, none after.
+- BDD kits: the locator registry no longer desyncs from the feature file's step
+  arguments (a quoted or multi-line label caused a lookup failure at run time).
+- Smoke kits no longer emit duplicate test names (Python silently lost tests; Java
+  wouldn't compile), and page-object classes are named from sanitized screen titles.
+- Espresso kits: long-press/scroll-to/deep-link/key-press are emitted or honestly
+  reported as skipped instead of silently dropped, and the Activity import points at
+  the real class.
+- `launch_args` and the `MOBISCOUT_APPIUM_SERVER` override now work in every target,
+  not only Python — the scaffold READMEs already promised both.
+
+### Fixed — crawling and coverage
+- A login gate reached **mid-crawl** left the entire post-auth area marked unreachable
+  and generated no tests for it, while the coverage report said it was explored.
+- Tests for a gated screen now include the steps that reach the login form; they used
+  to start typing credentials on the launch screen and fail by construction.
+- Diff-aware regeneration keeps launch args and toolkit; the manifest records the
+  crawl, not the filtered delta; coverage no longer counts elements no test can target.
+
+### Fixed — environment and reliability
+- Windows: every device/tool command is read as UTF-8, and the engine pins its own
+  stdio — a non-ASCII device name or profile path no longer breaks the connection.
+- An SDK path that no longer exists is reported as broken instead of passing; an
+  emulator that fails to launch is reported as failed instead of "starting"; a missing
+  or timed-out `adb` says so instead of showing an empty device list.
+- `mobiscout doctor` no longer fails on projects that aren't the framework's own repo.
+- The MCP server survives a bad request instead of exiting.
+
+### Fixed — security scanning
+- The TLS check could never detect TLS 1.0/1.1 support on a modern OpenSSL — a silent
+  false negative for the weakness it exists to find. Verified against a real
+  TLS1.0-only server.
+- Web-view crawling: a stale element tag could send a tap to the wrong element, and a
+  failed web tap no longer falls back to a raw screen-coordinate tap.
+- Element classification now feeds the model the fields it was trained on, and model
+  auto-training is reproducible, so the same crawl generates the same kit everywhere.
+
 ## [0.12.2] — 2026-08-26
 
 Project-wide review pass: crawl-safety, engine robustness, and honest UI.

@@ -52,6 +52,26 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.3 — kits that compile, reachable gated screens, Windows-safe engine</h3>
+    <ul>
+        <li><b>Generated kits compile on real apps.</b> A label containing a line break, or
+        a screen titled like "2FA Setup", used to produce source that Java, Kotlin, JS,
+        Python or Maestro rejected. Checked against the real toolchains — 11 failures
+        before, none now. BDD kits, smoke kits and page objects were fixed the same way.</li>
+        <li><b>Everything behind a login is tested again</b>: a gate reached mid-crawl left
+        the whole post-auth app marked unreachable with no tests, and gated tests began
+        typing credentials on the launch screen. Both fixed.</li>
+        <li><b>Windows</b>: device names, paths and commands are read as UTF-8 end to end,
+        so a non-ASCII profile folder or device name no longer breaks the engine
+        connection.</li>
+        <li><b>Honest environment reporting</b>: a stale Android SDK path, an emulator that
+        failed to boot, and a missing or slow adb are each reported as what they are
+        instead of passing silently or showing an empty device list.</li>
+        <li><b>Espresso, launch args and the Appium-server override</b> now work in every
+        target, not just Python; the security scanner's TLS check actually detects
+        TLS 1.0/1.1 again; element classification and model training are reproducible, so
+        the same crawl produces the same kit on every machine.</li>
+    </ul>
     <h3>0.12.2 — project-wide review: safer crawls, sturdier engine, honest UI</h3>
     <ul>
         <li><b>Deeper crawls</b>: the screen behind a mid-crawl gate (a login/OTP you tap
