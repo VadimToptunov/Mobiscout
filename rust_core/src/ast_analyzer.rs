@@ -46,13 +46,15 @@ impl Language {
 
     /// Get tree-sitter language
     fn get_ts_language(&self) -> tree_sitter::Language {
+        // Grammars on the 0.23+ ABI expose `LANGUAGE: LanguageFn`, converted with .into(),
+        // rather than a `language()` fn.
         match self {
-            Language::Python => tree_sitter_python::language(),
-            Language::Java => tree_sitter_java::language(),
-            Language::Kotlin => tree_sitter_kotlin::language(),
-            Language::Swift => tree_sitter_swift::language(),
-            Language::JavaScript => tree_sitter_javascript::language(),
-            Language::TypeScript => tree_sitter_typescript::language_typescript(),
+            Language::Python => tree_sitter_python::LANGUAGE.into(),
+            Language::Java => tree_sitter_java::LANGUAGE.into(),
+            Language::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
+            Language::Swift => tree_sitter_swift::LANGUAGE.into(),
+            Language::JavaScript => tree_sitter_javascript::LANGUAGE.into(),
+            Language::TypeScript => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
         }
     }
 
