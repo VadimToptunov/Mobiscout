@@ -283,11 +283,19 @@ def build_coverage(result: CrawlResult, graph: InteractionGraph, model: TestMode
     by_fp = {n.fingerprint: n for n in graph.nodes}
     dead_end_ids = set(graph.dead_ends())
     gated_fps = getattr(result, "gated", None) or set()
+    # Count only the elements the app owns, the same filter codegen applies (_owned). A
+    # dump routinely carries clickable nodes from system UI, a permission dialog or the
+    # IME keyboard (dozens of key nodes on any screen captured with the keyboard up); no
+    # generated case can ever target those, so counting them inflates the denominator and
+    # under-reports element coverage — a number teams gate CI on.
+    owned_packages = ("", model.app_package)
 
     screens: List[ScreenCoverage] = []
     for fp, screen in result.screens.items():
         node = by_fp.get(fp)
-        interactive: List[CrawlElement] = screen.interactive() if isinstance(screen, CrawlScreen) else []
+        interactive: List[CrawlElement] = (
+            [e for e in screen.interactive() if e.package in owned_packages] if isinstance(screen, CrawlScreen) else []
+        )
         covered = sum(1 for el in interactive if _element_covered(el, used))
         screens.append(
             ScreenCoverage(

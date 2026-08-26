@@ -123,7 +123,7 @@ def driver():
 
 
 def test_login(driver):
-    """User can log in with valid credentials"""
+    "User can log in with valid credentials"
     # Open app
     driver.activate_app("com.example.app")
     # Enter email

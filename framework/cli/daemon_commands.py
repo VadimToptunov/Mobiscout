@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import subprocess
 import sys
 import threading
@@ -30,6 +31,29 @@ def _png_dimensions(data: bytes) -> "tuple[int, int]":
     width = int.from_bytes(data[16:20], "big")
     height = int.from_bytes(data[20:24], "big")
     return (width, height)
+
+
+def _force_utf8_stdio() -> None:
+    """Pin the stdio transport to UTF-8, whatever the platform locale says.
+
+    The plugin writes and reads the daemon's streams as UTF-8 (JsonRpcClient pins both
+    to StandardCharsets.UTF_8), but Python decodes stdin with the locale encoding — the
+    ANSI codepage on Windows (cp1251/cp936/…). A request carrying non-ASCII (an app label,
+    a path through a non-ASCII profile directory) then decodes wrong or raises, and the
+    session dies with an opaque error.
+
+    Setting PYTHONUTF8/PYTHONIOENCODING on the child is NOT enough: the shipped engine is a
+    PyInstaller-frozen binary, which runs under an isolated PyConfig that ignores PYTHON*
+    env vars — so the env-var route only ever fixed the developer `mobiscout daemon` path.
+    Reconfiguring the streams here works for both, and is the only thing that does.
+    """
+    for stream in (sys.stdin, sys.stdout):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):  # a stream that can't be reconfigured (a pipe replaced in tests)
+                pass
 
 
 def _format_preflight(result: Any) -> str:
@@ -298,7 +322,9 @@ class JSONRPCServer:
 
         if not params.get("package"):
             raise ValueError("flow/getGraph requires 'package'")
-        return crawl_graph(params)
+        # Same wall-clock backstop as kit/generate — this crawls too, and an unbounded
+        # crawl on a wedged device blocks every later RPC on the single-threaded daemon.
+        return crawl_graph({"max_seconds": self._DEFAULT_KIT_MAX_SECONDS, **params})
 
     def handle_environment_detect(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Report the automation toolchain (Appium/drivers/SDK/Java/Xcode) with
@@ -365,10 +391,18 @@ class JSONRPCServer:
         return result
 
     def handle_device_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle device list request."""
+        """Handle device list request.
+
+        Carries an ``error`` when the listing itself failed (adb missing, adb timed out,
+        simctl returned junk) so the IDE can say so instead of showing an empty device
+        panel that looks identical to "no devices attached".
+        """
         platform = params.get("platform", "all")
-        devices = self.device_manager.list_all_devices(platform)
-        return {"devices": devices}
+        devices, error = self.device_manager.probe_all_devices(platform)
+        response: Dict[str, Any] = {"devices": devices}
+        if error:
+            response["error"] = error
+        return response
 
     def handle_backend_list(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Handle backend list request."""
@@ -438,9 +472,15 @@ class JSONRPCServer:
         device_id = params.get("device_id")
 
         # Self-heal our own env first (so spawned adb inherits ANDROID_HOME), then
-        # run the checks that matter for this platform/backend(=driver).
+        # run the checks that matter for this platform/driver.
         ensure_android_home()
-        results = preflight(platform, backend, server)
+        # Preflight the driver the session will ACTUALLY build. _session_driver picks by
+        # platform — iOS goes through Appium/XCUITest, Android over adb, ignoring `backend`
+        # entirely — while the plugin sends backend="appium" for every platform. Passing
+        # `backend` here made an Android session hard-fail on "No Appium server reachable"
+        # for a server it never connects to, blocking the engine's headline no-Appium path.
+        effective_driver = "appium" if str(platform).lower() == "ios" else "adb"
+        results = preflight(platform, effective_driver, server)
         failures = [r for r in results if r.level == "fail"]
         if failures:
             raise ValueError("Session preflight failed:\n" + "\n".join(_format_preflight(r) for r in failures))
@@ -727,7 +767,9 @@ class JSONRPCServer:
         Platform-aware: iOS uses ``simctl spawn <udid> log stream`` filtered to the
         app process; Android uses ``adb -s <serial> logcat`` scoped to the app's PID.
         Each line is pumped back as a ``logs/message`` notification (the Logs panel
-        already renders those). Replaces any stream already running.
+        already renders those). Replaces any stream already running. Raises if the
+        spawned tool exits immediately (a stale serial/udid), so a dead stream is never
+        reported as streaming; ``platform`` defaults from the device id's shape.
 
         params: {udid | session_id, platform?, process? | bundle_id?}
         """
@@ -741,7 +783,7 @@ class JSONRPCServer:
             platform = platform or session.get("platform")
         if not udid:
             raise ValueError("logs/start requires 'udid' or a live 'session_id'")
-        platform = str(platform or "ios").lower()
+        platform = str(platform or self._platform_for(udid)).lower()
 
         self._stop_log_stream()
         if platform == "android":
@@ -761,7 +803,20 @@ class JSONRPCServer:
             cmd = ["xcrun", "simctl", "spawn", udid, "log", "stream", "--style", "compact", "--color", "none"]
             if process:
                 cmd += ["--predicate", f'process == "{process}"']
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, bufsize=1)
+        # Merge stderr into the stream: it carries the only explanation of a failed spawn
+        # ("device not found", "Invalid device"), and the pump below drains it.
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        try:
+            proc.wait(timeout=0.5)
+        except subprocess.TimeoutExpired:
+            pass  # still running after the settling window — a real stream
+        else:
+            # A stale serial/udid makes adb/simctl exit at once. Answering streaming:true
+            # for that left the Logs tab silently empty with the reason thrown away.
+            detail = (proc.stdout.read() if proc.stdout else "").strip() or f"exit code {proc.returncode}"
+            if proc.stdout:
+                proc.stdout.close()
+            raise ValueError(f"log stream for {udid} ended immediately: {detail}")
         self._log_stream = proc
 
         def _pump(p: subprocess.Popen) -> None:
@@ -776,9 +831,31 @@ class JSONRPCServer:
                             "params": {"message": line, "level": "APP", "source": "device"},
                         }
                     )
+            if self._log_stream is p:
+                # EOF on a stream nobody stopped — the device or the tool went away. Say so
+                # rather than leaving the Logs tab frozen on the last line it happened to get.
+                self._emit(
+                    {
+                        "jsonrpc": "2.0",
+                        "method": "logs/message",
+                        "params": {
+                            "message": f"log stream ended (exit {p.poll()})",
+                            "level": "WARN",
+                            "source": "device",
+                        },
+                    }
+                )
 
         threading.Thread(target=_pump, args=(proc,), daemon=True).start()
         return {"streaming": True, "udid": udid, "platform": platform, "process": process}
+
+    @staticmethod
+    def _platform_for(device_id: str) -> str:
+        """Guess the platform of a device id when the caller didn't say. Only a simulator
+        UDID (a canonical UUID) can be driven by ``simctl spawn``, so anything else — an
+        adb serial such as ``emulator-5554`` — is Android. The old blind "ios" default
+        spawned a simctl command that died instantly for every Android serial."""
+        return "ios" if re.fullmatch(r"[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}", device_id) else "android"
 
     @staticmethod
     def _android_pid(serial: str, package: str) -> Optional[str]:
@@ -846,6 +923,7 @@ class JSONRPCServer:
     def run_stdio(self) -> None:
         """Run server using stdin/stdout."""
         logger.info("Starting JSON-RPC server (stdio mode)")
+        _force_utf8_stdio()
 
         with self._io_lock:
             print(self._ready_notification(), flush=True)

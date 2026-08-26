@@ -42,23 +42,33 @@ def test_permissions_check_pass_in_writable_dir(tmp_path, monkeypatch):
 def test_config_check_pass_when_files_present(tmp_path, monkeypatch):
     (tmp_path / "pyproject.toml").write_text("[tool]\n")
     (tmp_path / "requirements.txt").write_text("rich\n")
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("framework.health.doctor._FRAMEWORK_ROOT", tmp_path)
     check = _doctor()._check_config(verbose=False)
     assert check.status == CheckStatus.PASS
 
 
 def test_config_check_warns_when_some_missing(tmp_path, monkeypatch):
     (tmp_path / "pyproject.toml").write_text("[tool]\n")  # requirements.txt absent
-    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("framework.health.doctor._FRAMEWORK_ROOT", tmp_path)
     check = _doctor()._check_config(verbose=False)
     assert check.status == CheckStatus.WARN
     assert "requirements.txt" in check.message
 
 
-def test_config_check_fails_when_all_missing(tmp_path, monkeypatch):
+def test_config_check_ignores_the_users_cwd(tmp_path, monkeypatch):
+    """The check is anchored to the framework install, not the CWD: running doctor
+    from a user project must not report our files as missing (it used to FAIL and
+    turn the whole report red for every end user)."""
     monkeypatch.chdir(tmp_path)
     check = _doctor()._check_config(verbose=False)
-    assert check.status == CheckStatus.FAIL
+    assert check.status == CheckStatus.PASS  # this repo *is* the framework root
+
+
+def test_config_check_skips_when_not_a_source_checkout(tmp_path, monkeypatch):
+    """An installed/frozen engine ships neither file — SKIP, never FAIL."""
+    monkeypatch.setattr("framework.health.doctor._FRAMEWORK_ROOT", tmp_path)
+    check = _doctor()._check_config(verbose=False)
+    assert check.status == CheckStatus.SKIP
 
 
 def test_git_check_returns_valid_status():
@@ -93,12 +103,35 @@ def test_run_all_checks_and_report(tmp_path, monkeypatch):
     assert doctor.console.file.getvalue()  # something was written
 
 
-def test_android_sdk_check_passes_when_env_set(tmp_path, monkeypatch):
+def test_android_sdk_check_passes_when_env_points_at_a_real_sdk(tmp_path, monkeypatch):
+    (tmp_path / "platform-tools").mkdir()
+    (tmp_path / "platform-tools" / "adb").write_text("#!/bin/sh\n")
     monkeypatch.setenv("ANDROID_HOME", str(tmp_path))
     monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
     check = _doctor()._check_android_sdk(verbose=False)
     assert check.status == CheckStatus.PASS
     assert str(tmp_path) in check.message
+
+
+def test_android_sdk_check_warns_when_env_has_no_adb(tmp_path, monkeypatch):
+    """A stale ANDROID_HOME (SDK moved/deleted) used to PASS — it looks configured
+    while UiAutomator2 dies on it. It must report, with the real SDK as the fix."""
+    monkeypatch.setenv("ANDROID_HOME", str(tmp_path / "moved-sdk"))
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr("framework.health.preflight.resolve_android_home", lambda: "/opt/android/sdk")
+    check = _doctor()._check_android_sdk(verbose=False)
+    assert check.status == CheckStatus.WARN
+    assert "no platform-tools/adb" in check.message
+    assert check.fix_command == "export ANDROID_HOME=/opt/android/sdk"
+
+
+def test_android_sdk_check_fails_when_env_is_broken_and_nothing_detected(tmp_path, monkeypatch):
+    monkeypatch.setenv("ANDROID_HOME", str(tmp_path / "moved-sdk"))
+    monkeypatch.delenv("ANDROID_SDK_ROOT", raising=False)
+    monkeypatch.setattr("framework.health.preflight.resolve_android_home", lambda: None)
+    check = _doctor()._check_android_sdk(verbose=False)
+    assert check.status == CheckStatus.FAIL
+    assert "no platform-tools/adb" in check.message
 
 
 def test_android_sdk_check_warns_when_detected_but_unset(tmp_path, monkeypatch):

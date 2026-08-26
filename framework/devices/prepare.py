@@ -105,7 +105,14 @@ def ios_privacy_services_from_plist(plist: bytes) -> List[str]:
 def _run(cmd: List[str]) -> bool:
     """Run a prep command, True on success. Best-effort: never raises."""
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=30).returncode == 0
+        # text=True alone decodes with the locale codepage on Windows, where
+        # non-ASCII adb/simctl output raises UnicodeDecodeError; pin UTF-8.
+        return (
+            subprocess.run(
+                cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30
+            ).returncode
+            == 0
+        )
     except (subprocess.SubprocessError, OSError):
         return False
 

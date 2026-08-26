@@ -29,9 +29,11 @@ class MTRSettingsConfigurable : Configurable {
 
     private val settings = MTRSettings.getInstance()
 
-    // Defaults for the Generate dialog.
-    private val platformCombo = ComboBox(MTRSettings.Platform.values())
-    private val languageCombo = ComboBox(MTRSettings.Language.values())
+    // Defaults for the Generate dialog. Only the values that dialog can actually select:
+    // Swift and Go have no codegen target and BOTH has no platform entry, so picking one
+    // used to fall back to Python/Android with no hint the setting did nothing.
+    private val platformCombo = ComboBox(PLATFORMS)
+    private val languageCombo = ComboBox(LANGUAGES)
     private val createNewFrameworkRadio = JRadioButton("Create a new test framework")
     private val useExistingFrameworkRadio = JRadioButton("Integrate with an existing framework")
     private val existingFrameworkPathField = TextFieldWithBrowseButton()
@@ -115,8 +117,11 @@ class MTRSettingsConfigurable : Configurable {
 
     override fun reset() {
         val s = settings.state
-        platformCombo.selectedItem = s.targetPlatform
-        languageCombo.selectedItem = s.preferredLanguage
+        // A settings file written by an older build can hold a value these lists no longer
+        // offer; selecting an absent item is a no-op that would leave the page showing
+        // something other than what's stored, so fall back to the default explicitly.
+        platformCombo.selectedItem = s.targetPlatform.takeIf { it in PLATFORMS } ?: MTRSettings.Platform.ANDROID
+        languageCombo.selectedItem = s.preferredLanguage.takeIf { it in LANGUAGES } ?: MTRSettings.Language.PYTHON
         createNewFrameworkRadio.isSelected = s.createNewFramework
         useExistingFrameworkRadio.isSelected = !s.createNewFramework
         existingFrameworkPathField.text = s.existingFrameworkPath
@@ -124,5 +129,19 @@ class MTRSettingsConfigurable : Configurable {
         defaultSimulatorField.text = s.defaultSimulatorName
         daemonAutoStartCheckbox.isSelected = s.daemonAutoStart
         updateFrameworkVisibility()
+    }
+
+    private companion object {
+        // The enums keep their unused constants so an existing MobileTestRecorder.xml still
+        // deserializes (an unknown constant would be read as null and blow up the load);
+        // these are the ones the UI offers.
+        private val PLATFORMS = arrayOf(MTRSettings.Platform.ANDROID, MTRSettings.Platform.IOS)
+        private val LANGUAGES = arrayOf(
+            MTRSettings.Language.PYTHON,
+            MTRSettings.Language.JAVA,
+            MTRSettings.Language.KOTLIN,
+            MTRSettings.Language.JAVASCRIPT,
+            MTRSettings.Language.TYPESCRIPT,
+        )
     }
 }

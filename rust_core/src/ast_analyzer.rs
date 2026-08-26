@@ -309,13 +309,25 @@ impl RustAstAnalyzer {
 
 impl RustAstAnalyzer {
     fn analyze_source_with_language(&mut self, source: &str, language: Language) -> PyResult<ComplexityMetrics> {
-        // Get or create parser for this language
+        // Get or create parser for this language.
+        //
+        // Fallible on purpose: set_language fails on a tree-sitter grammar/ABI mismatch —
+        // exactly the mis-built-wheel case the native seam exists to absorb. A panic here
+        // would surface as pyo3_runtime.PanicException, which subclasses BaseException and
+        // therefore slips past the seam's `except Exception`, crashing the analyzer instead
+        // of degrading to the Python fallback. Mirrors the `.ok()?` handling in
+        // analyze_directory and the parse() error two lines below.
         let lang_key = format!("{:?}", language);
-        let parser = self.parsers.entry(lang_key).or_insert_with(|| {
-            let mut p = tree_sitter::Parser::new();
-            p.set_language(&language.get_ts_language()).expect("Failed to set language");
-            p
-        });
+        let parser = match self.parsers.entry(lang_key) {
+            std::collections::hash_map::Entry::Occupied(e) => e.into_mut(),
+            std::collections::hash_map::Entry::Vacant(e) => {
+                let mut p = tree_sitter::Parser::new();
+                p.set_language(&language.get_ts_language()).map_err(|err| {
+                    pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to set language: {}", err))
+                })?;
+                e.insert(p)
+            }
+        };
 
         let tree = parser.parse(source, None)
             .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Failed to parse source"))?;

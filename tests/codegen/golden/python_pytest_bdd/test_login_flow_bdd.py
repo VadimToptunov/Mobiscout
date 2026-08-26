@@ -7,6 +7,8 @@ so the .feature file stays free of locator detail.
 DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
 """
 
+import os
+
 import pytest
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
@@ -59,7 +61,9 @@ def driver():
     options.automation_name = "UiAutomator2"
     options.app_package = APP_PACKAGE
     options.app_activity = APP_ACTIVITY
-    drv = webdriver.Remote("http://localhost:4723", options=options)
+    # Run anywhere without regenerating: point at a different Appium/cloud-grid
+    # hub with MOBISCOUT_APPIUM_SERVER.
+    drv = webdriver.Remote(os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723"), options=options)
     yield drv
     drv.quit()
 

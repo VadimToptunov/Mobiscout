@@ -7,6 +7,8 @@ so the .feature file stays free of locator detail.
 DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
 """
 
+import os
+
 import pytest
 from appium import webdriver
 {% if model.platform.value == "ios" %}
@@ -65,6 +67,11 @@ def driver():
     options.platform_name = "iOS"
     options.automation_name = "XCUITest"
     options.bundle_id = APP_PACKAGE
+{% if model.launch_args %}
+    # Launch arguments used during the crawl (e.g. skip a login gate) — pass them
+    # so the steps start in the same state the flow was recorded in.
+    options.set_capability("processArguments", {"args": [{% for a in model.launch_args %}{{ a | py_str }}{% if not loop.last %}, {% endif %}{% endfor %}]})
+{% endif %}
 {% else %}
     options = UiAutomator2Options()
     options.platform_name = "Android"
@@ -74,7 +81,9 @@ def driver():
     options.app_activity = APP_ACTIVITY
 {% endif %}
 {% endif %}
-    drv = webdriver.Remote("http://localhost:4723", options=options)
+    # Run anywhere without regenerating: point at a different Appium/cloud-grid
+    # hub with MOBISCOUT_APPIUM_SERVER.
+    drv = webdriver.Remote(os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723"), options=options)
     yield drv
     drv.quit()
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional, Tuple
 
+from framework.codegen.emitters._escape import single_line
 from framework.codegen.emitters._naming import snake
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase, TestModel
 
@@ -25,7 +26,22 @@ def target_key(sel: Optional[Selector]) -> str:
     and the LOCATORS registry key. Stable and readable."""
     if sel is None:
         return "element"
-    return sel.description or sel.value
+    return canonical_target(sel.description or sel.value)
+
+
+def canonical_target(value: str) -> str:
+    """The one spelling of a target used on *both* sides of the BDD contract.
+
+    The registry is keyed by this and the feature step carries the same text, so
+    the lookup at runtime is an exact hit. It has to be free of everything that
+    only survives a round trip on one side: ``"`` and ``\\`` are Cucumber
+    ``{string}`` escapes that cucumber-jvm/cucumber.js unescape but pytest-bdd's
+    ``parsers.parse`` does not (the step would capture ``Say \\"hi\\"`` and miss
+    the key), and a newline is *irreversibly* flattened to a space in the feature
+    — so a key holding one can never match. Examples-table cells are trimmed by
+    every Gherkin parser too, hence the whitespace collapse.
+    """
+    return re.sub(r"\s+", " ", value.replace('"', "'").replace("\\", "/")).strip()
 
 
 def gherkin_quote(value: str) -> str:
@@ -51,8 +67,13 @@ def examples_cell(value: str) -> str:
     Gherkin escapes a literal pipe as ``\\|`` (and a literal backslash as
     ``\\\\``); newlines have no in-cell representation, so they are neutralised
     to a space — a cell must stay on one line.
+
+    A ``"`` is escaped for the *step*, not the cell: the cell value is
+    substituted into a quoted argument (``I enter "<email>" into ...``), so a raw
+    quote would close that argument early and no Cucumber-expression step would
+    match the outline at all.
     """
-    escaped = value.replace("\\", "\\\\").replace("|", "\\|")
+    escaped = value.replace("\\", "\\\\").replace("|", "\\|").replace('"', '\\"')
     return escaped.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
 
 
@@ -176,7 +197,7 @@ def _type_outline(case: TestCase) -> Optional[List[str]]:
         return None
     used: set = set()
     params = {id(s): _param_name(target_key(s.selector), used) for s in type_steps}
-    lines = [f"  Scenario Outline: {case.description or case.name}"]
+    lines = [f"  Scenario Outline: {single_line(case.description) or case.name}"]
     prev = None
     for step in case.steps:
         clause = _CLAUSE[step.action]
@@ -215,7 +236,7 @@ def _visible_outline(case: TestCase) -> Optional[List[str]]:
     if len(targets) < 2:
         return None
     lines = [
-        f"  Scenario Outline: {case.description or case.name}",
+        f"  Scenario Outline: {single_line(case.description) or case.name}",
         "    Given the app is launched",
         '    Then "<element>" is visible',
         "",
@@ -237,7 +258,7 @@ def render_feature(model: TestModel) -> str:
     for case in model.cases:
         block = _type_outline(case) or _visible_outline(case)
         if block is None:
-            block = [f"  Scenario: {case.description or case.name}"]
+            block = [f"  Scenario: {single_line(case.description) or case.name}"]
             for line in scenario_lines(case.steps):
                 block.append(f"    {line['keyword']} {line['phrase']}")
         out.extend(block)

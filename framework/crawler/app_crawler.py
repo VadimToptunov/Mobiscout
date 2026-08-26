@@ -881,6 +881,13 @@ class AppCrawler:
                     gate_link = next((e for e in new_screen.interactive() if self._own(e)), None)
                     if gate_link is None and new_screen.elements:
                         gate_link = new_screen.elements[0]
+                    # Record the GATE screen itself. build_graph drops any transition whose
+                    # endpoint isn't in result.screens, so without this both the tap-into-gate
+                    # edge and the gate edge below vanish, every screen behind the gate lands
+                    # at depth -1 ("unreachable"), and the kit emits no tests for the whole
+                    # post-auth app — while coverage.md simultaneously reports it as explored.
+                    # Not tagged gated: the gate screen is what you reach *before* authing.
+                    result.screens.setdefault(new_screen.fingerprint, new_screen)
                     result.transitions.append(
                         Transition(new_screen.fingerprint, gate_link or element, behind.fingerprint, kind="gate")
                     )

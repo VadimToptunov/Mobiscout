@@ -165,11 +165,11 @@ def driver():
 {% for case in model.cases %}
 def test_{{ case.name }}(driver):
 {% if case.description %}
-    """{{ case.description }}"""
+    {{ case.description | py_str }}
 {% endif %}
 {% for step in case.steps %}
 {% if step.description %}
-    # {{ step.description }}
+    # {{ step.description | single_line }}
 {% endif %}
 {% if step.action.value == "launch" %}
     driver.activate_app({{ model.app_package | py_str }})
@@ -206,7 +206,7 @@ def test_{{ case.name }}(driver):
 {% endif %}
 {% elif step.action.value == "press_key" %}
 {% if model.platform.value == "ios" %}
-    # UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text }}; press the key via the on-screen keyboard instead.
+    # UNSUPPORTED on iOS: no hardware keycode equivalent for {{ step.text | single_line }}; press the key via the on-screen keyboard instead.
     pass
 {% else %}
     driver.press_keycode({{ step.text | keycode }})

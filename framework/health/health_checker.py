@@ -26,6 +26,8 @@ class HealthChecker:
 
         return {
             "status": "ok",
-            "version": __version__ if hasattr(__version__, "__version__") else "0.5.0",
+            # __version__ is a plain string: the old hasattr(__version__, "__version__")
+            # guard was never true, so every client was told the engine was 0.5.0.
+            "version": __version__,
             "uptime_seconds": uptime,
         }

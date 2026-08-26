@@ -131,10 +131,14 @@ def scan_lines(contents: List[str], patterns: List[str], ignore_case: bool = Fal
     if core is not None and hasattr(core, "scan_lines"):
         try:
             return cast(List[Tuple[int, int, int]], core.scan_lines(lines_per_file, list(patterns), ignore_case))
-        except Exception as e:
+        except BaseException as e:  # noqa: BLE001 — a Rust panic isn't an Exception; Ctrl-C re-raised
             # A pattern the Rust regex crate can't compile (e.g. a negative lookahead) degrades
             # to Python. (A stale-ABI wheel is already screened out by _native_core's version
-            # gate.) Warn once so it doesn't silently cost the ~35x — results stay correct.
+            # gate.) BaseException because a panic in the core arrives as PanicException, which
+            # does not subclass Exception and would otherwise escape this seam.
+            # Warn once so it doesn't silently cost the ~35x — results stay correct.
+            if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                raise
             _warn_once_native(f"Rust scan_lines failed, using the Python fallback: {e}")
     return _scan_lines_py(lines_per_file, patterns, ignore_case)
 
@@ -182,8 +186,13 @@ def analyze_source_complexity(source: str, language: str = "python") -> SourceCo
                 function_count=m.function_count,
                 class_count=m.class_count,
             )
-        except Exception:
-            pass
+        except BaseException as exc:  # noqa: BLE001 — see below; Ctrl-C is re-raised
+            # A panic inside the Rust core surfaces as pyo3_runtime.PanicException, which
+            # subclasses BaseException — so `except Exception` alone lets it escape and
+            # crashes the caller, defeating the point of this seam (degrade to Python, never
+            # fail because the optional accelerator misbehaved). Interrupts still propagate.
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
     return _python_fallback(source, language)
 
 

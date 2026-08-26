@@ -33,10 +33,17 @@ def _js_webdriverio(model: TestModel, server: str, target: str) -> Dict[str, str
         pass
 
     if is_ios:
+        # Launch arguments used during the crawl (e.g. skip a login gate) belong in
+        # the capabilities, or every spec starts at the gate the crawl skipped.
+        launch_args = ""
+        if model.launch_args:
+            joined = ", ".join(json.dumps(a) for a in model.launch_args)
+            launch_args = f"    'appium:processArguments': {{ args: [{joined}] }},\n"
         cap = (
             "    platformName: 'iOS',\n"
             "    'appium:automationName': 'XCUITest',\n"
             f"    'appium:bundleId': '{model.app_package}',\n"
+            f"{launch_args}"
             "    'appium:deviceName': 'iPhone 15',\n"
         )
     else:
@@ -135,7 +142,8 @@ def _python_pytest(model: TestModel, server: str, target: str) -> Dict[str, str]
         "# boot your device/emulator and launch the app, then:\n"
         "pytest\n"
         "```\n\n"
-        "Each test file spins up its own Appium session against "
+        "Each test file spins up its own Appium session against the server in "
+        "`MOBISCOUT_APPIUM_SERVER` (default `http://localhost:4723`); the crawl used "
         f"`{server}`. Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
     )
     return {"requirements.txt": requirements, "pytest.ini": pytest_ini, "README.md": readme}
@@ -255,7 +263,9 @@ def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
         "mvn test\n"
         "```\n\n"
         f"Tests are in `{target}/` (package `generated`) and run via `testng.xml`. "
-        f"Sessions target `{server}`. Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
+        "Sessions target the server in `MOBISCOUT_APPIUM_SERVER` (default "
+        f"`http://localhost:4723`); the crawl used `{server}`. "
+        "Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
     )
     return files
 
@@ -290,8 +300,9 @@ def _kotlin_gradle(model: TestModel, server: str, target: str) -> Dict[str, str]
         "# boot your device/emulator and launch the app, then:\n"
         "gradle test\n"
         "```\n\n"
-        f"Tests are in `{target}/`. Sessions target `{server}`. "
-        "Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
+        f"Tests are in `{target}/`. Sessions target the server in "
+        "`MOBISCOUT_APPIUM_SERVER` (default `http://localhost:4723`); the crawl used "
+        f"`{server}`. Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
     )
     return {
         "build.gradle.kts": build,

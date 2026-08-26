@@ -12,6 +12,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 TIMEOUT = 10
 # How many times _find scrolls looking for an off-screen element before giving up.
 SCROLL_TRIES = 4
+# The screen this page object was generated from, as a literal — a title carrying
+# a quote or a brace would break the f-string it is reported in below.
+SCREEN = {{ po.screen_name | py_str }}
 
 
 class {{ po.class_name }}:
@@ -66,7 +69,7 @@ class {{ po.class_name }}:
             found = _locate(self.driver)
             if found:
                 return found
-        raise NoSuchElementException(f"No locator matched for {name!r} on {{ po.screen_name }} within {TIMEOUT}s")
+        raise NoSuchElementException(f"No locator matched for {name!r} on {SCREEN} within {TIMEOUT}s")
 
 {% for f in po.fields %}
     def {{ f.name }}(self):

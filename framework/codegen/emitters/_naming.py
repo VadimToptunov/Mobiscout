@@ -9,6 +9,23 @@ one definition.
 
 from __future__ import annotations
 
+import re
+
+# Everything that cannot appear inside an identifier. Screen and case titles
+# reach the emitters as the app wrote them ("Checkout (guest)", "btn.confirm"),
+# so they are split on these characters instead of being copied into a name.
+_NON_IDENT = re.compile(r"[^0-9A-Za-z]+")
+
+
+def _no_leading_digit(name: str) -> str:
+    """Prefix an underscore when an identifier would start with a digit.
+
+    "2FA Setup" / "4G" / "5G" are ordinary screen titles, but ``public void
+    2faSetup()`` and ``fun 2faSetup()`` are rejected by javac and kotlinc — the
+    whole generated kit then fails to compile.
+    """
+    return f"_{name}" if name[:1].isdigit() else name
+
 
 def snake(name: str) -> str:
     """``LoginFlow`` / ``Login flow`` -> ``login_flow``."""
@@ -17,7 +34,7 @@ def snake(name: str) -> str:
         if ch.isupper() and i > 0 and not name[i - 1].isupper():
             out.append("_")
         out.append(ch.lower())
-    return "".join(out).replace(" ", "_").replace("-", "_")
+    return _no_leading_digit(_NON_IDENT.sub("_", "".join(out)).strip("_"))
 
 
 def kebab(name: str) -> str:
@@ -32,16 +49,16 @@ def kebab(name: str) -> str:
 
 def camel(name: str) -> str:
     """``login_flow`` / ``login-flow`` -> ``loginFlow``."""
-    parts = [p for p in name.replace("-", "_").split("_") if p]
+    parts = [p for p in _NON_IDENT.split(name) if p]
     if not parts:
         return "test"
-    return parts[0] + "".join(p.capitalize() for p in parts[1:])
+    return _no_leading_digit(parts[0] + "".join(p.capitalize() for p in parts[1:]))
 
 
 def pascal(name: str) -> str:
     """``login_flow`` / ``login flow`` -> ``LoginFlow``."""
-    parts = [p for p in name.replace("-", "_").replace(" ", "_").split("_") if p]
-    return "".join(p[:1].upper() + p[1:] for p in parts) or "Generated"
+    parts = [p for p in _NON_IDENT.split(name) if p]
+    return _no_leading_digit("".join(p[:1].upper() + p[1:] for p in parts)) or "Generated"
 
 
 def ua_escape(value: str) -> str:

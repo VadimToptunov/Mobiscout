@@ -34,6 +34,10 @@ def ios_app_plist(config: Dict[str, Any]) -> bytes:
             ["xcrun", "simctl", "get_app_container", udid, package, "app"],
             capture_output=True,
             text=True,
+            # text=True alone decodes with the locale codepage on Windows, where a
+            # non-ASCII path raises UnicodeDecodeError; pin UTF-8 with replacement.
+            encoding="utf-8",
+            errors="replace",
             timeout=10,
         )
         app_dir = r.stdout.strip()

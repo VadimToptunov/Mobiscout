@@ -56,6 +56,12 @@ def cli(ctx: click.Context) -> None:
     Intelligent Mobile Testing Platform - Scout, Analyze, Automate
     """
     ctx.ensure_object(dict)
+    # Activate the paid layer here too, not only in `daemon`: every other entry point
+    # (`crawl`, `generate`, `mcp`, …) otherwise ran with the default UNLIMITED provider on
+    # an install carrying a limited PRO licence. No-op for open-core, which stays unlimited.
+    from framework.cli.daemon_commands import _activate_pro_layer
+
+    _activate_pro_layer()
 
 
 # Register command groups

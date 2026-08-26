@@ -14,7 +14,7 @@ import pytest
 from gherkin.parser import Parser
 from gherkin.token_scanner import TokenScanner
 
-from framework.codegen.emitters._bdd_common import gherkin_quote, render_feature
+from framework.codegen.emitters._bdd_common import collect_targets, gherkin_quote, render_feature
 from framework.codegen.ir import (
     ActionType,
     AssertionType,
@@ -84,10 +84,30 @@ def test_hostile_labels_round_trip_through_cucumber_string():
     feature = render_feature(_hostile_model())
     # Collect every {string} argument across the feature and unescape it.
     args = [_cucumber_unescape(m.group(1)) for line in feature.splitlines() for m in _CUCUMBER_STRING.finditer(line)]
-    # The quote survives (escaped then unescaped); the newline is neutralised to
-    # a space so the label stays on one line but its words are preserved.
-    assert 'Save "Draft" now' in args
+    # A target name is canonicalised (a double quote becomes a single one) so the
+    # same text can key the LOCATORS registry — see the contract test below. A
+    # plain value only needs escaping, so its quote survives verbatim. Both keep
+    # their words: the newline is neutralised to a space, not dropped.
+    assert "Save 'Draft' now" in args
     assert 'All "saved" ok' in args
+
+
+def test_registry_keys_are_the_feature_targets_verbatim():
+    """The LOCATORS registry key and the target written into the .feature must be
+    the same text. The generated step definition looks the captured argument up in
+    that registry, so escaping applied to one side only is a KeyError (pytest-bdd)
+    or a null/undefined locator list (Cucumber-JVM, Cucumber.js) at run time."""
+    model = _hostile_model()
+    args = {
+        _cucumber_unescape(m.group(1))
+        for line in render_feature(model).splitlines()
+        for m in _CUCUMBER_STRING.finditer(line)
+    }
+    for key, _sel in collect_targets(model):
+        assert key in args, f"registry key {key!r} is not in the feature: {sorted(args)}"
+        # And it must need no escaping at all, or the two sides drift again the
+        # moment a parser that doesn't unescape (pytest-bdd's parse) reads it.
+        assert gherkin_quote(key) == key
 
 
 def test_no_step_line_carries_a_raw_control_char():
@@ -140,6 +160,20 @@ def test_examples_pipe_and_newline_do_not_corrupt_the_table():
     # The escaped pipe round-trips to a literal pipe; the newline is neutralised.
     first_col_values = [row["cells"][0]["value"] for row in rows]
     assert "a|b c" in first_col_values, f"pipe/newline value did not survive: {first_col_values}"
+
+
+def test_examples_cell_quote_stays_escaped_for_the_substituted_step():
+    """A cell value is substituted into a *quoted* step argument, so a raw double
+    quote there closes the argument early and no Cucumber-expression step matches
+    the outline. Gherkin leaves ``\\"`` in the cell, which the {string} parameter
+    then unescapes — so the escape must survive the table."""
+    model = _pipe_outline_model()
+    model.cases[0].steps[1].text = 'say "hi"'
+    parsed = Parser().parse(TokenScanner(render_feature(model)))
+    examples = parsed["feature"]["children"][0]["scenario"]["examples"][0]
+    values = [row["cells"][0]["value"] for row in examples["tableBody"]]
+    assert 'say \\"hi\\"' in values, values
+    assert _cucumber_unescape('say \\"hi\\"') == 'say "hi"'
 
 
 @pytest.mark.parametrize("bad", ['x"y', "a\nb", "c\r\nd", "back\\slash"])

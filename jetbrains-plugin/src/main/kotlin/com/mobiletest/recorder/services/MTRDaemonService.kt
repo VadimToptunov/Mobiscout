@@ -72,10 +72,17 @@ class MTRDaemonService : Disposable {
             val processBuilder = ProcessBuilder(command)
             val logFile = File(PathManager.getLogPath(), "mobiscout-daemon.log")
             processBuilder.redirectError(ProcessBuilder.Redirect.to(logFile))
+            // Pin the engine's stdio (and filesystem) encoding to UTF-8, which is what
+            // JsonRpcClient writes. A Windows Python decodes a PIPED stdin with the ANSI
+            // codepage by default, so a request carrying non-ASCII — the project path in
+            // every kit/generate, a login waypoint — arrives as mojibake or raises an
+            // uncaught UnicodeDecodeError in the daemon's read loop and kills it mid-request.
+            processBuilder.environment()["PYTHONUTF8"] = "1"
+            processBuilder.environment()["PYTHONIOENCODING"] = "utf-8"
 
             proc = processBuilder.start()
             rpc = JsonRpcClient(proc)
-            rpc.startListening { notification -> listeners.forEach { it(notification) } }
+            rpc.startListening { notification -> notifyListeners(notification) }
 
             // Test the connection. Short timeout: a healthy engine answers in well under
             // 15 s, and a wedged one must not pin the "Starting…" spinner for 10 minutes.
@@ -88,6 +95,15 @@ class MTRDaemonService : Disposable {
                 // stop() fires the state listeners, so the status dot and action enablement
                 // heal instead of lying "Running" over a dead process forever.
                 proc.onExit().thenRun { onEngineExit(proc) }
+                // An engine that died right after answering health/check completes that future
+                // before we register, so thenRun runs INLINE on this thread and reenters
+                // stop() (same monitor), clearing the state we just set. Firing notifyState(true)
+                // afterwards would paint "Running" over a dead engine with nothing left to heal
+                // it, and hand the caller a `true` with a null client.
+                if (!isRunning) {
+                    lastStartError = "The engine exited immediately after starting."
+                    return false
+                }
                 notifyState(true)
                 return true
             }
@@ -183,6 +199,20 @@ class MTRDaemonService : Disposable {
      */
     fun removeNotificationListener(listener: (JsonRpcNotification) -> Unit) {
         listeners.remove(listener)
+    }
+
+    /** Fan a daemon notification out to the listeners, each isolated. This runs on the RPC
+     *  reader thread, which is shared by every panel and project, so one listener that throws
+     *  must not take the whole connection down (the engine's TCP loop isolates its clients
+     *  the same way). */
+    private fun notifyListeners(notification: JsonRpcNotification) {
+        for (listener in listeners) {
+            try {
+                listener(notification)
+            } catch (e: Exception) {
+                LOG.warn("A Mobiscout notification listener failed", e)
+            }
+        }
     }
     
     // API Methods

@@ -3,6 +3,7 @@ package com.mobiletest.recorder.rpc
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import java.io.*
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -24,8 +25,13 @@ class JsonRpcClient(
     private val process: Process
 ) {
     private val gson = Gson()
-    private val writer = PrintWriter(BufferedWriter(OutputStreamWriter(process.outputStream)), true)
-    private val reader = BufferedReader(InputStreamReader(process.inputStream))
+    // Both stream charsets are pinned to UTF-8 instead of the JVM default. Requests routinely
+    // carry non-ASCII — the output dir is the project path, so a Windows profile directory
+    // with a Cyrillic/umlaut name lands in every kit/generate, as do login waypoints — and a
+    // charset the daemon doesn't share turns those into mojibake or kills its read loop.
+    private val writer =
+        PrintWriter(BufferedWriter(OutputStreamWriter(process.outputStream, StandardCharsets.UTF_8)), true)
+    private val reader = BufferedReader(InputStreamReader(process.inputStream, StandardCharsets.UTF_8))
     private val requestId = AtomicInteger(0)
     private val writeLock = Any()
     private val pending = ConcurrentHashMap<Int, CompletableFuture<JsonRpcResponse>>()
@@ -72,12 +78,21 @@ class JsonRpcClient(
         } catch (e: Exception) {
             return // ignore a malformed line rather than killing the reader
         } ?: return
-        val idEl = json.get("id")
-        if (idEl != null && !idEl.isJsonNull) {
-            val response = gson.fromJson(line, JsonRpcResponse::class.java)
-            response.id?.let { pending.remove(it)?.complete(response) }
-        } else if (json.has("method")) {
-            notificationCallback?.invoke(gson.fromJson(line, JsonRpcNotification::class.java))
+        // Everything below runs on the one reader thread. A JsonSyntaxException from a JSON
+        // line whose shape isn't ours, or a throw from a notification listener, would escape
+        // readLoop's IOException-only catch and close the connection for good — while the
+        // daemon process is still alive, so nothing detects it and the UI keeps saying
+        // "Running" over an RPC that fails every call from then on.
+        try {
+            val idEl = json.get("id")
+            if (idEl != null && !idEl.isJsonNull) {
+                val response = gson.fromJson(line, JsonRpcResponse::class.java)
+                response.id?.let { pending.remove(it)?.complete(response) }
+            } else if (json.has("method")) {
+                notificationCallback?.invoke(gson.fromJson(line, JsonRpcNotification::class.java))
+            }
+        } catch (e: Exception) {
+            // one bad line (or one bad listener) must not take the connection down
         }
     }
 
@@ -132,15 +147,23 @@ class JsonRpcClient(
      */
     fun close() {
         running = false
+        readerThread.interrupt()
+        // Order matters. Closing stdin first lets a daemon that is READING shut down cleanly
+        // on EOF. A daemon busy inside a long call (a crawl) never gets to that read, so the
+        // process must be killed next: its exit is the only thing that closes its stdout and
+        // releases the reader thread parked in readLine() — and BufferedReader.close() waits
+        // on that same lock, so closing the reader before the kill blocked close() for the
+        // rest of the crawl, and with it stop(), the Stop action and IDE shutdown. Each step
+        // is guarded on its own so a failure in one can't skip the kill and orphan the engine.
+        quietly { writer.close() }
+        quietly { process.destroy() }
+        quietly { if (!process.waitFor(5, TimeUnit.SECONDS)) process.destroyForcibly() }
+        quietly { reader.close() }
+    }
+
+    private fun quietly(action: () -> Unit) {
         try {
-            readerThread.interrupt()
-            writer.close()
-            reader.close()
-            process.destroy()
-            process.waitFor(5, TimeUnit.SECONDS)
-            if (process.isAlive) {
-                process.destroyForcibly()
-            }
+            action()
         } catch (e: Exception) {
             // best-effort teardown
         }

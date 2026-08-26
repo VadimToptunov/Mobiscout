@@ -294,18 +294,25 @@ def _classify_screen(screen: CrawlScreen) -> Optional[str]:
 
 
 def navigation_steps(
-    result: CrawlResult, app_package: str = "", graph: Optional[InteractionGraph] = None
+    result: CrawlResult,
+    app_package: str = "",
+    graph: Optional[InteractionGraph] = None,
+    auth_steps: Optional[List[Step]] = None,
 ) -> Dict[str, List[Step]]:
-    """The TAP steps that reach each screen from the entry (empty list for the
-    entry itself). A per-screen state check uses this to *navigate to* the screen
-    before asserting its controls — otherwise it would assert a deeper screen's
-    elements right after launch (which only shows the entry screen) and fail on a
-    real device. Screens with no path from the entry are omitted (unreachable ⇒
-    not state-testable), so the dict's keys are exactly the screens worth checking.
+    """The steps that reach each screen from launch (empty list for the entry
+    itself). A per-screen state check uses this to *navigate to* the screen before
+    asserting its controls — otherwise it would assert a deeper screen's elements
+    right after launch (which only shows the entry screen) and fail on a real
+    device. Screens with no path from the entry are omitted (unreachable ⇒ not
+    state-testable), so the dict's keys are exactly the screens worth checking.
 
     ``graph`` may be a pre-built interaction graph for this same crawl; when given
     it is reused instead of rebuilt (the graph is deterministic for a given
     result/package, so the output is identical).
+
+    ``auth_steps`` are the gate-passing steps (login/OTP) for this crawl. They are
+    spliced into the path of a gated screen at the gate crossing — never prepended
+    by the caller, which would run them before the app is on the gate screen.
     """
     graph = graph if graph is not None else build_graph(result, app_package)
     fps = list(result.screens)
@@ -321,31 +328,21 @@ def navigation_steps(
         from_fp, elem, to_fp = t
         by_pair[(from_fp, to_fp)].append(elem)
 
-    reachable: Dict[str, List[Step]] = {entry_fp: []}
+    gated = getattr(result, "gated", None) or set()
+    auth = list(auth_steps or [])
+    # A launch-time gate leaves the entry itself behind auth: authenticate, don't navigate.
+    reachable: Dict[str, List[Step]] = {entry_fp: list(auth) if entry_fp in gated else []}
     if graph.entry is None:
         return reachable  # no navigation model — only the entry screen is testable
 
-    gated = getattr(result, "gated", None) or set()
-    for node_id, path in graph.shortest_paths_from_entry().items():
-        target_fp = fp_of.get(node_id)
-        if target_fp is None or target_fp == entry_fp:
-            continue
-        # For a screen behind a gate, codegen prepends the auth steps, which land
-        # the test on the post-auth home — so navigate only the in-app hops from
-        # there, trimming the path (and its synthetic gate-crossing hop) to start at
-        # the first gated node. Without this the nav would re-tap from the launcher.
-        if target_fp in gated:
-            first_gated = next((i for i, n in enumerate(path) if fp_of.get(n) in gated), None)
-            if first_gated:
-                path = path[first_gated:]
+    def _hops(nodes: List[int]) -> Optional[List[Step]]:
+        """TAP steps for each consecutive pair of ``nodes``; None when a hop has no locator."""
         steps: List[Step] = []
-        ok = True
-        for a, b in zip(path, path[1:]):
+        for a, b in zip(nodes, nodes[1:]):
             src_fp = fp_of.get(a)
             dst_fp = fp_of.get(b)
             if src_fp is None or dst_fp is None:
-                ok = False
-                break
+                return None
             elems = by_pair.get((src_fp, dst_fp), [])
             screen = result.screens.get(src_fp)
             selector = None
@@ -355,11 +352,28 @@ def navigation_steps(
                 if selector:
                     break
             if selector is None:
-                ok = False  # can't build a locator for a hop — drop this screen
-                break
+                return None  # can't build a locator for a hop — drop this screen
             label = (elems[0].label or elems[0].class_name) if elems else "element"
             steps.append(Step(ActionType.TAP, selector=selector, description=f"Navigate: tap {label}"))
-        if ok:
+        return steps
+
+    for node_id, path in graph.shortest_paths_from_entry().items():
+        target_fp = fp_of.get(node_id)
+        if target_fp is None or target_fp == entry_fp:
+            continue
+        # A screen behind a gate is reached in three parts: the real hops that reach the
+        # gate screen, then the auth steps, then the remaining in-app hops. The synthetic
+        # gate-crossing hop is dropped — the auth steps reproduce it. The split is at the
+        # first gated node (the first screen past the gate); keeping the hops before it is
+        # what makes a mid-crawl gate work — trimming them typed the credentials into the
+        # entry screen, which has no such fields, whenever the gate wasn't the launch screen.
+        gate_at = next((i for i, n in enumerate(path) if fp_of.get(n) in gated), None) if target_fp in gated else None
+        if gate_at is None:
+            steps = _hops(path)
+        else:
+            before, after = _hops(path[:gate_at]), _hops(path[gate_at:])
+            steps = None if before is None or after is None else before + auth + after
+        if steps is not None:
             reachable[target_fp] = steps
     return reachable
 
@@ -480,9 +494,21 @@ def multi_step_cases(
         from_fp, elem, to_fp = t  # Transition or the legacy (src, element, dst) tuple
         by_pair[(from_fp, to_fp)].append(elem)
 
-    def _landmark(screen: CrawlScreen) -> Optional[Selector]:
+    def _landmark(screen: CrawlScreen, source: CrawlScreen) -> Optional[Selector]:
+        """A locator on ``screen`` proving the hop from ``source`` arrived. Prefer an element
+        whose identity isn't also on ``source``: shared chrome (a tab bar, a header, the iOS
+        application node that is always first) is on screen before the tap too, so asserting
+        it passes even when the tap never navigated — a false-green journey. Same ranking as
+        _navigation_cases; fall back to any locatable element when nothing is distinctive."""
         owned = _owned(screen, app_package)
-        return next((s for s in (selector_for(e, owned, screen.platform) for e in owned) if s), None)
+        source_keys = {(e.content_desc or e.text or e.resource_id) for e in _owned(source, app_package)}
+
+        def _distinctive(e: CrawlElement) -> bool:
+            key = e.content_desc or e.text or e.resource_id
+            return bool(key) and key not in source_keys
+
+        ranked = sorted(owned, key=lambda e: 0 if _distinctive(e) else 1)
+        return next((s for s in (selector_for(e, owned, screen.platform) for e in ranked) if s), None)
 
     # Keep only maximal walks (drop those that are a strict prefix of a longer one).
     # edge_coverage_paths() is computed once and reused (it was previously called
@@ -531,7 +557,7 @@ def multi_step_cases(
                 break
             from_screen = result.screens[from_fp]
             tap = selector_for(element, _owned(from_screen, app_package), from_screen.platform)
-            landmark = _landmark(result.screens[to_fp])
+            landmark = _landmark(result.screens[to_fp], from_screen)
             if tap is None or landmark is None:
                 ok = False
                 break
@@ -663,25 +689,20 @@ def _fuzz_form_steps(screen: CrawlScreen, app_package: str, payload: str) -> Lis
     return steps
 
 
-def _form_nav_context(
-    result: CrawlResult, app_package: str, graph: InteractionGraph
-) -> Tuple[Dict[str, List[Step]], List[Step]]:
-    """Compute, once per builder, the two ingredients of a form's reach prefix: the
-    per-screen gate/probe-aware nav steps (:func:`navigation_steps`) and the auth prefix for
-    gated screens (from the crawl's ``auth_sequence``)."""
-    nav_by_fp = navigation_steps(result, app_package, graph=graph)
+def _form_nav_context(result: CrawlResult, app_package: str, graph: InteractionGraph) -> Dict[str, List[Step]]:
+    """Compute, once per builder, each form's reach prefix: the per-screen gate/probe-aware
+    nav steps (:func:`navigation_steps`), with the auth prefix for gated screens spliced in
+    at the gate crossing (from the crawl's ``auth_sequence``)."""
     from framework.crawler.to_codegen import waypoints_to_steps  # lazy: graph <- to_codegen cycle
 
     platform_str = next(iter(result.screens.values())).platform if result.screens else "android"
     auth_steps = waypoints_to_steps(getattr(result, "auth_sequence", None), platform_str)
-    return nav_by_fp, auth_steps
+    return navigation_steps(result, app_package, graph=graph, auth_steps=auth_steps)
 
 
-def _launch_nav_prefix(
-    result: CrawlResult, nav_by_fp: Dict[str, List[Step]], auth_steps: List[Step], target_fp: str
-) -> Optional[List[Step]]:
-    """A fresh ``LAUNCH`` + (auth prefix when the screen is gated) + gate/probe-aware nav
-    step list reaching ``target_fp``. None when the screen is unreachable from the entry.
+def _launch_nav_prefix(nav_by_fp: Dict[str, List[Step]], target_fp: str) -> Optional[List[Step]]:
+    """A fresh ``LAUNCH`` + gate/probe/auth-aware nav step list reaching ``target_fp``.
+    None when the screen is unreachable from the entry.
 
     Form-case builders use this instead of re-deriving a nav prefix from raw transitions —
     which would replay a probe/gate edge as a real tap and walk *through* a login screen
@@ -690,12 +711,7 @@ def _launch_nav_prefix(
     nav = nav_by_fp.get(target_fp)
     if nav is None:
         return None
-    steps: List[Step] = [Step(ActionType.LAUNCH, description="Open app")]
-    gated = getattr(result, "gated", None) or set()
-    if auth_steps and target_fp in gated:
-        steps.extend(auth_steps)
-    steps.extend(nav)
-    return steps
+    return [Step(ActionType.LAUNCH, description="Open app")] + nav
 
 
 def fuzz_form_cases(
@@ -709,7 +725,7 @@ def fuzz_form_cases(
     team may not want fuzz cases in every kit. Complements :func:`negative_form_cases`
     (which uses type-specific invalid data) with input-robustness coverage."""
     graph = graph if graph is not None else build_graph(result, app_package)
-    nav_by_fp, auth_steps = _form_nav_context(result, app_package, graph)
+    nav_by_fp = _form_nav_context(result, app_package, graph)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
@@ -725,7 +741,7 @@ def fuzz_form_cases(
         if submit_sel is None:
             continue
         # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
-        nav = _launch_nav_prefix(result, nav_by_fp, auth_steps, target_fp)
+        nav = _launch_nav_prefix(nav_by_fp, target_fp)
         if nav is None:
             continue
 
@@ -770,7 +786,7 @@ def negative_form_cases(
     given (deterministic, so output is identical) instead of rebuilt.
     """
     graph = graph if graph is not None else build_graph(result, app_package)
-    nav_by_fp, auth_steps = _form_nav_context(result, app_package, graph)
+    nav_by_fp = _form_nav_context(result, app_package, graph)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
@@ -786,7 +802,7 @@ def negative_form_cases(
         if submit_sel is None:
             continue
         # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
-        steps = _launch_nav_prefix(result, nav_by_fp, auth_steps, target_fp)
+        steps = _launch_nav_prefix(nav_by_fp, target_fp)
         if steps is None:
             continue
 

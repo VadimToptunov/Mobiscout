@@ -37,6 +37,10 @@ class MTRSettings : PersistentStateComponent<MTRSettings.State> {
         var daemonAutoStart: Boolean = true,
     )
 
+    // Platform.BOTH, Language.SWIFT and Language.GO have no counterpart in the Generate
+    // dialog, so the settings page no longer offers them (see [MTRSettingsConfigurable]).
+    // They stay declared because a settings file written before that still names them, and
+    // an enum constant the class no longer has is deserialized as null onto a non-null field.
     enum class Platform {
         ANDROID,
         IOS,

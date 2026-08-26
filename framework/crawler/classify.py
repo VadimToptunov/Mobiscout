@@ -160,7 +160,23 @@ def _any(cls: str, *keys: str) -> bool:
 # containers (View/ViewGroup/Other/Compose) whose class name says nothing.
 _RULES: List[Tuple[Callable[[_Signals], bool], str]] = [
     # --- specific interactive types, by class name ---
-    (lambda s: _any(s.cls, "edittext", "textfield", "securetextfield", "searchfield", "input"), "input"),
+    # "autocompletetextview" (an EditText subclass — search/autocomplete boxes) and
+    # "typetextview" (iOS XCUIElementTypeTextView, multiline input) are real text inputs
+    # that match none of the other keys: the Android one fell through to "generic" and the
+    # iOS one matched the non-clickable "text" rule below, so neither was ever typed into.
+    (
+        lambda s: _any(
+            s.cls,
+            "edittext",
+            "textfield",
+            "securetextfield",
+            "searchfield",
+            "input",
+            "autocompletetextview",
+            "typetextview",
+        ),
+        "input",
+    ),
     (lambda s: "checkbox" in s.cls, "checkbox"),
     (lambda s: "radio" in s.cls, "radio"),
     (lambda s: "switch" in s.cls or "toggle" in s.cls, "switch"),
@@ -209,11 +225,18 @@ def _heuristic(element: CrawlElement) -> str:
 
 
 def _feature_dict(element: CrawlElement) -> dict:
+    # Keys must match ElementClassifier.extract_features EXACTLY, or the model is queried
+    # outside the distribution it was trained on. Two silent mismatches used to do that:
+    # "resource-id" (hyphen) left has_test_id at 0 for every element that has one, and
+    # omitting bounds left width/height/area/aspect_ratio at 0 while every training row
+    # carries real geometry.
+    x1, y1, x2, y2 = element.bounds if element.bounds else (0, 0, 0, 0)
     return {
         "class": element.class_name,
         "text": element.text,
         "content_desc": element.content_desc,
-        "resource-id": element.resource_id,
+        "resource_id": element.resource_id,
+        "bounds": {"width": max(0, x2 - x1), "height": max(0, y2 - y1)},
         "clickable": element.clickable,
         # Behavioural signals — what tells a generic container's real role apart.
         "scrollable": getattr(element, "scrollable", False),
@@ -235,6 +258,7 @@ _classify_cache: Dict[Tuple, Tuple[str, float, str]] = {}
 def _classify_key(element: CrawlElement) -> Tuple:
     """The element attributes that determine its classification (same inputs the heuristic and
     the ML feature dict read) — two elements with equal keys always classify identically."""
+    x1, y1, x2, y2 = element.bounds if element.bounds else (0, 0, 0, 0)
     return (
         element.class_name,
         element.text,
@@ -246,6 +270,11 @@ def _classify_key(element: CrawlElement) -> Tuple:
         getattr(element, "checkable", False),
         getattr(element, "password", False),
         getattr(element, "enabled", True),
+        # Size feeds the model's width/height/area/aspect_ratio features, so it has to be
+        # part of the key — otherwise two same-attribute elements of different sizes would
+        # share a cache entry and the second would get the first's classification.
+        max(0, x2 - x1),
+        max(0, y2 - y1),
     )
 
 

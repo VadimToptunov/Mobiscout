@@ -63,7 +63,7 @@ class DevicesPanel(
         }
 
         // Colour the Status cell so a running device reads at a glance — green when
-        // it's ready (booted / adb 'device'), amber when connected-but-not-ready
+        // it's ready (booted / online), amber when connected-but-not-ready
         // (offline / unauthorized), grey otherwise.
         table.columnModel.getColumn(3).cellRenderer = object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(
@@ -160,7 +160,10 @@ class DevicesPanel(
         // connected-but-not-ready adb device (offline / unauthorized) still shows.
         val rows = devices.mapNotNull { it.asJsonObject }
             .filter { (it.get("status")?.asString ?: "") != "shutdown" }
-            .sortedBy { if ((it.get("status")?.asString ?: "") in setOf("booted", "device")) 0 else 1 }
+            // The engine normalizes adb's raw "device" state to "online" (DeviceManager), so
+            // that is the token to match — keying on "device" put every ready Android device
+            // in the not-ready bucket, behind the idle simulators.
+            .sortedBy { if ((it.get("status")?.asString ?: "") in READY_STATUSES) 0 else 1 }
         for (device in rows) {
             tableModel.addRow(
                 arrayOf(
@@ -182,7 +185,7 @@ class DevicesPanel(
 
     /** Status → colour: ready is green, connected-but-not-ready is amber, else grey. */
     private fun statusColor(status: String): java.awt.Color = when (status.lowercase()) {
-        "booted", "device" -> JBColor(0x2E7D32, 0x6A8759)
+        in READY_STATUSES -> JBColor(0x2E7D32, 0x6A8759)
         "offline", "unauthorized" -> JBColor(0xB8860B, 0xBF8B00)
         else -> JBColor.GRAY
     }
@@ -337,4 +340,11 @@ class DevicesPanel(
     }
 
     fun getPanel(): JComponent = panel
+
+    private companion object {
+        /** The statuses the engine reports for a device that can be crawled right now:
+         *  "online" for adb (already normalized from adb's raw "device"), "booted" for a
+         *  simulator. Same pair GenerateKitAction picks a device by. */
+        private val READY_STATUSES = setOf("online", "booted")
+    }
 }

@@ -330,7 +330,17 @@ class LocalDeviceProvider:
         devices = []
 
         try:
-            result = subprocess.run(["adb", "devices", "-l"], capture_output=True, text=True, timeout=5)
+            # text=True alone decodes with the locale codepage (cp1252/cp936 on
+            # Windows), where non-ASCII adb output raises UnicodeDecodeError or
+            # mojibakes the device name; pin UTF-8 with replacement.
+            result = subprocess.run(
+                ["adb", "devices", "-l"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5,
+            )
 
             for line in result.stdout.split("\n")[1:]:
                 if not line.strip() or "List of devices" in line:
@@ -352,6 +362,8 @@ class LocalDeviceProvider:
                         ["adb", "-s", udid, "shell", "getprop", "ro.build.version.release"],
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         timeout=5,
                     )
                     version = prop_result.stdout.strip() or "unknown"
@@ -360,6 +372,8 @@ class LocalDeviceProvider:
                         ["adb", "-s", udid, "shell", "getprop", "ro.product.model"],
                         capture_output=True,
                         text=True,
+                        encoding="utf-8",
+                        errors="replace",
                         timeout=5,
                     )
                     name = name_result.stdout.strip() or udid
@@ -387,7 +401,12 @@ class LocalDeviceProvider:
 
         try:
             result = subprocess.run(
-                ["xcrun", "simctl", "list", "devices", "--json"], capture_output=True, text=True, timeout=5
+                ["xcrun", "simctl", "list", "devices", "--json"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5,
             )
 
             data = json.loads(result.stdout)

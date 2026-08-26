@@ -2,6 +2,7 @@
 from the post-auth home (which the prepended auth steps reach), not by re-tapping
 from the launcher through the synthetic gate hop."""
 
+from framework.codegen.ir import ActionType, Step
 from framework.crawler.app_crawler import parse_screen
 from framework.crawler.graph import navigation_steps
 from framework.crawler.models import CrawlResult
@@ -62,3 +63,23 @@ def test_non_gated_nav_unchanged():
     result.gated = set()
     nav = navigation_steps(result, APP)
     assert len(nav[transfer.fingerprint]) == 2  # login->home, home->transfer
+
+
+def test_mid_crawl_gate_keeps_the_hops_that_reach_the_login():
+    # The gate is NOT the launch screen: entry --tap Profile--> login --gate--> account.
+    # The hops that reach the login form must survive, with the auth steps after them —
+    # trimming them typed the credentials into the entry screen, which has no such fields.
+    entry = _screen(_btn("Profile", "id/profile", (0, 0, 100, 40)))
+    login = _screen(_btn("Log in", "id/login", (0, 0, 100, 40)))
+    account = _screen(_btn("Statements", "id/statements", (0, 0, 100, 40)))
+    result = CrawlResult(
+        screens={entry.fingerprint: entry, login.fingerprint: login, account.fingerprint: account},
+        transitions=[
+            (entry.fingerprint, entry.elements[0], login.fingerprint),  # real tap
+            (login.fingerprint, login.elements[0], account.fingerprint),  # synthetic gate crossing
+        ],
+        gated={account.fingerprint},
+    )
+    auth = [Step(ActionType.TYPE, text="demo", description="Enter user")]
+    steps = navigation_steps(result, APP, auth_steps=auth)[account.fingerprint]
+    assert [s.description for s in steps] == ["Navigate: tap Profile", "Enter user"]

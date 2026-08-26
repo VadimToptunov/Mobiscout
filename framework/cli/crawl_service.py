@@ -319,11 +319,17 @@ def write_kit(
     from framework.crawler import build_test_model
     from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
     from framework.crawler.report import inventory_json_str, inventory_markdown
-    from framework.licensing import allow_targets
+    from framework.crawler.pipeline import _cap_screens  # noqa: WPS437 — shared quota trim
+    from framework.licensing import allow_targets, cap_screens, cap_tests
 
     report = KitReport()
     out = Path(output)
     out.mkdir(parents=True, exist_ok=True)
+
+    # Entitlement quota, same as the daemon's build_kit: trim the crawl to the tier's
+    # screen limit up front so inventory, graph and model are built from one capped set.
+    # Without this the CLI kit ignored a limit the IDE path enforces. No-op when unlimited.
+    result = _cap_screens(result, cap_screens(len(result.screens)))
 
     # Build the interaction graph once and thread it through inventory, the graph
     # writers, and the test model (which would otherwise rebuild it several times).
@@ -396,6 +402,10 @@ def write_kit(
                         f"--only-changed: emitting {len(model.cases)} changed/added case(s); "
                         f"{dropped} unchanged case(s) are omitted from this kit (the delta only)."
                     )
+
+    # Entitlement quota: cap the generated cases (after any diff filtering, so the final
+    # kit carries at most N), as build_kit does. No-op on the unlimited open-core tier.
+    model.cases = model.cases[: cap_tests(len(model.cases))]
 
     if not model.cases:
         report.no_tests = True

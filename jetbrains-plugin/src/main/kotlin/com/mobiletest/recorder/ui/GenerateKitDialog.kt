@@ -94,9 +94,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     init {
         title = "Generate Test Kit"
         platformCombo.selectedItem = if (settings.targetPlatform.name.equals("IOS", true)) "ios" else "android"
-        languageCombo.selectedItem = settings.preferredLanguage.name.lowercase().let {
-            if (it == "typescript") "javascript" else it
-        }
+        languageCombo.selectedItem = dialogLanguage(settings.preferredLanguage)
         outputField.text = if (settings.createNewFramework) "mobile-tests" else settings.existingFrameworkPath
 
         // Keep the Framework list (and the Android-only backend) in sync with the
@@ -127,6 +125,17 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         loadDevices()
         detectButton.addActionListener { detectFromProject() }
         init()
+    }
+
+    /** The Language entry for a stored preference. Assigning a value the combo's model doesn't
+     *  hold is a silent no-op that leaves whatever was showing, so the mapping must be total:
+     *  a settings file from an older build can still carry SWIFT or GO, neither of which has a
+     *  codegen target, and those land on the default rather than on nothing. */
+    private fun dialogLanguage(language: MTRSettings.Language): String = when (language) {
+        MTRSettings.Language.JAVA -> "java"
+        MTRSettings.Language.KOTLIN -> "kotlin"
+        MTRSettings.Language.JAVASCRIPT, MTRSettings.Language.TYPESCRIPT -> "javascript"
+        else -> "python"
     }
 
     /** Pick a project folder, detect its app(s) via the engine, and fill the form. */
@@ -312,6 +321,26 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         val devicePlatform = devicePlatforms[selectedUdid()]
         if (devicePlatform != null && devicePlatform != platform) {
             return ValidationInfo("That device is $devicePlatform, but the platform is set to $platform", udidCombo)
+        }
+        // "Generate all" runs kit/generateMany, which has no install or cleanup step: the
+        // action's install → crawl → uninstall orchestration belongs to the single-app path
+        // only. Say so here rather than dropping the options silently — "Detect from project"
+        // auto-fills the build path, so the combination is one click away, and the crawls
+        // would then run against whatever build already happens to be on each device.
+        if (generateAllCheck.isVisible && generateAllCheck.isSelected) {
+            if (buildPathField.text.isNotBlank()) {
+                return ValidationInfo(
+                    "\"Install build first\" isn't supported with \"Generate all detected apps\" — " +
+                        "install the builds yourself, or clear this field",
+                    buildPathField,
+                )
+            }
+            if (uninstallAfterCheck.isSelected) {
+                return ValidationInfo(
+                    "\"Uninstall the app after crawling\" isn't supported with \"Generate all detected apps\"",
+                    uninstallAfterCheck,
+                )
+            }
         }
         // "Install build first" needs a target device — catch it here instead of after the
         // dialog closes (the action rejected it with a notification and made you reopen).

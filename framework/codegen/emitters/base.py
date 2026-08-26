@@ -15,6 +15,7 @@ from typing import Dict
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from framework.codegen.emitters._escape import single_line
 from framework.codegen.ir import TestModel
 
 # normpath collapses the ``emitters/../templates`` hop to ``codegen/templates`` — a
@@ -37,6 +38,11 @@ class Emitter(ABC):
             keep_trailing_newline=True,
             undefined=StrictUndefined,  # fail loudly on a template typo, not silently
         )
+        # Every target renders step descriptions (which carry raw element labels,
+        # newlines and all) into a line comment, so the flattener is registered
+        # here rather than per emitter — one target forgetting it emits a file
+        # that no longer parses.
+        self.env.filters["single_line"] = single_line
         self._register_filters()
 
     def _register_filters(self) -> None:

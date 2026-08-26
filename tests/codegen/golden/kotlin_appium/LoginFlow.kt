@@ -29,13 +29,17 @@ class LoginFlow {
     // a global implicit wait, so tests stay in sync with async UI.
     private val TIMEOUT: Duration = Duration.ofSeconds(10)
 
+    // Run anywhere without regenerating: point at a different Appium/cloud-grid
+    // hub with MOBISCOUT_APPIUM_SERVER.
+    private val SERVER: String = System.getenv("MOBISCOUT_APPIUM_SERVER") ?: "http://localhost:4723"
+
     @BeforeEach
     fun setUp() {
         val options = UiAutomator2Options()
         options.setPlatformName("Android")
         options.setAppPackage("com.example.app")
         options.setAppActivity(".MainActivity")
-        driver = AndroidDriver(URL("http://localhost:4723"), options)
+        driver = AndroidDriver(URL(SERVER), options)
     }
 
     @AfterEach

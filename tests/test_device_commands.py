@@ -103,12 +103,21 @@ def test_list_platform_filter(runner, two_devices):
     assert "iPhone 15" not in result.output
 
 
-def test_list_status_filter_no_match(runner, two_devices):
-    # Real statuses are "online"/"booted"; none report as "available".
+def test_list_status_available_matches_online_and_booted(runner, two_devices):
+    """adb reports "online" and simctl "booted"; --status available must map onto
+    them, or the filter can never match a single real device."""
     result = runner.invoke(devices, ["list", "--status", "available"])
     _no_crash(result)
     assert result.exit_code == 0
-    assert "No available devices found" in result.output
+    assert "emulator-5554" in result.output
+    assert "iPhone 15" in result.output
+
+
+def test_list_status_offline_matches_nothing_when_all_are_up(runner, two_devices):
+    result = runner.invoke(devices, ["list", "--status", "offline"])
+    _no_crash(result)
+    assert result.exit_code == 0
+    assert "No offline devices found" in result.output
 
 
 def test_list_no_devices(runner, no_devices):
@@ -116,6 +125,21 @@ def test_list_no_devices(runner, no_devices):
     _no_crash(result)
     assert result.exit_code == 0
     assert "No devices found" in result.output
+
+
+def test_list_reports_a_failed_probe_instead_of_no_devices(runner, monkeypatch):
+    """adb missing is not "no devices" — the user must see which tool failed."""
+
+    def _no_adb(cmd, **kwargs):
+        if cmd[0] == "adb":
+            raise FileNotFoundError("adb")
+        return _ok(json.dumps({"devices": {}}))
+
+    monkeypatch.setattr(dm.subprocess, "run", _no_adb)
+    result = runner.invoke(devices, ["list"])
+    _no_crash(result)
+    assert result.exit_code == 0
+    assert "Device listing failed" in result.output and "adb not found" in result.output
 
 
 # --- info --------------------------------------------------------------------
@@ -170,6 +194,17 @@ def test_pool_list_empty(runner):
     _no_crash(result)
     assert result.exit_code == 0
     assert "No device pools created" in result.output
+
+
+def test_pool_info_prints_health(runner, two_devices):
+    """Regression: pool info read health keys that health_check() never returns, so
+    every run aborted with "Failed to get pool info: 'available'"."""
+    runner.invoke(devices, ["pool", "create", "-n", "p1", "-d", "emulator-5554"])
+    result = runner.invoke(devices, ["pool", "info", "p1"])
+    _no_crash(result)
+    assert result.exit_code == 0
+    assert "Failed to get pool info" not in result.output
+    assert "Total: 1" in result.output and "Healthy: 1" in result.output
 
 
 def test_pool_info_missing_aborts(runner):

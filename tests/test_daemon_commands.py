@@ -3,6 +3,7 @@ device actions shell out, so they're driven through a mocked subprocess; no devi
 needed."""
 
 import json
+import subprocess
 from types import SimpleNamespace
 from unittest import mock
 
@@ -338,6 +339,15 @@ def test_kit_generate_respects_caller_supplied_max_seconds(server, monkeypatch):
     assert captured["max_seconds"] == 30
 
 
+def test_flow_get_graph_defaults_the_same_wall_clock_budget(server, monkeypatch):
+    """flow/getGraph crawls too — without the backstop a wedged device blocks every
+    later RPC on the single-threaded daemon."""
+    captured = {}
+    monkeypatch.setattr("framework.crawler.pipeline.crawl_graph", lambda config: captured.update(config) or {})
+    server.handle_flow_get_graph({"package": "com.x"})
+    assert captured["max_seconds"] == server._DEFAULT_KIT_MAX_SECONDS
+
+
 def test_swipe_on_ios_scrolls_via_the_driver(server):
     sid = _session(server)
     server.sessions[sid]["platform"] = "ios"
@@ -475,21 +485,42 @@ def test_generate_selector_bad_params():
 # ---- app-log streaming (logs/start, logs/stop) ----
 
 
+_SIM_UDID = "1B2C3D4E-5F60-4712-8A9B-0C1D2E3F4A5B"  # simulator-shaped: a canonical UUID
+
+
+def _live_proc(lines=()):
+    """A spawned log stream that is still alive. handle_logs_start polls the child and
+    fails the RPC when it exited at once, so wait() must raise TimeoutExpired."""
+    proc = mock.Mock()
+    proc.stdout = iter(lines)
+    proc.wait.side_effect = subprocess.TimeoutExpired("log", 0.5)
+    return proc
+
+
+@pytest.fixture()
+def notes(server):
+    """Collect the server's own notifications — the pump thread would otherwise write
+    them to the daemon's stdout mid-test."""
+    captured = []
+    server._emit = captured.append
+    return captured
+
+
 def test_logs_start_requires_udid_or_session(server):
     with pytest.raises(ValueError):
         server.handle_logs_start({})
 
 
-def test_logs_start_streams_filtered_process_and_stop_terminates(server):
+def test_logs_start_streams_filtered_process_and_stop_terminates(server, notes):
     """logs/start spawns a `simctl log stream` filtered to the app process and
     returns streaming state; logs/stop terminates it. The process defaults to the
     bundle-id's last component."""
-    fake_proc = mock.Mock()
-    fake_proc.stdout = iter([])  # the pump thread finds no lines and exits at once
+    fake_proc = _live_proc()  # the pump thread finds no lines and exits at once
     with mock.patch(_SUB) as sub:
+        sub.TimeoutExpired = subprocess.TimeoutExpired  # the liveness check catches the real class
         sub.Popen.return_value = fake_proc
-        res = server.handle_logs_start({"udid": "UDID-123", "bundle_id": "com.acme.ChaosBank"})
-        assert res == {"streaming": True, "udid": "UDID-123", "platform": "ios", "process": "ChaosBank"}
+        res = server.handle_logs_start({"udid": _SIM_UDID, "bundle_id": "com.acme.ChaosBank"})
+        assert res == {"streaming": True, "udid": _SIM_UDID, "platform": "ios", "process": "ChaosBank"}
         cmd = sub.Popen.call_args[0][0]
         assert "log" in cmd and "stream" in cmd
         assert 'process == "ChaosBank"' in cmd
@@ -497,27 +528,74 @@ def test_logs_start_streams_filtered_process_and_stop_terminates(server):
     fake_proc.terminate.assert_called_once()
 
 
-def test_logs_start_derives_udid_and_process_from_session(server):
-    server.sessions["s1"] = {"device_id": "UDID-9", "bundle_id": "io.x.MyApp"}
-    fake_proc = mock.Mock()
-    fake_proc.stdout = iter([])
+def test_logs_start_derives_udid_and_process_from_session(server, notes):
+    server.sessions["s1"] = {"device_id": _SIM_UDID, "bundle_id": "io.x.MyApp"}
+    fake_proc = _live_proc()
     with mock.patch(_SUB) as sub:
+        sub.TimeoutExpired = subprocess.TimeoutExpired
         sub.Popen.return_value = fake_proc
         res = server.handle_logs_start({"session_id": "s1"})
-    assert res["udid"] == "UDID-9" and res["process"] == "MyApp"
+    assert res["udid"] == _SIM_UDID and res["process"] == "MyApp"
     server.handle_logs_stop({})
 
 
-def test_logs_start_android_uses_adb_logcat_scoped_to_pid(server, monkeypatch):
+def test_logs_start_android_uses_adb_logcat_scoped_to_pid(server, monkeypatch, notes):
     """Android streams via `adb logcat`, scoped to the app's PID when running."""
     monkeypatch.setattr(JSONRPCServer, "_android_pid", staticmethod(lambda serial, pkg: "4242"))
-    fake_proc = mock.Mock()
-    fake_proc.stdout = iter([])
+    fake_proc = _live_proc()
     with mock.patch(_SUB) as sub:
+        sub.TimeoutExpired = subprocess.TimeoutExpired
         sub.Popen.return_value = fake_proc
         res = server.handle_logs_start({"udid": "emulator-5554", "bundle_id": "com.acme.app", "platform": "android"})
         assert res["platform"] == "android"
         cmd = sub.Popen.call_args[0][0]
         assert cmd[:3] == ["adb", "-s", "emulator-5554"]
         assert "logcat" in cmd and "--pid" in cmd and "4242" in cmd
+    server.handle_logs_stop({})
+
+
+def test_logs_start_fails_when_the_stream_dies_immediately(server):
+    """A stale serial makes adb/simctl exit at once — that must fail the RPC with the
+    tool's own message, not answer streaming:true for a dead stream."""
+    dead = mock.Mock()
+    dead.wait.return_value = 1
+    dead.returncode = 1
+    dead.stdout = mock.Mock(read=lambda: "adb: device 'emulator-5554' not found\n")
+    with mock.patch(_SUB) as sub:
+        sub.TimeoutExpired = subprocess.TimeoutExpired
+        sub.Popen.return_value = dead
+        with pytest.raises(ValueError, match="device 'emulator-5554' not found"):
+            server.handle_logs_start({"udid": "emulator-5554", "platform": "android"})
+    assert server._log_stream is None  # nothing left pointing at the dead child
+
+
+def test_logs_stream_ending_on_its_own_is_announced(server, monkeypatch, notes):
+    """A stream nobody stopped hitting EOF (device unplugged, tool killed) is reported,
+    so the Logs tab doesn't just sit frozen on the last line it happened to get."""
+    import time
+
+    monkeypatch.setattr(JSONRPCServer, "_android_pid", staticmethod(lambda serial, pkg: None))
+    fake_proc = _live_proc(["app line\n"])
+    fake_proc.poll.return_value = 1
+    with mock.patch(_SUB) as sub:
+        sub.TimeoutExpired = subprocess.TimeoutExpired
+        sub.Popen.return_value = fake_proc
+        server.handle_logs_start({"udid": "emulator-5554", "platform": "android"})
+    deadline = time.time() + 2
+    while len(notes) < 2 and time.time() < deadline:
+        time.sleep(0.01)
+    assert [n["params"]["level"] for n in notes] == ["APP", "WARN"]
+    assert "log stream ended" in notes[-1]["params"]["message"]
+
+
+def test_logs_start_infers_android_from_an_adb_serial(server, monkeypatch, notes):
+    """Without an explicit platform, an adb serial must not be handed to simctl (which
+    would die instantly); only a simulator UUID means iOS."""
+    monkeypatch.setattr(JSONRPCServer, "_android_pid", staticmethod(lambda serial, pkg: None))
+    with mock.patch(_SUB) as sub:
+        sub.TimeoutExpired = subprocess.TimeoutExpired
+        sub.Popen.return_value = _live_proc()
+        assert server.handle_logs_start({"udid": "emulator-5554"})["platform"] == "android"
+        sub.Popen.return_value = _live_proc()
+        assert server.handle_logs_start({"udid": _SIM_UDID})["platform"] == "ios"
     server.handle_logs_stop({})
