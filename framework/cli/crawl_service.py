@@ -366,15 +366,30 @@ def write_kit(
     # Coverage artifact — an honest map of what the crawl reached vs what the kit tests
     # (screens reachable/gated/dead-end/unreachable, element + screen test coverage, gaps).
     # Computed from the FULL model, before any diff filtering, so it describes the whole crawl.
-    from framework.crawler.coverage_report import build_coverage
+    from framework.crawler.coverage_report import COMPOSE_TESTTAG_DOCS, IOS_A11Y_DOCS, build_coverage, locator_advice
 
     coverage = build_coverage(result, graph, model)
-    (out / "coverage.md").write_text(coverage.to_markdown(package), encoding="utf-8", newline="\n")
+    _advice = locator_advice(model.toolkit, model.platform.value, result)
+    (out / "coverage.md").write_text(coverage.to_markdown(package, _advice), encoding="utf-8", newline="\n")
     (out / "coverage.json").write_text(coverage.to_json(), encoding="utf-8", newline="\n")
     report.info.append(
         f"Coverage: {coverage.screens_tested}/{coverage.screens_reachable} screens, "
         f"{coverage.element_coverage_pct()}% of elements (see {out / 'coverage.md'})"
     )
+    # Compose has no stable ids of its own, so the kit locates by visible caption — which
+    # breaks on a copy change or a translation. Say it here, not only in coverage.md: this
+    # is the one app-side change that makes the generated tests durable.
+    if _advice and model.platform.value.lower() == "ios":
+        report.info.append(
+            "iOS: most controls expose no accessibility identifier, so tests locate by visible "
+            f'label. Add .accessibilityIdentifier("...") for stable locators — {IOS_A11Y_DOCS}'
+        )
+    elif _advice:
+        report.info.append(
+            "Jetpack Compose: tests locate by text/content-description. For stable locators add "
+            "Modifier.testTag(...) and set testTagsAsResourceId = true in the DEBUG/test variant "
+            f"only — {COMPOSE_TESTTAG_DOCS}"
+        )
 
     # Diff-aware regeneration: compare against a baseline manifest (a prior kit's
     # manifest.json) and write CHANGES.md; with only_changed, keep just the added+changed

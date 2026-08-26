@@ -102,6 +102,91 @@ class ScreenCoverage:
         }
 
 
+# Where the Compose team documents the switch that turns testTag into a resource-id.
+COMPOSE_TESTTAG_DOCS = "https://developer.android.com/develop/ui/compose/testing#uiautomator-interop"
+
+# Guidance shown for a Compose app. Compose emits every tappable control as an anonymous
+# `android.view.View` whose label sits on a child, so the crawler has to infer a locator
+# from the visible caption. That works (it is what makes these apps testable at all) but a
+# caption is content: it moves with copy changes and translations. One app-side switch
+# turns every testTag into a real resource-id, which is stable — so say so, once, where the
+# user actually reads the numbers.
+_COMPOSE_ADVICE = f"""
+## Locators on this app
+
+This app is built with **Jetpack Compose**, which exposes tappable controls as anonymous
+views — their visible caption is the only thing left to locate them by. The generated
+tests therefore locate by text / content-description, which works but breaks on a copy
+change or a translation.
+
+For stable locators, give the controls a `Modifier.testTag("...")` and switch on
+`testTagsAsResourceId = true` — **in the debug/test build variant only**, not in release:
+it publishes your internal tags as resource-ids, which the app has no reason to ship to
+users. Crawl that build and each tag arrives as a real resource-id the next crawl prefers
+automatically. See {COMPOSE_TESTTAG_DOCS}.
+
+"""
+
+
+# Apple's modifier/property that gives a control a stable, non-visible identifier.
+IOS_A11Y_DOCS = "https://developer.apple.com/documentation/swiftui/view/accessibilityidentifier(_:)"
+
+# The iOS counterpart of the Compose note. XCUITest reports a control's accessibility
+# IDENTIFIER as `name` — but when the app sets no identifier it echoes the visible label
+# there instead, so "has a name" is not the same as "has a stable id". When most controls
+# only echo their label, every generated locator is really content, and the suite breaks on
+# the next copy change or localisation.
+_IOS_ADVICE = f"""
+## Locators on this app
+
+Most controls here expose no **accessibility identifier** — XCUITest echoes their visible
+label instead, so the generated tests locate by that label. It works, but it breaks on a
+copy change or a translation.
+
+For stable locators, give the controls an identifier: `.accessibilityIdentifier("...")` in
+SwiftUI, or `view.accessibilityIdentifier = "..."` in UIKit. It is invisible to users and
+to VoiceOver (it is not the spoken label), and the next crawl will prefer it automatically.
+See {IOS_A11Y_DOCS}.
+
+"""
+
+# Below this share of interactive controls carrying a real identifier, the iOS advice is
+# worth showing: a handful of identified controls in an otherwise label-located app still
+# leaves the suite content-dependent.
+_IOS_ID_THRESHOLD = 0.5
+
+
+def _ios_identifier_ratio(result: "CrawlResult") -> float:
+    """Share of interactive controls that carry a real accessibility identifier.
+
+    A control whose `name` merely repeats its `label` has no identifier of its own —
+    XCUITest just echoed the label — so it does not count.
+    """
+    interactive = [e for screen in result.screens.values() for e in screen.interactive()]
+    if not interactive:
+        return 1.0  # nothing to advise about
+    identified = sum(
+        1 for e in interactive if e.resource_id and e.resource_id.strip() != (e.content_desc or "").strip()
+    )
+    return identified / len(interactive)
+
+
+def compose_locator_advice(toolkit: str) -> str:
+    """The Compose locator guidance, or "" for any other toolkit."""
+    return _COMPOSE_ADVICE if (toolkit or "").lower() == "compose" else ""
+
+
+def locator_advice(toolkit: str, platform: str, result: "CrawlResult") -> str:
+    """Toolkit-specific guidance on making the generated locators stable, or "".
+
+    Both cases say the same thing for their platform: the crawl had nothing but visible
+    text to locate by, which is content — here is the one app-side change that fixes it.
+    """
+    if (platform or "").lower() == "ios":
+        return _IOS_ADVICE if _ios_identifier_ratio(result) < _IOS_ID_THRESHOLD else ""
+    return compose_locator_advice(toolkit)
+
+
 @dataclass
 class CoverageReport:
     """Reach + test coverage for a whole crawl, with per-screen detail and gap views."""
@@ -191,7 +276,7 @@ class CoverageReport:
         """The report as pretty-printed JSON (CI-friendly, e.g. gate on coverage %)."""
         return json.dumps(self.to_dict(), indent=2, ensure_ascii=False) + "\n"
 
-    def to_markdown(self, app_package: str = "") -> str:
+    def to_markdown(self, app_package: str = "", advice: str = "") -> str:
         """The report as human-readable Markdown: headline, gaps, and a per-screen table."""
         head = f"# Crawl coverage{f' — {app_package}' if app_package else ''}\n\n"
         summary = (
@@ -203,7 +288,7 @@ class CoverageReport:
         )
         gaps = self._gaps_markdown()
         table = self._table_markdown()
-        return head + summary + gaps + table
+        return head + summary + advice + gaps + table
 
     # ---- markdown sections --------------------------------------------------
     def _gaps_markdown(self) -> str:

@@ -47,17 +47,54 @@ _IOS_INTERACTIVE = {
 }
 
 
+def _inherited_label(node: ET.Element) -> str:
+    """The label a clickable node carries only in its children, or "".
+
+    Jetpack Compose emits every tappable control as an **anonymous** ``android.view.View``
+    with ``clickable="true"`` and no text or content-desc; the visible label sits on a
+    non-clickable descendant::
+
+        [clickable] android.view.View  ""
+            TextView  "Add plant"
+
+    Read literally, that control has no label — so it gets no locator, generated tests
+    can't target it, and coverage reports 0% on an app the crawl actually walked. Since
+    Compose is the default for new Android apps, lifting the descendant's label onto the
+    clickable node is what makes those apps testable at all.
+
+    Takes the first labelled descendant in document order (the nearest visible caption)
+    and ignores nested clickables, whose labels belong to *them*, not to this node.
+    """
+    for child in node:
+        if child.get("clickable") == "true":
+            continue  # a nested control owns its own label
+        label = (child.get("text") or child.get("content-desc") or "").strip()
+        if label:
+            return label
+        deeper = _inherited_label(child)
+        if deeper:
+            return deeper
+    return ""
+
+
 def _parse_android(root: ET.Element) -> List[CrawlElement]:
     elements: List[CrawlElement] = []
     for node in root.iter():
         bounds = _parse_bounds(node.get("bounds", ""))
         if bounds is None:
             continue
+        text = node.get("text", "")
+        content_desc = node.get("content-desc", "")
+        if node.get("clickable") == "true" and not (text or content_desc):
+            # Compose: the label lives on a child (see _inherited_label). Carry it as the
+            # content-desc so every downstream consumer — locator ranking, classification,
+            # test naming — sees a control that can actually be found again.
+            content_desc = _inherited_label(node)
         elements.append(
             CrawlElement(
                 resource_id=node.get("resource-id", ""),
-                text=node.get("text", ""),
-                content_desc=node.get("content-desc", ""),
+                text=text,
+                content_desc=content_desc,
                 class_name=node.get("class", node.tag),
                 clickable=node.get("clickable") == "true",
                 bounds=bounds,
