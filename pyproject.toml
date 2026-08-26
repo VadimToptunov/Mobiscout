@@ -9,7 +9,7 @@ name = "mobiscout"
 # three releases behind: the wheel a release builds then self-identifies with the old
 # version and `pip install "mobiscout>=0.12"` can't resolve it. tests/test_packaging.py
 # now fails if it drifts again.
-version = "0.12.4"
+version = "0.12.5"
 description = "Intelligent Mobile Testing Platform - Scout, Analyze, Automate"
 readme = "README.md"
 requires-python = ">=3.13"

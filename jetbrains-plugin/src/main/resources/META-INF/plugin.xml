@@ -52,6 +52,25 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.5 — Compose apps crawl properly now</h3>
+    <ul>
+        <li><b>Jetpack Compose apps used to come back nearly empty.</b> Compose renders every
+        tappable control as an anonymous view whose label sits on a child, so the crawler
+        could see no name for anything. On Google's Sunflower the crawl went from
+        <b>2 screens / 0% of elements</b> to <b>4 screens / 94%</b> — 8 generated tests, all
+        passing against the live app.</li>
+        <li><b>Screens behind a tab bar are reached.</b> Tapping a tab used to strand the
+        crawl and silently drop whatever the previous screen still had to offer. It now walks
+        list → detail → action, so the app's real flows get tested.</li>
+        <li><b>Android tests start from a known state</b>: app data is cleared before each
+        test, so a test no longer fails because of something an earlier run (or the crawl
+        itself) left behind. Keep the device's state with MOBISCOUT_KEEP_APP_DATA=1.</li>
+        <li><b>Guidance on stable locators</b>: when your app offers nothing better, tests
+        locate by visible text — which breaks on a copy change or translation. The report now
+        tells you the one fix for your platform: <code>Modifier.testTag(...)</code> with
+        <code>testTagsAsResourceId</code> in the debug variant (Compose), or
+        <code>.accessibilityIdentifier(...)</code> (iOS).</li>
+    </ul>
     <h3>0.12.4 — generated tests that actually test</h3>
     <ul>
         <li><b>A passing test now means something.</b> A "rejects invalid input" test could
