@@ -333,6 +333,33 @@ class AdbCrawlerDriver:
             return f"{package}{activity}" if activity.startswith(".") else activity
         return ""
 
+    # Launcher activities that belong to a bundled diagnostic tool rather than the app.
+    # A debug build routinely ships one (LeakCanary adds its own launcher icon), which is
+    # what makes `resolve-activity` ambiguous in the first place.
+    _NON_APP_LAUNCHERS = ("leakcanary.", "com.squareup.leakcanary")
+
+    def _launcher_activities(self, package: str) -> List[str]:
+        """The app's own launcher activities as ``package/activity``, best first.
+
+        Used when ``resolve-activity`` answers with Android's chooser, which it does
+        whenever a package declares more than one launcher entry. Falling back to `monkey`
+        there is not safe: monkey picks one of them, and on a debug build that is as likely
+        to be LeakCanary's launcher as the app's — the crawl would then faithfully explore
+        the leak viewer instead of the app under test.
+
+        Returns every candidate rather than one, because an app that ships alternative icons
+        declares them as activity-aliases and disables all but the current one (Wikipedia
+        does exactly this); a disabled alias is listed but refuses to start, so the caller
+        tries them in turn.
+        """
+        dump = self._try_run("shell", f"dumpsys package {package} | grep -B4 android.intent.category.LAUNCHER")
+        found = re.findall(rf"{re.escape(package)}/[A-Za-z0-9_.$]+", dump)
+        return [
+            component
+            for component in dict.fromkeys(found)  # keep discovery order, drop duplicates
+            if not any(component.split("/", 1)[1].startswith(p) for p in self._NON_APP_LAUNCHERS)
+        ]
+
     def launch(self, package: str, tries: int = 8) -> bool:
         """Bring ``package`` to the foreground and wait until it's actually there.
 
@@ -354,12 +381,21 @@ class AdbCrawlerDriver:
         for line in resolved.strip().splitlines():
             if "/" in line and package in line:
                 activity = line.strip()
-        if activity:
-            self._try_run("shell", "am", "start", "-n", activity, *self._launch_args)
-        else:
+        candidates = [activity] if activity else self._launcher_activities(package)
+        started = False
+        for candidate in candidates:
+            self._try_run("shell", "am", "start", "-n", candidate, *self._launch_args)
+            if self._foreground_within(package, tries=3):
+                started = True
+                break
+        if not started and not candidates:
             # monkey can't carry intent extras; without a resolvable activity the
             # launch args are lost, but this path is a rare fallback.
             self._try_run("shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1")
+        return started or self._foreground_within(package, tries)
+
+    def _foreground_within(self, package: str, tries: int) -> bool:
+        """Poll until ``package`` is the foreground app, so a slow cold start isn't a failure."""
         for _ in range(tries):
             if self.current_package() == package:
                 return True

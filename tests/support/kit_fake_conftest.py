@@ -30,6 +30,14 @@ class TimeoutException(Exception):
     pass
 
 
+class WebDriverException(Exception):
+    """Selenium's base driver error. The kit catches it to ride out a transient
+    "Timed out waiting for the root AccessibilityNodeInfo" from an animating screen, so
+    the stub has to expose it or the emitted module won't even import."""
+
+    pass
+
+
 # --- AppiumBy (real wire strings, so model keys match the kit's find_element) ---
 class AppiumBy:
     ID = "id"
@@ -187,6 +195,7 @@ def _install(model):
     sel_exc = types.ModuleType("selenium.common.exceptions")
     sel_exc.NoSuchElementException = NoSuchElementException
     sel_exc.TimeoutException = TimeoutException
+    sel_exc.WebDriverException = WebDriverException
     sel_wd = types.ModuleType("selenium.webdriver")
     sel_support = types.ModuleType("selenium.webdriver.support")
     sel_ui = types.ModuleType("selenium.webdriver.support.ui")
