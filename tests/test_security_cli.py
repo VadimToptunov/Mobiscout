@@ -14,8 +14,25 @@ from framework.cli.security import security
 
 
 @pytest.fixture()
-def runner():
+def runner(monkeypatch):
+    # Pin the terminal width. These commands render through Rich, which wraps to the
+    # detected width — on a default-80 CI terminal a long tmp path pushed "cfg.py:1"
+    # onto a continuation line (or into an ellipsis), so assertions that passed on a
+    # developer's wide terminal failed on Linux/Windows runners.
+    monkeypatch.setenv("COLUMNS", "200")
     return CliRunner()
+
+
+def _unwrapped(result) -> str:
+    """Output with all whitespace removed.
+
+    These commands render through Rich, which wraps to the detected terminal width and
+    will break *inside* a long token — a CI runner's long tmp path pushed the location
+    onto a continuation line, so "cfg.py:1" was split and a plain substring check failed
+    on Linux/Windows while passing on a developer's wide terminal. Comparing without
+    whitespace asserts the same fact independently of where the wrap lands.
+    """
+    return "".join(result.output.split())
 
 
 def _no_crash(result):
@@ -158,7 +175,7 @@ def test_secrets_command_reports_the_planted_key(runner, tmp_path):
     _no_crash(result)
     assert "Found 1 potential secret(s)" in result.output
     assert "Hardcoded Generic API Key Detected" in result.output
-    assert "cfg.py:1" in result.output  # reported with its file and line
+    assert "cfg.py:1" in _unwrapped(result)  # reported with its file and line
     assert result.exit_code == 1
 
 
@@ -169,7 +186,7 @@ def test_privacy_command_reports_pii_reaching_a_log(runner, tmp_path):
     _no_crash(result)
     assert "Found 1 privacy issue(s)" in result.output
     assert "PII (email) Potentially Logged" in result.output
-    assert "signup.py:3" in result.output
+    assert "signup.py:3" in _unwrapped(result)
     assert result.exit_code == 1
 
 

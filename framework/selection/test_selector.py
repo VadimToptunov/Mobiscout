@@ -260,9 +260,12 @@ class TestSelector:
         tests = []
 
         try:
-            # Get relative import path
+            # Get relative import path. Join the path *parts* rather than replacing "/"
+            # in the string form: on Windows that separator is "\", so the replace was a
+            # no-op and module_name stayed "pkg\calculator" — matching no import at all,
+            # which silently disabled this whole strategy on Windows.
             relative_path = source_file.relative_to(self.project_root)
-            module_name = str(relative_path.with_suffix("")).replace("/", ".")
+            module_name = ".".join(relative_path.with_suffix("").parts)
 
             # Search all test files
             for test_file in self.test_root.rglob("test_*.py"):

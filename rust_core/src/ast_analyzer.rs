@@ -66,6 +66,10 @@ impl Language {
             ],
             Language::Java | Language::Kotlin => &[
                 "if_statement", "for_statement", "while_statement",
+                // tree-sitter-java parses the for-each form `for (X x : xs)` as
+                // enhanced_for_statement, so without this every such loop was invisible
+                // to the complexity count (the same miss as for_in_statement below).
+                "enhanced_for_statement",
                 "do_statement", "try_statement", "switch_expression",
                 "catch_clause", "when_entry",
             ],
@@ -76,6 +80,11 @@ impl Language {
             ],
             Language::JavaScript | Language::TypeScript => &[
                 "if_statement", "for_statement", "while_statement",
+                // `for (const x of xs)` / `for (const k in o)` are BOTH for_in_statement
+                // in tree-sitter-javascript — not for_statement — so the most common loop
+                // form in modern JS was never counted. (Caught by the unit tests once they
+                // were made to compile and run; they were dead code before.)
+                "for_in_statement",
                 "do_statement", "try_statement", "switch_statement",
                 "catch_clause", "ternary_expression",
             ],
