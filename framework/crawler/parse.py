@@ -10,7 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 import xml.etree.ElementTree as ET
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from framework.crawler.models import CrawlElement, CrawlScreen
 
@@ -47,65 +47,79 @@ _IOS_INTERACTIVE = {
 }
 
 
-def _inherited_label(node: ET.Element) -> str:
-    """The label a clickable node carries only in its children, or "".
+def _labelled_descendant(node: ET.Element) -> "Optional[ET.Element]":
+    """The child that carries a clickable node's visible caption, or None.
 
     Jetpack Compose emits every tappable control as an **anonymous** ``android.view.View``
-    with ``clickable="true"`` and no text or content-desc; the visible label sits on a
+    with ``clickable="true"`` and no text or content-desc; the caption sits on a
     non-clickable descendant::
 
         [clickable] android.view.View  ""
             TextView  "Add plant"
 
-    Read literally, that control has no label — so it gets no locator, generated tests
-    can't target it, and coverage reports 0% on an app the crawl actually walked. Since
-    Compose is the default for new Android apps, lifting the descendant's label onto the
-    clickable node is what makes those apps testable at all.
+    Read literally, that control has no label — it gets no locator, no generated test can
+    target it, and coverage reports 0% on an app the crawl actually walked. Since Compose
+    is the default for new Android apps, resolving this is what makes them testable.
 
-    Takes the first labelled descendant in document order (the nearest visible caption)
-    and ignores nested clickables, whose labels belong to *them*, not to this node.
+    Returns the node itself rather than its text, because the *caption* is what a test can
+    actually locate: the anonymous parent has nothing to match on, while the child has real
+    text. Its bounds lie inside the parent's, so tapping it hits the same control.
+
+    Takes the first labelled descendant in document order and ignores nested clickables,
+    whose captions belong to *them*.
     """
     for child in node:
         if child.get("clickable") == "true":
-            continue  # a nested control owns its own label
-        label = (child.get("text") or child.get("content-desc") or "").strip()
-        if label:
-            return label
-        deeper = _inherited_label(child)
-        if deeper:
+            continue  # a nested control owns its own caption
+        if (child.get("text") or child.get("content-desc") or "").strip():
+            return child
+        deeper = _labelled_descendant(child)
+        if deeper is not None:
             return deeper
-    return ""
+    return None
 
 
 def _parse_android(root: ET.Element) -> List[CrawlElement]:
+    by_node: Dict[int, CrawlElement] = {}
     elements: List[CrawlElement] = []
     for node in root.iter():
         bounds = _parse_bounds(node.get("bounds", ""))
         if bounds is None:
             continue
-        text = node.get("text", "")
-        content_desc = node.get("content-desc", "")
-        if node.get("clickable") == "true" and not (text or content_desc):
-            # Compose: the label lives on a child (see _inherited_label). Carry it as the
-            # content-desc so every downstream consumer — locator ranking, classification,
-            # test naming — sees a control that can actually be found again.
-            content_desc = _inherited_label(node)
-        elements.append(
-            CrawlElement(
-                resource_id=node.get("resource-id", ""),
-                text=text,
-                content_desc=content_desc,
-                class_name=node.get("class", node.tag),
-                clickable=node.get("clickable") == "true",
-                bounds=bounds,
-                package=node.get("package", ""),
-                scrollable=node.get("scrollable") == "true",
-                focusable=node.get("focusable") == "true",
-                checkable=node.get("checkable") == "true",
-                password=node.get("password") == "true",
-                enabled=node.get("enabled") != "false",
-            )
+        element = CrawlElement(
+            resource_id=node.get("resource-id", ""),
+            text=node.get("text", ""),
+            content_desc=node.get("content-desc", ""),
+            class_name=node.get("class", node.tag),
+            clickable=node.get("clickable") == "true",
+            bounds=bounds,
+            package=node.get("package", ""),
+            scrollable=node.get("scrollable") == "true",
+            focusable=node.get("focusable") == "true",
+            checkable=node.get("checkable") == "true",
+            password=node.get("password") == "true",
+            enabled=node.get("enabled") != "false",
         )
+        by_node[id(node)] = element
+        elements.append(element)
+
+    # Compose: hand each anonymous clickable's role to the child that carries its caption,
+    # so the control has a locator that actually resolves on the device. Copying the caption
+    # onto the parent instead would invent an accessibility id the UI tree does not have —
+    # generated tests would then look correct and fail to find anything.
+    for node in root.iter():
+        wrapper = by_node.get(id(node))
+        # NB: not `wrapper.label`, which falls back to the class name — for an anonymous
+        # Compose wrapper that is always non-empty, so this guard would never fire.
+        if wrapper is None or not wrapper.clickable:
+            continue
+        if (wrapper.text or wrapper.content_desc or wrapper.resource_id).strip():
+            continue
+        captioned = _labelled_descendant(node)
+        target = by_node.get(id(captioned)) if captioned is not None else None
+        if target is not None:
+            target.clickable = True  # the caption is the handle; its bounds are inside ours
+            wrapper.clickable = False  # ...and this anonymous wrapper is no longer a duplicate
     return elements
 
 

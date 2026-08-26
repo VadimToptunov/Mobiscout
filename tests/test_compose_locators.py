@@ -116,3 +116,91 @@ def test_compose_advice_names_the_debug_variant_only():
 
 def test_no_advice_for_a_plain_android_app():
     assert locator_advice("native", "android", CrawlResult()) == ""
+
+
+# --- a screen that gets bounced out of keeps its unfinished work ---------------------
+#
+# Found on Sunflower: from the plant list the crawl tapped the "My garden" tab, landed on a
+# screen it had already mapped, and Back did not come back — so the plant-list frame was
+# abandoned half-explored and not one plant was ever opened. The crawl parks a bounced
+# frame's leftovers and picks them up the next time it stands on that screen.
+
+_APP = "com.example.app"
+
+
+def _node(text, bounds, rid="", cls="android.widget.Button", clickable="true"):
+    x1, y1, x2, y2 = bounds
+    return (
+        f'<node class="{cls}" resource-id="{rid}" text="{text}" content-desc="" '
+        f'clickable="{clickable}" bounds="[{x1},{y1}][{x2},{y2}]"/>'
+    )
+
+
+def _page(*nodes):
+    return '<hierarchy rotation="0">' + "".join(nodes) + "</hierarchy>"
+
+
+# home --Open list--> list; list has a "Home" tab that bounces back, plus an Item to open.
+_PAGES = {
+    # Two ways in, as in Sunflower (its "Plant list" tab and its empty-garden "Add plant"
+    # both open the list). That second route is what makes the parked work reachable again:
+    # parking preserves the leftovers, revisiting is what spends them.
+    "home": _page(
+        _node("Open list", (0, 0, 200, 40), "id/open"),
+        _node("Browse", (0, 60, 200, 100), "id/browse"),
+    ),
+    "list": _page(
+        _node("Home", (0, 0, 200, 40), "id/tab_home"),  # tapped first — bounces to home
+        _node("Item", (0, 60, 200, 100), "id/item"),  # ...leaving this unexplored
+    ),
+    "detail": _page(
+        _node("Detail body", (0, 0, 200, 40), "id/detail", cls="android.widget.TextView", clickable="false")
+    ),
+}
+_MOVES = {
+    ("home", "Open list"): "list",
+    ("home", "Browse"): "list",
+    ("list", "Home"): "home",
+    ("list", "Item"): "detail",
+}
+
+
+class _BouncingApp:
+    """Back never returns to the list, so the crawl can only finish it by coming back."""
+
+    def __init__(self):
+        self.current = "home"
+        self.tapped = []
+
+    def page_source(self):
+        return _PAGES[self.current]
+
+    def current_package(self):
+        return _APP
+
+    def back(self):
+        self.current = "home"  # Back always lands on home, never back on the list
+
+    def type_text(self, text):
+        pass
+
+    def tap(self, x, y):
+        label = ""
+        for e in parse_screen(self.page_source()).elements:
+            x1, y1, x2, y2 = e.bounds
+            if x1 <= x <= x2 and y1 <= y <= y2 and e.clickable:
+                label = e.label
+                break
+        self.tapped.append(label)
+        self.current = _MOVES.get((self.current, label), self.current)
+
+
+def test_a_bounced_screen_is_finished_on_the_next_visit():
+    from framework.crawler.app_crawler import AppCrawler
+
+    driver = _BouncingApp()
+    result = AppCrawler(driver, _APP, max_steps=60, max_depth=8).crawl()
+    # The tab bounced the crawl off the list before it reached "Item"; it had to return.
+    assert "Item" in driver.tapped, f"never opened the item: {driver.tapped}"
+    labels = {e.label for s in result.screens.values() for e in s.elements}
+    assert "Detail body" in labels  # ...and the screen behind it was mapped
