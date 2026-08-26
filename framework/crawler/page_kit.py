@@ -53,24 +53,36 @@ def _accessor(element: CrawlElement) -> str:
 
 def _page_objects(result: CrawlResult, app_package: str) -> tuple:
     """One Page Object module per screen (reusing the page-object template). Returns
-    ``(files, page_of)`` where ``page_of`` maps a selector key to ``(PageClass, accessor)``
-    so the flow tests can drive elements through the page objects."""
+    ``(files, page_of, pages)`` where ``page_of`` maps a selector key to
+    ``(PageClass, accessor)`` so the flow tests can drive elements through the page
+    objects, and ``pages`` maps a screen fingerprint to ``(PageClass, {selector key:
+    accessor})`` — the names *actually emitted* for that screen. The navigation tests
+    read from ``pages`` instead of re-deriving names, because both the class name and
+    the accessor name are de-duplicated here; a recomputed name points at a class that
+    has no such method."""
     template = _env().get_template("page_object.py.j2")
     out: Dict[str, str] = {}
     page_of: Dict[tuple, tuple] = {}
+    pages: Dict[str, tuple] = {}
     names: List[str] = []
-    for i, screen in enumerate(result.screens.values(), 1):
+    for i, (fp, screen) in enumerate(result.screens.items(), 1):
         owned = _owned(screen, app_package)
         fields: List[PageObjectField] = []
-        seen = set()
+        taken: set = set()
         for e in owned:
             sel = selector_for(e, owned, screen.platform)
             if sel is None:
                 continue
-            name = _accessor(e)
-            if name in seen:
-                continue
-            seen.add(name)
+            # Two elements often share a label — a header and the button under it, two
+            # "Buy" rows — and so an accessor name. Dropping the loser removed it from
+            # the page object entirely, which silently deleted every step targeting it:
+            # the POM kit lost its taps and went red against a working app. Suffix the
+            # duplicate instead, so both stay drivable.
+            accessor = _accessor(e)
+            name, n = accessor, 2
+            while name in taken:
+                name, n = f"{accessor}_{n}", n + 1
+            taken.add(name)
             fields.append(PageObjectField(name=name, selector=sel))
         if not fields:
             continue
@@ -80,8 +92,9 @@ def _page_objects(result: CrawlResult, app_package: str) -> tuple:
         po = PageObject(class_name=f"{base}Page", screen_name=base, fields=fields)
         for f in fields:
             page_of.setdefault(_sel_key(f.selector), (po.class_name, f.name))
+        pages[fp] = (po.class_name, {_sel_key(f.selector): f.name for f in fields})
         out[f"pages/{snake(po.class_name)}.py"] = template.render(po=po)
-    return out, page_of
+    return out, page_of, pages
 
 
 def _conftest(model: TestModel) -> str:
@@ -106,29 +119,43 @@ def _conftest(model: TestModel) -> str:
         )
     return (
         '"""Shared pytest fixtures — one Appium session per test."""\n\n'
+        "import os\n\n"
         "import pytest\n"
         "from appium import webdriver\n"
         f"{imp}\n\n\n"
         "@pytest.fixture()\n"
         "def driver():\n"
         f"{setup}"
-        '    drv = webdriver.Remote("http://localhost:4723", options=options)\n'
+        # Every other target reads this env var, and the README written next to this kit
+        # documents it — a hard-coded localhost made a POM kit unusable against the
+        # remote hub or cloud grid the crawl itself ran on.
+        "    # Run anywhere without regenerating: point at a different Appium/cloud-grid\n"
+        "    # hub with MOBISCOUT_APPIUM_SERVER.\n"
+        '    _server = os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")\n'
+        "    drv = webdriver.Remote(_server, options=options)\n"
         "    yield drv\n"
         "    drv.quit()\n"
     )
 
 
-def _navigation_tests(result: CrawlResult, app_package: str, pages: Dict[str, str]) -> str:
-    """POM-style tests: from the entry page, tap through and assert the landmark
-    on the destination page — using the page objects, not raw locators."""
+def _navigation_tests(result: CrawlResult, app_package: str, pages: Dict[str, tuple]) -> str:
+    """POM-style tests: from the entry page, tap through and assert a landmark that is
+    distinctive to the destination page — using the page objects, not raw locators.
+
+    Both classes and both accessors are looked up in ``pages`` (the names the page
+    objects really carry) rather than recomputed, so a de-duplicated title or accessor
+    can't send the test to a class that has no such method."""
     fps = list(result.screens)
     if not fps:
         return ""
-    name_of = {}
-    for i, (fp, screen) in enumerate(result.screens.items(), 1):
-        name_of[fp] = _screen_name(i, screen, app_package)
 
     start = fps[0]
+    if start not in pages:
+        return ""
+    src_cls, src_fields = pages[start]
+    source = result.screens[start]
+    source_owned = _owned(source, app_package)
+    source_keys = {(e.content_desc or e.text or e.resource_id) for e in source_owned}
     seen = set()
     used_classes = set()
     bodies: List[str] = []
@@ -136,29 +163,37 @@ def _navigation_tests(result: CrawlResult, app_package: str, pages: Dict[str, st
     for from_fp, element, to_fp in result.transitions:
         if from_fp != start or to_fp == start:
             continue
-        acc = _accessor(element)
-        if acc in seen:
+        tap_sel = selector_for(element, source_owned, source.platform)
+        acc = src_fields.get(_sel_key(tap_sel)) if tap_sel is not None else None
+        if acc is None or acc in seen:
             continue
         target = result.screens.get(to_fp)
-        if target is None:
+        if target is None or to_fp not in pages:
             continue
-        landmark = next(
-            (
-                _accessor(e)
-                for e in _owned(target, app_package)
-                if selector_for(e, _owned(target, app_package), target.platform)
-            ),
-            None,
-        )
+        dst_cls, dst_fields = pages[to_fp]
+        target_owned = _owned(target, app_package)
+        # The landmark must be *distinctive* to the destination. The first element in
+        # dump order is usually shared chrome (an app bar, a logo, a title) that is on
+        # screen before the tap too, so asserting it passes even when the tap navigated
+        # nowhere. Same ranking the flat emitters apply; no distinctive element means no
+        # provable arrival, so no test rather than one that cannot fail.
+        landmark = None
+        for e in target_owned:
+            key = e.content_desc or e.text or e.resource_id
+            if not key or key in source_keys:
+                continue
+            sel = selector_for(e, target_owned, target.platform)
+            landmark = dst_fields.get(_sel_key(sel)) if sel is not None else None
+            if landmark is not None:
+                break
         if landmark is None:
             continue
         seen.add(acc)
         n += 1
-        src_cls, dst_cls = f"{name_of[start]}Page", f"{name_of[to_fp]}Page"
         used_classes.update({src_cls, dst_cls})
         bodies += [
             f"def test_navigate_{n}(driver):",
-            f'    """{name_of[start]} -> {name_of[to_fp]} via {acc}."""',
+            f'    """{src_cls} -> {dst_cls} via {acc}."""',
             f"    {src_cls}(driver).{acc}().click()",
             f"    assert {dst_cls}(driver).{landmark}().is_displayed()",
             "",
@@ -177,15 +212,25 @@ def _flow_tests(model: TestModel, page_of: Dict[tuple, tuple]) -> str:
     """Behavioural tests driven through the Page Objects — the same coverage the flat
     style emits (form-filling, multi-step journeys, negative cases), rendered as page
     method calls instead of raw locators. One test per model case; steps whose element
-    isn't a page field (system keys, waits, swipes) are skipped."""
+    isn't a page field (system keys, waits, swipes) are skipped.
+
+    A case is dropped rather than emitted when skipping cost it something: a TAP/TYPE
+    with no page accessor is the interaction the case is about, and its assertions would
+    then check a screen the test never reached (red on a working app); a case left with
+    no ASSERT at all passes unconditionally under a name claiming it verified something."""
     used: set = set()
     seen_names: set = set()
     bodies: List[str] = []
     for case in model.cases:
         rendered: List[str] = []
+        dropped_interaction = False
+        asserted = False
         for step in case.steps:
             loc = page_of.get(_sel_key(step.selector)) if step.selector is not None else None
             if loc is None:
+                if step.action in (ActionType.TAP, ActionType.TYPE):
+                    dropped_interaction = True
+                    break
                 continue
             cls, acc = loc
             call = f"{cls}(driver).{acc}()"
@@ -197,6 +242,7 @@ def _flow_tests(model: TestModel, page_of: Dict[tuple, tuple]) -> str:
                 rendered.append(f"    {call}.click()")
             elif step.action == ActionType.ASSERT:
                 used.add(cls)
+                asserted = True
                 if step.assertion == AssertionType.NOT_VISIBLE:
                     rendered.append(f"    assert not {call}.is_displayed()")
                 elif step.assertion == AssertionType.ENABLED:
@@ -205,7 +251,7 @@ def _flow_tests(model: TestModel, page_of: Dict[tuple, tuple]) -> str:
                     rendered.append(f"    assert {call}.text == {step.expected!r}")
                 else:  # VISIBLE (and any unmapped assertion) — the landmark check
                     rendered.append(f"    assert {call}.is_displayed()")
-        if not rendered:
+        if dropped_interaction or not asserted:
             continue
         name = snake(case.name) or "case"
         if name in seen_names:
@@ -227,11 +273,11 @@ def _flow_tests(model: TestModel, page_of: Dict[tuple, tuple]) -> str:
 def build_framework_kit(result: CrawlResult, model: TestModel, app_package: str) -> Dict[str, str]:
     """A proper pytest framework layout from a crawl (relative_path -> content)."""
     files: Dict[str, str] = {}
-    pages, page_of = _page_objects(result, app_package)
-    if not pages:
+    page_files, page_of, pages = _page_objects(result, app_package)
+    if not page_files:
         return files
     files["pages/__init__.py"] = ""
-    files.update(pages)
+    files.update(page_files)
     files["conftest.py"] = _conftest(model)
 
     tests_written = False

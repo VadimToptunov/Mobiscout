@@ -480,8 +480,17 @@ class AppCrawler:
             self._deadline = time.monotonic() + self.max_seconds
         try:
             self._explore(result)
-        except CrawlerDriverError:
-            pass  # expected transient (wedged round-trip) — keep the partial map
+        except CrawlerDriverError as exc:
+            # Expected transient (a wedged round-trip, a command the device rejected):
+            # keep the partial map — but never silently. A crawl that ended on a
+            # device failure must not be indistinguishable from one that finished the
+            # app, so the reason is logged with the screens gathered so far.
+            logger.warning(
+                "crawl ended early on a driver error after %d screen(s): %s; returning partial map",
+                len(result.screens),
+                exc,
+            )
+            result.ended_early = f"device error after {len(result.screens)} screen(s): {exc}"
         except Exception as exc:  # noqa: BLE001 — device flakiness must never lose work
             # An unexpected driver hiccup (a dropped WDA/Appium session, a socket
             # reset, a malformed dump) must not crash the run and throw away every
@@ -489,6 +498,7 @@ class AppCrawler:
             logger.warning(
                 "crawl ended early on an unexpected driver error (%s); returning partial map", type(exc).__name__
             )
+            result.ended_early = f"unexpected device error after {len(result.screens)} screen(s): {type(exc).__name__}"
         result.auth_sequence = list(self._fired_waypoints)  # gates in the order passed, for codegen
         return result
 

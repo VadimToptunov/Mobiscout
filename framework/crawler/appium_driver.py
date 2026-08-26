@@ -193,6 +193,17 @@ class IOSCrawlerDriver:
             pass
         self._settle_wait()
 
+    def hide_keyboard(self) -> None:
+        # Dismiss the keyboard after form-filling so it doesn't cover the control the
+        # crawler taps next — submit sits under the keyboard on most forms, and the
+        # crawler taps it at coordinates read before the keyboard came up. Best-effort:
+        # XCUITest raises when it can't find a dismissal key (no keyboard showing).
+        try:
+            self._driver.hide_keyboard()
+        except Exception:
+            pass
+        self._settle_wait()
+
     def back(self) -> None:
         # iOS has no hardware Back; the near-universal gesture is an edge swipe
         # from the left. dragFromToForDuration works on the simulator too.
@@ -268,7 +279,13 @@ class IOSCrawlerDriver:
 
     def open_url(self, uri: str, package: Optional[str] = None, tries: int = 6) -> bool:
         """Open a deeplink URI in the app under test so a seed crawl starts on the
-        target screen (mobile: deepLink routes it straight to the bundle)."""
+        target screen (mobile: deepLink routes it straight to the bundle).
+
+        Returns whether the app under test actually came to the foreground, like the
+        adb/Android drivers — the caller skips a seed on False. A URI the app doesn't
+        claim (an https link it has no association for) opens Safari while the command
+        still succeeds, so reporting True there would crawl a seed off-app.
+        """
         try:
             self._driver.execute_script("mobile: deepLink", {"url": uri, "bundleId": self.bundle_id})
         except Exception:
@@ -277,7 +294,12 @@ class IOSCrawlerDriver:
             except Exception:
                 return False
         self._settle_wait()
-        return True
+        bundle = package or self.bundle_id
+        for _ in range(tries):
+            if self.current_package() == bundle:
+                return True
+            time.sleep(0.3)
+        return self.current_package() == bundle
 
     def quit(self) -> None:
         try:

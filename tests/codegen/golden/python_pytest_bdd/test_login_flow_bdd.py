@@ -25,6 +25,8 @@ APP_ACTIVITY = ".MainActivity"
 # Condition-based wait budget (seconds) — poll for the element instead of a fixed
 # sleep or a global implicit wait, so steps stay in sync with async UI.
 TIMEOUT = 10
+# How many times _find scrolls looking for an off-screen element before giving up.
+SCROLL_TRIES = 4
 
 # Friendly target name -> ranked locators (primary first, then fallbacks).
 LOCATORS = {
@@ -34,10 +36,39 @@ LOCATORS = {
 }
 
 
+def _scroll_down(driver):
+    """One scroll-down gesture — used by _find to bring a below-the-fold element into
+    view. Platform-aware: iOS uses `mobile: scroll`, Android `mobile: scrollGesture`."""
+    _s = driver.get_window_size()
+    driver.execute_script("mobile: scrollGesture", {
+        "left": int(_s["width"] * 0.1), "top": int(_s["height"] * 0.2),
+        "width": int(_s["width"] * 0.8), "height": int(_s["height"] * 0.6),
+        "direction": "down", "percent": 0.8,
+    })
+
+# A generic "busy" indicator per platform — used by _settle to wait out a
+# transition. Not app-specific, so it's a no-op on screens that show no spinner.
+_BUSY_XPATH = "//android.widget.ProgressBar"
+
+
+def _settle(driver):
+    """Middle beat of ``act -> wait-busy-clears -> assert``: after an action that
+    triggers a transition, wait for a loading/activity indicator to disappear so the
+    next step doesn't act on a mid-transition screen. A no-op when nothing is
+    spinning; a stuck indicator is tolerated, not failed."""
+    try:
+        WebDriverWait(driver, TIMEOUT, poll_frequency=0.3).until(
+            lambda d: not d.find_elements(AppiumBy.XPATH, _BUSY_XPATH)
+        )
+    except TimeoutException:
+        pass
+
+
 def _find(driver, target):
     """Resolve a friendly target to an element, waiting for it to appear and
     self-healing through its ranked locators — a condition-based wait, not an
-    instant lookup that flakes on async screens."""
+    instant lookup that flakes on async screens. Scrolls to reach a below-the-fold
+    element, so the same crawl passes here and in the imperative kit."""
     locators = LOCATORS[target]
 
     def _locate(drv):
@@ -51,7 +82,20 @@ def _find(driver, target):
     try:
         return WebDriverWait(driver, TIMEOUT, poll_frequency=0.3).until(_locate)
     except TimeoutException:
-        raise NoSuchElementException(f"No locator matched for target: {target!r} within {TIMEOUT}s")
+        pass
+
+    for _ in range(SCROLL_TRIES):
+        try:
+            _scroll_down(driver)
+        except Exception:
+            break
+        found = _locate(driver)
+        if found:
+            return found
+
+    raise NoSuchElementException(
+        f"No locator matched for target: {target!r} within {TIMEOUT}s + {SCROLL_TRIES} scrolls"
+    )
 
 
 @pytest.fixture()
@@ -76,11 +120,13 @@ def _launch(driver):
 @when(parsers.parse('I enter "{text}" into "{target}"'))
 def _enter(driver, text, target):
     _find(driver, target).send_keys(text)
+    _settle(driver)
 
 
 @when(parsers.parse('I tap "{target}"'))
 def _tap(driver, target):
     _find(driver, target).click()
+    _settle(driver)
 
 
 @when(parsers.parse("I swipe {direction}"))
@@ -97,6 +143,7 @@ def _swipe(driver, direction):
             "percent": 0.75,
         },
     )
+    _settle(driver)
 
 
 @when(parsers.parse("I wait {seconds:d} seconds"))
@@ -108,11 +155,13 @@ def _wait(driver, seconds):
 @when("I press back")
 def _back(driver):
     driver.back()
+    _settle(driver)
 
 
 @when(parsers.parse('I long-press "{target}"'))
 def _long_press(driver, target):
     driver.execute_script("mobile: longClickGesture", {"elementId": _find(driver, target).id, "duration": 1000})
+    _settle(driver)
 
 
 @when(parsers.parse('I scroll to "{target}"'))
@@ -124,12 +173,14 @@ def _scroll_to(driver, target):
 @when(parsers.parse('I open the deep link "{url}"'))
 def _deep_link(driver, url):
     driver.get(url)
+    _settle(driver)
 
 
 @when(parsers.parse('I press the "{key}" key'))
 def _press_key(driver, key):
     codes = {"BACK": 4, "HOME": 3, "ENTER": 66, "TAB": 61, "SEARCH": 84, "APP_SWITCH": 187, "DEL": 67}
     driver.press_keycode(codes.get(key.upper(), 0))
+    _settle(driver)
 
 
 @when(parsers.parse("I switch to the {ctx} context"))

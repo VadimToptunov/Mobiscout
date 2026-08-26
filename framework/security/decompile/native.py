@@ -44,14 +44,17 @@ class NativeLibAnalyzer:
                     elif "RELRO" in result.stdout:
                         info["protections"].append("PARTIAL_RELRO")
 
-                    # Check for stack canary
-                    if "__stack_chk_fail" in result.stdout:
-                        info["protections"].append("STACK_CANARY")
+                    # Check for PIE. Every shared object is type DYN, so reading the
+                    # ELF type claimed PIE for all of them; only DF_1_PIE proves it.
+                    if re.search(r"FLAGS_1.*\bPIE\b", result.stdout):
+                        info["protections"].append("PIE")
 
-                # Check for PIE
-                result = subprocess.run(["readelf", "-h", str(so_path)], capture_output=True, text=True, timeout=30)
-                if "DYN" in result.stdout:
-                    info["protections"].append("PIE")
+                # Check for stack canary. `readelf -d` lists dynamic tags, never
+                # symbol names, so the canary symbol has to come from the symbol
+                # tables or it can never be found.
+                symbols = subprocess.run(["readelf", "-sW", str(so_path)], capture_output=True, text=True, timeout=30)
+                if symbols.returncode == 0 and "__stack_chk_fail" in symbols.stdout:
+                    info["protections"].append("STACK_CANARY")
 
             except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
                 pass

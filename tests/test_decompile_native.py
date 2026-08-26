@@ -55,14 +55,16 @@ def test_elf_arch_detection_32bit(tmp_path, monkeypatch):
 
 
 def test_protection_parsing_from_readelf(tmp_path, monkeypatch):
-    """With readelf present, BIND_NOW/__stack_chk_fail/DYN in its output must map
-    to FULL_RELRO / STACK_CANARY / PIE."""
+    """With readelf present, BIND_NOW and DF_1_PIE in the dynamic section and
+    __stack_chk_fail in the symbol table must map to FULL_RELRO / PIE /
+    STACK_CANARY. The dynamic section lists tags, not symbols, so the canary is
+    only ever visible via `readelf -s`."""
 
     def fake_run(cmd, *args, **kwargs):
         if "-d" in cmd:
-            return SimpleNamespace(returncode=0, stdout="FLAGS BIND_NOW\n__stack_chk_fail\n")
-        if "-h" in cmd:
-            return SimpleNamespace(returncode=0, stdout="Type: DYN (Shared object file)\n")
+            return SimpleNamespace(returncode=0, stdout="FLAGS BIND_NOW\nFLAGS_1  Flags: PIE\n")
+        if "-sW" in cmd:
+            return SimpleNamespace(returncode=0, stdout="  12: 0000 FUNC GLOBAL DEFAULT UND __stack_chk_fail\n")
         return SimpleNamespace(returncode=1, stdout="")
 
     monkeypatch.setattr(native_mod.subprocess, "run", fake_run)

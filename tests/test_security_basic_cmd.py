@@ -81,17 +81,26 @@ def test_audit_missing_path_exits_one(runner, tmp_path):
 
 def test_audit_renders_findings(runner, tmp_path):
     ipa = _fake_apk(tmp_path / "app.ipa", entry="Info.plist", content="<plist></plist>")
-    # iOS scan emits real findings; audit should render them without crashing.
     result = runner.invoke(security, ["audit", str(ipa), "-p", "ios", "-n", "App"])
     _no_crash(result)
+    # The real iOS scan emits a MEDIUM binary finding and the INFO coverage note.
+    # An audit that rendered nothing would read as a clean bill of health, which is
+    # the one thing this scanner must never say by accident.
+    assert "PIE Not Enabled" in result.output
+    assert "Partial analysis" in result.output
 
 
 def test_audit_severity_filter_is_applied(runner, tmp_path):
     ipa = _fake_apk(tmp_path / "app.ipa", entry="Info.plist", content="<plist></plist>")
-    # Filtering to 'critical' should drop the (non-critical) iOS coverage findings
-    # → empty render, still a clean (no-crash) run.
-    result = runner.invoke(security, ["audit", str(ipa), "-p", "ios", "-n", "App", "--severity", "critical"])
-    _no_crash(result)
+    medium = runner.invoke(security, ["audit", str(ipa), "-p", "ios", "-n", "App", "--severity", "medium"])
+    critical = runner.invoke(security, ["audit", str(ipa), "-p", "ios", "-n", "App", "--severity", "critical"])
+    _no_crash(medium)
+    _no_crash(critical)
+    # --severity medium keeps the MEDIUM finding and drops the INFO coverage note...
+    assert "PIE Not Enabled" in medium.output
+    assert "Partial analysis" not in medium.output
+    # ...and nothing here is critical, so that filter renders nothing at all.
+    assert "PIE Not Enabled" not in critical.output
 
 
 # ---------------------------------------------------------------------------- list

@@ -31,10 +31,24 @@ def _project(tmp_path: Path, files=None):
     return str(tmp_path)
 
 
-def test_code_command_runs(runner, tmp_path):
+# An insecure pattern the secure-coding analyzer really flags (CWE-330).
+_INSECURE_SRC = {"app.py": "import random\nsession_token = random.Random()\n"}
+
+
+def test_code_command_reports_the_planted_insecure_pattern(runner, tmp_path):
     # Was: analyzer.analyze(source_path, language) -> TypeError (analyze takes 1 arg).
+    result = runner.invoke(security, ["code", _project(tmp_path, _INSECURE_SRC), "--language", "python"])
+    _no_crash(result)
+    assert "Found 1 issue(s)" in result.output
+    assert "Insecure Random Number Generator" in result.output
+
+
+def test_code_command_reports_a_clean_file_as_clean(runner, tmp_path):
+    # The other half of the contrast: without it, an analyzer that returned nothing
+    # for every input would still satisfy the test above's negative space.
     result = runner.invoke(security, ["code", _project(tmp_path), "--language", "python"])
     _no_crash(result)
+    assert "No secure coding issues found" in result.output
 
 
 def test_sbom_command_writes_file(runner, tmp_path):
@@ -90,11 +104,14 @@ def test_full_scan_exports_each_format(runner, tmp_path, fmt):
 _VULN_SRC = {"app.py": "import os\nos.system(user_input)\neval(data)\npassword = 'hardcoded12345'\n"}
 
 
-def test_sast_command_runs(runner, tmp_path):
+def test_sast_command_reports_the_planted_sinks(runner, tmp_path):
     # Was: result.vulnerabilities (SASTResult has .findings), severity == "critical"
     # (Severity is not a str-enum -> always False), export_sarif(result) -> crashes.
     result = runner.invoke(security, ["sast", _project(tmp_path, _VULN_SRC), "--language", "python"])
     _no_crash(result)
+    assert "Found 3 Vulnerabilities" in result.output  # os.system, eval, the hardcoded key
+    assert "command_injection" in result.output and "hardcoded_key" in result.output
+    assert result.exit_code == 2  # critical findings present
 
 
 def test_sast_sarif_export(runner, tmp_path):
@@ -104,25 +121,59 @@ def test_sast_sarif_export(runner, tmp_path):
     assert out.exists()
 
 
-def test_taint_command_runs(runner, tmp_path):
+# A complete user_input -> os.system flow, which is what taint tracks (_VULN_SRC's
+# `user_input` is an undefined name, so it has no source to trace from).
+_TAINT_SRC = {"app.py": "import os\ncmd = input('run: ')\nos.system(cmd)\n"}
+
+
+def test_taint_command_reports_the_source_to_sink_flow(runner, tmp_path):
     # Was: flow.source_line / flow.sink_line (TaintFlow has no such attrs),
     # severity.upper() on an enum -> crashes.
-    result = runner.invoke(security, ["taint", _project(tmp_path, _VULN_SRC)])
+    result = runner.invoke(security, ["taint", _project(tmp_path, _TAINT_SRC)])
     _no_crash(result)
+    assert "Found 1 taint flow issue(s)" in result.output
+    assert "command_injection" in result.output
+    assert "os.system" in result.output  # the sink the flow ends at
+    assert result.exit_code == 1
 
 
-_SECRET_SRC = {"cfg.py": "API_KEY = 'sk_live_abcdef1234567890xyz'\nimport logging\nlogging.info(user.email)\n"}
+def test_taint_command_reports_no_flow_for_a_clean_project(runner, tmp_path):
+    result = runner.invoke(security, ["taint", _project(tmp_path)])
+    _no_crash(result)
+    assert "No taint flow vulnerabilities found" in result.output
 
 
-def test_secrets_command_runs(runner, tmp_path):
+_SECRET_SRC = {"cfg.py": "API_KEY = 'sk_live_abcdef1234567890xyz'\n"}
+# PII reaching a log statement: an address the email pattern actually matches,
+# through a call shape the log patterns actually recognise.
+_PII_LOG_SRC = {
+    "signup.py": "import logging\nlogger = logging.getLogger(__name__)\nlogger.info('new user alice@example.com')\n"
+}
+
+
+def test_secrets_command_reports_the_planted_key(runner, tmp_path):
     # Was: finding.file_path/line_number (only .location), finding.recommendation
     # (.remediation), risk_level.value.upper() (RiskLevel value is int) -> crashes.
     result = runner.invoke(security, ["secrets", _project(tmp_path, _SECRET_SRC)])
     _no_crash(result)
+    assert "Found 1 potential secret(s)" in result.output
+    assert "Hardcoded Generic API Key Detected" in result.output
+    assert "cfg.py:1" in result.output  # reported with its file and line
+    assert result.exit_code == 1
 
 
-def test_privacy_command_runs(runner, tmp_path):
+def test_privacy_command_reports_pii_reaching_a_log(runner, tmp_path):
     # Was: checker.check_compliance(...) doesn't exist (check_pii_logging /
     # check_tracking_sdks) and finding.file_path/line_number -> crashes.
-    result = runner.invoke(security, ["privacy", _project(tmp_path, _SECRET_SRC), "-r", "gdpr"])
+    result = runner.invoke(security, ["privacy", _project(tmp_path, _PII_LOG_SRC), "-r", "gdpr"])
     _no_crash(result)
+    assert "Found 1 privacy issue(s)" in result.output
+    assert "PII (email) Potentially Logged" in result.output
+    assert "signup.py:3" in result.output
+    assert result.exit_code == 1
+
+
+def test_privacy_command_reports_a_clean_project_as_clean(runner, tmp_path):
+    result = runner.invoke(security, ["privacy", _project(tmp_path), "-r", "gdpr"])
+    _no_crash(result)
+    assert "No GDPR compliance issues found" in result.output

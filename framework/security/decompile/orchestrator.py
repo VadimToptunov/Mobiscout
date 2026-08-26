@@ -11,6 +11,7 @@ from framework.security.decompile.base import (
     ProtectionType,
     StringFinding,
     SecurityFinding,
+    NativeLibInfo,
     DecompileResult,
 )
 
@@ -25,6 +26,9 @@ class Decompiler:
 
     Combines all decompilation and analysis capabilities.
     """
+
+    # ABI directory names an APK keys its lib/ entries by.
+    ABI_DIRS = ("arm64-v8a", "armeabi-v7a", "x86", "x86_64", "armeabi")
 
     def __init__(self) -> None:
         self.apk_decompiler = APKDecompiler()
@@ -56,14 +60,68 @@ class Decompiler:
         """
         result = self.analyze(binary_path, output_dir)
 
+        # Both options were accepted and ignored, while the CLI announced them as
+        # "Enabled"/"Disabled".
+        if not extract_strings:
+            result.strings = []
+
+        if analyze_native:
+            result._native_lib_infos = self._analyze_native_libs(result)
+
         # Add security findings based on analysis
         result.security_findings = self._generate_security_findings(result)
 
         return result
 
+    def _analyze_native_libs(self, result: DecompileResult) -> List[NativeLibInfo]:
+        """Inspect each extracted native library with the ELF analyzer.
+
+        Without this the reported libraries came from ``DecompileResult`` guessing
+        at the entry path, which reports size 0 and cannot see any protection.
+        Non-ELF entries (an IPA's frameworks) yield nothing, leaving that
+        path-derived fallback in place.
+        """
+        extract_dir = Path(result.output_dir) / "extracted"
+        infos = []
+
+        for lib_path in result.native_libs:
+            so_file = extract_dir / lib_path
+            if not so_file.is_file():
+                continue
+
+            details = self.native_analyzer.analyze_so(so_file)
+            architectures = [part for part in Path(lib_path).parts if part in self.ABI_DIRS]
+            infos.append(
+                NativeLibInfo(
+                    name=Path(lib_path).name,
+                    path=lib_path,
+                    architectures=architectures or [details.get("arch", "unknown")],
+                    size=so_file.stat().st_size,
+                    protections=details.get("protections", []),
+                )
+            )
+
+        return infos
+
     def _generate_security_findings(self, result: DecompileResult) -> List[SecurityFinding]:
         """Generate security findings from decompile result"""
         findings = []
+
+        # A manifest that could not be read yields the same empty permission and
+        # component lists as a manifest that declares nothing; report the gap so
+        # the checks below are not read as "nothing dangerous declared".
+        if result.metadata.get("manifest_parsed") is False:
+            findings.append(
+                SecurityFinding(
+                    title="Manifest Not Analysed",
+                    description=(
+                        result.metadata.get("manifest_error")
+                        or "AndroidManifest.xml could not be parsed; permission and component checks did not run"
+                    ),
+                    severity="medium",
+                    location="AndroidManifest.xml",
+                )
+            )
 
         # Check for dangerous permissions
         dangerous_permissions = {
@@ -181,7 +239,10 @@ class Decompiler:
         ascii_pattern = rb"[\x20-\x7e]{" + str(min_length).encode() + rb",}"
         raw_strings = re.findall(ascii_pattern, content)
 
-        for raw in raw_strings[:1000]:  # Limit to prevent excessive processing
+        # Every string is categorized: capping the input at the first 1000 left a
+        # real DEX (tens of thousands of strings) all but unscanned, while the CLI
+        # still printed "No strings found matching criteria".
+        for raw in raw_strings:
             try:
                 decoded = raw.decode("utf-8")
 

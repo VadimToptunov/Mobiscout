@@ -31,8 +31,16 @@ class LogsPanel(
     private val deviceCombo = JComboBox<DeviceItem>()
     private val appField = JBTextField(16)
 
-    // Whether a device-log stream is live — drives the Start/Stop action enablement.
-    private var streaming = false
+    // Whether THIS panel owns the engine's single device-log stream — drives the Start/Stop
+    // action enablement and which panel renders the stream. Derived from the application-level
+    // service rather than a local flag: with two projects open, a Start in the other window
+    // takes the stream over, and this panel must notice instead of staying stuck on "streaming".
+    private val streaming: Boolean
+        get() = daemonService.ownsLogStream(this)
+
+    // The daemon diagnoses a stream that died on spawn ("device 'emulator-5554' not found")
+    // and returns that text in the JSON-RPC error — keep it for the failure notification.
+    private var lastStartError: String? = null
 
     init {
         logsTextArea.isEditable = false
@@ -71,9 +79,13 @@ class LogsPanel(
     // a field and removed in dispose() — the daemon service is APPLICATION-level, so a
     // listener left behind would pin this panel (and its whole Project) past close.
     private val logListener: (com.mobiletest.recorder.rpc.JsonRpcNotification) -> Unit =
-        { notification ->
+        render@{ notification ->
             if (notification.method == "logs/message") {
                 val params = notification.params
+                // A device line belongs to the panel that started the stream. The engine has one
+                // stream and every project window has a panel, so rendering unconditionally
+                // filled this tab with another project's device output.
+                if (params.get("source")?.asString == "device" && !streaming) return@render
                 val message = params.get("message")?.asString ?: ""
                 val timestamp = params.get("timestamp")?.asString ?: ""
                 val level = params.get("level")?.asString ?: "INFO"
@@ -124,19 +136,29 @@ class LogsPanel(
             Notifier.warn(project, "App Logs", "Pick a device and enter the app bundle id / package first.")
             return
         }
+        lastStartError = null
         (object : SwingWorker<Boolean, Void>() {
             override fun doInBackground(): Boolean = try {
-                daemonService.startAppLogs(udid, bundle, platform) != null
+                // Passing this panel as the owner is what makes the toolbar's Start/Stop and the
+                // render gate above follow the engine's one stream.
+                daemonService.startAppLogs(this@LogsPanel, udid, bundle, platform) != null
             } catch (e: Exception) {
+                lastStartError = e.message ?: e.toString()
                 false
             }
 
             override fun done() {
                 if (get()) {
-                    streaming = true // the toolbar's Start/Stop reflect this via update()
                     logsTextArea.append("— streaming device logs for $bundle —\n")
                 } else {
-                    Notifier.error(project, "App Logs", "Couldn't start the log stream. Is the engine running?")
+                    // Show the daemon's reason (stale serial, wrong udid) verbatim. The generic
+                    // "is the engine running?" is only right when nothing answered at all — the
+                    // engine that just returned this error plainly is.
+                    Notifier.error(
+                        project,
+                        "App Logs",
+                        lastStartError ?: "Couldn't start the log stream. Is the engine running?",
+                    )
                 }
             }
         }).execute()
@@ -146,15 +168,12 @@ class LogsPanel(
         (object : SwingWorker<Void?, Void>() {
             override fun doInBackground(): Void? {
                 try {
-                    daemonService.stopAppLogs()
+                    // Releases this panel's ownership too, which flips Start/Stop back via update().
+                    daemonService.stopAppLogs(this@LogsPanel)
                 } catch (e: Exception) {
                     // best-effort
                 }
                 return null
-            }
-
-            override fun done() {
-                streaming = false // flips the toolbar's Start/Stop back via update()
             }
         }).execute()
     }
@@ -199,6 +218,10 @@ class LogsPanel(
 
     override fun dispose() {
         daemonService.removeNotificationListener(logListener)
+        // Also hand back the device-log stream. The service is application-level, so a
+        // disposed panel left owning the stream keeps this panel — and through it the
+        // Project — alive until some other panel touches the stream or the engine dies.
+        daemonService.stopAppLogsAsync(this)
     }
 
     companion object {

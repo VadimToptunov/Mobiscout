@@ -164,9 +164,24 @@ def _fill(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     filled = [e for e in inputs if id(e) in used_ids]
     submit = _submit_button(els, data["submit"], filled) if data.get("submit") else None
     if submit is not None:
+        # Dismiss the keyboard before tapping submit. The coordinates come from the element
+        # list read BEFORE typing, so an IME covering the lower part of the screen means the
+        # tap lands on the keyboard instead of the button — and this is the gate-passing
+        # path, so the login/OTP never submits and everything behind it stays uncrawled.
+        _hide_keyboard(driver)
         _tap(driver, submit)
         did = True
     return did
+
+
+def _hide_keyboard(driver: Any) -> None:
+    """Best-effort keyboard dismissal; a driver without it (or one that fails) is fine."""
+    hide = getattr(driver, "hide_keyboard", None)
+    if callable(hide):
+        try:
+            hide()
+        except Exception:
+            pass
 
 
 def _totp(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
@@ -182,6 +197,7 @@ def _totp(driver: Any, els: List[CrawlElement], data: Dict[str, Any]) -> bool:
     driver.type_text(totp(secret))
     submit = _find(els, data["submit"]) if data.get("submit") else None
     if submit is not None:
+        _hide_keyboard(driver)  # same IME hazard as _fill: submit coords predate the typing
         _tap(driver, submit)
     return True
 

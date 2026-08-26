@@ -2,7 +2,11 @@
 
 # Rust
 /target/
-Cargo.lock
+# Cargo.lock is deliberately absent from this list: the crate is a shipped binary
+# artifact (the accelerator compiled into every released engine), not a library.
+# While it was ignored, each release re-resolved Cargo.toml's caret ranges from
+# scratch — no release build was reproducible, and a regressed minor crate release
+# landed straight in the binary users download.
 **/*.rs.bk
 *.pdb
 

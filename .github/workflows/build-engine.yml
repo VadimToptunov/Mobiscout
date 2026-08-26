@@ -92,7 +92,15 @@ jobs:
 
       - name: Freeze
         if: ${{ matrix.x86 != true }}
-        run: pyinstaller packaging/mobiscout-engine.spec --noconfirm --clean
+        shell: bash
+        run: |
+          set -o pipefail
+          pyinstaller packaging/mobiscout-engine.spec --noconfirm --clean 2>&1 | tee freeze.log
+          # NOTE: do not add a log-grep guard here. collect_submodules() warns only ONCE
+          # and then ignores later failures, and it walks LIFO — so the knowingly-optional
+          # framework.dashboard (needs uvicorn, absent from the lean install) always eats
+          # that one warning and every real drop after it is silent. The binary proves its
+          # own completeness in the "Self-test" step below instead.
 
       - name: Install + Freeze (x86_64 under Rosetta)
         # Same lean-core install and freeze as above, but every step runs the
@@ -109,18 +117,38 @@ jobs:
           WHEEL=$(ls rust_core/target/wheels/*.whl | head -1)
           arch -x86_64 "$PYBIN" -m pip install "$WHEEL"
           arch -x86_64 "$PYBIN" -c "import mobiscout_core; print('mobiscout_core (x86_64) OK')"
-          arch -x86_64 "$PYBIN" -m PyInstaller packaging/mobiscout-engine.spec --noconfirm --clean
+          set -o pipefail
+          arch -x86_64 "$PYBIN" -m PyInstaller packaging/mobiscout-engine.spec --noconfirm --clean 2>&1 | tee freeze.log
+          # Completeness is proven by the "Self-test" step below, not by grepping this
+          # log — see the note in the non-x86 Freeze step.
+
+      - name: Self-test (the binary proves it bundled everything)
+        shell: bash
+        # Imports every lazily-reached subpackage and renders EVERY codegen target through
+        # the real emitters, so a missing module OR a missing .j2 data file fails the build
+        # here instead of on the first user who picks that language.
+        run: |
+          "${{ matrix.binary }}" --selftest
 
       - name: Smoke test (runs with no interpreter dependency)
         shell: bash
         run: |
-          out=$(echo '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' | "${{ matrix.binary }}")
+          out=$(printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"health/check","params":{}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"selector/generate","params":{"platform":"android","element":{"resource_id":"com.example:id/login_button","text":"Log in","class":"android.widget.Button","clickable":true}}}' \
+            | "${{ matrix.binary }}")
           echo "$out"
           echo "$out" | grep -q '"status": "ok"' || { echo "engine did not respond ok"; exit 1; }
           # Mandatory Rust: the shipped binary must run the compiled accelerator, never the
           # pure-Python fallback. If the core didn't get bundled, fail here rather than ship it.
           echo "$out" | grep -q '"native_backend": "rust"' || {
             echo "engine shipped WITHOUT the Rust core (native_backend != rust)"; exit 1; }
+          # health/check imports almost nothing, so it passed even when the bundle was
+          # missing modules. selector/generate is the device-free request that drives the
+          # real crawler parse -> classify -> locator path, so a subpackage that didn't
+          # make it into the binary fails here instead of at the first user.
+          echo "$out" | grep -q '"found": true' || {
+            echo "selector/generate did not resolve an element in the frozen binary"; exit 1; }
 
       - name: Rename + checksum
         shell: bash
@@ -154,6 +182,11 @@ jobs:
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
+          # GitHub raises no workflow runs for events caused by GITHUB_TOKEN, so a release
+          # created with the default token never fired ci.yml's `release: published` — the
+          # publish jobs simply never ran on the tag-push route. A PAT does fire them;
+          # falls back to the default token when RELEASE_PAT isn't configured.
+          token: ${{ secrets.RELEASE_PAT || github.token }}
           files: |
             out/${{ matrix.artifact }}
             out/${{ matrix.artifact }}.sha256

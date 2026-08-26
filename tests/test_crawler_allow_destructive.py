@@ -7,6 +7,7 @@ from framework.crawler.app_crawler import (
     DESTRUCTIVE_BLOCKLIST,
     SESSION_BLOCKLIST,
     AppCrawler,
+    parse_screen,
 )
 from framework.crawler.models import CrawlElement
 
@@ -128,3 +129,240 @@ def test_blocklist_constants_compose():
     assert "logout" in SESSION_BLOCKLIST
     assert "pay" in DESTRUCTIVE_BLOCKLIST
     assert not set(SESSION_BLOCKLIST) & set(DESTRUCTIVE_BLOCKLIST)  # disjoint tiers
+
+
+# --- the gate as the crawl loop actually uses it ------------------------------
+# Everything above tests the predicate in isolation. These drive the REAL crawl
+# loop over a fake app, because the predicate being right is worthless if the loop
+# forgets to pass money_context: with the wiring gone, a default crawl taps "Send"
+# on a transfer form — a real money move — and every pure-predicate test above
+# still passes.
+
+
+def _button(label, rid, bounds):
+    x1, y1, x2, y2 = bounds
+    return (
+        f'<node class="android.widget.Button" resource-id="{rid}" text="{label}" '
+        f'content-desc="" clickable="true" bounds="[{x1},{y1}][{x2},{y2}]"/>'
+    )
+
+
+def _amount_input(rid, bounds):
+    x1, y1, x2, y2 = bounds
+    return (
+        f'<node class="android.widget.EditText" resource-id="{rid}" text="" '
+        f'content-desc="" clickable="true" bounds="[{x1},{y1}][{x2},{y2}]"/>'
+    )
+
+
+def _label(text, bounds):
+    x1, y1, x2, y2 = bounds
+    return (
+        f'<node class="android.widget.TextView" resource-id="" text="{text}" '
+        f'content-desc="" clickable="false" bounds="[{x1},{y1}][{x2},{y2}]"/>'
+    )
+
+
+def _screen(*nodes):
+    return '<hierarchy rotation="0">' + "".join(nodes) + "</hierarchy>"
+
+
+# home     -- "Send code" --> otp        (no money field: "Send code" must be tapped)
+#          -- "Move money" --> transfer  (amount field: "Send" must NOT be tapped)
+#          -- "Wallet" --> wallet        (amount field only BELOW the fold)
+SCREENS = {
+    "home": _screen(
+        _button("Send code", "com.x:id/otp", (0, 0, 100, 50)),
+        _button("Move money", "com.x:id/nav_send", (0, 60, 100, 110)),
+        _button("Wallet", "com.x:id/nav_wallet", (0, 120, 100, 170)),
+    ),
+    "otp": _screen(_label("Code sent", (0, 0, 100, 50))),
+    "transfer": _screen(
+        _amount_input("com.x:id/amount_field", (0, 0, 100, 50)),
+        _button("Send", "com.x:id/submit", (0, 60, 100, 110)),
+        _button("Add note", "com.x:id/note", (0, 120, 100, 170)),
+    ),
+    "note": _screen(_label("Note", (0, 0, 100, 50))),
+    "sent": _screen(_label("Money sent", (0, 0, 100, 50))),  # only reachable by tapping Send
+    # The wallet's amount field is off-screen until a scroll reveals it, so the
+    # frame starts non-money and must re-arm (sticky) once the fold is opened.
+    "wallet": _screen(_label("Wallet", (0, 0, 100, 50))),
+    "wallet_scrolled": _screen(
+        _amount_input("com.x:id/amount_field", (0, 0, 100, 50)),
+        _button("Send", "com.x:id/wallet_submit", (0, 60, 100, 110)),
+    ),
+}
+TRANSITIONS = {
+    ("home", "Send code"): "otp",
+    ("home", "Move money"): "transfer",
+    ("home", "Wallet"): "wallet",
+    ("transfer", "Send"): "sent",
+    ("transfer", "Add note"): "note",
+    ("wallet", "Send"): "sent",
+}
+
+
+class _FakeApp:
+    """Serves the fake app above and records every tapped label. ``scrolls`` maps a
+    screen to the variant shown after the crawler scrolls it."""
+
+    def __init__(self, start="home", scrolls=None):
+        self.current = start
+        self.scrolls = scrolls or {}
+        self.scrolled = set()
+        self.nav = []
+        self.tapped_labels = []
+
+    def _visible(self):
+        name = self.current
+        return SCREENS[self.scrolls[name] if name in self.scrolled else name]
+
+    def page_source(self):
+        return self._visible()
+
+    def current_package(self):
+        return APP
+
+    def back(self):
+        if self.nav:
+            self.current = self.nav.pop()
+
+    def scroll(self, direction="down"):
+        if direction == "down" and self.current in self.scrolls:
+            self.scrolled.add(self.current)
+
+    def type_text(self, text):
+        pass
+
+    def tap(self, x, y):
+        label = ""
+        for e in parse_screen(self._visible()).elements:
+            x1, y1, x2, y2 = e.bounds
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                label = e.label
+                break
+        self.tapped_labels.append(label)
+        target = TRANSITIONS.get((self.current, label))
+        if target:
+            self.nav.append(self.current)
+            self.current = target
+
+
+def _crawl(driver, **kw):
+    AppCrawler(driver, APP, max_steps=200, **kw).crawl()
+    return driver.tapped_labels
+
+
+def test_crawl_loop_never_taps_send_on_a_money_screen():
+    tapped = _crawl(_FakeApp())
+    assert "Send" not in tapped  # the transfer form's submit — a real money move
+    assert "Send code" in tapped  # ...while the OTP screen's Send stays crawlable
+    assert "Add note" in tapped  # and the money screen itself is still explored
+
+
+def test_allow_destructive_lets_the_crawl_loop_reach_the_money_submit():
+    tapped = _crawl(_FakeApp(), allow_destructive=True)
+    assert "Send" in tapped
+
+
+def test_crawl_loop_gates_send_on_a_money_screen_it_started_on():
+    # Entry-screen wiring (root_money): a crawl that *starts* on the transfer form
+    # has no parent frame to inherit the money flag from.
+    tapped = _crawl(_FakeApp(start="transfer"))
+    assert "Send" not in tapped
+    assert "Add note" in tapped
+
+
+def test_money_flag_re_arms_when_a_scroll_reveals_the_amount_field():
+    # The amount field is below the fold, so the frame is created non-money; the
+    # scroll that reveals it — and the "Send" beside it — must make the frame
+    # sticky-money. Started on the wallet so only the scroll can arm the flag.
+    tapped = _crawl(_FakeApp(start="wallet", scrolls={"wallet": "wallet_scrolled"}))
+    assert tapped  # the scroll did reveal the below-the-fold controls
+    assert "Send" not in tapped
+
+
+# --- the tab-section wiring of the same gate ----------------------------------------
+#
+# A tab-based app takes a different path into the depth-first loop: _explore_tabs drives
+# each section from its tab and passes root_money=self._money_screen(section). That is a
+# sixth wiring point of the money gate, and the tests above cannot reach it — their
+# fixture is android.widget.*, so _is_primary_nav is never true and _explore_tabs never
+# runs. Without this test, deleting that root_money argument leaves the whole suite green
+# while a default crawl taps Send on a tab whose root is a transfer form.
+
+_TAB_W, _TAB_BOTTOM = 100, 800
+
+
+def _ios(itype, name, x, y, w=100, h=40):
+    return (
+        f'<XCUIElementType{itype} type="XCUIElementType{itype}" name="{name}" '
+        f'label="{name}" x="{x}" y="{y}" width="{w}" height="{h}" '
+        f'visible="true" enabled="true"/>'
+    )
+
+
+_TAB_BAR = "".join(_ios("Button", n, i * _TAB_W, _TAB_BOTTOM) for i, n in enumerate(("Home", "Wallet", "More")))
+
+# The Wallet tab's ROOT is itself a money screen: an amount field plus Send. Nothing
+# above it in the stack can supply the money flag — only root_money can.
+_TAB_SCREENS = {
+    "home": [_ios("Button", "Overview", 0, 100)],
+    "wallet": [
+        _ios("TextField", "Amount", 0, 100),
+        _ios("StaticText", "$120.00", 0, 160),
+        _ios("Button", "Send", 0, 220),
+        _ios("Button", "Add note", 0, 280),
+    ],
+    "more": [_ios("Button", "Settings", 0, 100)],
+}
+
+
+class _TabApp:
+    """Three tabs; tapping a tab name switches section. Records tapped labels."""
+
+    def __init__(self):
+        self.current = "home"
+        self.tapped_labels = []
+
+    def _page(self):
+        body = "".join(_TAB_SCREENS[self.current]) + _TAB_BAR
+        return f'<XCUIElementTypeApplication type="XCUIElementTypeApplication" name="TabApp">{body}</XCUIElementTypeApplication>'
+
+    def page_source(self):
+        return self._page()
+
+    def current_package(self):
+        return APP
+
+    def back(self):
+        pass  # tabs are switched by tapping the bar, not by Back
+
+    def type_text(self, text):
+        pass
+
+    def tap(self, x, y):
+        label = ""
+        for e in parse_screen(self._page()).elements:
+            x1, y1, x2, y2 = e.bounds
+            if x1 <= x <= x2 and y1 <= y <= y2:
+                label = e.label
+                break
+        self.tapped_labels.append(label)
+        if label.lower() in _TAB_SCREENS:
+            self.current = label.lower()
+
+
+def test_crawl_never_taps_send_on_a_tab_whose_root_is_a_money_screen():
+    driver = _TabApp()
+    AppCrawler(driver, APP, max_steps=200).crawl()
+    tapped = driver.tapped_labels
+    assert "Wallet" in tapped  # the tab section was actually reached...
+    assert "Add note" in tapped  # ...and explored
+    assert "Send" not in tapped  # ...but its money submit was never tapped
+
+
+def test_allow_destructive_reaches_the_send_on_a_money_tab_root():
+    driver = _TabApp()
+    AppCrawler(driver, APP, max_steps=200, allow_destructive=True).crawl()
+    assert "Send" in driver.tapped_labels

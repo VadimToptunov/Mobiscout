@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter, defaultdict, deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Dict, List, Optional, Tuple
 
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase
@@ -36,7 +36,7 @@ from framework.crawler.form_values import (
     _label_has_token,
     _sample_value,
 )
-from framework.crawler.to_codegen import _owned, selector_for
+from framework.crawler.to_codegen import _ASSERTABLE_SCORE, _owned, selector_for
 
 
 @dataclass
@@ -508,7 +508,17 @@ def multi_step_cases(
             return bool(key) and key not in source_keys
 
         ranked = sorted(owned, key=lambda e: 0 if _distinctive(e) else 1)
-        return next((s for s in (selector_for(e, owned, screen.platform) for e in ranked) if s), None)
+        # And it must clear the assertion score bar: on a fully unlabelled destination the
+        # only locator left is the positional XPath, which matches "the Nth View of that
+        # class" on ``source`` too — the journey would pass without ever navigating.
+        return next(
+            (
+                s
+                for s in (selector_for(e, owned, screen.platform) for e in ranked)
+                if s and s.score >= _ASSERTABLE_SCORE
+            ),
+            None,
+        )
 
     # Keep only maximal walks (drop those that are a strict prefix of a longer one).
     # edge_coverage_paths() is computed once and reused (it was previously called
@@ -637,6 +647,52 @@ def _submit_element(screen: CrawlScreen, app_package: str) -> Optional[CrawlElem
     return None
 
 
+def _locator_values(result: CrawlResult, app_package: str) -> Dict[str, set]:
+    """Every locator value each screen can resolve — primary and fallback tiers alike.
+    Computed once per builder, so the per-form uniqueness check below doesn't rebuild
+    every selector in the crawl for every form."""
+    values: Dict[str, set] = {}
+    for fp, screen in result.screens.items():
+        owned = _owned(screen, app_package)
+        resolvable: set = set()
+        for e in owned:
+            sel = selector_for(e, owned, screen.platform)
+            if sel is not None:
+                resolvable.update(s.value for s in [sel, *sel.fallbacks])
+        values[fp] = resolvable
+    return values
+
+
+def _non_advance_anchor(
+    screen_fp: str,
+    screen: CrawlScreen,
+    app_package: str,
+    submit: CrawlElement,
+    locator_values: Dict[str, set],
+) -> Optional[Selector]:
+    """A locator proving the app is STILL on ``screen`` after a rejected submit — one that
+    resolves on this screen and on no other screen the crawl saw, with the self-healing
+    fallbacks stripped. None when the screen has no such locator.
+
+    "The form did not advance" used to be asserted on the submit control carrying its full
+    fallback chain. On a wizard the next step shows an equivalent control (the same label,
+    or the same reused resource-id), so the generated ``_find`` healed onto the
+    *destination's* button and the negative/fuzz case went green while the app had in fact
+    accepted the invalid data and moved on. A locator unique to this screen cannot be
+    satisfied from anywhere else, and with no fallbacks nothing can heal onto a look-alike.
+    The submit control is preferred so the assertion still reads as "the form is still
+    here"; any other element of the screen will do when the submit's own locator repeats
+    elsewhere."""
+    owned = _owned(screen, app_package)
+    elsewhere: set = set().union(*(v for fp, v in locator_values.items() if fp != screen_fp))
+    for element in [submit] + [e for e in owned if e is not submit]:
+        sel = selector_for(element, owned, screen.platform)
+        if sel is None or sel.score < _ASSERTABLE_SCORE or sel.value in elsewhere:
+            continue
+        return replace(sel, fallbacks=[])
+    return None
+
+
 def _invalid_form_steps(screen: CrawlScreen, app_package: str) -> List[Step]:
     """TYPE steps that fill a screen's inputs with *invalid* data. Empty if no
     field has a meaningful invalid value (so the caller can skip the case)."""
@@ -719,13 +775,15 @@ def fuzz_form_cases(
 ) -> List[TestCase]:
     """OPT-IN fuzz tests: for each reachable form, submit a spectrum of adversarial inputs
     (empty / overflow / unicode+emoji / injection / format-string) and assert the app
-    handles each without advancing or crashing — the submit control is still visible.
+    handles each without advancing or crashing — a locator unique to the form screen
+    (:func:`_non_advance_anchor`) is still visible.
 
     Off by default; generated only when the caller opts in (config ``fuzz``), because a
     team may not want fuzz cases in every kit. Complements :func:`negative_form_cases`
     (which uses type-specific invalid data) with input-robustness coverage."""
     graph = graph if graph is not None else build_graph(result, app_package)
     nav_by_fp = _form_nav_context(result, app_package, graph)
+    locator_values = _locator_values(result, app_package)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
@@ -740,6 +798,11 @@ def fuzz_form_cases(
         submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
         if submit_sel is None:
             continue
+        # Without a locator unique to this screen there is no way to prove the fuzz input
+        # didn't advance the form, so no case is emitted rather than one that cannot fail.
+        anchor = _non_advance_anchor(target_fp, screen, app_package, submit, locator_values)
+        if anchor is None:
+            continue
         # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
         nav = _launch_nav_prefix(nav_by_fp, target_fp)
         if nav is None:
@@ -753,7 +816,7 @@ def fuzz_form_cases(
             steps.append(
                 Step(
                     ActionType.ASSERT,
-                    selector=submit_sel,
+                    selector=anchor,
                     assertion=AssertionType.VISIBLE,
                     description=f"App handles {kind} input without advancing or crashing",
                 )
@@ -775,9 +838,10 @@ def negative_form_cases(
 ) -> List[TestCase]:
     """Negative-path tests: for each screen with a submittable form (input +
     submit control), navigate to it, type *invalid* data, submit, and assert the
-    app *rejects* it — the submit control is still visible, i.e. the form did not
-    advance. A correct app stays put; a buggy one advances and fails the test,
-    which is exactly the validation defect we want caught.
+    app *rejects* it — a locator unique to the form screen
+    (:func:`_non_advance_anchor`) is still visible, i.e. the form did not advance.
+    A correct app stays put; a buggy one advances and fails the test, which is
+    exactly the validation defect we want caught.
 
     This is the negative counterpart to the positive form-filling already done by
     :func:`multi_step_cases`; together they cover both branches of every form.
@@ -787,6 +851,7 @@ def negative_form_cases(
     """
     graph = graph if graph is not None else build_graph(result, app_package)
     nav_by_fp = _form_nav_context(result, app_package, graph)
+    locator_values = _locator_values(result, app_package)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
@@ -801,6 +866,12 @@ def negative_form_cases(
         submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
         if submit_sel is None:
             continue
+        # Without a locator unique to this screen there is no way to prove the invalid
+        # input didn't advance the form, so no case is emitted rather than one that
+        # cannot fail.
+        anchor = _non_advance_anchor(target_fp, screen, app_package, submit, locator_values)
+        if anchor is None:
+            continue
         # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
         steps = _launch_nav_prefix(nav_by_fp, target_fp)
         if steps is None:
@@ -811,7 +882,7 @@ def negative_form_cases(
         steps.append(
             Step(
                 ActionType.ASSERT,
-                selector=submit_sel,
+                selector=anchor,
                 assertion=AssertionType.VISIBLE,
                 description="Invalid input is rejected — the form did not advance",
             )

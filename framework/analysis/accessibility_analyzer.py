@@ -323,6 +323,10 @@ class AccessibilityScanner:
     Orchestrates all accessibility checks and generates comprehensive reports.
     """
 
+    # Share of an element's crop a colour must cover to be taken for its
+    # foreground. Below it we report "not checked" rather than guess.
+    MIN_FOREGROUND_SHARE = 0.05
+
     def __init__(self, wcag_level: WCAGLevel = WCAGLevel.AA) -> None:
         self.wcag_level = wcag_level
         self.contrast_checker = ColorContrastChecker()
@@ -405,11 +409,12 @@ class AccessibilityScanner:
             return self._sample_colors(screenshot, element.get("bounds"))
         return None
 
-    @staticmethod
-    def _sample_colors(screenshot: Path, bounds: Any) -> Optional[tuple]:
+    @classmethod
+    def _sample_colors(cls, screenshot: Path, bounds: Any) -> Optional[tuple]:
         """Sample (foreground, background) from an element's screen region with
         Pillow: background = the most common colour in the crop, foreground = the
-        colour furthest from it (the text/icon). None if the region is unusable."""
+        next most common one that covers at least ``MIN_FOREGROUND_SHARE`` of it.
+        None if the region is unusable or has no such colour."""
         if not isinstance(bounds, dict):
             return None
         try:
@@ -432,13 +437,21 @@ class AccessibilityScanner:
                 counted.sort(reverse=True)  # by pixel count, descending
                 # The image is converted to RGB above, so every colour is an
                 # (r, g, b) tuple; getcolors' type is broader (int | tuple), so
-                # pin it for the numeric distance below.
+                # pin it for the callers below.
                 bg = cast("tuple[int, ...]", counted[0][1])
-                fg = max(
-                    (cast("tuple[int, ...]", color) for _, color in counted),
-                    key=lambda c: sum((a - b) ** 2 for a, b in zip(c, bg)),
-                    default=bg,
+                # The dominant ink, not the pixel furthest from the background:
+                # picking the furthest colour maximised the measured ratio, so one
+                # stray dark pixel (a divider, a neighbouring icon) turned a real
+                # WCAG violation into a 21:1 pass. A colour under the share
+                # threshold is such a contaminant, and with none above it the
+                # element is honestly "not checked".
+                min_pixels = sum(count for count, _ in counted) * cls.MIN_FOREGROUND_SHARE
+                fg = next(
+                    (cast("tuple[int, ...]", color) for count, color in counted[1:] if count >= min_pixels),
+                    None,
                 )
+                if fg is None:
+                    return None
                 return (fg, bg)
         except (OSError, ValueError):
             return None

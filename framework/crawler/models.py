@@ -9,7 +9,7 @@ without pulling in the crawler engine.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterator, List, Protocol, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Protocol, Tuple
 
 
 class CrawlerDriver(Protocol):
@@ -121,3 +121,9 @@ class CrawlResult:
     # passcode), deduped — codegen emits the auth prefix in this execution order,
     # not the (specificity-ordered) config order.
     auth_sequence: list = field(default_factory=list)
+    # Why the crawl stopped before it had explored the app, or None when it ran to
+    # completion. A device failure keeps the partial map (capricious devices are the
+    # norm), but the caller must be able to tell "here is the app" from "here is as far
+    # as we got" — otherwise a kit built from 6 of 40 screens is reported as a finished
+    # one, and its coverage numbers read as the app's real shape.
+    ended_early: Optional[str] = None

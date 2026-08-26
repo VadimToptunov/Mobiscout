@@ -86,25 +86,73 @@ public class {{ class_name }} {
 
     /** Resolve a friendly target to an element via its ranked locators. */
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    /** How many times find() scrolls looking for an off-screen element before giving up. */
+    private static final int SCROLL_TRIES = 4;
+
+    /** A generic loading indicator (no app-specific knowledge) — used by settle(). */
+    private static final String BUSY_XPATH = {% if model.platform.value == "ios" %}"//XCUIElementTypeActivityIndicator"{% else %}"//android.widget.ProgressBar"{% endif %};
+
+    /**
+     * Middle beat of {@code act -> wait-busy-clears -> assert}: after an action that
+     * triggers a transition, wait for a loading/activity indicator to disappear so the
+     * next step doesn't act on a mid-transition screen. A stuck indicator is tolerated.
+     */
+    private void settle() {
+        try {
+            new WebDriverWait(driver, TIMEOUT).until(d -> d.findElements(By.xpath(BUSY_XPATH)).isEmpty());
+        } catch (TimeoutException ignored) {
+        }
+    }
+
+    /** One pass over the ranked locators — no waiting. */
+    private static WebElement locate(org.openqa.selenium.SearchContext context, By[] locators) {
+        for (By by : locators) {
+            try {
+                return context.findElement(by);
+            } catch (NoSuchElementException ignored) {
+            }
+        }
+        return null;
+    }
+
+    /** One scroll-down gesture — used by find() to bring a below-the-fold element into view. */
+    private void scrollDown() {
+{% if model.platform.value == "ios" %}
+        driver.executeScript("mobile: scroll", Map.of("direction", "down"));
+{% else %}
+        org.openqa.selenium.Dimension scrollSize = driver.manage().window().getSize();
+        Map<String, Object> scrollArgs = new HashMap<>();
+        scrollArgs.put("left", (int) (scrollSize.getWidth() * 0.1));
+        scrollArgs.put("top", (int) (scrollSize.getHeight() * 0.2));
+        scrollArgs.put("width", (int) (scrollSize.getWidth() * 0.8));
+        scrollArgs.put("height", (int) (scrollSize.getHeight() * 0.6));
+        scrollArgs.put("direction", "down");
+        scrollArgs.put("percent", 0.8);
+        driver.executeScript("mobile: scrollGesture", scrollArgs);
+{% endif %}
+    }
 
     /**
      * Locate an element, waiting for it to appear and self-healing through its
      * ranked locators — a condition-based wait, not an instant lookup that flakes.
+     * On a miss, scroll and retry: a control below the fold is not a missing control,
+     * and the same crawl must not pass in one target and fail in another over that.
      */
     private WebElement find(String target) {
+        By[] locators = LOCATORS.get(target);
         try {
-            return new WebDriverWait(driver, TIMEOUT).until(d -> {
-                for (By by : LOCATORS.get(target)) {
-                    try {
-                        return d.findElement(by);
-                    } catch (NoSuchElementException ignored) {
-                    }
-                }
-                return null;
-            });
-        } catch (TimeoutException e) {
-            throw new NoSuchElementException("No locator matched for target: " + target + " within " + TIMEOUT.getSeconds() + "s");
+            return new WebDriverWait(driver, TIMEOUT).until(d -> locate(d, locators));
+        } catch (TimeoutException ignored) {
         }
+        for (int i = 0; i < SCROLL_TRIES; i++) {
+            scrollDown();
+            WebElement found = locate(driver, locators);
+            if (found != null) {
+                return found;
+            }
+        }
+        throw new NoSuchElementException(
+            "No locator matched for target: " + target + " within " + TIMEOUT.getSeconds() + "s + " + SCROLL_TRIES + " scrolls");
     }
 
     @Given("the app is launched")
@@ -115,11 +163,13 @@ public class {{ class_name }} {
     @When("I enter {string} into {string}")
     public void iEnterInto(String text, String target) {
         find(target).sendKeys(text);
+        settle();
     }
 
     @When("I tap {string}")
     public void iTap(String target) {
         find(target).click();
+        settle();
     }
 
     @When("I swipe {word}")
@@ -137,6 +187,7 @@ public class {{ class_name }} {
         swipeArgs.put("percent", 0.75);
         driver.executeScript("mobile: swipeGesture", swipeArgs);
 {% endif %}
+        settle();
     }
 
     @When("I wait {int} seconds")
@@ -148,11 +199,13 @@ public class {{ class_name }} {
     @When("I press back")
     public void iPressBack() {
         driver.navigate().back();
+        settle();
     }
 
     @When("I long-press {string}")
     public void iLongPress(String target) {
         new org.openqa.selenium.interactions.Actions(driver).clickAndHold(find(target)).pause(java.time.Duration.ofSeconds(1)).release().perform();
+        settle();
     }
 
     @When("I scroll to {string}")
@@ -169,6 +222,7 @@ public class {{ class_name }} {
     @When("I open the deep link {string}")
     public void iOpenDeepLink(String url) {
         driver.get(url);
+        settle();
     }
 
     @When("I press the {string} key")
@@ -180,6 +234,7 @@ public class {{ class_name }} {
             new io.appium.java_client.android.nativekey.KeyEvent(
                 io.appium.java_client.android.nativekey.AndroidKey.valueOf(key.toUpperCase())));
 {% endif %}
+        settle();
     }
 
     @When("I switch to the {word} context")

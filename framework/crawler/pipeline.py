@@ -236,6 +236,10 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "gap": gap,
         "invariants": invariant_count,
         "output": str(out.absolute()),
+        # Present only when the crawl stopped on a device failure. Callers must report a
+        # kit built from a truncated map as partial — its screen/case counts are how far
+        # we got, not the app's real shape.
+        **({"ended_early": result.ended_early} if getattr(result, "ended_early", None) else {}),
     }
 
 
@@ -373,6 +377,8 @@ def _merge_results(into: CrawlResult, extra: CrawlResult) -> CrawlResult:
     """Fold a seed crawl's screens/transitions into the main result — union screens
     by fingerprint, append not-yet-seen transitions (keyed by src/label/dst since a
     CrawlElement isn't hashable), sum steps, and carry over the gates it passed."""
+    if getattr(extra, "ended_early", None) and not getattr(into, "ended_early", None):
+        into.ended_early = extra.ended_early  # a seed that died early truncates the whole map
     for fingerprint, screen in extra.screens.items():
         into.screens.setdefault(fingerprint, screen)
     seen = {(src, el.label, dst) for src, el, dst in into.transitions}

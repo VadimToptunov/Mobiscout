@@ -20,25 +20,56 @@ const APP_PACKAGE = {{ model.app_package | js_str }};
 // Condition-based wait budget (ms) — poll for the element instead of a fixed
 // pause, so specs stay in sync with async UI without flaking at machine speed.
 const TIMEOUT = 10000;
+// How many times find() scrolls looking for an off-screen element before giving up.
+const SCROLL_TRIES = 4;
+
+// One scroll-down gesture — used by find() to bring a below-the-fold element into view.
+async function scrollDown() {
+{% if model.platform.value == "ios" %}
+    await driver.execute('mobile: scroll', { direction: 'down' });
+{% else %}
+    const scrollSize = await driver.getWindowSize();
+    await driver.execute('mobile: scrollGesture', { left: Math.round(scrollSize.width * 0.1), top: Math.round(scrollSize.height * 0.2), width: Math.round(scrollSize.width * 0.8), height: Math.round(scrollSize.height * 0.6), direction: 'down', percent: 0.8 });
+{% endif %}
+}
+
+// One pass over the ranked selectors — no waiting.
+async function locate(selectors) {
+    for (const selector of selectors) {
+        const el = await driver.$(selector);
+        if (await el.isExisting()) {
+            return el;
+        }
+    }
+    return null;
+}
 
 // Locate an element, waiting for it to appear and self-healing through ranked
-// selectors — each poll tries every selector until one exists or we time out.
+// selectors — each poll tries every selector until one exists or we time out. On a
+// miss, scroll and retry: a control below the fold is not a missing control, and the
+// same crawl must not pass in one target and fail in another over that.
 async function find(selectors) {
     let found = null;
-    await driver.waitUntil(
-        async () => {
-            for (const selector of selectors) {
-                const el = await driver.$(selector);
-                if (await el.isExisting()) {
-                    found = el;
-                    return true;
-                }
-            }
-            return false;
-        },
-        { timeout: TIMEOUT, interval: 300, timeoutMsg: `No selector matched: ${selectors.join(', ')}` }
-    );
-    return found;
+    try {
+        await driver.waitUntil(
+            async () => {
+                found = await locate(selectors);
+                return found !== null;
+            },
+            { timeout: TIMEOUT, interval: 300 }
+        );
+        return found;
+    } catch (e) {
+        // not on screen yet — it may just need scrolling into view
+    }
+    for (let i = 0; i < SCROLL_TRIES; i += 1) {
+        await scrollDown();
+        found = await locate(selectors);
+        if (found) {
+            return found;
+        }
+    }
+    throw new Error(`No selector matched within ${TIMEOUT}ms + ${SCROLL_TRIES} scrolls: ${selectors.join(', ')}`);
 }
 
 // A generic loading indicator (no app-specific knowledge) — used by settle().

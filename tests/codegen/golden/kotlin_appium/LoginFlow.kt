@@ -47,28 +47,46 @@ class LoginFlow {
         driver.quit()
     }
 
-    /** Locate an element, falling back through ranked alternatives (self-healing). */
+    // How many times find() scrolls looking for an off-screen element before giving up.
+    private val SCROLL_TRIES: Int = 4
+
+    /** One pass over the ranked locators — no waiting. */
+    private fun locate(context: org.openqa.selenium.SearchContext, locators: List<By>): WebElement? {
+        for (by in locators) {
+            try {
+                return context.findElement(by)
+            } catch (ignored: NoSuchElementException) {
+            }
+        }
+        return null
+    }
+
+    /** One scroll-down gesture — used by find() to bring a below-the-fold element into view. */
+    private fun scrollDown() {
+        val scrollSize = driver.manage().window().size
+        driver.executeScript("mobile: scrollGesture", mapOf<String, Any>("left" to (scrollSize.width * 0.1).toInt(), "top" to (scrollSize.height * 0.2).toInt(), "width" to (scrollSize.width * 0.8).toInt(), "height" to (scrollSize.height * 0.6).toInt(), "direction" to "down", "percent" to 0.8))
+    }
+
     /**
      * Locate an element, waiting for it to appear and self-healing through ranked
-     * alternatives — a condition-based wait, not an instant lookup that flakes.
+     * alternatives — a condition-based wait, not an instant lookup that flakes. On a
+     * miss, scroll and retry: a control below the fold is not a missing control, and
+     * the same crawl must not pass in one target and fail in another over that.
      */
     private fun find(primary: By, fallbacks: Array<By>): WebElement {
         val locators = listOf(primary, *fallbacks)
         try {
-            return WebDriverWait(driver, TIMEOUT).until { d ->
-                var found: WebElement? = null
-                for (by in locators) {
-                    try {
-                        found = d.findElement(by)
-                        break
-                    } catch (ignored: NoSuchElementException) {
-                    }
-                }
-                found
-            }!!
+            return WebDriverWait(driver, TIMEOUT).until { d -> locate(d, locators) }!!
         } catch (e: TimeoutException) {
-            throw NoSuchElementException("No locator matched within ${TIMEOUT.seconds}s (primary + ${fallbacks.size} fallbacks)")
         }
+        for (i in 0 until SCROLL_TRIES) {
+            scrollDown()
+            val found = locate(driver, locators)
+            if (found != null) {
+                return found
+            }
+        }
+        throw NoSuchElementException("No locator matched within ${TIMEOUT.seconds}s + $SCROLL_TRIES scrolls (primary + ${fallbacks.size} fallbacks)")
     }
 
     // A generic loading indicator (no app-specific knowledge) — used by settle().

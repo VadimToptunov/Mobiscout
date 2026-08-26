@@ -229,6 +229,17 @@ class AndroidAppiumDriver:
             pass
         time.sleep(self._settle)
 
+    def hide_keyboard(self) -> None:
+        # Dismiss the soft keyboard after form-filling so it doesn't cover the control
+        # the crawler taps next — submit sits under the IME on most forms, and the
+        # crawler taps it at coordinates read before the keyboard came up. Best-effort:
+        # the driver raises when no keyboard is showing.
+        try:
+            self._driver.hide_keyboard()
+        except Exception:
+            pass
+        time.sleep(self._settle)
+
     def scroll(self, direction: str = "down") -> None:
         # Reveal off-screen content so the crawl reaches below-the-fold rows/links.
         # `mobile: scrollGesture` scrolls the largest scrollable within the given

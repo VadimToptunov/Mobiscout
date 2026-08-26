@@ -129,6 +129,10 @@ class GenerateKitAction : AnAction() {
                     // surface it, it's usually the most valuable thing a crawl finds.
                     val crashes = result.get("crashes")?.asInt ?: 0
                     val crashNote = if (crashes > 0) " · ⚠️ $crashes crash(es) → crashes/" else ""
+                    // Set only when the crawl stopped on a device failure: the counts below
+                    // are how far it got, not the app's real shape, so this must not be
+                    // reported as a finished kit.
+                    val endedEarly = result.get("ended_early")?.let { if (it.isJsonNull) null else it.asString }
 
                     // 3. Cleanup: uninstall the app if asked. Best-effort — a crawl
                     //    that succeeded should still be reported, so note but don't fail.
@@ -164,6 +168,13 @@ class GenerateKitAction : AnAction() {
                                 "The crawl reached 0 screens, so no tests were generated. Common causes: the " +
                                     "device/emulator isn't connected, Appium isn't running at the configured " +
                                     "server, or the app package / UDID is wrong. See the Logs tab for details.",
+                            )
+                        } else if (endedEarly != null) {
+                            Notifier.warn(
+                                project,
+                                "Partial kit — the crawl ended early",
+                                "$endedEarly\nGenerated from what was reached: $screens screen(s), " +
+                                    "$cases test case(s)$extra$crashNote\nWritten to: $output$cleanupNote$tierNote",
                             )
                         } else {
                             notifyGenerated(

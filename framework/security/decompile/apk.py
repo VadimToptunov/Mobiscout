@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import zipfile
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 import xml.etree.ElementTree as ET
 
 from framework.security import patterns
@@ -28,11 +28,18 @@ class APKDecompiler:
     # Sensitive string patterns (canonical set; see framework/security/patterns.py)
     SENSITIVE_PATTERNS = patterns.DECOMPILE_SENSITIVE_PATTERNS
 
-    # Root detection indicators
+    # Binary (aapt-compiled) AndroidManifest.xml magic: chunk type 0x0003 followed
+    # by header size 0x0008, i.e. 0x00080003 little-endian.
+    AXML_MAGIC = b"\x03\x00\x08\x00"
+
+    # Root detection indicators. The bare "su" token that used to head this list
+    # matched inside "subscriptions"/"issuer"/"support", so only qualified forms
+    # are listed; matching is token-bounded, see _has_indicator.
     ROOT_INDICATORS = [
-        "su",
         "/system/app/Superuser",
         "/system/xbin/su",
+        "/system/bin/su",
+        "/sbin/su",
         "com.noshufou.android.su",
         "com.thirdparty.superuser",
         "eu.chainfire.supersu",
@@ -85,8 +92,16 @@ class APKDecompiler:
         with zipfile.ZipFile(apk_path, "r") as zf:
             zf.extractall(extract_dir)
 
+        # Try to decompile with apktool if available. It runs first because it is
+        # the only thing here that can decode a binary manifest, and the zip entry
+        # is compiled AXML in every shipped APK.
+        apktool_dir = output_dir / "apktool"
+        apktool_ok = self._run_apktool(apk_path, apktool_dir)
+
         # Parse AndroidManifest
         manifest_info = self._parse_manifest(extract_dir / "AndroidManifest.xml")
+        if not manifest_info["parsed"] and apktool_ok:
+            manifest_info = self._parse_manifest(apktool_dir / "AndroidManifest.xml")
 
         # Extract strings from DEX files
         strings = self._extract_strings(extract_dir)
@@ -96,9 +111,6 @@ class APKDecompiler:
 
         # Detect protections
         protections = self._detect_protections(extract_dir, strings)
-
-        # Try to decompile with apktool if available
-        self._run_apktool(apk_path, output_dir / "apktool")
 
         # Try to decompile with jadx if available
         self._run_jadx(apk_path, output_dir / "jadx")
@@ -124,6 +136,10 @@ class APKDecompiler:
             metadata={
                 "file_size": apk_path.stat().st_size,
                 "signing_info": self._get_signing_info(apk_path),
+                # Carried so consumers can tell "no dangerous permissions, nothing
+                # exported" from "the manifest was never read".
+                "manifest_parsed": manifest_info["parsed"],
+                "manifest_error": manifest_info["unparsed_reason"],
             },
         )
 
@@ -139,69 +155,82 @@ class APKDecompiler:
         return hashes
 
     def _parse_manifest(self, manifest_path: Path) -> Dict[str, Any]:
-        """Parse AndroidManifest.xml"""
+        """Parse AndroidManifest.xml.
+
+        ``parsed`` reports whether the manifest was actually read: an unparsed
+        manifest yields the same empty component lists as a manifest that declares
+        nothing, and callers must not confuse the two.
+        """
         info: Dict[str, Any] = {
             "permissions": [],
             "activities": [],
             "services": [],
             "receivers": [],
             "providers": [],
+            "parsed": False,
+            "unparsed_reason": None,
         }
 
         try:
-            # Try parsing as binary XML first
-            # If that fails, try as text XML
-            try:
-                tree = ET.parse(manifest_path)
-                root = tree.getroot()
-            except ET.ParseError:
-                # Binary XML - would need axml parser
-                return info
+            raw = manifest_path.read_bytes()
+        except OSError as e:
+            info["unparsed_reason"] = f"AndroidManifest.xml could not be read: {e}"
+            return info
 
-            # Package info
-            info["package"] = root.get("package")
-            info["version_name"] = root.get("{http://schemas.android.com/apk/res/android}versionName")
-            version_code = root.get("{http://schemas.android.com/apk/res/android}versionCode")
-            info["version_code"] = int(version_code) if version_code else None
+        if raw[:4] == self.AXML_MAGIC:
+            # There is no AXML decoder here, so report the gap instead of returning
+            # an empty manifest that reads as "clean".
+            info["unparsed_reason"] = "AndroidManifest.xml is binary AXML; install apktool to decode it"
+            return info
 
-            # SDK versions
-            uses_sdk = root.find(".//uses-sdk")
-            if uses_sdk is not None:
-                min_sdk = uses_sdk.get("{http://schemas.android.com/apk/res/android}minSdkVersion")
-                target_sdk = uses_sdk.get("{http://schemas.android.com/apk/res/android}targetSdkVersion")
-                info["min_sdk"] = int(min_sdk) if min_sdk else None
-                info["target_sdk"] = int(target_sdk) if target_sdk else None
+        try:
+            root = ET.fromstring(raw)
+        except ET.ParseError as e:
+            info["unparsed_reason"] = f"AndroidManifest.xml is not parseable XML: {e}"
+            return info
 
-            # Permissions
-            for perm in root.findall(".//uses-permission"):
-                perm_name = perm.get("{http://schemas.android.com/apk/res/android}name")
-                if perm_name:
-                    info["permissions"].append(perm_name)
+        # Package info
+        info["package"] = root.get("package")
+        info["version_name"] = root.get("{http://schemas.android.com/apk/res/android}versionName")
+        version_code = root.get("{http://schemas.android.com/apk/res/android}versionCode")
+        info["version_code"] = int(version_code) if version_code else None
 
-            # Components
-            for activity in root.findall(".//activity"):
-                name = activity.get("{http://schemas.android.com/apk/res/android}name")
-                if name:
-                    info["activities"].append(name)
+        # SDK versions
+        uses_sdk = root.find(".//uses-sdk")
+        if uses_sdk is not None:
+            min_sdk = uses_sdk.get("{http://schemas.android.com/apk/res/android}minSdkVersion")
+            target_sdk = uses_sdk.get("{http://schemas.android.com/apk/res/android}targetSdkVersion")
+            info["min_sdk"] = int(min_sdk) if min_sdk else None
+            info["target_sdk"] = int(target_sdk) if target_sdk else None
 
-            for service in root.findall(".//service"):
-                name = service.get("{http://schemas.android.com/apk/res/android}name")
-                if name:
-                    info["services"].append(name)
+        # Permissions
+        for perm in root.findall(".//uses-permission"):
+            perm_name = perm.get("{http://schemas.android.com/apk/res/android}name")
+            if perm_name:
+                info["permissions"].append(perm_name)
 
-            for receiver in root.findall(".//receiver"):
-                name = receiver.get("{http://schemas.android.com/apk/res/android}name")
-                if name:
-                    info["receivers"].append(name)
+        # Components
+        for activity in root.findall(".//activity"):
+            name = activity.get("{http://schemas.android.com/apk/res/android}name")
+            if name:
+                info["activities"].append(name)
 
-            for provider in root.findall(".//provider"):
-                name = provider.get("{http://schemas.android.com/apk/res/android}name")
-                if name:
-                    info["providers"].append(name)
+        for service in root.findall(".//service"):
+            name = service.get("{http://schemas.android.com/apk/res/android}name")
+            if name:
+                info["services"].append(name)
 
-        except (OSError, ET.ParseError):
-            pass
+        for receiver in root.findall(".//receiver"):
+            name = receiver.get("{http://schemas.android.com/apk/res/android}name")
+            if name:
+                info["receivers"].append(name)
 
+        for provider in root.findall(".//provider"):
+            name = provider.get("{http://schemas.android.com/apk/res/android}name")
+            if name:
+                info["providers"].append(name)
+
+        info["parsed"] = True
         return info
 
     def _extract_strings(self, extract_dir: Path) -> List[StringFinding]:
@@ -290,27 +319,47 @@ class APKDecompiler:
         all_strings = {s.value.lower() for s in strings}
 
         # Check root detection
-        if any(indicator.lower() in s for s in all_strings for indicator in self.ROOT_INDICATORS):
+        if self._has_indicator(all_strings, self.ROOT_INDICATORS):
             protections.append(ProtectionType.ROOT_DETECTION)
 
         # Check emulator detection
-        if any(indicator.lower() in s for s in all_strings for indicator in self.EMULATOR_INDICATORS):
+        if self._has_indicator(all_strings, self.EMULATOR_INDICATORS):
             protections.append(ProtectionType.EMULATOR_DETECTION)
 
         # Check debug detection
-        if any(indicator.lower() in s for s in all_strings for indicator in self.DEBUG_INDICATORS):
+        if self._has_indicator(all_strings, self.DEBUG_INDICATORS):
             protections.append(ProtectionType.DEBUG_DETECTION)
 
         # Check obfuscation
-        if any(indicator.lower() in s for s in all_strings for indicator in self.OBFUSCATION_INDICATORS):
+        if self._has_indicator(all_strings, self.OBFUSCATION_INDICATORS):
             protections.append(ProtectionType.OBFUSCATION)
 
         # Check for certificate pinning
         pinning_indicators = ["certificatepinner", "okhttp3.certificatepinner", "trustmanager"]
-        if any(indicator in s for s in all_strings for indicator in pinning_indicators):
+        if self._has_indicator(all_strings, pinning_indicators):
             protections.append(ProtectionType.CERTIFICATE_PINNING)
 
         return protections
+
+    @staticmethod
+    def _has_indicator(strings: Set[str], indicators: List[str]) -> bool:
+        """Whether any indicator occurs as a whole token in one of the strings.
+
+        A plain substring test claimed protections from noise — "su" matched inside
+        "subscriptions", "Nox" inside "noxious" — and a fabricated detection also
+        hides the real gap, because "Missing Protection: X" is only reported when X
+        is absent. Boundaries are applied on the alphanumeric ends of an indicator,
+        so path forms like "/system/xbin/su" still match inside a longer path.
+        """
+        for indicator in indicators:
+            token = indicator.lower()
+            prefix = r"(?<![0-9a-z])" if token[:1].isalnum() else ""
+            suffix = r"(?![0-9a-z])" if token[-1:].isalnum() else ""
+            pattern = re.compile(prefix + re.escape(token) + suffix)
+            if any(pattern.search(s) for s in strings):
+                return True
+
+        return False
 
     def _get_signing_info(self, apk_path: Path) -> Dict[str, Any]:
         """Get APK signing information"""

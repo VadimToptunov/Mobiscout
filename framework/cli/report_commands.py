@@ -158,6 +158,10 @@ def _print_summary(suite: TestSuiteResult) -> None:
     table.add_row("Total Tests", str(suite.total_count))
     table.add_row("Passed", str(suite.passed_count))
     table.add_row("Failed", str(suite.failed_count))
+    # Errored tests (a test that never ran to a verdict — device disconnected, Appium
+    # session died) are neither passed, failed nor skipped, so leaving them out made the
+    # rows not add up to Total and hid the infrastructure failures entirely.
+    table.add_row("Errors", str(suite.error_count))
     table.add_row("Skipped", str(suite.skipped_count))
     table.add_row("Pass Rate", f"{suite.pass_rate:.1f}%")
     table.add_row("Duration", f"{suite.duration:.2f}s")
@@ -170,6 +174,15 @@ def _print_summary(suite: TestSuiteResult) -> None:
         for test in suite.tests:
             if test.status == TestStatus.FAILED:
                 console.print(f"  • [red]{test.name}[/red]")
+                if test.error_message:
+                    console.print(f"    [dim]{test.error_message[:100]}...[/dim]")
+
+    # Errored tests — listed separately: these say the run broke, not that the app is wrong.
+    if suite.error_count > 0:
+        console.print("\n[bold yellow]Errored Tests:[/bold yellow]")
+        for test in suite.tests:
+            if test.status == TestStatus.ERROR:
+                console.print(f"  • [yellow]{test.name}[/yellow]")
                 if test.error_message:
                     console.print(f"    [dim]{test.error_message[:100]}...[/dim]")
 
