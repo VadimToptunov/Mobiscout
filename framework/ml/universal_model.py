@@ -35,9 +35,17 @@ class UniversalModelBuilder:
     the framework or technology used to build it.
     """
 
-    def __init__(self) -> None:
-        """Initialize builder."""
+    # Fixed by default so an autotrained model is byte-reproducible: classify.ensure_model
+    # trains this dataset into the per-user cache on first use, and element types decide
+    # which codegen steps are emitted — an unseeded global `random` made every machine (and
+    # every cache wipe) build a different classifier, so identical crawls could produce
+    # different kits. That breaks the offline/deterministic guarantee.
+    DEFAULT_SEED = 20260826
+
+    def __init__(self, seed: int = DEFAULT_SEED) -> None:
+        """Initialize builder. ``seed`` fixes the generated dataset (see DEFAULT_SEED)."""
         self.element_templates = self._create_element_templates()
+        self._rng = random.Random(seed)
 
     def _create_element_templates(self) -> Dict[ElementType, List[Dict[str, Any]]]:
         """
@@ -340,14 +348,14 @@ class UniversalModelBuilder:
 
             for _ in range(samples_per_type):
                 # Pick random template
-                template = random.choice(templates)
+                template = self._rng.choice(templates)
 
                 # Create sample with variations
                 sample = self._create_sample_variation(template, element_type)
                 dataset.append(sample)
 
         # Shuffle dataset
-        random.shuffle(dataset)
+        self._rng.shuffle(dataset)
 
         # Save to file
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -368,17 +376,17 @@ class UniversalModelBuilder:
         sample["element_type"] = element_type.value
 
         # Add random bounds (realistic mobile sizes)
-        sample["bounds"] = {"width": random.randint(50, 800), "height": random.randint(30, 300)}
+        sample["bounds"] = {"width": self._rng.randint(50, 800), "height": self._rng.randint(30, 300)}
 
         # Add random depth (UI hierarchy level)
-        sample["depth"] = random.randint(0, 12)
+        sample["depth"] = self._rng.randint(0, 12)
 
         # Add random children count
-        sample["children_count"] = random.randint(0, 10)
+        sample["children_count"] = self._rng.randint(0, 10)
 
         # Add random enabled state (if not set)
         if "enabled" not in sample:
-            sample["enabled"] = random.choice([True, True, True, False])  # 75% enabled
+            sample["enabled"] = self._rng.choice([True, True, True, False])  # 75% enabled
 
         # Add random text variations for text elements
         if element_type == ElementType.TEXT and "text" in sample:
@@ -386,7 +394,7 @@ class UniversalModelBuilder:
 
         # Add random button text variations
         if element_type == ElementType.BUTTON and "text" in sample:
-            sample["text"] = random.choice(
+            sample["text"] = self._rng.choice(
                 [
                     "Submit",
                     "Continue",
@@ -428,7 +436,7 @@ class UniversalModelBuilder:
             "Settings",
             "Help & Support",
         ]
-        return random.choice(texts)
+        return self._rng.choice(texts)
 
     def generate_training_data(self, output_path: Optional[Path] = None, samples_per_type: int = 100) -> Path:
         """

@@ -51,6 +51,12 @@ _ENUM_JS = r"""
 // crawler on a stale screen. document.visibilityState is 'hidden' exactly then —
 // bail so the driver falls back to the native tree.
 if (document.hidden || document.visibilityState !== 'visible') return [];
+// Drop tags left by a previous enumeration of this same document. Without this, an
+// element that has since been hidden (an SPA tab switch, a closed modal) keeps its old
+// data-mtr-id, so two elements can carry the same id — and click_web resolves an id with
+// querySelector, which returns the FIRST match in document order: the stale one.
+var old = document.querySelectorAll('[data-mtr-id]');
+for (var k = 0; k < old.length; k++) old[k].removeAttribute('data-mtr-id');
 var out = [];
 var els = document.querySelectorAll(arguments[0]);
 for (var i = 0; i < els.length; i++) {
@@ -202,11 +208,13 @@ def web_snapshot(
     first web screen is seen, so native screens after it pay nothing."""
     ctx = None
     nodes = None
+    switched = False  # did we ever enter a web context? (it may have detached since)
     for attempt in range(ready_polls + 1):
         ctx = web_context_name(driver)
         if ctx:
             try:
                 driver.switch_to.context(ctx)
+                switched = True
                 nodes = driver.execute_script(_ENUM_JS, _INTERACTIVE_CSS)
             except Exception:
                 _to_native(driver)
@@ -221,6 +229,12 @@ def web_snapshot(
         if attempt < ready_polls:
             time.sleep(poll_wait)  # wait for the context to attach / the DOM to paint, then re-check
     if not ctx:
+        # An earlier poll may have switched in before the context detached (a transient
+        # login WebView tearing down). Returning here without restoring NATIVE_APP would
+        # leave the driver in a dead web context, so the caller's fallback native read
+        # goes through Chromedriver and returns DOM HTML parse_screen can't parse.
+        if switched:
+            _to_native(driver)
         return None
     _to_native(driver)
     if not nodes:

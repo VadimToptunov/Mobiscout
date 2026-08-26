@@ -3,6 +3,7 @@
 import socket
 import ssl
 import time
+import warnings
 from typing import List
 
 from framework.security.dast.base import (
@@ -57,44 +58,85 @@ class SSLTLSAnalyzer:
         return findings
 
     def _test_protocols(self, hostname: str, port: int) -> List[DASTFinding]:
-        """Test for deprecated protocol support"""
+        """Test for deprecated protocol support.
+
+        Pins a *modern* client context (``PROTOCOL_TLS_CLIENT``) to one protocol
+        version via ``minimum_version``/``maximum_version`` rather than the legacy
+        ``PROTOCOL_TLSv1*`` constants. Those constants are deprecated-for-removal, and
+        on OpenSSL 3.x a TLSv1-only context cannot complete *any* handshake (it fails
+        locally with "internal error"), which the old code caught and read as "the
+        server doesn't support it" — a permanent silent false negative for exactly the
+        weakness this test exists to find. The legacy protocols also sit below the
+        default security level, so the probe lowers it explicitly.
+        """
         findings: List[DASTFinding] = []
 
-        protocols_to_test = [
-            (ssl.PROTOCOL_TLSv1, "TLSv1.0"),
-            (ssl.PROTOCOL_TLSv1_1, "TLSv1.1") if hasattr(ssl, "PROTOCOL_TLSv1_1") else None,
-            (ssl.PROTOCOL_TLSv1_2, "TLSv1.2") if hasattr(ssl, "PROTOCOL_TLSv1_2") else None,
-        ]
+        # (label, TLSVersion) — only versions this Python knows about. Naming a deprecated
+        # version is the point of this test, so its DeprecationWarning is ours to silence
+        # (it would otherwise fire on every scan); hasattr keeps us working if one is dropped.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            versions = [
+                (name, getattr(ssl.TLSVersion, attr))
+                for name, attr in (("TLSv1.0", "TLSv1"), ("TLSv1.1", "TLSv1_1"), ("TLSv1.2", "TLSv1_2"))
+                if hasattr(ssl.TLSVersion, attr)
+            ]
 
-        for proto_tuple in protocols_to_test:
-            if proto_tuple is None:
+        for name, version in versions:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            try:
+                # Legacy protocols/ciphers are refused at the default security level.
+                context.set_ciphers("DEFAULT:@SECLEVEL=0")
+            except ssl.SSLError:
+                pass  # already permissive enough (or the stack won't lower it) — try anyway
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", DeprecationWarning)
+                    context.minimum_version = version
+                    context.maximum_version = version
+            except (ValueError, OSError) as e:
+                # This Python/OpenSSL cannot even *attempt* the version, so we learned
+                # nothing about the server. Say so instead of silently passing.
+                findings.append(
+                    DASTFinding(
+                        test_type=DASTTestType.SSL_TLS,
+                        severity=DASTSeverity.INFO,
+                        title=f"Could not test protocol: {name}",
+                        description=(
+                            f"The local TLS stack refused to negotiate {name}, so the server was not "
+                            "tested for it. This is not evidence that the server rejects it."
+                        ),
+                        evidence=str(e),
+                        recommendation=f"Re-test {name} with a TLS stack that still permits it (e.g. openssl s_client).",
+                    )
+                )
                 continue
 
-            protocol, name = proto_tuple
-
             try:
-                context = ssl.SSLContext(protocol)
-                context.check_hostname = False
-                context.verify_mode = ssl.CERT_NONE
-
                 with socket.create_connection((hostname, port), timeout=5) as sock:
-                    with context.wrap_socket(sock, server_hostname=hostname):
-                        if name in self.DEPRECATED_PROTOCOLS:
-                            findings.append(
-                                DASTFinding(
-                                    test_type=DASTTestType.SSL_TLS,
-                                    severity=DASTSeverity.HIGH if name in ["SSLv2", "SSLv3"] else DASTSeverity.MEDIUM,
-                                    title=f"Deprecated protocol supported: {name}",
-                                    description=f"Server supports {name} which is deprecated and insecure",
-                                    evidence=f"Successfully connected using {name}",
-                                    recommendation=f"Disable {name} and use TLSv1.2 or TLSv1.3 only",
-                                    cwe_id="CWE-326",
-                                    owasp_category="M5: Insecure Communication",
-                                )
-                            )
+                    with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                        negotiated = ssock.version()
             except (ssl.SSLError, socket.error, OSError):
-                # Protocol not supported - this is good for deprecated ones
-                pass
+                continue  # server refused this version — good, for a deprecated one
+
+            # Only report what was actually negotiated: a proxy or a server that ignores
+            # our ceiling must not be recorded as "supports TLSv1.0".
+            if negotiated != name.replace("TLSv1.0", "TLSv1") or name not in self.DEPRECATED_PROTOCOLS:
+                continue
+            findings.append(
+                DASTFinding(
+                    test_type=DASTTestType.SSL_TLS,
+                    severity=DASTSeverity.HIGH if name in ["SSLv2", "SSLv3"] else DASTSeverity.MEDIUM,
+                    title=f"Deprecated protocol supported: {name}",
+                    description=f"Server supports {name} which is deprecated and insecure",
+                    evidence=f"Successfully connected using {negotiated}",
+                    recommendation=f"Disable {name} and use TLSv1.2 or TLSv1.3 only",
+                    cwe_id="CWE-326",
+                    owasp_category="M5: Insecure Communication",
+                )
+            )
 
         return findings
 

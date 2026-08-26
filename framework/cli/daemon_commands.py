@@ -438,9 +438,15 @@ class JSONRPCServer:
         device_id = params.get("device_id")
 
         # Self-heal our own env first (so spawned adb inherits ANDROID_HOME), then
-        # run the checks that matter for this platform/backend(=driver).
+        # run the checks that matter for this platform/driver.
         ensure_android_home()
-        results = preflight(platform, backend, server)
+        # Preflight the driver the session will ACTUALLY build. _session_driver picks by
+        # platform — iOS goes through Appium/XCUITest, Android over adb, ignoring `backend`
+        # entirely — while the plugin sends backend="appium" for every platform. Passing
+        # `backend` here made an Android session hard-fail on "No Appium server reachable"
+        # for a server it never connects to, blocking the engine's headline no-Appium path.
+        effective_driver = "appium" if str(platform).lower() == "ios" else "adb"
+        results = preflight(platform, effective_driver, server)
         failures = [r for r in results if r.level == "fail"]
         if failures:
             raise ValueError("Session preflight failed:\n" + "\n".join(_format_preflight(r) for r in failures))

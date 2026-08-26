@@ -187,8 +187,14 @@ class AndroidAppiumDriver:
         # In a WebView, resolve the tap to the DOM element and click it there.
         from framework.crawler import webview
 
-        if self._web and webview.click_web(self._driver, self._web, x, y):
-            time.sleep(self._settle)
+        if self._web:
+            if webview.click_web(self._driver, self._web, x, y):
+                time.sleep(self._settle)
+            # A web screen's coordinates are CSS/viewport pixels, not device points
+            # (see build_web_screen), so falling through to a native coordinate tap
+            # here would hit an arbitrary device pixel — possibly a control the
+            # crawl-safety blocklist deliberately skipped. Do nothing instead: the
+            # crawler sees no navigation and moves on.
             return
         self._driver.execute_script("mobile: clickGesture", {"x": x, "y": y})
         time.sleep(self._settle)
