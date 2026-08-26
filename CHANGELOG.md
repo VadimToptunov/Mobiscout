@@ -7,6 +7,43 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.5] — 2026-08-27
+
+Field-tested against real apps for the first time: Google's Sunflower on an Android
+emulator and Apple's Food Truck on an iOS simulator. Both found real gaps.
+
+### Fixed — Jetpack Compose apps are now properly crawlable
+- **A Compose app used to come back nearly empty.** Compose renders every tappable
+  control as an anonymous view whose caption sits on a child, so the crawler could see
+  no name for anything and generated almost nothing. On Sunflower the crawl went from
+  **2 screens / 0% of elements covered** to **4 screens / 94%**, and from 5 generated
+  tests to 8 — all passing against the live app.
+- **Screens behind a tab bar are reached.** Tapping a tab took the crawl to a screen it
+  already knew and Back did not return, so whatever the previous screen still had to
+  offer was silently dropped — on Sunflower that was the entire plant list. It now walks
+  plant list → plant detail → Add plant, exercising the app's main action.
+- Tab-bar detection never worked on Android at all (it matched iOS type names only).
+
+### Fixed — generated Android tests start from a known state
+`noReset` does not clear an installed app's data, so tests inherited whatever the last
+run left behind — including changes the crawl itself made — and could fail for reasons
+that had nothing to do with the app. Android kits now clear app data before each test;
+set `MOBISCOUT_KEEP_APP_DATA=1` to keep the device's existing state.
+
+### Added — how to make your locators stable
+The generated tests locate by visible text when an app offers nothing better, which
+breaks on a copy change or a translation. The coverage report and the run summary now
+say so, with the one app-side fix for each platform:
+- **Compose**: add `Modifier.testTag(...)` and enable `testTagsAsResourceId` in the
+  debug/test build variant only.
+- **iOS**: add `.accessibilityIdentifier(...)` — XCUITest otherwise just echoes the
+  visible label, which is not a stable id.
+
+### Fixed — engine internals
+The Rust core moved to the current tree-sitter generation (its unit tests, newly running
+in CI, immediately caught that JavaScript `for…of` and Java for-each loops were missing
+from complexity analysis), and its dependency lock is now committed and monitored.
+
 ## [0.12.4] — 2026-08-26
 
 Third deep-review pass: 60 independently verified defects. This one went after the
