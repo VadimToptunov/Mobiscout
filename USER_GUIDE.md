@@ -9,11 +9,12 @@
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [Use Cases](#use-cases)
-3. [Common Workflows](#common-workflows)
-4. [Advanced Scenarios](#advanced-scenarios)
-5. [Troubleshooting](#troubleshooting)
-6. [Best Practices](#best-practices)
+2. [Crawling an app that requires sign-in](#crawling-an-app-that-requires-sign-in)
+3. [Use Cases](#use-cases)
+4. [Common Workflows](#common-workflows)
+5. [Advanced Scenarios](#advanced-scenarios)
+6. [Troubleshooting](#troubleshooting)
+7. [Best Practices](#best-practices)
 
 ---
 
@@ -44,6 +45,54 @@ mobiscout business analyze app/src --output analysis.json
 # View results
 mobiscout business report analysis.json
 ```
+
+---
+
+## Crawling an app that requires sign-in
+
+Most apps worth testing put their real screens behind a login, and a crawl without
+credentials maps exactly one screen: the sign-in form. Give the crawl the credentials and
+it passes the gate and maps what is behind it.
+
+```bash
+export MOBISCOUT_LOGIN_PASSWORD='...'          # keep it out of your shell history
+mobiscout crawl --package com.example.app --login-user demo
+```
+
+`--login-submit` sets the button label to tap ("Log in" by default). The crawl fills the
+first screen that has text fields, taps that button, and carries on.
+
+### Two-factor
+
+A one-time code is a **second** gate, passed after the password:
+
+```bash
+export MOBISCOUT_LOGIN_PASSWORD='...'
+export MOBISCOUT_OTP_SECRET='JBSWY3DPEHPK3PXP'   # Base32, from the authenticator enrolment
+mobiscout crawl --package com.example.app --login-user demo --otp-submit Verify
+```
+
+The code is computed on your machine from the secret — nothing is sent anywhere, and the
+secret is never written to the kit. Use a **test account**, not a real one.
+
+The same fields are in the IDE plugin's *Generate Test Kit* dialog (Login username /
+password / 2FA secret), so this works the same way from Android Studio or IntelliJ.
+
+### What you get
+
+Screens reached only after signing in are tagged as behind-auth, and the generated tests
+for them start with the sign-in steps — so each test can run on its own, from a fresh app.
+
+### If the crawl still stops at the login
+
+- **The submit label doesn't match.** Pass the button's visible text with `--login-submit`.
+- **The fields aren't recognised.** The crawl matches a field by its hint or label
+  containing "user"/"password"; a field labelled something else needs a waypoint config
+  through the daemon/plugin path.
+- **The sign-in is a web page.** That works — the crawl waits for the page to load and
+  fills the form — but the page must render its fields as real inputs.
+- **The account has extra steps** (device confirmation, a captcha). A captcha is
+  deliberately never solved; use a test account without one.
 
 ---
 
