@@ -25,7 +25,7 @@ object EngineProvider {
     // and MUST stay aligned with framework.__version__ (a release ships the plugin and
     // the engine together). EngineProviderTest asserts that alignment so a release can't
     // ship a plugin that downloads a stale engine. `internal` so that test can read it.
-    internal const val ENGINE_VERSION = "v0.12.5"
+    internal const val ENGINE_VERSION = "v0.12.6"
     private const val RELEASE_BASE = "https://github.com/VadimToptunov/Mobiscout/releases/download"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 120_000

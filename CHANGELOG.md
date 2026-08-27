@@ -7,6 +7,35 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.6] — 2026-08-27
+
+Tested against five real open-source apps, one of each kind. Every kind found something
+the previous ones hadn't, and all of it is fixed here.
+
+### Fixed — kits that could not run at all
+- **An app with two launcher icons broke everything.** A debug build that ships LeakCanary
+  (very many do) declares a second launcher entry, which makes Android's launcher lookup
+  ambiguous. The crawl could end up exploring **the leak viewer instead of your app**, and
+  the generated kit could not start: every test errored before it ran. Both now resolve the
+  app's own launcher.
+- **Generated tests could run against a different app entirely.** After clearing app data
+  the kit asked Android to bring the app forward, that request quietly failed on the same
+  ambiguity, and whatever app was already on screen stayed — so the tests asserted against
+  it. Verified happening; now the kit relaunches by explicit component.
+- **iOS kits inherited whatever state the simulator was in.** Android already reset app
+  data before each test; iOS reset nothing, so a sheet left open by an earlier run was
+  recorded as the app's home screen. One app went from 0 of 7 tests passing to 9 passing.
+
+### Fixed — screens the crawl could not see
+- **A web sign-in stopped the crawl.** A WebView loads its page a moment after the screen
+  appears, so the crawl saw a browser bar and a Cancel button, found no login form, and
+  turned back — leaving everything behind the login unmapped. Web sign-in is the usual
+  shape of a real login, so this one matters: the crawl now waits for the page and fills
+  the form.
+- **Animated screens no longer fail a test.** An onboarding carousel keeps Android busy
+  enough that it stops answering questions about the screen; the generated tests now wait
+  that out instead of failing.
+
 ## [0.12.5] — 2026-08-27
 
 Field-tested against real apps for the first time: Google's Sunflower on an Android
