@@ -7,6 +7,24 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.8] — 2026-08-27
+
+Generated kits run faster and start more reliably.
+
+### Changed — one session per file, not per test
+A generated kit opened a fresh Appium session for every test — and opening a session
+costs about 30 seconds, so a file with a dozen tests spent most of its wall-clock just
+starting sessions. The kit now opens **one** session for the whole file and resets the
+app's data before each test (about 3 seconds), so isolation is preserved while the
+per-test tax drops from a session start to a data reset. Measured on a live Omni-Notes
+run: the same file went from ~12 minutes to about 4. Set `MOBISCOUT_KEEP_APP_DATA=1`
+to skip the per-test reset for an app that needs a provisioned account.
+
+### Fixed — a realistic startup budget
+The generated Android kit now gives the UiAutomator2 server a 90-second launch budget
+(`uiautomator2ServerLaunchTimeout`). On a cold emulator the server's first start
+routinely ran past the default and failed the whole session before a single test ran.
+
 ## [0.12.7] — 2026-08-27
 
 Signing in — from the IDE and from the command line.
