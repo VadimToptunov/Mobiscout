@@ -694,9 +694,19 @@ class AppCrawler:
         """A screen that lands looking empty may just be loading (SwiftUI `.task`,
         a network fetch): wait once more and re-read, keeping whichever view has
         more content. Without this, async screens are captured as blank skeletons
-        and their real content is never mapped."""
+        and their real content is never mapped.
+
+        A *hybrid* screen always gets the second look, however full it appears. A WebView
+        loads its document asynchronously by definition, so its first read is the native
+        shell — a chrome bar and a Cancel button, enough controls to look settled. That is
+        how a web sign-in was captured with no username or password field at all: the crawl
+        found no form to fill, tapped Cancel, and everything behind the login stayed
+        unmapped. Web logins are the common shape of a real gate, so this one is worth the
+        extra read."""
         refresh = getattr(self.driver, "refresh", None)
-        if not callable(refresh) or self._content_count(screen) > self._SPARSE_CONTENT:
+        if not callable(refresh):
+            return screen
+        if not screen.hybrid and self._content_count(screen) > self._SPARSE_CONTENT:
             return screen
         try:
             reloaded = parse_screen(refresh())
