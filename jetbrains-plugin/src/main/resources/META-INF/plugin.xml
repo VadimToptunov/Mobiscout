@@ -52,6 +52,18 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.8 — faster, steadier kits</h3>
+    <ul>
+        <li><b>One session per file, not per test.</b> A generated kit opened a fresh
+        Appium session for every test, and a session costs about 30&nbsp;seconds to start.
+        The kit now opens one session for the whole file and resets the app's data before
+        each test (about 3&nbsp;seconds) — same isolation, far less waiting. A live
+        Omni-Notes file went from ~12&nbsp;minutes to about 4. Set
+        <code>MOBISCOUT_KEEP_APP_DATA=1</code> to keep app data between tests.</li>
+        <li><b>A realistic startup budget.</b> The Android kit now gives the UiAutomator2
+        server a 90-second launch budget, so a cold emulator no longer fails the whole
+        session before the first test runs.</li>
+    </ul>
     <h3>0.12.7 — signing in</h3>
     <ul>
         <li><b>Two-factor now works.</b> The Generate dialog took only a username and
