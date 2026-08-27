@@ -7,7 +7,11 @@ accessibility report, and runnable test code in the chosen language(s).
 """
 
 from pathlib import Path
-from typing import Optional, Tuple
+import os
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    from framework.crawler.waypoints import Waypoint
 
 import click
 
@@ -15,6 +19,52 @@ from framework.cli.rich_output import print_error, print_header, print_info, pri
 from framework.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _gate_waypoints(
+    login_user: Optional[str],
+    login_password: Optional[str],
+    login_submit: str,
+    otp_secret: Optional[str],
+    otp_submit: str,
+) -> List["Waypoint"]:
+    """The gate-passing waypoints for a crawl, in the order the crawler must pass them.
+
+    A gated app is the normal case in this tool's target niche, and without credentials a
+    crawl of one yields exactly its sign-in screen. A password is one gate; a one-time code
+    is a SECOND, because the crawler chains waypoints and passes each screen in turn.
+
+    Secrets are read from the environment when the flag is omitted, so they need not appear
+    in a command line (and from there in shell history or a CI log).
+
+    Returns Waypoint objects, not the config dicts the daemon accepts: AppCrawler reads
+    ``.when``/``.action`` off them, and handing it dicts silently ends the crawl on its very
+    first screen (a dict has no such attributes) — a gated app then yields only its sign-in
+    screen, which is exactly what asking for credentials was meant to avoid.
+    """
+    from framework.crawler.waypoints import Waypoint
+
+    user = login_user or os.environ.get("MOBISCOUT_LOGIN_USER")
+    if not user:
+        return []
+    password = login_password or os.environ.get("MOBISCOUT_LOGIN_PASSWORD", "")
+    gates = [
+        Waypoint(
+            when={"has_input": True},
+            action="fill",
+            data={"fields": {"user": user, "password": password}, "submit": login_submit or "log in"},
+        )
+    ]
+    secret = otp_secret or os.environ.get("MOBISCOUT_OTP_SECRET")
+    if secret:
+        gates.append(
+            Waypoint(
+                when={"has_input": True},
+                action="totp",
+                data={"secret": secret, "submit": otp_submit or "verify"},
+            )
+        )
+    return gates
 
 
 @click.command()
@@ -136,6 +186,43 @@ logger = get_logger(__name__)
     "(flat files are overwritten). The baseline manifest still records the full case set. "
     "Off by default.",
 )
+@click.option(
+    "--login-user",
+    "login_user",
+    default=None,
+    help="Username for the app's sign-in gate. With it the crawl fills the first screen that "
+    "has text fields, submits, and maps the app BEHIND the login instead of stopping at it. "
+    "Without it a gated app yields only its sign-in screen.",
+)
+@click.option(
+    "--login-password",
+    "login_password",
+    default=None,
+    help="Password for --login-user. Prefer the MOBISCOUT_LOGIN_PASSWORD environment variable: "
+    "a password on the command line lands in your shell history.",
+)
+@click.option(
+    "--login-submit",
+    "login_submit",
+    default="log in",
+    show_default=True,
+    help="Visible label of the sign-in button to tap after filling the credentials.",
+)
+@click.option(
+    "--otp-secret",
+    "otp_secret",
+    default=None,
+    help="Base32 TOTP secret (from the authenticator enrolment) for a one-time-code gate AFTER "
+    "the password — the usual second step in a banking app. The code is computed locally. "
+    "Prefer the MOBISCOUT_OTP_SECRET environment variable, for the same reason as the password.",
+)
+@click.option(
+    "--otp-submit",
+    "otp_submit",
+    default="verify",
+    show_default=True,
+    help="Visible label of the button that submits the one-time code.",
+)
 def crawl(
     package: str,
     platform: str,
@@ -153,6 +240,11 @@ def crawl(
     max_steps: int,
     max_depth: int,
     allow_destructive: bool,
+    login_user: Optional[str],
+    login_password: Optional[str],
+    login_submit: str,
+    otp_secret: Optional[str],
+    otp_submit: str,
     launch_args: Tuple[str, ...],
     assert_values: bool,
     record_events: Optional[str],
@@ -238,7 +330,12 @@ def crawl(
             if callable(detect):
                 app_activity = detect(package) or None
         result = AppCrawler(
-            crawl_driver, package, max_steps=max_steps, max_depth=max_depth, allow_destructive=allow_destructive
+            crawl_driver,
+            package,
+            max_steps=max_steps,
+            max_depth=max_depth,
+            allow_destructive=allow_destructive,
+            waypoints=_gate_waypoints(login_user, login_password, login_submit, otp_secret, otp_submit),
         ).crawl()
     finally:
         if appium_session:
