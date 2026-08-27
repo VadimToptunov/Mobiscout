@@ -84,5 +84,29 @@ def test_ios_kit_clears_app_data_with_the_ios_key():
 
 
 def test_the_reset_can_be_opted_out_of():
+    # MOBISCOUT_KEEP_APP_DATA=1 skips the reset (for an app that needs a provisioned account).
     for platform in (Platform.ANDROID, Platform.IOS):
-        assert re.search(r'MOBISCOUT_KEEP_APP_DATA"\)\s*!=\s*"1"', _emitted(platform, "com.example.app"))
+        body = _emitted(platform, "com.example.app")
+        assert re.search(r'MOBISCOUT_KEEP_APP_DATA"\)\s*==\s*"1":\s*\n\s*return', body)
+
+
+# --- one session, reset per test -----------------------------------------------------
+#
+# Opening an Appium session costs ~30 s; the app-data reset costs ~3 s (measured on a live
+# Omni-Notes run). So the kit shares ONE session across the file and resets per test, rather
+# than paying session startup once per test. These pin that shape so it can't quietly revert
+# to a session-per-test fixture and make every kit slow again.
+
+
+def test_the_appium_session_is_shared_across_tests():
+    body = _emitted(Platform.ANDROID, "com.example.app")
+    assert '@pytest.fixture(scope="session")' in body
+    assert "def _appium():" in body
+
+
+def test_each_test_still_resets_app_state():
+    # The per-test driver fixture depends on the shared session and resets before returning,
+    # so isolation survives the session sharing.
+    body = _emitted(Platform.ANDROID, "com.example.app")
+    assert "def driver(_appium):" in body
+    assert "_reset_app(_appium)" in body

@@ -111,20 +111,19 @@ TEST_DATA = {
 }
 
 
-@pytest.fixture()
-def driver():
+def _make_driver():
+    """Open one Appium session against the device/simulator."""
     options = UiAutomator2Options()
     options.platform_name = "Android"
     options.automation_name = "UiAutomator2"
     options.app_package = "com.example.app"
     options.app_activity = ".MainActivity"
-    # A fresh session per test = isolated, parallel-safe state.
     options.set_capability("noReset", False)
-    # A kit creates one session per test, so it pays session startup dozens of times; on a
-    # loaded machine UiAutomator2's server occasionally misses the default 30 s and the test
-    # ERRORS before it runs ("instrumentation process cannot be initialized"), which reads
-    # as a broken test rather than a slow emulator. Appium's own advice for that message is
-    # a longer launch budget — it costs nothing when the server starts promptly.
+    # Starting a session is by far the slow part (~30 s vs a ~3 s app-data reset, measured),
+    # and on a loaded machine UiAutomator2's server occasionally misses the default 30 s and
+    # the session ERRORS before the test runs ("instrumentation process cannot be
+    # initialized"), which reads as a broken test rather than a slow emulator. Appium's own
+    # advice for that message is a longer launch budget — free when the server starts promptly.
     options.set_capability("uiautomator2ServerLaunchTimeout", 90_000)
     options.set_capability("uiautomator2ServerInstallTimeout", 90_000)
     # Run anywhere without regenerating: point at a different Appium/cloud-grid hub
@@ -133,34 +132,57 @@ def driver():
     for _cap, _value in json.loads(os.environ.get("MOBISCOUT_EXTRA_CAPS", "{}")).items():
         options.set_capability(_cap, _value)
     _server = os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")
-    drv = webdriver.Remote(_server, options=options)
-    # Start every test from first-run state.
-    #
-    # `noReset` alone does NOT clear an already-installed app's data, so tests inherit
-    # whatever the last run left behind — and these tests were generated from a crawl that
-    # itself changed things (it taps buttons: adds items, dismisses onboarding, leaves a
-    # sheet open). A case asserting the first screen then fails for a reason that has
-    # nothing to do with the app being broken. Clearing makes the starting point the one
-    # the crawl described.
-    #
-    # Set MOBISCOUT_KEEP_APP_DATA=1 to keep the device's existing state instead (e.g. an app
-    # that needs a manually provisioned account).
-    if os.environ.get("MOBISCOUT_KEEP_APP_DATA") != "1":
-        try:
-            drv.execute_script("mobile: clearApp", {"appId": "com.example.app"})
-            # Relaunch by explicit component, not activateApp: an app that declares more
-            # than one launcher entry (a debug build shipping LeakCanary adds a second icon)
-            # makes Android's launcher resolution ambiguous, and activateApp then quietly
-            # fails — leaving whatever app was already on screen, so the test would run
-            # against the wrong app instead of failing.
-            drv.execute_script(
-                "mobile: startActivity",
-                {"intent": "com.example.app/.MainActivity"},
-            )
-        except Exception:
-            pass  # older driver, or an app that can't be cleared — run against live state
+    return webdriver.Remote(_server, options=options)
+
+
+def _reset_app(drv):
+    """Return the app to first-run state before a test.
+
+    `noReset` alone does NOT clear an already-installed app's data, so tests would inherit
+    whatever the last one left behind — and these tests came from a crawl that itself
+    changed things (it taps buttons: adds items, dismisses onboarding, leaves a sheet open).
+    A case asserting the first screen then fails for a reason unrelated to the app being
+    broken. Clearing makes the starting point the one the crawl described.
+
+    Set MOBISCOUT_KEEP_APP_DATA=1 to keep the device's existing state instead (e.g. an app
+    that needs a manually provisioned account).
+    """
+    if os.environ.get("MOBISCOUT_KEEP_APP_DATA") == "1":
+        return
+    try:
+        drv.execute_script("mobile: clearApp", {"appId": "com.example.app"})
+        # Relaunch by explicit component, not activateApp: an app that declares more than one
+        # launcher entry (a debug build shipping LeakCanary adds a second icon) makes
+        # Android's launcher resolution ambiguous, and activateApp then quietly fails —
+        # leaving whatever app was already on screen, so the test would run against the wrong
+        # app instead of failing.
+        drv.execute_script(
+            "mobile: startActivity",
+            {"intent": "com.example.app/.MainActivity"},
+        )
+    except Exception:
+        pass  # older driver, or an app that can't be cleared — run against live state
+
+
+@pytest.fixture(scope="session")
+def _appium():
+    """One Appium session for the whole run.
+
+    Creating a session is the expensive part (see _make_driver), so sharing it across tests
+    turns a kit's runtime from session-cost × N into session-cost + reset × N — a large win
+    on a kit of any size — while the per-test reset in the `driver` fixture keeps each test
+    isolated from the last. Under pytest-xdist this is one session per worker.
+    """
+    drv = _make_driver()
     yield drv
     drv.quit()
+
+
+@pytest.fixture()
+def driver(_appium):
+    """The shared session, returned to first-run state before each test."""
+    _reset_app(_appium)
+    return _appium
 
 
 def test_login(driver):
