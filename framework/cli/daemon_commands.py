@@ -752,8 +752,15 @@ class JSONRPCServer:
 
     @staticmethod
     def _ready_notification() -> str:
-        """The JSON line announcing the server is ready, sent on connect."""
-        return json.dumps({"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": "0.5.0"}})
+        """The JSON line announcing the server is ready, sent on connect.
+
+        Reports the real engine version — the same __version__ health/check returns.
+        It used to be a hardcoded "0.5.0" that never moved, so a connecting client's
+        first line always claimed the engine was 0.5.0 no matter which build it launched.
+        """
+        from framework import __version__
+
+        return json.dumps({"jsonrpc": "2.0", "method": "notification/ready", "params": {"version": __version__}})
 
     def _emit(self, obj: Dict[str, Any]) -> None:
         """Write one JSON-RPC message to the active transport under the io lock. Used

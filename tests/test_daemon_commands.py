@@ -33,6 +33,16 @@ def server():
 # ---- protocol ----
 
 
+def test_ready_notification_reports_the_real_engine_version():
+    """The ready line must carry the actual package version, not a frozen literal.
+    It used to hardcode "0.5.0", so a client's first line always claimed 0.5.0 no
+    matter which build launched — the same drift health/check already fixed."""
+    from framework import __version__
+
+    ready = json.loads(JSONRPCServer._ready_notification())
+    assert ready["params"]["version"] == __version__
+
+
 def test_process_line_handles_request_blank_and_parse_error(server):
     """The shared line handler (used by both stdio and TCP) frames a valid
     request, ignores blank lines, and turns malformed JSON into a -32700."""
