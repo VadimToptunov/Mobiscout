@@ -7,6 +7,29 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.7] — 2026-08-27
+
+Signing in — from the IDE and from the command line.
+
+### Added — get past the login
+Most apps worth testing keep their real screens behind a sign-in, and a crawl without
+credentials maps exactly one screen: the login form.
+- **Two-factor now works from the IDE.** The Generate dialog previously took only a
+  username and password, so a crawl passed the password and stopped at the code prompt —
+  one screen short of the app. It now takes a 2FA secret (the Base32 string from your
+  authenticator enrolment); the code is computed on your machine and never stored.
+- **The command line can sign in at all.** `mobiscout crawl` had no way to express
+  credentials — a gated app simply returned its login screen with nothing to suggest
+  otherwise. Adds `--login-user` / `--login-password` / `--login-submit` and
+  `--otp-secret` / `--otp-submit`; both secrets can come from `MOBISCOUT_LOGIN_PASSWORD`
+  and `MOBISCOUT_OTP_SECRET` so they need not appear in a command line or a CI log.
+- **Documented.** The user guide now has a section on crawling an app that requires
+  sign-in, including the two-factor case and what to check when a crawl still stops at
+  the login.
+
+Screens reached only after signing in are tagged as behind-auth, and the tests generated
+for them begin with the sign-in steps, so each test can run on its own from a fresh app.
+
 ## [0.12.6] — 2026-08-27
 
 Tested against five real open-source apps, one of each kind. Every kind found something
