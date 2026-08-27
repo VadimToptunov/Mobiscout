@@ -85,6 +85,14 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     private val loginPassField = JBPasswordField()
     private val loginSubmitField = JBTextField("Log in", 12)
 
+    // Second gate: a one-time code. Banking apps put 2FA behind the password, so a crawl
+    // that can only pass the password still stops one screen short of the app. The engine
+    // has always supported a `totp` waypoint; without these fields there was no way to
+    // reach it from the IDE. The secret is the Base32 string from the authenticator
+    // enrolment ("otpauth://...?secret=THIS"), used to compute the code locally.
+    private val otpSecretField = JBPasswordField()
+    private val otpSubmitField = JBTextField("Verify", 12)
+
     // Optional install → crawl → cleanup orchestration (not kit/generate params):
     // if a build is given it is installed on the device (UDID) before crawling.
     private val buildPathField = TextFieldWithBrowseButton()
@@ -300,6 +308,14 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                 row("Login username (optional):") { cell(loginUserField) }
                 row("Login password:") { cell(loginPassField) }
                 row("Login submit button:") { cell(loginSubmitField) }
+                row("2FA secret (optional):") {
+                    cell(otpSecretField)
+                        .comment(
+                            "Base32 TOTP secret from the authenticator enrolment. The code is computed " +
+                                "on this machine and never stored.",
+                        )
+                }
+                row("2FA submit button:") { cell(otpSubmitField) }
                 separator()
                 row("Install build first (.apk / .app):") { cell(buildPathField) }
                 row { cell(uninstallAfterCheck) }
@@ -378,6 +394,44 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
          *  for an iOS bundle id, so the pairing has to be rejected here. */
         private val PLATFORM_ONLY_TARGETS = mapOf("kotlin_espresso" to "android")
 
+        /** The gate-passing waypoints for a crawl, in the order the crawler must pass them.
+         *
+         *  A password gate is one screen; a banking app puts a one-time code behind it, so a
+         *  crawl that can only pass the password stops one screen short of the app. The
+         *  crawler chains waypoints, passing each screen in turn, so the OTP is a SECOND
+         *  entry rather than part of the first.
+         *
+         *  Empty when there is no username: with no credentials there is no gate to pass. */
+        fun buildGates(
+            loginUser: String,
+            loginPass: String,
+            loginSubmit: String,
+            otpSecret: String,
+            otpSubmit: String,
+        ): List<Map<String, Any>> {
+            if (loginUser.isEmpty()) return emptyList()
+            val gates = mutableListOf<Map<String, Any>>(
+                mapOf(
+                    "when" to mapOf("has_input" to true),
+                    "action" to "fill",
+                    "data" to mapOf(
+                        "fields" to mapOf("user" to loginUser, "password" to loginPass),
+                        "submit" to loginSubmit.ifEmpty { "log in" },
+                    ),
+                ),
+            )
+            if (otpSecret.isNotEmpty()) {
+                gates.add(
+                    mapOf(
+                        "when" to mapOf("has_input" to true),
+                        "action" to "totp",
+                        "data" to mapOf("secret" to otpSecret, "submit" to otpSubmit.ifEmpty { "verify" }),
+                    ),
+                )
+            }
+            return gates
+        }
+
         /** Resolve a relative output dir against the project root, so the kit lands where the
          *  user can find it — not in the IDE's working directory (which for a GUI launch is `/`
          *  or the install dir), where the engine would either fail mkdir or hide the result.
@@ -426,15 +480,12 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         if (loginUser.isNotEmpty()) {
             val loginPass = String(loginPassField.password)
             val submit = loginSubmitField.text.trim().ifEmpty { "log in" }
-            params["waypoints"] = listOf(
-                mapOf(
-                    "when" to mapOf("has_input" to true),
-                    "action" to "fill",
-                    "data" to mapOf(
-                        "fields" to mapOf("user" to loginUser, "password" to loginPass),
-                        "submit" to submit,
-                    ),
-                ),
+            params["waypoints"] = buildGates(
+                loginUser,
+                loginPass,
+                submit,
+                String(otpSecretField.password).trim(),
+                otpSubmitField.text.trim(),
             )
         }
         return params
