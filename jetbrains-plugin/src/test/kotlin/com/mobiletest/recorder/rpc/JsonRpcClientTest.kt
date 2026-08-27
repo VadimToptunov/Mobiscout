@@ -158,7 +158,12 @@ class JsonRpcClientTest {
                 val method = "m$i"
                 try {
                     start.await()
-                    val got = c.call(method, timeoutMs = 15_000).getResultOrThrow().get("method").asString
+                    // Per-call timeout is deliberately above the 60s barrier below: the barrier
+                    // is the sole governor of completion. A tighter per-call timeout only makes
+                    // this load-sensitive — on a busy runner the single daemon thread can't echo
+                    // all n requests before a short per-call timeout trips, which is a false
+                    // failure, not the id-correlation defect this test guards against.
+                    val got = c.call(method, timeoutMs = 120_000).getResultOrThrow().get("method").asString
                     if (got != method) mismatches.incrementAndGet()
                 } catch (e: Throwable) {
                     failures.add("$method: $e")
