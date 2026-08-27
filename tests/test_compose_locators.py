@@ -204,3 +204,79 @@ def test_a_bounced_screen_is_finished_on_the_next_visit():
     assert "Item" in driver.tapped, f"never opened the item: {driver.tapped}"
     labels = {e.label for s in result.screens.values() for e in s.elements}
     assert "Detail body" in labels  # ...and the screen behind it was mapped
+
+
+# --- a WebView screen is read after its document loads ------------------------------
+#
+# Found on a banking app whose sign-in opens a WebView. A WebView loads asynchronously by
+# definition, so the first read returns the native shell — a chrome bar and a Cancel
+# button, enough controls to look settled. The crawl fingerprinted that shell, found no
+# username or password field, tapped Cancel and left: everything behind the login stayed
+# unmapped. A hybrid screen now always gets a second read.
+
+# The shell carries SEVERAL controls (a browser chrome bar has Cancel, Back, Reload...),
+# so it looks settled to the content-count check — which is exactly why only the hybrid
+# flag saves it. A one-control shell would be re-read anyway and prove nothing.
+_SHELL = _page(
+    _node("Cancel", (0, 0, 100, 40), "id/cancel"),
+    _node("Back", (110, 0, 200, 40), "id/back"),
+    _node("Reload", (210, 0, 300, 40), "id/reload"),
+    _node("Sign in", (0, 45, 300, 55), "id/title", clickable="false"),
+)
+_LOADED = _page(
+    _node("Cancel", (0, 0, 100, 40), "id/cancel"),
+    _node("", (0, 60, 300, 100), "id/user", cls="android.widget.EditText"),
+    _node("", (0, 110, 300, 150), "id/pass", cls="android.widget.EditText"),
+    _node("Log in", (0, 160, 200, 200), "id/submit"),
+    # A WebView in the tree is what marks the screen hybrid.
+    _node("", (0, 0, 300, 400), "id/web", cls="android.webkit.WebView", clickable="false"),
+)
+_SHELL_HYBRID = _SHELL.replace(
+    "</hierarchy>",
+    _node("", (0, 0, 300, 400), "id/web", cls="android.webkit.WebView", clickable="false") + "</hierarchy>",
+)
+
+
+class _LateWebView:
+    """Serves the WebView shell first and the loaded document on refresh()."""
+
+    def __init__(self):
+        self.reads = 0
+
+    def page_source(self):
+        self.reads += 1
+        return _SHELL_HYBRID
+
+    def refresh(self, wait=1.0):
+        return _LOADED
+
+    def current_package(self):
+        return _APP
+
+    def tap(self, x, y):
+        pass
+
+    def back(self):
+        pass
+
+    def type_text(self, text):
+        pass
+
+
+def test_a_hybrid_screen_is_re_read_so_its_form_is_seen():
+    from framework.crawler.app_crawler import AppCrawler
+
+    driver = _LateWebView()
+    settled = AppCrawler(driver, _APP)._await_content(parse_screen(_SHELL_HYBRID))
+    labels = {e.label for e in settled.elements}
+    assert "Log in" in labels, f"the loaded document was never read: {labels}"
+    assert any("EditText" in e.class_name for e in settled.elements), "the form fields are still missing"
+
+
+def test_a_settled_native_screen_is_not_re_read():
+    # The extra read costs a dump; only a hybrid screen earns it unconditionally.
+    from framework.crawler.app_crawler import AppCrawler
+
+    driver = _LateWebView()
+    native = parse_screen(_page(_node("A", (0, 0, 100, 40), "id/a"), _node("B", (0, 50, 100, 90), "id/b")))
+    assert AppCrawler(driver, _APP)._await_content(native) is native
