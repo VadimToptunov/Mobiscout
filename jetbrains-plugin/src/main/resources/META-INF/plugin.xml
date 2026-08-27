@@ -52,6 +52,18 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.7 — signing in</h3>
+    <ul>
+        <li><b>Two-factor now works.</b> The Generate dialog took only a username and
+        password, so a crawl got past the password and stopped at the code prompt — one
+        screen short of your app. Add your 2FA secret (the Base32 string from the
+        authenticator enrolment) and the crawl passes both gates. The code is computed on
+        your machine and never stored.</li>
+        <li><b>Signing in from the command line</b>: <code>mobiscout crawl</code> gained
+        <code>--login-user</code> and <code>--otp-secret</code> (and their submit-button
+        labels); both secrets can come from environment variables instead.</li>
+        <li>The user guide now documents crawling an app that requires sign-in.</li>
+    </ul>
     <h3>0.12.6 — tested against five real apps</h3>
     <ul>
         <li><b>Kits that could not run at all, now run.</b> A debug build shipping LeakCanary
