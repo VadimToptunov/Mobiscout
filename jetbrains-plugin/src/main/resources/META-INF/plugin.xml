@@ -52,6 +52,21 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.6 — tested against five real apps</h3>
+    <ul>
+        <li><b>Kits that could not run at all, now run.</b> A debug build shipping LeakCanary
+        has two launcher icons, which made Android's launcher lookup ambiguous — the crawl
+        could explore <i>the leak viewer instead of your app</i>, and the generated kit
+        failed to start every test. Worse, after resetting app data a kit could end up
+        testing <i>a different app</i> that happened to be on screen. All fixed.</li>
+        <li><b>Web sign-in no longer stops the crawl.</b> A WebView loads its page a moment
+        after the screen appears, so the crawl saw a browser bar, found no login form and
+        turned back — leaving everything behind the login unmapped. It now waits for the
+        page and fills the form.</li>
+        <li><b>iOS kits start from a clean state</b> like Android ones already did. One app
+        went from 0 of 7 tests passing to 9 passing.</li>
+        <li><b>Animated screens</b> (onboarding carousels) no longer fail a test.</li>
+    </ul>
     <h3>0.12.5 — Compose apps crawl properly now</h3>
     <ul>
         <li><b>Jetpack Compose apps used to come back nearly empty.</b> Compose renders every
