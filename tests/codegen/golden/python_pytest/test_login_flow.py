@@ -120,6 +120,13 @@ def driver():
     options.app_activity = ".MainActivity"
     # A fresh session per test = isolated, parallel-safe state.
     options.set_capability("noReset", False)
+    # A kit creates one session per test, so it pays session startup dozens of times; on a
+    # loaded machine UiAutomator2's server occasionally misses the default 30 s and the test
+    # ERRORS before it runs ("instrumentation process cannot be initialized"), which reads
+    # as a broken test rather than a slow emulator. Appium's own advice for that message is
+    # a longer launch budget — it costs nothing when the server starts promptly.
+    options.set_capability("uiautomator2ServerLaunchTimeout", 90_000)
+    options.set_capability("uiautomator2ServerInstallTimeout", 90_000)
     # Run anywhere without regenerating: point at a different Appium/cloud-grid hub
     # with MOBISCOUT_APPIUM_SERVER, and merge extra capabilities (e.g. a
     # BrowserStack/Sauce options block) from MOBISCOUT_EXTRA_CAPS (a JSON object).
