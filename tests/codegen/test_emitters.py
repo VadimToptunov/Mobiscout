@@ -136,6 +136,24 @@ def test_imperative_targets_settle_after_actions_not_asserts(target_id: str, log
         assert not prev.startswith(("assert", "expect", "assertions.", "assert.")), f"{target_id}: settle after assert"
 
 
+def test_python_settle_dismisses_soft_keyboard_on_android(login_model: TestModel):
+    """A raised soft keyboard makes the next assert flaky: adjustResize can drop a
+    bottom-anchored control (a FAB) out of the accessibility tree, and an IME-occluded
+    control reports is_displayed()==False. Reproduced on the Omni-Notes search screen,
+    where the FAB was present in only ~40% of settled reads. _settle must dismiss the
+    keyboard (guarded by is_keyboard_shown) so the screen settles deterministically."""
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert "is_keyboard_shown()" in src and "hide_keyboard()" in src
+
+
+def test_python_settle_keyboard_dismissal_is_android_only(login_model: TestModel):
+    """The keyboard-dismissal is an Android adjustResize/IME concern; the iOS path uses a
+    different keyboard model, so the Android-only block must not leak into an iOS kit."""
+    login_model.platform = Platform.IOS
+    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
+    assert "hide_keyboard()" not in src
+
+
 @pytest.mark.parametrize("target_id", TARGET_IDS)
 def test_generated_source_is_valid(target_id: str, login_model: TestModel, tmp_path):
     """Every generated code file must be syntactically valid for its language.

@@ -690,34 +690,6 @@ class AppCrawler:
         count means the screen looks empty (often still loading)."""
         return sum(1 for e in screen.interactive() if self._own(e) and not self._is_primary_nav(e, screen))
 
-    def _settle(self, screen: CrawlScreen, tries: int = 2) -> CrawlScreen:
-        """Re-read until the screen's structure stops changing, so a frame caught
-        mid-transition isn't the one we fingerprint.
-
-        Right after a tap the UI can be between screens: the outgoing screen's
-        controls linger a frame while the incoming screen animates in. Fingerprinting
-        that frame is how a kit ends up asserting a control on a screen it doesn't
-        belong to (an Omni-Notes "search" test asserting the home FAB it left behind).
-
-        Each re-read goes through the driver's refresh() — a wait then a fresh dump —
-        so the animation has time to finish between reads. Accept once two consecutive
-        reads share a structural fingerprint; bounded so a perpetually-animating screen
-        can't loop forever. No-op without refresh(), so device-free tests are unaffected.
-        This is only paid on navigation, where a transitional frame can occur.
-        """
-        refresh = getattr(self.driver, "refresh", None)
-        if not callable(refresh):
-            return screen
-        for _ in range(tries):
-            try:
-                again = parse_screen(refresh())
-            except Exception:
-                return screen
-            if not again.fingerprint or again.fingerprint == screen.fingerprint:
-                return screen  # settled (or unreadable) — keep the confirmed frame
-            screen = again  # structure still moving; take the newer frame and re-confirm
-        return screen
-
     def _await_content(self, screen: CrawlScreen) -> CrawlScreen:
         """A screen that lands looking empty may just be loading (SwiftUI `.task`,
         a network fetch): wait once more and re-read, keeping whichever view has
@@ -994,11 +966,9 @@ class AppCrawler:
                 continue
 
             if new_screen.fingerprint != current_fp:
-                # Navigated somewhere new. Settle first so a frame caught mid-transition
-                # (the old screen's controls lingering over the new one) isn't what we
-                # fingerprint, then give async-loaded content a second look before we
-                # record it.
-                new_screen = self._await_content(self._settle(new_screen))
+                # Navigated somewhere new — give async-loaded content a second look
+                # before we fingerprint and record it.
+                new_screen = self._await_content(new_screen)
 
             result.transitions.append(Transition(current_fp, element, new_screen.fingerprint))
 
