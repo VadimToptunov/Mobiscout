@@ -76,6 +76,31 @@ def build_uiautomator2_options(
     return options
 
 
+def _build_client_config(server: str) -> Any:
+    """A webdriver client config carrying our HTTP read timeout, or None if the
+    installed client exposes no usable config class.
+
+    Prefer Appium's own ``AppiumClientConfig``: Appium-Python-Client 6.x reads
+    ``client_config.direct_connection`` inside ``webdriver.Remote`` — an attribute a
+    base selenium ``ClientConfig`` doesn't have, so passing the base class raises
+    ``AttributeError`` and breaks every Android-over-Appium session (real devices,
+    cloud grids). The Appium subclass has it. Fall back to the base ``ClientConfig``
+    for older clients, then to None (default, unbounded connection)."""
+    timeout = int(_HTTP_TIMEOUT_S)
+    try:
+        from appium.webdriver.client_config import AppiumClientConfig
+
+        return AppiumClientConfig(remote_server_addr=server, timeout=timeout)
+    except Exception:
+        pass
+    try:
+        from selenium.webdriver.remote.client_config import ClientConfig
+
+        return ClientConfig(remote_server_addr=server, timeout=timeout)
+    except Exception:
+        return None
+
+
 class AndroidAppiumDriver:
     """Owns an Appium UiAutomator2 session end to end (CrawlerDriver protocol)."""
 
@@ -101,23 +126,23 @@ class AndroidAppiumDriver:
             self._driver = _session  # injected (tests / bring-your-own session)
         else:
             from appium import webdriver
-            from selenium.webdriver.remote.client_config import ClientConfig
 
             options = build_uiautomator2_options(app_package, app_activity, udid, device_name, extra_caps)
             # Read timeout so a wedged session can't hang a command forever (see
             # _HTTP_TIMEOUT_S). Best-effort: an older client that doesn't accept
             # client_config falls back to the default (unbounded) connection.
+            client_config = _build_client_config(server)
             try:
-                client_config = ClientConfig(remote_server_addr=server, timeout=int(_HTTP_TIMEOUT_S))
-                # Appium's webdriver.Remote is typed for its own AppiumClientConfig
-                # subclass (not exported in this client version); the base selenium
-                # ClientConfig works at runtime.
-                self._driver = webdriver.Remote(
-                    server,
-                    options=options,
-                    client_config=client_config,  # type: ignore[arg-type]
-                )
-            except TypeError:
+                if client_config is not None:
+                    self._driver = webdriver.Remote(server, options=options, client_config=client_config)
+                else:
+                    self._driver = webdriver.Remote(server, options=options)
+            except (TypeError, AttributeError):
+                # TypeError: a client too old to accept client_config at all.
+                # AttributeError: Appium-Python-Client 6.x reads .direct_connection off
+                # the client_config (webdriver.py) — a base selenium ClientConfig lacks
+                # it and raises. _build_client_config prefers Appium's own config to
+                # avoid this; this is the last-resort fallback if that wasn't available.
                 self._driver = webdriver.Remote(server, options=options)
         # Don't block for the full default "idle" timeout after each action — the
         # crawler settles by observing the UI itself.

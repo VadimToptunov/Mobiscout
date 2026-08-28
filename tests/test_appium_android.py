@@ -1,7 +1,22 @@
 """AndroidAppiumDriver: capability building and the CrawlerDriver protocol,
 exercised with an injected fake session (no Appium server / device needed)."""
 
-from framework.crawler.appium_android import AndroidAppiumDriver, build_uiautomator2_options
+from framework.crawler.appium_android import (
+    AndroidAppiumDriver,
+    _build_client_config,
+    build_uiautomator2_options,
+)
+
+
+def test_client_config_exposes_direct_connection():
+    # Appium-Python-Client 6.x reads client_config.direct_connection inside
+    # webdriver.Remote; a base selenium ClientConfig lacks it and every
+    # Android-over-Appium session raised AttributeError. The config we build must
+    # carry that attribute (i.e. be Appium's own config when available), so a real
+    # device / cloud-grid session opens instead of aborting on construction.
+    cc = _build_client_config("http://127.0.0.1:4723")
+    assert cc is not None
+    assert hasattr(cc, "direct_connection")
 
 
 def test_options_are_uiautomator2_android():
