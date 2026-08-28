@@ -52,6 +52,18 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.12.9 — real-device Android crawling fixed</h3>
+    <ul>
+        <li><b>Crawling a real Android device (or a cloud grid) over Appium works
+        again.</b> It had started aborting before the first screen with
+        <code>'ClientConfig' object has no attribute 'direct_connection'</code> after a
+        routine Appium client update. The engine now opens the session with Appium's own
+        client config. iOS and the generated test kits were never affected — only the
+        engine's own Android-over-Appium crawl.</li>
+        <li><b>Honest engine version on connect.</b> The engine announced a hardcoded
+        <code>0.5.0</code> to the IDE no matter which build was running; it now reports
+        its real version.</li>
+    </ul>
     <h3>0.12.8 — faster, steadier kits</h3>
     <ul>
         <li><b>One session per file, not per test.</b> A generated kit opened a fresh
