@@ -49,6 +49,19 @@ def _settle(driver, timeout=_TIMEOUT):
         )
     except TimeoutException:
         pass
+    # A raised soft keyboard is a transient input surface, not part of the screen under
+    # test. With the usual adjustResize window mode it shrinks the layout, which can drop a
+    # bottom-anchored control (a FAB, a bottom bar) out of the queryable accessibility tree
+    # entirely; and even when the control survives, it sits behind the IME so is_displayed()
+    # reads False. Either way the next assert flakes on a control that genuinely belongs to
+    # the screen (observed on Omni-Notes: the search screen's FAB, present ~40% of reads).
+    # Dismissing the keyboard as part of settling makes the screen deterministic. Best-effort:
+    # a driver that can't report/close the keyboard is left as-is rather than failed.
+    try:
+        if driver.is_keyboard_shown():
+            driver.hide_keyboard()
+    except Exception:
+        pass
 
 
 def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
