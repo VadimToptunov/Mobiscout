@@ -7,6 +7,26 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.12.9] — 2026-08-28
+
+Crawling a real Android device over Appium works again.
+
+### Fixed — Android-over-Appium sessions
+Crawling an Android app over `--driver appium` (a real device, or a cloud grid)
+aborted before the first screen with `'ClientConfig' object has no attribute
+'direct_connection'`. The engine built a base Selenium `ClientConfig` to carry its
+HTTP read timeout, but Appium-Python-Client 6.x reads `.direct_connection` off the
+config — an attribute only its own config subclass has — so the session failed to
+open. It now uses Appium's own client config (keeping the timeout), with fallbacks
+for older clients. iOS was never affected, and generated test kits were never
+affected (they build the driver a different way); only the engine's own
+Android-over-Appium crawl was.
+
+### Fixed — honest engine version on connect
+The daemon's ready notification announced a hardcoded `0.5.0` to every client on
+connect, regardless of the engine actually running. It now reports the real
+version.
+
 ## [0.12.8] — 2026-08-27
 
 Generated kits run faster and start more reliably.
