@@ -9,6 +9,9 @@ model it computes, without any live device:
     dead-ends (exploration stopped), and gated (reached only behind auth).
   - **Test coverage**: of the reachable screens and interactive elements, how many are
     exercised by at least one generated case.
+  - **Targetability**: of those interactive elements, how many carry a resource-id or an
+    accessibility label — i.e. an identity that survives a copy change or a translation,
+    rather than a caption the kit had to locate by.
   - **Gaps**: reachable screens with no test, dead-ends, unreachable screens, and any
     error/loading/permission screens the crawl walked into.
 
@@ -59,6 +62,17 @@ def _element_covered(el: CrawlElement, used: set) -> bool:
     return any(v.strip() in used for v in _element_identity(el))
 
 
+def _element_targetable(el: CrawlElement) -> bool:
+    """True if the element carries an identity a locator can key on that is not content.
+
+    Visible text is deliberately excluded here, unlike in :func:`_element_identity`: a
+    caption is content, so it moves with a copy change or a translation. Only a resource-id
+    or an accessibility label survives that, and the gap between the two counts is exactly
+    what the crawl could not target stably.
+    """
+    return bool((el.resource_id or "").strip() or (el.content_desc or "").strip())
+
+
 @dataclass
 class ScreenCoverage:
     """Reach and test-coverage facts for one crawled screen."""
@@ -69,6 +83,7 @@ class ScreenCoverage:
     elements: int
     interactive: int
     covered_elements: int
+    targetable: int = 0  # interactive elements carrying a resource-id or accessibility label
     is_entry: bool = False
     dead_end: bool = False
     gated: bool = False
@@ -93,6 +108,7 @@ class ScreenCoverage:
             "elements": self.elements,
             "interactive": self.interactive,
             "covered_elements": self.covered_elements,
+            "targetable": self.targetable,
             "reachable": self.reachable,
             "tested": self.tested,
             "is_entry": self.is_entry,
@@ -171,9 +187,25 @@ def _ios_identifier_ratio(result: "CrawlResult") -> float:
     return identified / len(interactive)
 
 
-def compose_locator_advice(toolkit: str) -> str:
-    """The Compose locator guidance, or "" for any other toolkit."""
-    return _COMPOSE_ADVICE if (toolkit or "").lower() == "compose" else ""
+# Same idea as the iOS threshold: below this share of interactive controls carrying a
+# resource-id or accessibility label, the kit is locating by caption and the advice earns
+# its place. An app that already tags its controls should not be lectured about it.
+_TARGETABLE_THRESHOLD = 0.5
+
+
+def targetable_ratio(result: "CrawlResult") -> float:
+    """Share of interactive controls the crawl could target by something other than text."""
+    interactive = [e for screen in result.screens.values() for e in screen.interactive()]
+    if not interactive:
+        return 0.0  # nothing measured yet — a fresh Compose app still deserves the guidance
+    return sum(1 for e in interactive if _element_targetable(e)) / len(interactive)
+
+
+def compose_locator_advice(toolkit: str, result: "CrawlResult") -> str:
+    """The Compose locator guidance, or "" for another toolkit or an already-tagged app."""
+    if (toolkit or "").lower() != "compose":
+        return ""
+    return _COMPOSE_ADVICE if targetable_ratio(result) < _TARGETABLE_THRESHOLD else ""
 
 
 def locator_advice(toolkit: str, platform: str, result: "CrawlResult") -> str:
@@ -184,7 +216,7 @@ def locator_advice(toolkit: str, platform: str, result: "CrawlResult") -> str:
     """
     if (platform or "").lower() == "ios":
         return _IOS_ADVICE if _ios_identifier_ratio(result) < _IOS_ID_THRESHOLD else ""
-    return compose_locator_advice(toolkit)
+    return compose_locator_advice(toolkit, result)
 
 
 @dataclass
@@ -255,6 +287,16 @@ class CoverageReport:
         base = self.elements_total
         return round(100 * self.elements_covered / base) if base else 0
 
+    @property
+    def elements_targetable(self) -> int:
+        """Interactive elements carrying a resource-id or accessibility label."""
+        return sum(s.targetable for s in self.screens)
+
+    def targetability_pct(self) -> int:
+        """Percent of interactive elements locatable by something other than visible text."""
+        base = self.elements_total
+        return round(100 * self.elements_targetable / base) if base else 0
+
     def to_dict(self) -> Dict[str, object]:
         """Serialize the whole report (headline aggregates + per-screen list) to a dict."""
         return {
@@ -266,6 +308,8 @@ class CoverageReport:
             "elements_interactive": self.elements_total,
             "elements_covered": self.elements_covered,
             "element_coverage_pct": self.element_coverage_pct(),
+            "elements_targetable": self.elements_targetable,
+            "targetability_pct": self.targetability_pct(),
             "unreachable": len(self.unreachable),
             "dead_ends": len(self.dead_ends),
             "gated": len(self.gated),
@@ -284,6 +328,9 @@ class CoverageReport:
             f"(**{self.screen_coverage_pct()}%**){_of_total(self.screens_total, self.screens_reachable)}\n"
             f"- Interactive elements: **{self.elements_covered}/{self.elements_total}** covered "
             f"(**{self.element_coverage_pct()}%**)\n"
+            f"- Targetable elements: **{self.elements_targetable}/{self.elements_total}** carry a "
+            f"resource-id or accessibility label (**{self.targetability_pct()}%**); the rest can "
+            f"only be located by their visible text\n"
             f"- Generated cases: **{self.cases}**\n"
         )
         gaps = self._gaps_markdown()
@@ -333,8 +380,8 @@ class CoverageReport:
         """Render the per-screen table (depth, interactive/covered counts, tested, notes)."""
         rows = [
             "\n## All screens\n",
-            "| Screen | Depth | Interactive | Covered | Tested | Notes |",
-            "|---:|---:|---:|---:|:---:|---|",
+            "| Screen | Depth | Interactive | Targetable | Covered | Tested | Notes |",
+            "|---:|---:|---:|---:|---:|:---:|---|",
         ]
         for s in sorted(self.screens, key=lambda x: (x.screen_id if x.screen_id > 0 else 1 << 30)):
             notes = ", ".join(
@@ -350,7 +397,7 @@ class CoverageReport:
             )
             sid = f"#{s.screen_id}" if s.screen_id > 0 else f"`{s.fingerprint[:8]}`"
             rows.append(
-                f"| {sid} | {s.depth} | {s.interactive} | {s.covered_elements} | "
+                f"| {sid} | {s.depth} | {s.interactive} | {s.targetable} | {s.covered_elements} | "
                 f"{'✅' if s.tested else '—'} | {notes} |"
             )
         return "\n".join(rows) + "\n"
@@ -382,6 +429,7 @@ def build_coverage(result: CrawlResult, graph: InteractionGraph, model: TestMode
             [e for e in screen.interactive() if e.package in owned_packages] if isinstance(screen, CrawlScreen) else []
         )
         covered = sum(1 for el in interactive if _element_covered(el, used))
+        targetable = sum(1 for el in interactive if _element_targetable(el))
         screens.append(
             ScreenCoverage(
                 screen_id=node.id if node else -1,
@@ -390,6 +438,7 @@ def build_coverage(result: CrawlResult, graph: InteractionGraph, model: TestMode
                 elements=len(screen.elements),
                 interactive=len(interactive),
                 covered_elements=covered,
+                targetable=targetable,
                 is_entry=bool(node and node.is_entry),
                 dead_end=bool(node and node.id in dead_end_ids),
                 gated=fp in gated_fps,

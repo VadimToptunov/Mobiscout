@@ -280,3 +280,33 @@ def test_a_settled_native_screen_is_not_re_read():
     driver = _LateWebView()
     native = parse_screen(_page(_node("A", (0, 0, 100, 40), "id/a"), _node("B", (0, 50, 100, 90), "id/b")))
     assert AppCrawler(driver, _APP)._await_content(native) is native
+
+
+def _android_result(tagged: int, total: int) -> CrawlResult:
+    """An Android screen where `tagged` of `total` controls carry a resource-id.
+
+    The untagged ones are Compose's anonymous views: caption lifted onto the clickable
+    node, nothing else — locatable only by that caption.
+    """
+    elements = [
+        CrawlElement(
+            resource_id=f"com.app:id/btn_{i}" if i < tagged else "",
+            text=f"Button {i}",
+            content_desc="",
+            class_name="android.view.View",
+            clickable=True,
+            bounds=(0, i * 40, 100, i * 40 + 40),
+        )
+        for i in range(total)
+    ]
+    return CrawlResult(screens={"fp": CrawlScreen("fp", elements)})
+
+
+def test_compose_advice_is_silent_when_the_app_already_tags_its_controls():
+    # An app that set testTag + testTagsAsResourceId does not need the lecture.
+    assert locator_advice("compose", "android", _android_result(tagged=6, total=6)) == ""
+
+
+def test_compose_advice_fires_when_controls_are_located_by_caption():
+    advice = locator_advice("compose", "android", _android_result(tagged=0, total=6))
+    assert COMPOSE_TESTTAG_DOCS in advice
