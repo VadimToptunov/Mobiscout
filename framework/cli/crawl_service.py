@@ -287,7 +287,9 @@ def _write_coverage(out: Path, package: str, result: Any, graph: Any, model: Any
     (out / "coverage.json").write_text(coverage.to_json(), encoding="utf-8", newline="\n")
     lines = [
         f"Coverage: {coverage.screens_tested}/{coverage.screens_reachable} screens, "
-        f"{coverage.element_coverage_pct()}% of elements (see {out / 'coverage.md'})"
+        f"{coverage.element_coverage_pct()}% of elements (see {out / 'coverage.md'})",
+        f"Targetable: {coverage.targetability_pct()}% of interactive elements carry a stable id "
+        f"({coverage.elements_targetable}/{coverage.elements_total}); the rest are located by text",
     ]
     return lines + [ln for ln in (_locator_advice_line(advice, model.platform.value),) if ln]
 
