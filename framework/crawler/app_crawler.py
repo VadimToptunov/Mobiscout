@@ -555,6 +555,13 @@ class AppCrawler:
             passed = parse_screen(self.driver.page_source())
             if passed.fingerprint:
                 screen = passed
+                # Re-learn the bottom bar from the post-auth screen. A login-first app
+                # opens on a gate that has no nav bar, so the learn at the entry screen
+                # above found nothing; the real tab bar only appears once we're signed in.
+                # Without this, a gated multi-tab app falls to the plain _dfs and only
+                # ever explores the first tab. _learn_nav_bar only sets _nav_keys when it
+                # actually finds a bar, so this can't clobber a bar learned at entry.
+                self._learn_nav_bar(screen)
                 result.screens.setdefault(screen.fingerprint, screen)
                 self._note_screen(result, screen.fingerprint)
                 # Connect the entry to the post-auth screen so it — and everything
