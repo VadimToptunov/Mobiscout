@@ -293,9 +293,13 @@ class AppCrawler:
             return False
         for element in screen.elements:
             label = (element.text or element.content_desc or "").strip().lower()
-            if not (label and element.bounds and any(k in label for k in self._SAFE_DIALOG_LABELS)):
+            # Whole-word match, not substring: a bare `in` fired "ok" on "Book"/"Cookies"/
+            # "Unlock" and "allow" on "Allowance", tapping an ordinary control while thinking
+            # it dismissed a system dialog. _label_has_token is the same word-boundary check
+            # _blocked already uses.
+            if not (label and element.bounds and any(_label_has_token(k, label) for k in self._SAFE_DIALOG_LABELS)):
                 continue
-            if any(n in label for n in self._UNSAFE_DIALOG_LABELS):
+            if any(_label_has_token(n, label) for n in self._UNSAFE_DIALOG_LABELS):
                 continue  # "Don't allow"/"Deny" — matches "allow" but must not be tapped
             self.driver.tap(*element.center)
             return True
