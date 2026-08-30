@@ -34,3 +34,15 @@ def test_js_reset_uses_the_ios_key_on_ios():
     # XCUITest names it bundleId, not appId — the wrong key is silently ignored.
     body = _emit("js_webdriverio", Platform.IOS)
     assert "bundleId: APP_PACKAGE" in body
+
+
+def test_js_webdriverio_settle_dismisses_the_soft_keyboard_on_android():
+    # A raised IME (adjustResize) drops/occludes a bottom-anchored control so the next
+    # assert flakes; settle() must dismiss it on Android. This is a SEMANTIC guard: the
+    # golden test only checks template==golden consistency, so it can't catch this
+    # dismissal being dropped (it silently was once, in a cross-branch merge).
+    android = _emit("js_webdriverio", Platform.ANDROID)
+    assert "isKeyboardShown()" in android and "hideKeyboard()" in android
+    # Guarded to Android — iOS has no equivalent and must not emit it.
+    ios = _emit("js_webdriverio", Platform.IOS)
+    assert "hideKeyboard()" not in ios

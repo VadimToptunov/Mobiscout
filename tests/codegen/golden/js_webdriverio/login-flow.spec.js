@@ -74,6 +74,18 @@ async function settle() {
     } catch (e) {
         // tolerate a persistent indicator
     }
+    // A raised soft keyboard is a transient input surface, not part of the screen under
+    // test: with adjustResize it shrinks the layout and can drop a bottom-anchored control
+    // (a FAB) out of the accessibility tree, and an IME-occluded control reports
+    // isDisplayed() === false. Both flake the next assert on a control that belongs to the
+    // screen. Dismiss it so the screen settles deterministically; best-effort.
+    try {
+        if (await driver.isKeyboardShown()) {
+            await driver.hideKeyboard();
+        }
+    } catch (e) {
+        // best-effort: a driver that can't report/close the keyboard is left as-is
+    }
 }
 
 // Reset app state before each test so cases stay independent — one WebdriverIO
