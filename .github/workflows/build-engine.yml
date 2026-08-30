@@ -172,6 +172,10 @@ jobs:
             out/${{ matrix.artifact }}
             out/${{ matrix.artifact }}.sha256
           if-no-files-found: error
+          # The release assets are the durable copy; this CI artifact is a short-lived
+          # hand-off to the release step. Keep the default 90-day retention from
+          # re-filling the 0.5 GB free Actions storage (see repo storage history).
+          retention-days: 5
 
       - name: Create / attach release
         # On a tag push, create the release for the tag and upload the binaries;
