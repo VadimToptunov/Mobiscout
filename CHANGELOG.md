@@ -7,6 +7,45 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.13.0] — 2026-08-30
+
+A review-and-dogfood pass: the generated kits are more correct, and the crawler
+reaches more of an app.
+
+### Added
+- **Targetability in the coverage report.** The crawl now reports how much of a
+  screen's UI has a stable identity to locate — a concrete signal of how robust the
+  generated tests can be, and where adding a `testTag` / `accessibilityId` would help.
+
+### Fixed — generated kits
+- **JavaScript kits now reset between tests.** The WebdriverIO and Cucumber-JS kits
+  shared one session across a file without resetting the app, so a test could inherit
+  state an earlier test created — a flake unique to the JS targets. They now reset app
+  data before each test, like every other target. (`MOBISCOUT_KEEP_APP_DATA=1` opts out.)
+- **BDD outlines no longer ship a row that fails by construction.** A form scenario was
+  rendered as a Scenario Outline with a second, invented data row while its assertions
+  stayed literal — so a sign-in or negative-input scenario always had one red row. The
+  outline now carries only the data the crawl used.
+- **The soft keyboard is dismissed while a screen settles** (Kotlin, Java, JS kits, to
+  match Python). A raised keyboard could drop a bottom control out of the view or occlude
+  it, flaking the next assertion; the kits now close it before asserting.
+
+### Fixed — crawler
+- **Login-first tab apps are explored past the first tab.** The navigation bar was
+  learned only from the entry screen; for an app that opens on a login it learned nothing
+  and never looked again, so only one section got crawled. It now re-learns the bar after
+  signing in.
+- **A blocking-dialog dismiss no longer misfires on ordinary buttons.** "OK"/"Allow" were
+  matched as substrings, so a "Book"/"Cookies"/"Unlock"/"Allowance" control could be
+  tapped as if it were a system dialog. Matching is now whole-word.
+
+### Fixed — packaging / release safety
+- Capped `selenium` below 5.0 (the uncapped sibling of the 0.12.9 Android-over-Appium
+  break) in the engine and in the requirements shipped to generated kits.
+- The plugin's Gradle version is now gated against the other release pins; short-lived CI
+  artifacts no longer default to 90-day retention; the publish gate now also requires each
+  engine binary's checksum; project URLs point at the right repository.
+
 ## [0.12.9] — 2026-08-28
 
 Crawling a real Android device over Appium works again.

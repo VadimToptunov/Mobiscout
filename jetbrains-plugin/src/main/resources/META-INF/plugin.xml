@@ -52,6 +52,24 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.13.0 — more correct kits, deeper crawls</h3>
+    <ul>
+        <li><b>JavaScript kits reset between tests.</b> The WebdriverIO/Cucumber-JS kits
+        shared one session without resetting the app, so a test could inherit an earlier
+        test's state — a flake unique to JS. They now reset like every other target.</li>
+        <li><b>BDD scenarios no longer ship a row that fails by design.</b> A form outline
+        used to add a second, invented data row while its assertions stayed literal, so a
+        sign-in/negative scenario always had one red row. Gone.</li>
+        <li><b>The soft keyboard is dismissed as a screen settles</b> (Kotlin/Java/JS, to
+        match Python), so a raised keyboard can't drop or hide the control the next step
+        asserts on.</li>
+        <li><b>Login-first tab apps are crawled past the first tab.</b> The nav bar is now
+        re-learned after sign-in, instead of only from the (barless) login screen.</li>
+        <li><b>Dialog dismissal no longer misfires</b> on "Book"/"Cookies"/"Unlock" — the
+        "OK"/"Allow" match is whole-word now.</li>
+        <li><b>Coverage now reports targetability</b> — how much of the UI has a stable
+        identity to locate, so you can see where a testTag/accessibilityId would help.</li>
+    </ul>
     <h3>0.12.9 — real-device Android crawling fixed</h3>
     <ul>
         <li><b>Crawling a real Android device (or a cloud grid) over Appium works
