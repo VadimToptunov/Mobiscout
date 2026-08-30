@@ -88,10 +88,10 @@ all = [
 mobiscout = "framework.cli.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/vadimtoptunov/mobile-test-recorder"
-Documentation = "https://github.com/vadimtoptunov/mobile-test-recorder/docs"
-Repository = "https://github.com/vadimtoptunov/mobile-test-recorder"
-Issues = "https://github.com/vadimtoptunov/mobile-test-recorder/issues"
+Homepage = "https://github.com/VadimToptunov/Mobiscout"
+Documentation = "https://github.com/VadimToptunov/Mobiscout#readme"
+Repository = "https://github.com/VadimToptunov/Mobiscout"
+Issues = "https://github.com/VadimToptunov/Mobiscout/issues"
 
 [tool.setuptools.packages.find]
 # Ship the whole framework package tree. A bare `packages = ["framework"]` shipped

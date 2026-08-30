@@ -267,6 +267,8 @@ jobs:
         with:
           name: rust-wheel-${{ matrix.os }}
           path: rust_core/target/wheels/*.whl
+          # Short-lived CI hand-off — don't let the 90-day default fill free Actions storage.
+          retention-days: 5
 
   integration-test:
     name: Integration Tests
@@ -354,6 +356,8 @@ jobs:
         with:
           name: jetbrains-plugin
           path: jetbrains-plugin/build/distributions/*.zip
+          # Short-lived CI hand-off — don't let the 90-day default fill free Actions storage.
+          retention-days: 5
 
   publish-pypi:
     name: Publish to PyPI
@@ -426,6 +430,11 @@ jobs:
                        mobiscout-engine-linux-x64 mobiscout-engine-windows-x64.exe; do
             echo "$assets" | grep -qx "$asset" || {
               echo "release ${{ github.ref_name }} is missing engine asset: $asset"; exit 1; }
+            # The plugin refuses to run a binary whose published <asset>.sha256 is absent
+            # (EngineProvider fails closed on a null digest), so a missing checksum would
+            # leave every new user on "No engine available" even though the binary is there.
+            echo "$assets" | grep -qx "$asset.sha256" || {
+              echo "release ${{ github.ref_name }} is missing engine checksum: $asset.sha256"; exit 1; }
           done
 
       - name: Publish plugin

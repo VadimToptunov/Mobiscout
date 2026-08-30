@@ -141,3 +141,21 @@ def test_project_version_matches_framework_version():
         f"pyproject.toml [project].version is {project_version} but framework.__version__ is "
         f"{framework.__version__} — bump both together or the released wheel is misversioned"
     )
+
+
+def test_gradle_plugin_version_matches_framework_version():
+    """The plugin's Gradle `version` is the one lockstep pin with no gate — the other
+    three (pyproject, CHANGELOG, EngineProvider.ENGINE_VERSION) are each tested, but
+    nothing read build.gradle.kts. So a release could bump those three, stay green, and
+    publish the plugin to the Marketplace under a stale version string while it downloads
+    the correct new engine. This closes that gap."""
+    import re
+
+    with open("jetbrains-plugin/build.gradle.kts", encoding="utf-8") as fh:
+        text = fh.read()
+    m = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
+    assert m is not None, 'could not find `version = "..."` in build.gradle.kts'
+    assert m.group(1) == framework.__version__, (
+        f"build.gradle.kts version is {m.group(1)} but framework.__version__ is "
+        f"{framework.__version__} — bump all four release pins together"
+    )
