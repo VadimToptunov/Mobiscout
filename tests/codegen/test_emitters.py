@@ -136,22 +136,33 @@ def test_imperative_targets_settle_after_actions_not_asserts(target_id: str, log
         assert not prev.startswith(("assert", "expect", "assertions.", "assert.")), f"{target_id}: settle after assert"
 
 
-def test_python_settle_dismisses_soft_keyboard_on_android(login_model: TestModel):
+# (target, keyboard-shown probe token, dismiss token) per language for the Appium targets.
+_KEYBOARD_SETTLE_TARGETS = [
+    ("python_pytest", "is_keyboard_shown()", "hide_keyboard()"),
+    ("kotlin_appium", "isKeyboardShown", "hideKeyboard()"),
+    ("java_testng", "isKeyboardShown()", "hideKeyboard()"),
+    ("js_webdriverio", "isKeyboardShown()", "hideKeyboard()"),
+]
+
+
+@pytest.mark.parametrize("target_id, shown, dismiss", _KEYBOARD_SETTLE_TARGETS)
+def test_settle_dismisses_soft_keyboard_on_android(target_id, shown, dismiss, login_model: TestModel):
     """A raised soft keyboard makes the next assert flaky: adjustResize can drop a
     bottom-anchored control (a FAB) out of the accessibility tree, and an IME-occluded
-    control reports is_displayed()==False. Reproduced on the Omni-Notes search screen,
-    where the FAB was present in only ~40% of settled reads. _settle must dismiss the
-    keyboard (guarded by is_keyboard_shown) so the screen settles deterministically."""
-    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
-    assert "is_keyboard_shown()" in src and "hide_keyboard()" in src
+    control reports isDisplayed()==false. Reproduced on the Omni-Notes search screen,
+    where the FAB was present in only ~40% of settled reads. Every Appium target's settle()
+    must dismiss the keyboard (guarded by a keyboard-shown probe) so the screen is stable."""
+    src = "\n".join(get_emitter(target_id).emit(login_model).values())
+    assert shown in src and dismiss in src
 
 
-def test_python_settle_keyboard_dismissal_is_android_only(login_model: TestModel):
+@pytest.mark.parametrize("target_id, shown, dismiss", _KEYBOARD_SETTLE_TARGETS)
+def test_settle_keyboard_dismissal_is_android_only(target_id, shown, dismiss, login_model: TestModel):
     """The keyboard-dismissal is an Android adjustResize/IME concern; the iOS path uses a
     different keyboard model, so the Android-only block must not leak into an iOS kit."""
     login_model.platform = Platform.IOS
-    src = "\n".join(get_emitter("python_pytest").emit(login_model).values())
-    assert "hide_keyboard()" not in src
+    src = "\n".join(get_emitter(target_id).emit(login_model).values())
+    assert dismiss not in src
 
 
 @pytest.mark.parametrize("target_id", TARGET_IDS)
