@@ -102,6 +102,35 @@ def test_every_runtime_asset_is_in_package_data():
     )
 
 
+def test_webdriver_deps_are_upper_bounded():
+    """Both `appium-python-client` and `selenium` must carry an upper bound.
+
+    Appium's client is tightly coupled to selenium's `ClientConfig` internals: an
+    uncapped selenium let 4.39 resolve against appium 6.x and broke every
+    Android-over-Appium session with `'ClientConfig' has no attribute
+    'direct_connection'` (fixed in 0.12.9). `selenium` was capped afterwards; this
+    pins that a future edit can't drop the bound and reopen the same failure class.
+    The scaffold ships these ranges to every user's generated kit too, so they must
+    stay bounded there as well.
+    """
+    import re
+
+    deps = _pyproject()["project"]["dependencies"]
+    for name in ("appium-python-client", "selenium"):
+        spec = next((d for d in deps if d.lower().startswith(name)), None)
+        assert spec is not None, f"{name} missing from pyproject dependencies"
+        assert "<" in spec, f"{name} must have an upper bound, got: {spec!r}"
+
+    from framework.codegen import scaffold
+
+    src = open(scaffold.__file__, encoding="utf-8").read()
+    kit_reqs = re.search(r'requirements = "([^"]*)"', src)
+    assert kit_reqs is not None, "could not find the scaffold's requirements string"
+    for name in ("Appium-Python-Client", "selenium"):
+        line = next((ln for ln in kit_reqs.group(1).split("\\n") if ln.lower().startswith(name.lower())), None)
+        assert line and "<" in line, f"scaffolded kit's {name} must be upper-bounded, got: {line!r}"
+
+
 def test_project_version_matches_framework_version():
     """`[project].version` is the fourth release pin (with framework.__version__,
     jetbrains-plugin/build.gradle.kts and EngineProvider.ENGINE_VERSION). It is what the

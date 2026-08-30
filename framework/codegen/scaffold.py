@@ -126,7 +126,7 @@ def _python_pytest(model: TestModel, server: str, target: str) -> Dict[str, str]
     is_bdd = target == "python_pytest_bdd"
     # The generated code uses the options/AppiumBy API, which is stable across client 4–6;
     # the kit-execution tests run it against 6.x, so don't pin users to a stale 4.x.
-    requirements = "Appium-Python-Client>=4.0.0,<7.0.0\npytest>=8.0.0\nselenium>=4.15.0\n"
+    requirements = "Appium-Python-Client>=4.0.0,<7.0.0\npytest>=8.0.0\nselenium>=4.15.0,<5.0.0\n"
     if is_bdd:
         requirements += "pytest-bdd>=7.0.0\n"
     pytest_ini = f"[pytest]\ntestpaths = {target}\npython_files = test_*.py\n"
