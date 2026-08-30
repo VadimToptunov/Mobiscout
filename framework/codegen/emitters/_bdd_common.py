@@ -177,18 +177,6 @@ def _param_name(target: str, used: set) -> str:
     return name
 
 
-def _variant(param: str, value: str) -> str:
-    """A second, illustrative Examples row so the table reads as a template."""
-    p = param.lower()
-    if "email" in p:
-        return "user2@example.com"
-    if "pass" in p or "pwd" in p or "secure" in p:
-        return "Secret123!"
-    if "phone" in p or "tel" in p:
-        return "0987654321"
-    return f"{value} 2".strip()
-
-
 def _type_outline(case: TestCase) -> Optional[List[str]]:
     """If the case fills a form, render it as a Scenario Outline whose typed
     values are Examples columns — the tester plugs their own data in the table."""
@@ -208,12 +196,12 @@ def _type_outline(case: TestCase) -> Optional[List[str]]:
     lines.append("")
     lines.append("    Examples:")
     lines.append("      | " + " | ".join(names) + " |")
+    # Only the data the crawl actually used. A single Examples row is valid Gherkin and
+    # runs exactly the recorded flow; the tester adds their own rows. A previous version
+    # fabricated a second row of invented values (user2@example.com, Secret123!) — but the
+    # assertions aren't parameterized, so on an auth or negative-form case that second row
+    # fed wrong input to a literal expectation and failed by construction.
     lines.append("      | " + " | ".join(examples_cell((s.text or "").strip()) for s in type_steps) + " |")
-    lines.append(
-        "      | "
-        + " | ".join(examples_cell(_variant(params[id(s)], (s.text or "").strip())) for s in type_steps)
-        + " |"
-    )
     return lines
 
 

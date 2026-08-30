@@ -13,5 +13,4 @@ Feature: LoginFlow
     Examples:
       | user_field |
       | alice@example.com |
-      | alice@example.com 2 |
 
