@@ -76,7 +76,25 @@ async function settle() {
     }
 }
 
+// Reset app state before each test so cases stay independent — one WebdriverIO
+// session is shared across the file, so without this a test would inherit whatever
+// data an earlier test created (e.g. "list is empty" fails after a case that added a
+// row). Mirrors the Python/Java/Kotlin kits. Set MOBISCOUT_KEEP_APP_DATA=1 to skip
+// it for an app that needs a provisioned account.
+async function resetApp() {
+    if (process.env.MOBISCOUT_KEEP_APP_DATA === '1') {
+        return;
+    }
+    try {
+        await driver.execute('mobile: clearApp', { appId: APP_PACKAGE });
+    } catch (e) {
+        // clearApp isn't supported by every driver/version — tolerate and rely on relaunch.
+    }
+    await driver.activateApp(APP_PACKAGE);
+}
+
 describe('LoginFlow', () => {
+    beforeEach(resetApp);
     it('login', async () => {
         // Open app
         await driver.activateApp(APP_PACKAGE);
