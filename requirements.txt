@@ -59,7 +59,7 @@ pytest-rerunfailures>=16.6   # Retry failed tests
 allure-pytest>=2.16.0        # Allure reporting
 pytest-html>=4.2.0           # HTML reports
 pytest-json-report>=1.5.0    # JSON reports
-slack-sdk>=3.43.0            # Slack notifications
+slack-sdk>=3.44.0            # Slack notifications
 gitpython>=3.1.59             # Git integration
 junitparser>=5.0.1           # JUnit XML manipulation
 
