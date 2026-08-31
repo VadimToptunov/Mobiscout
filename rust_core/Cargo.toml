@@ -25,7 +25,7 @@ extension-module = ["pyo3/extension-module"]
 pyo3 = { version = "0.20", features = ["abi3-py38"] }
 
 # AST parsing
-syn = { version = "2.0", features = ["full", "parsing"] }
+syn = { version = "3.0", features = ["full", "parsing"] }
 # Keep the core and every grammar on the same tree-sitter ABI generation. Grammars
 # from 0.23 on expose `LANGUAGE: LanguageFn` instead of `language()`, so a lone
 # grammar bump breaks the build — dependabot groups them (see .github/dependabot.yml)
