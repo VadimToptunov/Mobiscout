@@ -7,6 +7,18 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.13.1] — 2026-08-31
+
+### Added — Appium starts itself
+- **An Appium-driven crawl now starts its own Appium server when none is running.**
+  Generating a kit with the Appium driver used to fail with *"Appium server not reachable
+  at http://localhost:4723"* unless you'd installed and started Appium by hand. Now the
+  engine finds your `appium` (even under an IDE's minimal PATH), launches it on a **free
+  port**, uses it for the crawl, and shuts it down afterwards. If Appium isn't installed
+  it still says so with the install command; if you pointed at a specific remote/cloud hub
+  that's down, that stays a real error rather than being silently replaced by a local one.
+  (adb-driven Android crawls never needed Appium and are unchanged.)
+
 ## [0.13.0] — 2026-08-30
 
 A review-and-dogfood pass: the generated kits are more correct, and the crawler

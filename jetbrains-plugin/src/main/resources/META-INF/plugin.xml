@@ -52,6 +52,15 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.13.1 — Appium starts itself</h3>
+    <ul>
+        <li><b>Generate Kit with the Appium driver no longer needs you to start Appium.</b>
+        It used to fail with "Appium server not reachable at http://localhost:4723" unless
+        you'd started Appium by hand. Now the engine finds your <code>appium</code>, starts
+        it on a free port, uses it, and stops it when done. Not installed? It tells you how.
+        Pointing at a remote/cloud hub that's down still reports a real error. (adb crawls
+        never needed Appium and are unchanged.)</li>
+    </ul>
     <h3>0.13.0 — more correct kits, deeper crawls</h3>
     <ul>
         <li><b>JavaScript kits reset between tests.</b> The WebdriverIO/Cucumber-JS kits
