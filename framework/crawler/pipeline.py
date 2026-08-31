@@ -305,57 +305,66 @@ def emit_mock_from_har(har: Optional[str], out: Path) -> int:
     return len(build_recordings(har_calls))
 
 
-def _require_appium(server: str) -> None:
-    """Fail fast with an actionable message when an Appium-driven crawl is asked for but
-    no Appium server is reachable — instead of the silent 0-screen result a failed
-    connection otherwise produces. (adb-driven Android crawls don't need Appium.)"""
-    from framework.health.preflight import appium_status
-
-    reachable, _ = appium_status(server)
-    if not reachable:
-        from framework.crawler.errors import CrawlerDriverError
-
-        raise CrawlerDriverError(
-            f"Appium server not reachable at {server}. Install Node + Appium and start it:\n"
-            "  npm install -g appium\n"
-            "  appium driver install uiautomator2   # xcuitest for iOS\n"
-            "  appium\n"
-            "…or point 'server' at your Appium / cloud-grid hub."
-        )
+def _attach_managed(driver: Any, managed: Any) -> None:
+    """Tie a managed (auto-started) Appium server's lifetime to the driver, so the
+    crawl's teardown stops it — see the finally in _crawl_and_seed."""
+    if managed is not None:
+        driver._managed_appium = managed
 
 
 def _make_driver(config: Dict[str, Any]) -> Any:
-    """Build a crawler driver from the config; returns (driver, owns_session)."""
+    """Build a crawler driver from the config; returns (driver, owns_session).
+
+    An Appium-driven crawl (iOS, or Android with driver=appium) gets a reachable server
+    from ensure_appium, which auto-starts one on a free port when none is running (see
+    framework.crawler.appium_server). Any server it starts is attached to the driver so
+    _crawl_and_seed stops it afterwards; if the driver then fails to build, we stop it
+    here rather than leak the process."""
+    from framework.crawler.appium_server import ensure_appium
+
     package = config["package"]
     platform = config.get("platform", "android")
     server = config.get("server", "http://localhost:4723")
     if platform == "ios":
-        _require_appium(server)
-        from framework.crawler.appium_driver import IOSCrawlerDriver
+        server, managed = ensure_appium(server)
+        try:
+            from framework.crawler.appium_driver import IOSCrawlerDriver
 
-        drv: Any = IOSCrawlerDriver(
-            bundle_id=package,
-            udid=config.get("udid"),
-            device_name=config.get("device_name") or "iPhone 17",
-            server=server,
-            process_args=config.get("process_args"),
-        )
+            drv: Any = IOSCrawlerDriver(
+                bundle_id=package,
+                udid=config.get("udid"),
+                device_name=config.get("device_name") or "iPhone 17",
+                server=server,
+                process_args=config.get("process_args"),
+            )
+        except Exception:
+            if managed is not None:
+                managed.stop()
+            raise
+        _attach_managed(drv, managed)
         return drv, True
     if config.get("driver") == "appium":
-        _require_appium(server)
+        server, managed = ensure_appium(server)
         try:
             from framework.crawler.appium_android import AndroidAppiumDriver
         except ImportError:  # not yet available on this checkout
-            pass
+            if managed is not None:
+                managed.stop()
         else:
-            drv = AndroidAppiumDriver(
-                app_package=package,
-                app_activity=config.get("app_activity"),
-                udid=config.get("udid"),
-                device_name=config.get("device_name") or "Android Device",
-                server=server,
-                extra_caps=config.get("extra_caps") or {},
-            )
+            try:
+                drv = AndroidAppiumDriver(
+                    app_package=package,
+                    app_activity=config.get("app_activity"),
+                    udid=config.get("udid"),
+                    device_name=config.get("device_name") or "Android Device",
+                    server=server,
+                    extra_caps=config.get("extra_caps") or {},
+                )
+            except Exception:
+                if managed is not None:
+                    managed.stop()
+                raise
+            _attach_managed(drv, managed)
             return drv, True
     from framework.crawler.adb_driver import AdbCrawlerDriver
 
@@ -469,6 +478,10 @@ def _crawl(config: Dict[str, Any], driver: Any = None) -> CrawlResult:
     finally:
         if owns and hasattr(driver, "quit"):
             driver.quit()
+        # Stop any Appium server we auto-started for this crawl (attached by _make_driver).
+        managed = getattr(driver, "_managed_appium", None)
+        if managed is not None:
+            managed.stop()
 
 
 def _ios_crashes(config: Dict[str, Any], since: float) -> "List[tuple[str, bytes]]":
