@@ -20,14 +20,18 @@ from typing import Any, Dict, Optional, cast
 from framework.crawler.errors import CrawlerDriverError
 
 # A uiautomator2 source dump normally returns in well under a second. It can hang
-# indefinitely, though, when the foreground has a WebView that keeps hogging the
-# main UI thread (e.g. a hybrid app whose web login WebView lingers, still running
-# JS, after handing off to a native screen): the a11y tree never goes idle, the
-# server's "wait for the active window root" times out and retries, and — because
-# the dump command is in flight — the whole session wedges (even quit() blocks).
-# Bounding the dump lets a poisoned read surface as a driver error the crawler can
-# end cleanly on, with the partial map intact, instead of hanging the run.
-_SOURCE_TIMEOUT_S = 20.0
+# indefinitely, though, when the foreground keeps the main UI thread busy so the a11y
+# tree never goes idle (a lingering WebView still running JS after a hybrid handoff, an
+# animation that never settles, an ANR): the server's "wait for the active window root"
+# times out and retries, and — because the dump command is in flight — the whole session
+# wedges (even quit() blocks). Bounding the dump lets a poisoned read surface as a driver
+# error the crawler ends cleanly on, with the partial map intact, instead of hanging.
+#
+# The bound is generous on purpose: a *slow* dump (a heavy view tree, a busy or cold
+# emulator) legitimately takes many seconds and is NOT a wedge — cutting it off early ends
+# the whole crawl on a partial map for no reason (dogfooding hit exactly this at 20 s on a
+# native app). Only a genuinely wedged session should exceed this, matching _HTTP_TIMEOUT_S.
+_SOURCE_TIMEOUT_S = 40.0
 
 # HTTP read timeout on the Appium connection. A wedged session hangs *any* command
 # in a blocking socket read (contexts, context-switch, tap — not just the source
@@ -201,8 +205,9 @@ class AndroidAppiumDriver:
         if t.is_alive():
             self._wedged = True
             raise CrawlerDriverError(
-                f"uiautomator source dump exceeded {_SOURCE_TIMEOUT_S:.0f}s "
-                "(a lingering WebView is likely hogging the UI thread)"
+                f"uiautomator source dump exceeded {_SOURCE_TIMEOUT_S:.0f}s — the app's UI "
+                "thread stayed busy (a lingering WebView, an unsettled animation, or an ANR). "
+                "For a purely native app, the adb driver avoids this entirely."
             )
         if "err" in box:
             raise CrawlerDriverError(str(box["err"]))
