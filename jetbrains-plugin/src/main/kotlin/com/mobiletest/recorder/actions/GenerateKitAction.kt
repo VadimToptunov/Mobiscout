@@ -170,18 +170,27 @@ class GenerateKitAction : AnAction() {
                                     "server, or the app package / UDID is wrong. See the Logs tab for details.",
                             )
                         } else if (endedEarly != null) {
-                            Notifier.warn(
+                            // Lead with what WAS written (real tests) + where, and keep the
+                            // "Open folder" action — the crawl stopping early doesn't make the
+                            // partial kit worthless, and it must not read as "nothing produced".
+                            // The device error goes last, as the reason it's partial.
+                            notifyKit(
                                 project,
                                 "Partial kit — the crawl ended early",
-                                "$endedEarly\nGenerated from what was reached: $screens screen(s), " +
-                                    "$cases test case(s)$extra$crashNote\nWritten to: $output$cleanupNote$tierNote",
+                                "Wrote $cases test case(s) from $screens screen(s) reached$extra$crashNote" +
+                                    "\nWritten to: $output$cleanupNote$tierNote" +
+                                    "\n\nWhy it stopped: $endedEarly",
+                                (output as? String),
+                                NotificationType.WARNING,
                             )
                         } else {
-                            notifyGenerated(
+                            notifyKit(
                                 project,
+                                "Test kit generated",
                                 "$screens screen(s), $cases test case(s)$extra$crashNote" +
                                     "\nWritten to: $output$cleanupNote$tierNote",
                                 (output as? String),
+                                NotificationType.INFORMATION,
                             )
                         }
                     }
@@ -323,12 +332,21 @@ class GenerateKitAction : AnAction() {
         }
     }
 
-    /** Success notification with an "Open folder" action — the kit is on disk; the first thing
-     *  a user wants is to see it, not copy a path out of notification text. */
-    private fun notifyGenerated(project: Project, content: String, outputDir: String?) {
+    /** Kit-written notification with an "Open folder" action — the kit is on disk; the first
+     *  thing a user wants is to see it, not copy a path out of notification text. Used for BOTH
+     *  a full kit and a partial (crawl-ended-early) one, so the tests and their location always
+     *  lead and always carry the open action — even a partial run wrote real tests, and burying
+     *  that under a device error (with no way to open the folder) reads as "nothing happened". */
+    private fun notifyKit(
+        project: Project,
+        title: String,
+        content: String,
+        outputDir: String?,
+        type: NotificationType,
+    ) {
         val notification = NotificationGroupManager.getInstance()
             .getNotificationGroup("Mobiscout Framework")
-            .createNotification("Test kit generated", content, NotificationType.INFORMATION)
+            .createNotification(title, content, type)
         val dir = outputDir?.let { File(it) }
         if (dir != null && dir.isDirectory) {
             notification.addAction(NotificationAction.createSimpleExpiring("Open folder") {
