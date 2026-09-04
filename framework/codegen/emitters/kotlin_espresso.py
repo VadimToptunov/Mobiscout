@@ -103,7 +103,8 @@ class KotlinEspressoEmitter(Emitter):
             activity_fqn=activity_fqn(model),
             cases=cases,
         )
-        return {f"{class_name}.kt": content}
+        # Under mobiscout/ to match the file's `package mobiscout` (compile-ready in place).
+        return {f"mobiscout/{class_name}.kt": content}
 
 
 register(

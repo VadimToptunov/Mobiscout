@@ -7,7 +7,7 @@
  * no Espresso equivalent and are annotated inline where they occur.
  * DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
  */
-package generated
+package mobiscout
 
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.Espresso.pressBack

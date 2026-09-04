@@ -33,8 +33,11 @@ class JavaCucumberEmitter(Emitter):
         locators = [(key, by_list(sel, platform)) for key, sel in collect_targets(model)]
         steps = self.env.get_template("steps.java.j2").render(model=model, class_name=f"{base}Steps", locators=locators)
         return {
+            # The .feature is Gherkin (no package) — stays at the target root. The step defs
+            # carry `package mobiscout;`, so they go under mobiscout/ to be compile-ready in
+            # place (the flat kit's <out>/java_cucumber as the source root).
             f"{base}.feature": render_feature(model),
-            f"{base}Steps.java": steps,
+            f"mobiscout/{base}Steps.java": steps,
         }
 
 

@@ -152,12 +152,12 @@ def _python_pytest(model: TestModel, server: str, target: str) -> Dict[str, str]
 def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
     """Maven project shell for the Java targets (TestNG or Cucumber).
 
-    The emitters write flat files under ``<target>/`` (e.g. ``CrawlFlow.java``) that
-    declare ``package generated`` — the file path doesn't mirror the package. Rather
-    than rely on Surefire's path→FQN inference (which would look for a default-package
-    class and miss it), the run is driven from a ``testng.xml`` that names the class
-    by its real FQN, so it works regardless of the flat layout. ``mvn`` still compiles
-    everything under ``<target>/`` into the ``generated`` package.
+    The emitters write files under ``<target>/mobiscout/`` (e.g. ``mobiscout/CrawlFlow.java``)
+    matching their ``package mobiscout`` — so ``<target>/`` is a valid source root and the
+    files compile in place. The run is driven from a ``testng.xml`` that names the class by
+    its FQN (``mobiscout.CrawlFlow``); ``mvn`` compiles everything under ``<target>/``.
+    (The package is ``mobiscout`` rather than ``generated`` because ``generated/`` is a
+    near-universal .gitignore rule — a user committing these tests would lose them.)
     """
     is_ios = model.platform is Platform.IOS
     is_cucumber = target == "java_cucumber"
@@ -167,14 +167,14 @@ def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
     files: Dict[str, str] = {}
     if is_cucumber:
         run_class = "RunCucumberTest"
-        files[f"{target}/{run_class}.java"] = (
-            "package generated;\n\n"
+        files[f"{target}/mobiscout/{run_class}.java"] = (
+            "package mobiscout;\n\n"
             "import io.cucumber.testng.AbstractTestNGCucumberTests;\n"
             "import io.cucumber.testng.CucumberOptions;\n\n"
-            f'@CucumberOptions(features = "{target}", glue = "generated")\n'
+            f'@CucumberOptions(features = "{target}", glue = "mobiscout")\n'
             f"public class {run_class} extends AbstractTestNGCucumberTests {{\n}}\n"
         )
-        suite_class = f"generated.{run_class}"
+        suite_class = f"mobiscout.{run_class}"
         extra_deps = (
             "    <dependency>\n"
             "      <groupId>io.cucumber</groupId>\n"
@@ -190,7 +190,7 @@ def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
             "    </dependency>\n"
         )
     else:
-        suite_class = f"generated.{cls}"
+        suite_class = f"mobiscout.{cls}"
         extra_deps = (
             "    <dependency>\n"
             "      <groupId>org.testng</groupId>\n"
@@ -262,7 +262,7 @@ def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
         "# boot your device/emulator and launch the app, then:\n"
         "mvn test\n"
         "```\n\n"
-        f"Tests are in `{target}/` (package `generated`) and run via `testng.xml`. "
+        f"Tests are in `{target}/mobiscout/` (package `mobiscout`) and run via `testng.xml`. "
         "Sessions target the server in `MOBISCOUT_APPIUM_SERVER` (default "
         f"`http://localhost:4723`); the crawl used `{server}`. "
         "Re-run `mobiscout crawl ... --scaffold` to refresh.\n"
@@ -319,7 +319,7 @@ def _kotlin_espresso(model: TestModel, server: str, target: str) -> Dict[str, st
     cls = pascal(model.name)
     snippet = (
         "// Merge into your Android app module's build.gradle(.kts), and move\n"
-        f"// {target}/{cls}.kt into src/androidTest/java/generated/.\n"
+        f"// {target}/mobiscout/{cls}Test.kt into src/androidTest/java/mobiscout/.\n"
         "dependencies {\n"
         '    androidTestImplementation("androidx.test.ext:junit:1.2.1")\n'
         '    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")\n'
@@ -336,7 +336,7 @@ def _kotlin_espresso(model: TestModel, server: str, target: str) -> Dict[str, st
         f"App under test: `{model.app_package}` (Android).\n\n"
         "Espresso runs **inside your app's** instrumented test suite, so there is no\n"
         "standalone project. To use the generated test:\n\n"
-        f"1. Move `{target}/{cls}.kt` into your app module's `src/androidTest/java/generated/`.\n"
+        f"1. Move `{target}/mobiscout/{cls}Test.kt` into your app module's `src/androidTest/java/mobiscout/`.\n"
         "2. Merge `espresso.gradle.kts` into that module's `build.gradle(.kts)`.\n"
         "3. Run `./gradlew connectedAndroidTest` with an emulator/device attached.\n"
     )
