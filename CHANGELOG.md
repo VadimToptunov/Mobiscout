@@ -7,6 +7,29 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.13.2] — 2026-09-04
+
+Found by dogfooding: your tests are easier to find, runnable where they land, and
+a slow screen no longer cuts a crawl short.
+
+### Fixed
+- **A partial kit no longer hides its tests.** When a crawl ended early, the
+  notification led with the device error and buried "Written to: …" at the end, with
+  no way to open the folder — so a run that wrote real tests read as "nothing
+  happened". It now leads with the tests written and their location, always offers an
+  **Open folder** action, and puts the reason it stopped last.
+- **Java/Kotlin kits compile where they're written.** A flat JVM test used to land at
+  `<target>/CrawlFlow.java` while declaring a package, so the path didn't match the
+  package and it wouldn't compile in place. Files now sit under a package-matching
+  directory (`mobiscout/`), and `<target>/` is a valid source root. The package is
+  `mobiscout` rather than `generated` on purpose — `generated/` is a near-universal
+  `.gitignore` rule that would make your committed tests vanish.
+- **A slow screen no longer ends the crawl.** The Android-over-Appium UI dump was cut
+  off at 20 s; a heavy view tree or a busy emulator legitimately takes longer and
+  isn't a hang, so a slow first read ended the whole crawl on a partial map. The bound
+  is now 40 s, and the message is honest about the cause (and points to the adb driver,
+  which avoids this for native apps) instead of always blaming a WebView.
+
 ## [0.13.1] — 2026-08-31
 
 ### Added — Appium starts itself

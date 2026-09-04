@@ -52,6 +52,21 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.13.2 — find, run, finish (dogfooding fixes)</h3>
+    <ul>
+        <li><b>A partial kit shows its tests.</b> A crawl that ended early used to lead
+        with the device error and bury the output path; it now leads with the tests
+        written + their location and always has an <b>Open folder</b> action, with the
+        reason it stopped last.</li>
+        <li><b>Java/Kotlin kits compile in place.</b> Files now sit under a
+        package-matching <code>mobiscout/</code> directory (a valid source root), instead
+        of a flat file whose path contradicted its package. Package is <code>mobiscout</code>,
+        not <code>generated</code> — the latter is a common <code>.gitignore</code> rule
+        that would swallow your committed tests.</li>
+        <li><b>A slow screen no longer cuts the crawl short.</b> The Android-over-Appium UI
+        dump bound went 20s → 40s (a heavy screen isn't a hang), and the message is honest
+        about the cause instead of always blaming a WebView.</li>
+    </ul>
     <h3>0.13.1 — Appium starts itself</h3>
     <ul>
         <li><b>Generate Kit with the Appium driver no longer needs you to start Appium.</b>
