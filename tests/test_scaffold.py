@@ -102,19 +102,19 @@ def test_java_testng_scaffold_runs_via_testng_xml():
     assert "<artifactId>testng</artifactId>" in pom
     assert "<testSourceDirectory>${project.basedir}/java_testng</testSourceDirectory>" in pom
     assert "<suiteXmlFile>testng.xml</suiteXmlFile>" in pom
-    # The flat file declares `package generated`, so the suite must name the class
-    # by FQN (path→FQN inference would look for a default-package class and miss it).
-    assert '<class name="generated.Flow"/>' in files["testng.xml"]
+    # The file declares `package mobiscout` and lives under mobiscout/, so the suite
+    # names the class by its FQN.
+    assert '<class name="mobiscout.Flow"/>' in files["testng.xml"]
     assert "mvn test" in files["README.md"]
 
 
 def test_java_cucumber_scaffold_has_runner_and_cucumber_deps():
     files = scaffold_files(_model(Platform.ANDROID), "java_cucumber")
     assert "<artifactId>cucumber-testng</artifactId>" in files["pom.xml"]
-    runner = files["java_cucumber/RunCucumberTest.java"]
-    assert 'features = "java_cucumber", glue = "generated"' in runner
+    runner = files["java_cucumber/mobiscout/RunCucumberTest.java"]
+    assert 'features = "java_cucumber", glue = "mobiscout"' in runner
     assert "AbstractTestNGCucumberTests" in runner
-    assert '<class name="generated.RunCucumberTest"/>' in files["testng.xml"]
+    assert '<class name="mobiscout.RunCucumberTest"/>' in files["testng.xml"]
 
 
 def test_kotlin_appium_scaffold_is_gradle_jvm_junit5():

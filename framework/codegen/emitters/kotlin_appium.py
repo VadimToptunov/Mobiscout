@@ -40,7 +40,10 @@ class KotlinAppiumEmitter(Emitter):
         self._platform = model.platform.value
         class_name = pascal(model.name)
         content = self.env.get_template("test_file.kt.j2").render(model=model, class_name=class_name)
-        return {f"{class_name}.kt": content}
+        # Under mobiscout/ to match the file's `package mobiscout` — so the flat kit is
+        # compile-ready in place (<out>/kotlin_appium as the source root), not a loose file
+        # whose path contradicts its package.
+        return {f"mobiscout/{class_name}.kt": content}
 
 
 register(

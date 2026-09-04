@@ -4,7 +4,7 @@
  * Cucumber-JVM step definitions for LoginFlow.feature.
  * DO NOT EDIT BY HAND — regenerate from the recorded flow instead.
  */
-package generated;
+package mobiscout;
 
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;

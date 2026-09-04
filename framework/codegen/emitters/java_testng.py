@@ -39,7 +39,11 @@ class JavaTestNGEmitter(Emitter):
         self._platform = model.platform.value
         class_name = pascal(model.name)
         content = self.env.get_template("test_file.java.j2").render(model=model, class_name=class_name)
-        return {f"{class_name}.java": content}
+        # Under mobiscout/ so the path matches the file's `package mobiscout;` — a flat
+        # <out>/java_testng/CrawlFlow.java is what javac won't compile (path must mirror the
+        # package). With mobiscout/, <out>/java_testng is a valid source root. (Not `generated/`:
+        # that's a near-universal .gitignore rule, so the user's committed tests would vanish.)
+        return {f"mobiscout/{class_name}.java": content}
 
 
 register(
