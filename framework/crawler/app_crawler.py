@@ -797,38 +797,52 @@ class AppCrawler:
         is discovered; then fill *valid* data so the depth-first walk drives the
         *positive* branch. Covering both is how the generated suite catches
         validation defects instead of only happy paths."""
-        self._probe_negative_form(result, screen)
-        self._fill_inputs(screen, valid=True)
+        # Only drive the positive branch once the negative probe confirms we are back
+        # on the form. If its submit advanced the app and we couldn't return, filling
+        # here would tap this form's field coordinates on whatever screen is now
+        # showing — typing into the wrong fields, or onto a destructive control the
+        # current screen happens to place there. Skipping is safe: the form is mapped,
+        # so a later revisit (where the probe short-circuits and reports us on the
+        # form) drives the positive branch.
+        if self._probe_negative_form(result, screen):
+            self._fill_inputs(screen, valid=True)
 
-    def _probe_negative_form(self, result: CrawlResult, screen: CrawlScreen) -> None:
+    def _probe_negative_form(self, result: CrawlResult, screen: CrawlScreen) -> bool:
         """Fill a form with invalid data and submit once, recording the outcome as
         a real discovered state — the error screen if the app rejects it, or the
         next screen if it wrongly advances (that *is* the validation bug). Bounded
-        to once per form and always returns to the form for the positive branch."""
+        to once per form.
+
+        Returns whether the form is the current screen afterwards, i.e. whether the
+        caller may safely drive the positive branch by filling *this* screen's fields.
+        False means the submit advanced the app and we could not get back, so the
+        crawl is standing on some other screen and filling would tap stale
+        coordinates."""
         if screen.fingerprint in self._neg_probed:
-            return
+            return True  # probed on an earlier visit; nothing moved us, positive fill is safe
         submit = self._submit_control(screen)
         if submit is None or not self._has_input(screen):
-            return  # not a submittable form
+            return True  # not a submittable form — still on this screen
         self._neg_probed.add(screen.fingerprint)
         if not self._fill_inputs(screen, valid=False):
-            return  # no strongly-typed field to make invalid — nothing to probe
+            return True  # no strongly-typed field to make invalid; no submit tapped — still on the form
         try:
             self.driver.tap(*submit.center)
         except Exception:
-            return
+            return False  # the tap raised mid-gesture; our position is unknown, don't fill blind
         result.steps += 1
         if not self._on_app():  # a probe must never strand the crawl off the app
             self._recover()
-            return
+            return False  # recovered onto the app, but not necessarily back on this form
         outcome = self._read_content_screen()
         if not outcome.fingerprint:
-            return
+            return False  # unreadable state — don't fill blind
         result.transitions.append(Transition(screen.fingerprint, submit, outcome.fingerprint, kind="probe"))
-        if outcome.fingerprint != screen.fingerprint:
-            result.screens.setdefault(outcome.fingerprint, outcome)  # error / next state
-            self._note_screen(result, outcome.fingerprint)
-            self._go_back(screen.fingerprint)  # back to the form for the positive branch
+        if outcome.fingerprint == screen.fingerprint:
+            return True  # rejected inline, still on the form
+        result.screens.setdefault(outcome.fingerprint, outcome)  # error / next state
+        self._note_screen(result, outcome.fingerprint)
+        return self._go_back(screen.fingerprint)  # positive branch only if we actually landed back
 
     def _within_budget(self, result: CrawlResult) -> bool:
         """All three budgets: the step count, the wall clock (when set), and the
