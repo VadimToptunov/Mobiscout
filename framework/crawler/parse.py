@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import re
 import xml.etree.ElementTree as ET
+from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
 from framework.crawler.models import CrawlElement, CrawlScreen
@@ -226,7 +227,18 @@ def _fp_token(e: CrawlElement) -> str:
 def _fingerprint(elements: List[CrawlElement]) -> str:
     # Structural signature, ignoring volatile text so the same screen with
     # different data matches.
-    sig = "|".join(sorted(_fp_token(e) for e in elements))
+    #
+    # Token multiplicity is clamped to 2: a list's exact row count is volatile data
+    # just like text and digits. As a feed scrolls or results load, the same logical
+    # screen goes 3 rows -> 10 -> 50; keeping the raw count forked each into a
+    # separate "screen" (over-split), wedging the crawl on a map of near-identical
+    # list states. But "one" vs "several" of a control is a real structural
+    # difference — on an app with no resource-ids (text is ignored), a 1-button
+    # login and a 2-button OTP screen are told apart only by that count — so a lone
+    # control stays distinct while any repeated run collapses. Growth-to-load is
+    # detected separately via _content_count, so clamping here doesn't blind that.
+    counts = Counter(_fp_token(e) for e in elements)
+    sig = "|".join(f"{tok}#{min(n, 2)}" for tok, n in sorted(counts.items()))
     return hashlib.md5(sig.encode()).hexdigest() if elements else ""
 
 
