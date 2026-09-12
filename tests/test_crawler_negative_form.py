@@ -5,7 +5,7 @@ bad data so the validation-error (or wrongly-advanced) state is discovered and
 turned into a test. These pin that behaviour with a fake driver.
 """
 
-from framework.crawler.app_crawler import AppCrawler, _invalid_value, _sample_value
+from framework.crawler.app_crawler import AppCrawler, _invalid_value, _sample_value, parse_screen
 from framework.crawler.models import CrawlElement, CrawlResult, CrawlScreen
 
 APP = "com.example.app"
@@ -155,9 +155,31 @@ def test_no_input_is_skipped():
 def test_handle_form_does_both_negative_then_valid():
     driver = FormDriver(_ERROR_SOURCE)
     result = CrawlResult()
-    screen = CrawlScreen(fingerprint="form", elements=[_input("id/email"), _button("id/login", "Log In")])
+    # Build the form screen from the driver's real source so its fingerprint matches
+    # what the crawler reads back after Back() — that is what tells the probe it is
+    # standing on the form again and may safely drive the positive branch.
+    screen = parse_screen(driver._form_source())
     _crawler(driver)._handle_form(result, screen)
     # Negative branch typed the invalid value; positive branch then typed the valid one.
     assert "not-an-email" in driver.typed
     assert "test@example.com" in driver.typed
     assert driver.typed.index("not-an-email") < driver.typed.index("test@example.com")
+
+
+def test_handle_form_skips_positive_fill_when_probe_cannot_return():
+    # The resync hole: the negative submit advanced the app and Back() does NOT
+    # restore the form (a modal Back won't dismiss, a one-way flow). The positive
+    # fill must be SKIPPED — typing this form's field coordinates onto whatever
+    # screen is now showing would tap the wrong controls.
+    class StuckFormDriver(FormDriver):
+        def back(self):
+            pass  # Back does not return to the form
+
+    driver = StuckFormDriver(_ERROR_SOURCE)
+    result = CrawlResult()
+    screen = parse_screen(driver._form_source())
+    _crawler(driver)._handle_form(result, screen)
+    # Invalid value was typed (negative probe ran), but the valid one was NOT: the
+    # probe reported it could not get back, so the positive fill was skipped.
+    assert "not-an-email" in driver.typed
+    assert "test@example.com" not in driver.typed
