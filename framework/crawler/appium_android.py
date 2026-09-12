@@ -18,6 +18,7 @@ import time
 from typing import Any, Dict, Optional, cast
 
 from framework.crawler.errors import CrawlerDriverError
+from framework.crawler.settle import settle_until_stable
 
 # A uiautomator2 source dump normally returns in well under a second. It can hang
 # indefinitely, though, when the foreground keeps the main UI thread busy so the a11y
@@ -45,6 +46,13 @@ _HTTP_TIMEOUT_S = 45.0
 # after a hybrid launch — a single sleep instead of repeatedly polling contexts
 # (each contexts call is itself costly while Chromedriver is spinning up).
 _ATTACH_WAIT_S = 3.0
+
+# How long a frame captured while settling stays fresh enough for the crawler's
+# next page_source() to reuse instead of re-dumping. The crawler asks for the source
+# immediately after a gesture returns, so a wide-enough window (mirrors the iOS
+# driver's 1.0s) means the adaptive settle's final dump is the one the crawler reads
+# — the fixed pre-dump sleep is gone and the screen is dumped once, not twice.
+_CACHE_FRESH_S = 1.0
 
 
 def build_uiautomator2_options(
@@ -126,6 +134,7 @@ class AndroidAppiumDriver:
         self._web_served = False  # have we ever served web content (gates the launch-race readiness poll)
         self._reads = 0  # page_source calls so far (the first gets the context-attach wait budget)
         self._wedged = False  # a source dump hung -> session is unusable; skip the blocking quit
+        self._cache: Optional[tuple[float, str]] = None  # (monotonic, source) from the last settle; served once
         if _session is not None:
             self._driver = _session  # injected (tests / bring-your-own session)
         else:
@@ -155,7 +164,43 @@ class AndroidAppiumDriver:
         except Exception:
             pass
 
+    def _remember(self, source: str) -> None:
+        """Cache a settled frame so the crawler's next page_source() serves it instead
+        of dumping again. Only non-empty frames: an empty/failed dump must fall through
+        to a real read, never be served stale."""
+        if source:
+            self._cache = (time.monotonic(), source)
+
+    def _settle_wait(self) -> None:
+        """Wait for the UI to settle after a gesture: an adaptive poll on pure-native
+        screens, the old fixed wait on WebView-capable sessions."""
+        # Replace the blind post-gesture sleep with an adaptive settle on PURE-NATIVE
+        # screens: poll the (bounded) uiautomator dump until the UI stops changing,
+        # capped at self._settle so it is never slower than the old fixed sleep, and
+        # cache the final frame for the crawler's immediate next read (dumped once,
+        # not twice).
+        #
+        # A WebView-capable session keeps the fixed wait. Settling a WebView by native-
+        # dumping it is the slow, wedge-prone path that page_source deliberately avoids
+        # (it detects WebViews contexts-first, not by dumping) — so once this session
+        # has ever served web content, or is on a web screen right now, don't reintroduce
+        # that dump here. A wedge surfaced by the settle dump raises straight through the
+        # gesture; crawl() ends on it with the partial map, exactly as a page_source wedge.
+        if self._web is not None or self._web_served:
+            time.sleep(self._settle)
+            return
+        settle_until_stable(self._native_source, self._remember, max_wait=self._settle)
+
     def page_source(self) -> str:
+        # Serve the frame the last settle already dumped, if it is still fresh: the
+        # crawler reads the source right after a gesture returns, and re-dumping the
+        # just-settled screen is the redundant read this avoids. Only ever holds a
+        # native frame (WebView sessions take the fixed-sleep settle path).
+        if self._cache is not None and (time.monotonic() - self._cache[0]) < _CACHE_FRESH_S:
+            source = self._cache[1]
+            self._cache = None
+            return source
+
         # WebView Mode 2: if the current screen hosts a debuggable WebView, serve
         # its DOM as uiautomator XML so the crawler walks the web content.
         from framework.crawler import webview
@@ -191,6 +236,11 @@ class AndroidAppiumDriver:
         it, quit() included), so we flag it and raise — the crawler ends on this and
         keeps the partial map. The abandoned thread dies with the process; Appium
         reaps the orphaned session via newCommandTimeout."""
+        # Once wedged, every dump is doomed and the 40s bound would be paid again on
+        # each call (the settle dump, then the crawler's page_source). Fail instantly
+        # after the first detection so a wedge costs one timeout, not several.
+        if self._wedged:
+            raise CrawlerDriverError("Appium session is wedged from an earlier hung source dump.")
         box: Dict[str, Any] = {}
 
         def _dump() -> None:
@@ -219,7 +269,7 @@ class AndroidAppiumDriver:
 
         if self._web:
             if webview.click_web(self._driver, self._web, x, y):
-                time.sleep(self._settle)
+                self._settle_wait()
             # A web screen's coordinates are CSS/viewport pixels, not device points
             # (see build_web_screen), so falling through to a native coordinate tap
             # here would hit an arbitrary device pixel — possibly a control the
@@ -227,14 +277,14 @@ class AndroidAppiumDriver:
             # crawler sees no navigation and moves on.
             return
         self._driver.execute_script("mobile: clickGesture", {"x": x, "y": y})
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def type_text(self, text: str) -> None:
         # In a WebView, type into the focused DOM input (real key events).
         from framework.crawler import webview
 
         if self._web and webview.type_web(self._driver, self._web, text):
-            time.sleep(self._settle)
+            self._settle_wait()
             return
         # Type into the field the previous tap focused (waypoint form-filling /
         # input coverage). UiAutomator2 has no `mobile: type`; the reliable path is
@@ -243,7 +293,7 @@ class AndroidAppiumDriver:
             self._driver.switch_to.active_element.send_keys(text)
         except Exception:
             pass
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def clear_field(self) -> None:
         # Clear the focused field so a re-fill replaces rather than appends. In a
@@ -251,13 +301,13 @@ class AndroidAppiumDriver:
         from framework.crawler import webview
 
         if self._web and webview.clear_web(self._driver, self._web):
-            time.sleep(self._settle)
+            self._settle_wait()
             return
         try:
             self._driver.switch_to.active_element.clear()
         except Exception:
             pass
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def hide_keyboard(self) -> None:
         # Dismiss the soft keyboard after form-filling so it doesn't cover the control
@@ -268,7 +318,7 @@ class AndroidAppiumDriver:
             self._driver.hide_keyboard()
         except Exception:
             pass
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def scroll(self, direction: str = "down") -> None:
         # Reveal off-screen content so the crawl reaches below-the-fold rows/links.
@@ -290,7 +340,7 @@ class AndroidAppiumDriver:
             )
         except Exception:
             pass
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def refresh(self, wait: float = 1.0) -> str:
         # A second, longer look for screens whose content loads asynchronously
@@ -301,7 +351,7 @@ class AndroidAppiumDriver:
 
     def back(self) -> None:
         self._driver.back()  # Android has a real system Back
-        time.sleep(self._settle)
+        self._settle_wait()
 
     def open_url(self, uri: str, package: Optional[str] = None, tries: int = 6) -> bool:
         """Open a deeplink URI (implicit VIEW intent) so a seed crawl starts on the

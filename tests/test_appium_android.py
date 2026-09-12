@@ -1,11 +1,14 @@
 """AndroidAppiumDriver: capability building and the CrawlerDriver protocol,
 exercised with an injected fake session (no Appium server / device needed)."""
 
+import pytest
+
 from framework.crawler.appium_android import (
     AndroidAppiumDriver,
     _build_client_config,
     build_uiautomator2_options,
 )
+from framework.crawler.errors import CrawlerDriverError
 
 
 def test_client_config_exposes_direct_connection():
@@ -130,3 +133,59 @@ def test_crawler_required_methods_are_present():
     d = _driver()
     for name in ("type_text", "scroll", "refresh"):
         assert callable(getattr(d, name, None)), f"AndroidAppiumDriver.{name} is missing"
+
+
+# --- Adaptive settle (replacing the blind fixed sleep) on pure-native sessions. ---
+
+
+class _CountingSession(_FakeSession):
+    """A fake session that counts native source dumps, so a test can prove the
+    adaptive settle dumps once and the next page_source() reuses that frame."""
+
+    def __init__(self):
+        super().__init__()
+        self.dumps = 0
+        self._frame = "<hierarchy><node/></hierarchy>"
+
+    @property  # type: ignore[override]
+    def page_source(self):
+        self.dumps += 1
+        return self._frame
+
+    @page_source.setter
+    def page_source(self, value):
+        self._frame = value
+
+
+def _counting_driver():
+    return AndroidAppiumDriver("com.example.app", settle=0, _session=_CountingSession())
+
+
+def test_native_gesture_caches_dump_for_next_page_source():
+    # A native tap settles by polling the dump, then the crawler's immediate next
+    # page_source() must serve that settled frame — the screen is dumped once, not twice.
+    d = _counting_driver()
+    d.tap(5, 5)
+    dumps_after_tap = d._driver.dumps
+    assert dumps_after_tap >= 1  # settle actually read the UI (no blind sleep)
+    src = d.page_source()
+    assert src == "<hierarchy><node/></hierarchy>"
+    assert d._driver.dumps == dumps_after_tap, "page_source re-dumped instead of serving the settle cache"
+
+
+def test_webview_session_settle_does_not_native_dump():
+    # Once a session has served web content, settling must keep the fixed wait:
+    # native-dumping a WebView is the slow, wedge-prone path page_source avoids.
+    d = _counting_driver()
+    d._web_served = True
+    d.tap(5, 5)
+    assert d._driver.dumps == 0, "a WebView-capable session must not native-dump while settling"
+
+
+def test_wedge_short_circuits_further_dumps():
+    # Once wedged, the 40s bound must be paid once, not again on every later call.
+    d = _counting_driver()
+    d._wedged = True
+    with pytest.raises(CrawlerDriverError):
+        d._native_source()
+    assert d._driver.dumps == 0, "a wedged session must fail instantly without another dump thread"
