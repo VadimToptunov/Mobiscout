@@ -116,6 +116,21 @@ def test_fingerprint_is_structural_not_textual():
     assert a.fingerprint == b.fingerprint and a.fingerprint != ""
 
 
+def test_fingerprint_is_invariant_to_list_row_count():
+    # A dynamic list (feed / search results) that grows as it scrolls is one
+    # logical screen, not a new screen per row count. Rows share a resource-id,
+    # so they collapse to one distinct token regardless of how many there are.
+    def _rows(n):
+        return _screen(*[_node(f"Item {i}", "id/row", True, (0, i * 50, 100, i * 50 + 50)) for i in range(n)])
+
+    few = parse_screen(_rows(3))
+    many = parse_screen(_rows(50))
+    assert few.fingerprint == many.fingerprint and few.fingerprint != ""
+    # ...but a genuinely different token set still forks the screen.
+    other = parse_screen(_screen(_node("Buy", "id/checkout", True, (0, 0, 100, 50))))
+    assert other.fingerprint != few.fingerprint
+
+
 def test_parse_screen_extracts_interactive_elements():
     screen = parse_screen(SCREENS["login"])
     assert len(screen.interactive()) == 2
