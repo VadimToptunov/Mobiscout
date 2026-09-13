@@ -52,12 +52,17 @@ class GraphNode:
     is_entry: bool = False
     depth: int = -1  # BFS distance from entry; -1 = unreachable
     edge_case: Optional[str] = None  # error/loading/permission/network screen, if flagged
+    # A human-readable screen name, when one is known. A live crawl leaves this empty
+    # (screens are opaque fingerprints), so exporters fall back to "Screen <id>"; a
+    # source-built graph sets it to the composable / view name, so the graph reads.
+    name: str = ""
 
     def to_dict(self) -> Dict:
         """Serialize this node to a JSON-safe dict."""
         return {
             "id": self.id,
             "fingerprint": self.fingerprint,
+            "name": self.name,
             "platform": self.platform,
             "toolkit": self.toolkit,
             "element_count": self.element_count,
@@ -927,7 +932,7 @@ def to_mermaid(graph: InteractionGraph) -> str:
     """Mermaid flowchart — renders inline on GitHub and in a README."""
     out = ["```mermaid", "flowchart TD"]
     for n in graph.nodes:
-        top = f"Screen {n.id}"
+        top = n.name or f"Screen {n.id}"
         sub = f"{n.toolkit}·{n.platform} · {n.element_count} el"
         shape_l, shape_r = ("([", "])") if n.is_entry else ("[", "]")
         out.append(f'    N{n.id}{shape_l}"{top}<br/>{sub}"{shape_r}')
@@ -947,9 +952,8 @@ def to_dot(graph: InteractionGraph) -> str:
     out = ["digraph InteractionGraph {", "  rankdir=TB;", '  node [shape=box, fontname="Helvetica"];']
     for n in graph.nodes:
         shape = "doublecircle" if n.is_entry else "box"
-        out.append(
-            f'  N{n.id} [label="Screen {n.id}\\n{n.toolkit}·{n.platform} ({n.element_count} el)", shape={shape}];'
-        )
+        title = n.name or f"Screen {n.id}"
+        out.append(f'  N{n.id} [label="{title}\\n{n.toolkit}·{n.platform} ({n.element_count} el)", shape={shape}];')
     for e in graph.edges:
         lbl = f"{e.action} {e.label} ({e.element_type})".replace('"', "'")[:40]
         out.append(f'  N{e.src} -> N{e.dst} [label="{lbl}"];')
