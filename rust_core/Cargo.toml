@@ -25,12 +25,12 @@ extension-module = ["pyo3/extension-module"]
 pyo3 = { version = "0.20", features = ["abi3-py38"] }
 
 # AST parsing
-syn = { version = "2.0", features = ["full", "parsing"] }
+syn = { version = "3.0", features = ["full", "parsing"] }
 # Keep the core and every grammar on the same tree-sitter ABI generation. Grammars
 # from 0.23 on expose `LANGUAGE: LanguageFn` instead of `language()`, so a lone
 # grammar bump breaks the build — dependabot groups them (see .github/dependabot.yml)
 # so they are proposed together.
-tree-sitter = "0.26"
+tree-sitter = "0.27"
 tree-sitter-python = "0.25"
 tree-sitter-java = "0.23"
 # tree-sitter-kotlin (0.3.x) is stuck on the tree-sitter 0.20 ABI, which puts a
@@ -60,14 +60,14 @@ walkdir = "2.4"
 
 # Error handling
 anyhow = "1.0"
-thiserror = "1.0"
+thiserror = "2.0"
 
 # Logging
 log = "0.4"
 env_logger = "0.11"
 
 [dev-dependencies]
-criterion = "0.5"  # Benchmarking
+criterion = "0.8"  # Benchmarking
 proptest = "1.4"   # Property testing
 tempfile = "3.8"   # Temporary files for testing
 
