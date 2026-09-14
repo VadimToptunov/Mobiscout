@@ -6,7 +6,7 @@ import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLeve
 // can't target 2024.2+ IDEs). Requires JDK 21 and Gradle 9.6+.
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.4.10"
+    id("org.jetbrains.kotlin.jvm") version "2.4.20"
     id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
