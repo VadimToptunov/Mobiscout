@@ -21,6 +21,20 @@ from framework.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def _stop_managed_appium(crawl_driver: object) -> None:
+    """Stop the Appium server Mobiscout auto-started for this crawl, if any.
+
+    build_crawl_driver attaches the process it launched (see ensure_appium) to the
+    driver as ``_managed_appium``; a crawl over a user's own running server leaves it
+    unset, so this is a best-effort no-op there."""
+    managed = getattr(crawl_driver, "_managed_appium", None)
+    if managed is not None:
+        try:
+            managed.stop()
+        except Exception:  # noqa: BLE001 — teardown must never mask the crawl's own outcome
+            pass
+
+
 def _gate_waypoints(
     login_user: Optional[str],
     login_password: Optional[str],
@@ -314,6 +328,7 @@ def crawl(
         )
         if appium_session:
             appium_session.quit()
+        _stop_managed_appium(crawl_driver)
         raise click.Abort()
 
     if allow_destructive:
@@ -340,6 +355,7 @@ def crawl(
     finally:
         if appium_session:
             appium_session.quit()
+        _stop_managed_appium(crawl_driver)
     # A crawl that died on a device failure kept its partial map — report it as partial,
     # not as a finished discovery whose counts describe the app.
     if getattr(result, "ended_early", None):

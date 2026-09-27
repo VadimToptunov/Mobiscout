@@ -21,8 +21,13 @@ _PKG = "com.example.app"
 
 
 def _stub_preflight_pass(monkeypatch):
-    """Neutralise the fail-fast preflight so a session-open test can reach the driver."""
+    """Neutralise the fail-fast preflight AND the Appium auto-start so a session-open
+    test reaches the driver without probing or spawning a real Appium server."""
     monkeypatch.setattr("framework.health.preflight.preflight", lambda *a, **k: [])
+    monkeypatch.setattr(
+        "framework.crawler.appium_server.ensure_appium",
+        lambda server, **k: (server or "http://localhost:4723", None),
+    )
 
 
 def _hierarchy(*nodes):
@@ -171,6 +176,43 @@ def test_build_crawl_driver_appium_android_falls_back_to_generic_message(monkeyp
     msg = str(ei.value)
     assert "Is the Appium server running" in msg
     assert "connection refused" in msg
+
+
+def test_build_crawl_driver_appium_autostarts_a_local_server(monkeypatch):
+    """No server reachable -> ensure_appium auto-starts one; build_crawl_driver must
+    open the session against the STARTED url and attach the managed process so the
+    caller stops it. (Before this, the CLI crawl aborted the preflight on "No Appium
+    server reachable" and never reached the auto-start the daemon path already had.)"""
+    managed = object()
+    captured = {}
+
+    class _FakeAppium:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "framework.crawler.appium_server.ensure_appium",
+        lambda server, **k: ("http://127.0.0.1:54321", managed),
+    )
+    monkeypatch.setattr("framework.health.preflight.preflight", lambda *a, **k: [])
+    monkeypatch.setattr("framework.health.preflight.ensure_android_home", lambda: None)
+    monkeypatch.setattr("framework.crawler.AndroidAppiumDriver", _FakeAppium)
+
+    crawl_driver, appium_session = build_crawl_driver(
+        package=_PKG,
+        platform="android",
+        driver="appium",
+        serial=None,
+        udid="emulator-5554",
+        device_name=None,
+        server="http://localhost:4723",  # unreachable default -> auto-start
+        extra_caps={},
+        launch_args=(),
+        app_activity=None,
+    )
+    assert captured["server"] == "http://127.0.0.1:54321"  # session opened on the started url
+    assert crawl_driver._managed_appium is managed  # attached for teardown
+    assert appium_session is crawl_driver
 
 
 def test_build_crawl_driver_appium_android_returns_the_session_to_quit(monkeypatch):
@@ -366,6 +408,12 @@ def test_build_crawl_driver_runs_preflight_and_fails_fast(monkeypatch):
         raise AssertionError("driver must not be built when preflight fails")
 
     monkeypatch.setattr("framework.crawler.AndroidAppiumDriver", _must_not_build)
+    # A server is reachable (so the auto-start step is a no-op); the environment
+    # preflight is what fails here, and must still abort before the driver is built.
+    monkeypatch.setattr(
+        "framework.crawler.appium_server.ensure_appium",
+        lambda server, **k: (server, None),
+    )
     monkeypatch.setattr(
         "framework.health.preflight.preflight",
         lambda *a, **k: [PreflightResult("Appium server", False, "fail", "No Appium server reachable", fix="start it")],
