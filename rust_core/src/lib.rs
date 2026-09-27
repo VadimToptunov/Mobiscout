@@ -19,7 +19,7 @@ pub use ast_analyzer::{ComplexityMetrics, RustAstAnalyzer};
 
 /// Python module definition
 #[pymodule]
-fn mobiscout_core(_py: Python, m: &PyModule) -> PyResult<()> {
+fn mobiscout_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Initialize logging
     env_logger::init();
 
