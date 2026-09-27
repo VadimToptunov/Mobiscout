@@ -52,6 +52,21 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.13.3 — crawl quality + source-first graph</h3>
+    <ul>
+        <li><b>Interaction graph from source.</b> New <code>mobiscout source graph &lt;dir&gt;</code>
+        maps an app's screens and navigation straight from Android/Kotlin or iOS/Swift
+        source — no device — as Mermaid / DOT / JSON, so you see the predicted structure
+        before a crawl.</li>
+        <li><b>Dynamic lists no longer explode the crawl map.</b> A scrolling feed/list
+        was mapped as a new screen per row count; a list's length is treated as data now,
+        so the crawl reaches real screens instead of near-identical list states.</li>
+        <li><b>Appium starts itself from the CLI too.</b> <code>crawl --driver appium</code>
+        now auto-starts Appium (with <code>ANDROID_HOME</code>) like the IDE already did,
+        instead of failing with "No Appium server reachable".</li>
+        <li><b>Faster Android-over-Appium crawls</b> via an adaptive settle on native
+        screens, plus a safer negative-form probe and a Rust core on PyO3 0.29.</li>
+    </ul>
     <h3>0.13.2 — find, run, finish (dogfooding fixes)</h3>
     <ul>
         <li><b>A partial kit shows its tests.</b> A crawl that ended early used to lead
