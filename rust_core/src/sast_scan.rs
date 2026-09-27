@@ -37,8 +37,9 @@ pub fn scan_lines(
     let set = RegexSet::new(&built)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("bad rule pattern: {e}")))?;
 
-    // Release the GIL: the scan is pure Rust over owned data, so files run in parallel.
-    let results = py.allow_threads(|| {
+    // Detach from the interpreter (release the GIL): the scan is pure Rust over owned
+    // data, so files run in parallel. (pyo3 0.26 renamed allow_threads -> detach.)
+    let results = py.detach(|| {
         lines_per_file
             .par_iter()
             .enumerate()

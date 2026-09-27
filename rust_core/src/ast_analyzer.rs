@@ -246,7 +246,7 @@ impl RustAstAnalyzer {
         py: Python,
         directory_path: String,
         extensions: Option<Vec<String>>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let default_exts = vec![
             "py".to_string(), "java".to_string(), "kt".to_string(),
             "swift".to_string(), "js".to_string(), "ts".to_string(),
@@ -291,14 +291,15 @@ impl RustAstAnalyzer {
             })
             .collect();
 
-        // Convert to Python dict
+        // Convert to Python dict. PyDict::new now returns an owned Bound<PyDict>;
+        // hand it back as an unbound Py<PyAny> (the lifetime-free return type).
         let dict = PyDict::new(py);
         for (file, metrics) in results.iter() {
             let py_metrics = Py::new(py, metrics.clone())?;
             dict.set_item(file, py_metrics)?;
         }
 
-        Ok(dict.into())
+        Ok(dict.into_any().unbind())
     }
 
     /// Clear analysis cache
