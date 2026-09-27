@@ -7,6 +7,36 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [0.13.3] — 2026-09-27
+
+Crawl-quality fixes from working through the backlog, a new source-first feature,
+and the Rust core brought up to date — all verified on a live device.
+
+### Added
+- **Static interaction graph from source.** `mobiscout source graph <dir>` builds the
+  app's screen + navigation map straight from Android/Kotlin or iOS/Swift source —
+  no device — and exports it as Mermaid, DOT, or JSON, reusing the same graph the
+  live crawl produces. The source-first seed: see the predicted structure (and its
+  unreachable / dead-end screens) before touching a device.
+
+### Fixed
+- **A dynamic list no longer explodes the crawl map.** A feed or results list whose
+  row count changes as it scrolls was fingerprinted as a *new* screen each time,
+  splitting one screen into many and burning the budget before real screens were
+  reached. A list's length is treated as data now, not identity.
+- **`crawl --driver appium` starts Appium for you** — with `ANDROID_HOME` — the way
+  the IDE/daemon already did, instead of aborting with "No Appium server reachable".
+- **The negative-form probe won't fill the positive branch on the wrong screen.**
+  If submitting invalid data advanced the app and the probe couldn't get back to the
+  form, it no longer types the form's fields into whatever screen is now showing.
+
+### Changed
+- **Faster Android-over-Appium crawls.** The blind per-gesture wait became an adaptive
+  settle on native screens (never slower than before; WebView screens unchanged).
+- **Rust core updated** — syn 3, tree-sitter 0.27, thiserror 2, criterion 0.8 — and
+  **migrated to PyO3 0.29** (Bound API). No behaviour change; the native backend still
+  loads at ABI 0.2.0.
+
 ## [0.13.2] — 2026-09-04
 
 Found by dogfooding: your tests are easier to find, runnable where they land, and
