@@ -408,6 +408,12 @@ def test_build_crawl_driver_runs_preflight_and_fails_fast(monkeypatch):
         raise AssertionError("driver must not be built when preflight fails")
 
     monkeypatch.setattr("framework.crawler.AndroidAppiumDriver", _must_not_build)
+    # A server is reachable (so the auto-start step is a no-op); the environment
+    # preflight is what fails here, and must still abort before the driver is built.
+    monkeypatch.setattr(
+        "framework.crawler.appium_server.ensure_appium",
+        lambda server, **k: (server, None),
+    )
     monkeypatch.setattr(
         "framework.health.preflight.preflight",
         lambda *a, **k: [PreflightResult("Appium server", False, "fail", "No Appium server reachable", fix="start it")],
