@@ -318,7 +318,7 @@ def test_crawler_does_not_start_off_app():
     assert result.screens == {}
 
 
-def test_comprehensive_model_has_navigation_and_enabled_checks():
+def test_comprehensive_model_has_navigation_and_state_checks():
     from framework.crawler.to_codegen import build_test_model
     from framework.codegen.ir import ActionType, AssertionType
 
@@ -330,9 +330,10 @@ def test_comprehensive_model_has_navigation_and_enabled_checks():
     assert nav, "expected navigation/interaction cases from transitions"
     assert any(s.action is ActionType.TAP for c in nav for s in c.steps)
 
-    # state cases assert enabled (interactability), not just visible
+    # state cases assert the screen is identifiable by its controls (VISIBLE) — not a
+    # blanket "enabled" on every element, which is transcript noise, not a real check.
     state = [c for c in model.cases if c.name.endswith("_shows_expected_controls")]
-    assert any(s.assertion is AssertionType.ENABLED for c in state for s in c.steps)
+    assert any(s.assertion is AssertionType.VISIBLE for c in state for s in c.steps)
 
 
 def test_accessibility_audit_flags_unlabelled_clickable():

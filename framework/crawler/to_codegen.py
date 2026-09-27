@@ -92,6 +92,22 @@ def _looks_dynamic(text: str) -> bool:
     return len(text.strip()) < 3
 
 
+def _looks_verbose(text: str) -> bool:
+    """Whether a visible-text value is a sentence/paragraph rather than a label — a
+    help blurb, a screen description, a marketing line. Locating (let alone
+    *asserting*) by such a string is brittle and meaningless: it breaks on any copy
+    tweak and reads like a drunk transcript ('… is visible' on a 100-char paragraph).
+    So a verbose string scores below the assert bar — still usable as a last-resort
+    tap target, never as a state assertion or a screen/test name."""
+    stripped = (text or "").strip()
+    if len(stripped) > 40:
+        return True
+    if len(stripped.split()) > 6:
+        return True
+    # Sentence punctuation mid-string marks prose, not a control label.
+    return bool(re.search(r"[.!?…]\s|\s[—–-]\s|[,;:]\s", stripped))
+
+
 def _xpath_by_label(value: str) -> str:
     """An iOS-safe XPath that locates an element by its visible label / name.
     Quote-safe: uses whichever quote the value lacks, or concat() if it has both."""
@@ -126,7 +142,7 @@ def _selector_for(element: CrawlElement, platform: str = "android") -> Optional[
             candidates.append(Selector(SelectorStrategy.ACCESSIBILITY_ID, ident, score=0.95, description=label))
         vis = (element.content_desc or element.text or "").strip()
         if vis:
-            text_score = 0.42 if _looks_dynamic(vis) else 0.60
+            text_score = 0.42 if (_looks_dynamic(vis) or _looks_verbose(vis)) else 0.60
             candidates.append(
                 Selector(SelectorStrategy.XPATH, _xpath_by_label(vis), score=text_score, description=label)
             )
@@ -140,10 +156,11 @@ def _selector_for(element: CrawlElement, platform: str = "android") -> Optional[
         txt = (element.text or "").strip()
         if txt:
             # A text locator is already the least-stable tier; if the text itself
-            # looks dynamic (a count, price, timestamp) it is more fragile still, so
-            # score it lower. Order is unchanged — text stays last — this only makes
-            # the stability score honest for the inventory / model-path ranking.
-            text_score = 0.42 if _looks_dynamic(txt) else 0.60
+            # looks dynamic (a count, price, timestamp) or verbose (a sentence/blurb,
+            # not a label) it is more fragile still, so score it below the assert bar.
+            # Order is unchanged — text stays last — it just stops a paragraph from
+            # being asserted on while remaining a last-resort tap target.
+            text_score = 0.42 if (_looks_dynamic(txt) or _looks_verbose(txt)) else 0.60
             candidates.append(Selector(SelectorStrategy.TEXT, txt, score=text_score, description=label))
     if not candidates:
         return None
@@ -244,19 +261,36 @@ def _slug(text: str, max_len: int = 32) -> str:
     return "_".join(words)[:max_len].strip("_")
 
 
+def _title_element(owned: List[CrawlElement]) -> Optional[CrawlElement]:
+    """The static-text element that best names the screen — a short header/title,
+    not a paragraph. Picking the *first* text made a screen's description blurb its
+    landmark and its test name (``generate_realistic_test_data_car…`` off a marketing
+    sentence); a title-like text (short, not a sentence, not a bare number) is the
+    identity a human would read. Shortest good candidate wins — headers are terse."""
+    from framework.crawler.classify import classify
+
+    for e in owned:
+        if classify(e)[0] != "text":
+            continue
+        text = (e.text or "").strip()
+        if text and not _looks_verbose(text) and not _looks_dynamic(text) and re.search(r"[A-Za-z]", text):
+            return e  # first title-like static text, in document order (headers come first)
+    return None  # no good title (only a blurb / numbers) — the screen's controls carry its identity
+
+
 def _screen_title(owned: List[CrawlElement]) -> str:
     """A readable name for the screen, so a test reads like
     ``total_balance_screen_shows_expected_controls`` rather than ``screen_1``.
-    Prefer the first meaningful static text (a header/title); failing that — a
+    Prefer a title-like static text (a header, not a blurb); failing that — a
     login or other control-only screen has no static text — name it after its most
     salient control (a button/input label), which still describes the screen."""
     from framework.crawler.classify import classify
 
+    title = _title_element(owned)
+    if title is not None:
+        return title.text.strip()
     for e in owned:
-        if classify(e)[0] == "text" and (e.text or "").strip():
-            return e.text.strip()
-    for e in owned:
-        if classify(e)[0] in _MEANINGFUL_TYPES and (e.label or "").strip():
+        if classify(e)[0] in _MEANINGFUL_TYPES and (e.label or "").strip() and not _looks_verbose(e.label):
             return e.label.strip()
     return ""
 
@@ -276,14 +310,8 @@ def _significant(owned: List[CrawlElement]) -> List[CrawlElement]:
     identifiable) plus the actionable elements — not every label."""
     from framework.crawler.classify import classify
 
-    landmark = None
-    actionable: List[CrawlElement] = []
-    for e in owned:
-        etype = classify(e)[0]
-        if etype in _MEANINGFUL_TYPES:
-            actionable.append(e)
-        elif etype == "text" and landmark is None and (e.text or "").strip():
-            landmark = e
+    landmark = _title_element(owned)  # a real title, not the first (maybe paragraph) text
+    actionable = [e for e in owned if classify(e)[0] in _MEANINGFUL_TYPES]
     return ([landmark] if landmark else []) + actionable[:_MAX_SCREEN_ELEMENTS]
 
 
@@ -363,15 +391,10 @@ def _screen_cases(
                 ActionType.ASSERT, selector=selector, assertion=AssertionType.VISIBLE, description=f"{label} is visible"
             )
         )
-        if element.clickable:
-            steps.append(
-                Step(
-                    ActionType.ASSERT,
-                    selector=selector,
-                    assertion=AssertionType.ENABLED,
-                    description=f"{label} is enabled",
-                )
-            )
+        # No blanket "… is enabled" on every control: a state smoke asserts the screen
+        # is the right one and its key controls are present, not that each is enabled —
+        # that pair on every element is the noise that made kits read like a transcript.
+        # Enabled/disabled is a behavioural check, left to interaction tests.
     if assert_values:
         # Opt-in: pin observed values. Independent of the VISIBLE pass above — a
         # static value (a price, a P&L) is decoration to _significant but is the
