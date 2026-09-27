@@ -33,6 +33,25 @@ def _is_amount_field(element: CrawlElement) -> bool:
     return any(k in hint for k in _AMOUNT_FIELD_HINTS)
 
 
+# Numeric-input hints for VALUE SELECTION ONLY — deliberately separate from
+# _AMOUNT_FIELD_HINTS (which also drives money-screen / destructive gating), so a benign
+# "How many contacts" field gets a number without being mistaken for a money field.
+_NUMERIC_FIELD_HINTS = ("how many", "how much", "many", "much", "count", "quantity", "qty", "number", "age", "size")
+
+
+def _is_numeric_field(element: CrawlElement) -> bool:
+    """Whether an input takes a NUMBER — a count/age/size — so the generated test types a
+    digit, not the word "Test" (the drunk-junior bug: ``sendKeys("Test")`` into "How many").
+    Signals: a numeric-sounding label, or a current value that is already all digits. Kept
+    separate from :func:`_is_amount_field` so it never affects money/destructive gating."""
+    hint = f"{element.text} {element.content_desc} {element.resource_id} {element.class_name}".lower()
+    if any(k in hint for k in ("phone", "tel", "mobile")):
+        return False
+    if any(k in hint for k in _NUMERIC_FIELD_HINTS):
+        return True
+    return element.text.strip().isdigit()
+
+
 def _sample_value(element: CrawlElement) -> str:
     """A realistic value for a form field, inferred from its label/id/class — so the
     crawl can *fill and submit* forms, not stall at the first text field, and the
@@ -46,6 +65,8 @@ def _sample_value(element: CrawlElement) -> str:
         return "1234567890"
     if _is_amount_field(element):
         return "10"
+    if _is_numeric_field(element):
+        return "5"  # a count/age/size field takes a number, not the word "Test"
     if "search" in hint or "query" in hint:
         return "test"
     if "name" in hint:
@@ -67,6 +88,8 @@ def _invalid_value(element: CrawlElement) -> str:
         return "abc"  # letters where digits are required
     if _is_amount_field(element):
         return "-1"  # negative where a positive quantity is required
+    if _is_numeric_field(element):
+        return "abc"  # letters where a number is required
     return ""
 
 
