@@ -171,10 +171,33 @@ def build_crawl_driver(
     """
     from framework.crawler import AdbCrawlerDriver, AndroidAppiumDriver, IOSCrawlerDriver
 
-    # Fail-fast: when the chosen path needs a server (iOS, or Android over Appium),
-    # run the environment preflight FIRST so a missing SDK/server/driver is reported
-    # immediately instead of as an opaque session timeout. The adb path skips this.
+    # When the chosen path needs a server (iOS, or Android over Appium), auto-start a
+    # local Appium if none is reachable — the same behaviour the daemon/plugin path
+    # already has (ensure_appium) — so `mobiscout crawl --driver appium` (and iOS)
+    # works without a manually-started server, instead of aborting the preflight on
+    # "No Appium server reachable". A remote hub that's down, or Appium not installed,
+    # still raises an actionable error. `managed` is the process we started (if any);
+    # it is attached to the driver so the caller stops it when the crawl ends.
+    managed: Optional[Any] = None
     if platform == "ios" or driver == "appium":
+        if driver == "appium":
+            # Self-heal ANDROID_HOME in OUR environment BEFORE we (maybe) auto-start
+            # Appium, so the server we spawn inherits it and UiAutomator2 can find the
+            # SDK. A user's own already-running server can't be fixed this way — the
+            # deeper handler below detects that and tells them how to relaunch it.
+            from framework.health.preflight import ensure_android_home
+
+            ensure_android_home()
+
+        from framework.crawler.appium_server import ensure_appium
+        from framework.crawler.errors import CrawlerDriverError
+
+        try:
+            server, managed = ensure_appium(server)
+        except CrawlerDriverError as e:
+            raise CrawlServiceError(str(e))
+        # The preflight then confirms the rest of the environment (SDK, driver) against
+        # the now-reachable server.
         for warning in preflight_or_raise(platform, driver, server):
             logger.warning("Preflight warning: %s", warning)
 
@@ -188,17 +211,21 @@ def build_crawl_driver(
                 process_args=list(launch_args) or None,
             )
         except Exception as e:
+            if managed is not None:
+                managed.stop()
             raise CrawlServiceError(
                 f"Could not open an Appium iOS session ({e}). Is the Appium server running at {server}?"
             )
+        if managed is not None:
+            crawl_driver._managed_appium = managed
         return crawl_driver, crawl_driver
 
     if driver == "appium":
-        from framework.health.preflight import ensure_android_home, resolve_android_home
+        from framework.health.preflight import resolve_android_home
 
-        # Self-heal *our* env so the adb subprocesses spawned during the session
-        # inherit ANDROID_HOME. This cannot fix a separately launched Appium server.
-        ensure_android_home()
+        # ANDROID_HOME was already self-healed above (before any auto-start), so the
+        # adb subprocesses this session spawns — and an Appium we started ourselves —
+        # inherit it. resolve_android_home stays for the error path below.
         try:
             crawl_driver = AndroidAppiumDriver(
                 app_package=package,
@@ -209,6 +236,8 @@ def build_crawl_driver(
                 extra_caps=extra_caps,
             )
         except Exception as e:
+            if managed is not None:
+                managed.stop()
             # The classic dead-end: the running Appium server has no ANDROID_HOME,
             # so UiAutomator2 fails deep with an opaque error. Detect the SDK here
             # and tell the tester exactly how to relaunch the server.
@@ -229,6 +258,8 @@ def build_crawl_driver(
             raise CrawlServiceError(
                 f"Could not open an Appium Android session ({e}). Is the Appium server running at {server}?"
             )
+        if managed is not None:
+            crawl_driver._managed_appium = managed
         return crawl_driver, crawl_driver
 
     return AdbCrawlerDriver(serial=serial, launch_args=list(launch_args) or None), None
