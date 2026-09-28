@@ -349,6 +349,50 @@ def _locator_advice_line(advice: str, platform: str) -> str:
     )
 
 
+def _write_files(root: Path, files: dict) -> None:
+    """Write ``files`` (relative path -> content) under ``root``, creating directories."""
+    for rel, content in files.items():
+        dest = root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(content, encoding="utf-8", newline="\n")
+
+
+def _emit_targets(
+    requested: List[str],
+    target_ids: set,
+    style: str,
+    result: Any,
+    model: Any,
+    package: str,
+    out: Path,
+    report: Any,
+) -> set:
+    """Write each requested target's tests under ``out/<target>/`` — a Page-Object framework
+    when ``style == "pom"`` and the target has one, else the flat emitter. Returns the targets
+    written as frameworks: each is already a runnable project (its own build file), so the
+    scaffold step skips them."""
+    from framework.codegen import get_emitter
+    from framework.crawler.page_kit import build_target_framework
+
+    framework_targets: set = set()
+    for target in requested:
+        if target not in target_ids:
+            report.warnings.append(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
+            continue
+        # In pom mode the Python framework layout (written at the kit root) covers pytest.
+        if style == "pom" and target == "python_pytest":
+            continue
+        framework = build_target_framework(target, result, model, package) if style == "pom" and model.cases else None
+        if framework:
+            _write_files(out / target, framework)
+            framework_targets.add(target)
+            report.info.append(f"Framework ({target}, Page Objects + base test + tests): {out / target}")
+            continue
+        _write_files(out / target, get_emitter(target).emit(model))
+        report.info.append(f"Tests ({target}): {out / target}")
+    return framework_targets
+
+
 def write_kit(
     *,
     result: Any,
@@ -391,7 +435,7 @@ def write_kit(
         A :class:`KitReport` with info lines, non-fatal warnings, and whether tests
         were skipped for lack of locatable elements.
     """
-    from framework.codegen import available_targets, get_emitter
+    from framework.codegen import available_targets
     from framework.crawler import build_test_model
     from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
     from framework.crawler.report import inventory_json_str, inventory_markdown
@@ -493,18 +537,7 @@ def write_kit(
         if framework_files:
             report.info.append(f"Framework (Page Objects + conftest + tests): {out}")
 
-    for target in requested:
-        if target not in target_ids:
-            report.warnings.append(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
-            continue
-        # In pom mode the Python framework layout above already covers pytest.
-        if style == "pom" and target == "python_pytest":
-            continue
-        for name, content in get_emitter(target).emit(model).items():
-            dest = out / target / name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content, encoding="utf-8", newline="\n")
-        report.info.append(f"Tests ({target}): {out / target}")
+    framework_targets = _emit_targets(requested, target_ids, style, result, model, package, out, report)
 
     # 4) Optional: a runnable project shell (deps + runner config + README) so the
     # output is `install && test` away from running — a new framework in place.
@@ -513,6 +546,10 @@ def write_kit(
 
         wrote = False
         for target in requested:
+            if target in framework_targets:
+                # A framework kit is already a runnable project (its own build file).
+                wrote = True
+                continue
             files = scaffold_files(model, target, server=server)
             if not files:
                 continue

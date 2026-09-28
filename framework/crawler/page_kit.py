@@ -16,14 +16,33 @@ distinctive identity, scenarios as page calls — and then rendered per language
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Callable, Dict, Optional
 
-from framework.codegen.framework_model import build_framework_model
+from framework.codegen.framework_java import render_java
+from framework.codegen.framework_model import FrameworkModel, build_framework_model
 from framework.codegen.framework_python import render_python
 from framework.codegen.ir import TestModel
 from framework.crawler.app_crawler import CrawlResult
+
+# Non-Python targets with a Page-Object framework renderer. Each renders a self-contained,
+# runnable project (its own build file) into the kit's ``<target>/`` directory. A target
+# without one still gets the flat emitter.
+_TARGET_FRAMEWORKS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
+    "java_testng": render_java,
+}
 
 
 def build_framework_kit(result: CrawlResult, model: TestModel, app_package: str) -> Dict[str, str]:
     """A pytest Page-Object framework layout from a crawl (relative_path -> content)."""
     return render_python(build_framework_model(result, model, app_package))
+
+
+def build_target_framework(
+    target: str, result: CrawlResult, model: TestModel, app_package: str
+) -> Optional[Dict[str, str]]:
+    """The Page-Object framework for ``target`` (paths relative to ``<kit>/<target>/``), or
+    ``None`` when the target has no framework renderer yet and should get the flat emitter."""
+    render = _TARGET_FRAMEWORKS.get(target)
+    if render is None:
+        return None
+    return render(build_framework_model(result, model, app_package))

@@ -37,14 +37,17 @@ def _doc(text: Optional[str]) -> str:
 
 
 def _py_opt_str(value: Optional[str]) -> str:
+    """A Python string literal, or ``None`` for ``None``."""
     return "None" if value is None else py_str(value)
 
 
 def _py_list(values: List[str]) -> str:
+    """A Python list literal of strings."""
     return "[" + ", ".join(py_str(v) for v in values) + "]"
 
 
 def _env() -> Environment:
+    """The Jinja environment for the Python framework templates."""
     env = Environment(
         loader=FileSystemLoader(_TEMPLATES),
         trim_blocks=True,
@@ -57,10 +60,12 @@ def _env() -> Environment:
 
 
 def _module(page: PageDef) -> str:
+    """The page's module name (``login_page``)."""
     return snake(page.class_name)
 
 
 def _var(page: PageDef) -> str:
+    """The page's variable name in tests (``login_page``)."""
     return f"{snake(page.name)}_page"
 
 
@@ -131,6 +136,7 @@ def _render_call(
 
 
 def _render_test_module(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -> str:
+    """One pytest module holding the scenarios about ``page``."""
     bodies: List[str] = []
     imported: Set[str] = set()
     for sc in scenarios:
