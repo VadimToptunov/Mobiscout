@@ -27,6 +27,9 @@ from framework.codegen.ir import ActionType, AssertionType, Platform, Selector, 
 from framework.crawler.models import CrawlElement, CrawlResult
 from framework.crawler.to_codegen import _ASSERTABLE_SCORE, _looks_verbose, _owned, _title_element, selector_for
 
+# Page stems a renderer already uses for its own classes (BasePage / base_page).
+_RESERVED_STEMS = {"Base"}
+
 # classify() types a user taps (inputs are typed into instead).
 _TAP_TYPES = {"button", "checkbox", "switch", "radio"}
 
@@ -101,6 +104,16 @@ class FrameworkModel:
         return next(p for p in self.pages if p.name == name)
 
 
+def _sentence(text: str) -> str:
+    """A description as a sentence — capitalised, ending in a full stop — so generated
+    docstrings / Javadoc read like prose, not fragments."""
+    text = " ".join((text or "").split())
+    if not text:
+        return text
+    text = text[0].upper() + text[1:]
+    return text if text[-1] in ".!?" else f"{text}."
+
+
 def _sel_key(selector: Selector) -> Tuple[str, str]:
     """Links a model step to a page element: both come from ``selector_for`` on the same
     crawl elements, so the primary locator's (strategy, value) matches on both sides."""
@@ -108,6 +121,7 @@ def _sel_key(selector: Selector) -> Tuple[str, str]:
 
 
 def _label(e: CrawlElement) -> str:
+    """The element's crawl label (content-desc, text or id)."""
     return (e.content_desc or e.text or e.resource_id or "").strip()
 
 
@@ -129,6 +143,7 @@ def _element_key(e: CrawlElement) -> str:
 
 
 def _role(e: CrawlElement) -> str:
+    """How a test uses the element: ``tap``, ``input`` or ``text``."""
     from framework.crawler.classify import classify
 
     kind = classify(e)[0]
@@ -140,6 +155,7 @@ def _role(e: CrawlElement) -> str:
 
 
 def _pascal_ident(text: str) -> str:
+    """A PascalCase identifier from free text (letters/digits only)."""
     return re.sub(r"[^0-9a-zA-Z]", "", pascal(text.strip()))[:40]
 
 
@@ -163,6 +179,7 @@ def _page_stem(index: int, owned: List[CrawlElement]) -> Tuple[str, str]:
 
 
 def _build_pages(result: CrawlResult, app_package: str) -> Tuple[List[PageDef], Dict[str, PageDef]]:
+    """One PageDef per screen with locatable elements, plus a fingerprint -> page map."""
     pages: List[PageDef] = []
     by_fp: Dict[str, PageDef] = {}
     stems: List[str] = []
@@ -185,6 +202,8 @@ def _build_pages(result: CrawlResult, app_package: str) -> Tuple[List[PageDef], 
         if not elements:
             continue
         stem, title = _page_stem(i, owned)
+        if stem in _RESERVED_STEMS:  # a screen titled "Base" must not shadow BasePage
+            stem = f"{stem}Screen"
         if stem in stems:  # two screens titled the same -> AccountPage / Account2Page
             stem = f"{stem}{i}"
         stems.append(stem)
@@ -312,7 +331,7 @@ def _flow_scenarios(model: TestModel, pages: List[PageDef]) -> List[Scenario]:
         out.append(
             Scenario(
                 name=snake(case.name) or "scenario",
-                description=(case.description or case.name).strip(),
+                description=_sentence(case.description or case.name),
                 calls=calls,
                 group=(last_asserted or current).name,
             )

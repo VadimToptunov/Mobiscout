@@ -219,6 +219,10 @@ jobs:
           kotlinc -version
 
       - name: Validate every codegen target (golden + real toolchain compile)
+        # MOBISCOUT_REAL_COMPILE: also compile the Page-Object framework kits against their real
+        # dependencies (mvn test-compile resolves Appium/Selenium/TestNG from the kit's own pom).
+        env:
+          MOBISCOUT_REAL_COMPILE: "1"
         run: pytest tests/codegen/ -v
 
   build-rust:

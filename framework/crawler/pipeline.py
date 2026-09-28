@@ -177,11 +177,22 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         for rel, content in framework_files.items():
             _write(out / rel, content)
 
+    framework_targets: set = set()
     for target in targets:
         if target not in target_ids:
             continue
         if framework_files and target == "python_pytest":
             continue  # the page-object layout above already covers pytest
+        if config.get("style") == "pom" and model.cases:
+            from framework.crawler.page_kit import build_target_framework
+
+            target_framework = build_target_framework(target, result, model, package)
+            if target_framework:
+                for rel, content in target_framework.items():
+                    _write(out / target / rel, content)
+                framework_targets.add(target)
+                written.append(target)
+                continue
         for name, content in get_emitter(target).emit(model).items():
             _write(out / target / name, content)
         written.append(target)
@@ -193,6 +204,8 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
 
             server = config.get("server", "http://localhost:4723")
             for target in targets:
+                if target in framework_targets:
+                    continue  # a framework kit is already a runnable project (its own build file)
                 files = scaffold_files(model, target, server=server)
                 if files:
                     for rel, content in files.items():

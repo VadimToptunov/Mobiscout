@@ -414,6 +414,51 @@ def _shared_chrome() -> CrawlResult:
     return res
 
 
+def _ios_login_catalog() -> CrawlResult:
+    """The shared-chrome shape on iOS: XCUITest element types, accessibility identifiers in
+    resource_id, no Android package — the iOS POM kit must drive it just as well."""
+
+    def ios(cls, text="", ident="", clk=True):
+        return CrawlElement(
+            resource_id=ident, text=text, content_desc="", class_name=cls, clickable=clk, bounds=(0, 0, 300, 60)
+        )
+
+    home = CrawlScreen(
+        "home",
+        [
+            ios("Image", ident="logo", clk=False),
+            ios("StaticText", "Home", clk=False),
+            ios("Button", "Sign in", "signin"),
+        ],
+        platform="ios",
+    )
+    catalog = CrawlScreen(
+        "catalog",
+        [
+            ios("Image", ident="logo", clk=False),
+            ios("StaticText", "Catalog", clk=False),
+            ios("Button", "Product", "prod"),
+        ],
+        platform="ios",
+    )
+    res = CrawlResult(screens={"home": home, "catalog": catalog})
+    res.transitions = [("home", ios("Button", "Sign in", "signin"), "catalog")]
+    return res
+
+
+def test_ios_pom_kit_runs_green_and_fails_when_the_tap_navigates_nowhere(tmp_path):
+    # The same teeth on iOS: XCUITestOptions fixture, accessibility-id / label locators.
+    result = _ios_login_catalog()
+    kit = _emit_pom_kit(result, tmp_path)
+    assert "XCUITestOptions" in (kit / "conftest.py").read_text(encoding="utf-8")
+    healthy = _run_pytest(kit, _fake_app(result, ""))
+    assert healthy.returncode == 0, f"iOS POM kit failed against a healthy app:\n{healthy.stdout}\n{healthy.stderr}"
+    broken = _fake_app(result, "")
+    broken["transitions"] = []
+    proc = _run_pytest(kit, broken)
+    assert proc.returncode != 0, f"broken navigation should fail the iOS POM kit but passed:\n{proc.stdout}"
+
+
 def test_pom_kit_runs_green_when_two_elements_share_a_label(tmp_path):
     # The dropped button used to take the login->catalog tap with it, so the POM tests
     # asserted the catalog screen without ever navigating there — red on a working app.
