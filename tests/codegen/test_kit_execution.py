@@ -423,16 +423,19 @@ def test_pom_kit_runs_green_when_two_elements_share_a_label(tmp_path):
     assert proc.returncode == 0, f"POM kit failed against a healthy app:\n{proc.stdout}\n{proc.stderr}"
 
 
+def _pom_tests(kit: Path) -> str:
+    return "\n".join(p.read_text(encoding="utf-8") for p in sorted((kit / "tests").glob("test_*.py")))
+
+
 def test_pom_flow_tests_always_carry_an_assertion(tmp_path):
     # A case whose assertions were all dropped used to be emitted anyway: a test that
     # types a value, asserts nothing and passes unconditionally.
     result = _shared_label()
     kit = _emit_pom_kit(result, tmp_path)
-    flows = (kit / "tests" / "test_flows.py").read_text(encoding="utf-8")
-    bodies = flows.split("\ndef test_")[1:]
-    assert bodies, "expected flow tests"
+    bodies = _pom_tests(kit).split("\ndef test_")[1:]
+    assert bodies, "expected POM tests"
     for body in bodies:
-        assert "assert " in body, f"flow test with no assertion:\ndef test_{body}"
+        assert "assert " in body, f"POM test with no assertion:\ndef test_{body}"
 
 
 def test_pom_navigation_drives_the_deduplicated_page_class(tmp_path):
@@ -440,8 +443,9 @@ def test_pom_navigation_drives_the_deduplicated_page_class(tmp_path):
     # name from the title sent the test to AccountPage, which has no deposit() at all.
     result = _same_title()
     kit = _emit_pom_kit(result, tmp_path)
-    nav = (kit / "tests" / "test_navigation.py").read_text(encoding="utf-8")
-    assert "Account2Page" in nav, f"navigation test never reaches the second page class:\n{nav}"
+    page = (kit / "pages" / "account_page.py").read_text(encoding="utf-8")
+    assert "return Account2Page(self.driver)" in page, f"the tap never returns the second page class:\n{page}"
+    assert "account2_page.is_displayed()" in _pom_tests(kit), _pom_tests(kit)
     proc = _run_pytest(kit, _fake_app(result, "com.x"))
     assert proc.returncode == 0, f"POM kit failed against a healthy app:\n{proc.stdout}\n{proc.stderr}"
 
@@ -457,7 +461,8 @@ def test_pom_navigation_fails_when_the_tap_navigates_nowhere(tmp_path):
     broken["transitions"] = []
     proc = _run_pytest(kit, broken)
     assert proc.returncode != 0, f"broken navigation should fail the POM kit but passed:\n{proc.stdout}"
-    assert "test_navigate_1" in proc.stdout, f"the navigation test is not the one that failed:\n{proc.stdout}"
+    # The failure is the destination screen's test proving arrival by its identity.
+    assert "test_catalog.py" in proc.stdout and "catalog_page.is_displayed()" in proc.stdout, proc.stdout
 
 
 def test_pom_conftest_reads_the_appium_server_env_var():

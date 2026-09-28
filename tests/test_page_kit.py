@@ -1,7 +1,11 @@
-"""Framework-structured output: Page Objects + conftest + POM-style tests, not a
-flat smoke file."""
+"""Framework-structured output: a Page-Object test framework (BasePage + a page per screen
++ a fast driver fixture + tests that read like intent), not a flat smoke file.
+
+Beyond "it parses", these pin the senior-level contract as automated gates — so a
+regression back to transcript-style output fails CI instead of reaching a user."""
 
 import ast
+import re
 
 import pytest
 
@@ -51,17 +55,22 @@ def _result():
     return res
 
 
-def _kit():
-    res = _result()
+def _kit(result=None):
+    res = result or _result()
     model = build_test_model(res, app_package="com.x", app_activity=".Main")
     return build_framework_kit(res, model, "com.x")
 
 
-def test_produces_pages_conftest_and_tests():
+def _tests(files):
+    return {p: c for p, c in files.items() if p.startswith("tests/test_")}
+
+
+def test_produces_base_page_pages_fixture_and_tests():
     files = _kit()
     assert "conftest.py" in files
-    assert any(p.startswith("pages/") and p.endswith("_page.py") for p in files)
-    assert "tests/test_navigation.py" in files
+    assert "pages/base_page.py" in files
+    assert any(p.startswith("pages/") and p.endswith("_page.py") and p != "pages/base_page.py" for p in files)
+    assert _tests(files), "expected test modules"
 
 
 def test_all_files_are_valid_python():
@@ -84,25 +93,99 @@ def test_price_like_text_becomes_a_valid_identifier():
             )
         }
     )
-    model = build_test_model(res, app_package="com.x")
-    for path, content in build_framework_kit(res, model, "com.x").items():
+    for path, content in _kit(res).items():
         if path.endswith(".py"):
             ast.parse(content)
 
 
-def test_navigation_test_uses_page_objects():
-    nav = _kit()["tests/test_navigation.py"]
-    assert "from pages." in nav
-    assert "(driver)." in nav and ".click()" in nav  # drives via the page object
+def test_tests_drive_intention_methods_not_raw_elements():
+    # Locators and raw driver/element calls belong in the page layer. A test that clicks
+    # elements or carries locators is a transcript, not a POM suite.
+    for path, source in _tests(_kit()).items():
+        assert "from pages." in source, path
+        assert "Page(driver)" in source, path
+        for smell in ("AppiumBy", "find_element", ".click()", ".send_keys(", "WebDriverWait"):
+            assert smell not in source, f"{smell!r} leaked into {path}:\n{source}"
 
 
-def test_flow_tests_add_behavioural_coverage_through_page_objects():
-    # POM parity with the flat style: not just navigation, but form-filling / journeys /
-    # negative cases — rendered as page-object method calls, not raw locators.
+def test_form_filling_goes_through_intention_methods():
+    sources = "\n".join(_tests(_kit()).values())
+    assert ".enter_email(" in sources  # typed via the page's intention, not send_keys
+    assert sources.count("def test_") >= 2  # a real suite, not one smoke test
+
+
+def test_plumbing_lives_only_in_the_base_page():
+    # Waiting / locating / scrolling written once in BasePage, not copy-pasted per screen.
     files = _kit()
-    assert "tests/test_flows.py" in files
-    flows = files["tests/test_flows.py"]
-    assert "from pages." in flows  # driven through the page objects, not raw find_element
-    assert ".send_keys(" in flows  # form-filling, the flat style's coverage
-    assert flows.count("def test_") >= 2  # a real suite, not one smoke test
-    ast.parse(flows)
+    for path, source in files.items():
+        if path.startswith("pages/") and path.endswith("_page.py") and path != "pages/base_page.py":
+            assert "(BasePage)" in source, path
+            for plumbing in ("WebDriverWait", "find_element", "def _find", "def _scroll_down"):
+                assert plumbing not in source, f"{plumbing!r} duplicated in {path}"
+    assert "def _find" in files["pages/base_page.py"]
+
+
+def test_no_fixed_sleeps_anywhere():
+    for path, source in _kit().items():
+        assert not re.search(r"\bsleep\(", source), f"fixed sleep in {path}"
+
+
+def test_generated_code_is_pyflakes_clean():
+    # No unused imports, no unused variables, no undefined names — the generated code must
+    # pass the linter a reviewer would run.
+    pyflakes_api = pytest.importorskip("pyflakes.api")
+    from pyflakes.reporter import Reporter
+    import io
+
+    for path, source in _kit().items():
+        if not path.endswith(".py") or not source.strip():
+            continue
+        out, err = io.StringIO(), io.StringIO()
+        count = pyflakes_api.check(source, path, Reporter(out, err))
+        assert count == 0, f"pyflakes findings in {path}:\n{out.getvalue()}{err.getvalue()}"
+
+
+def test_navigating_tap_returns_the_next_page():
+    sources = "\n".join(_tests(_kit()).values())
+    assert re.search(r"catalog_page = \w+_page\.tap_sign_in\(\)", sources), sources
+
+
+def test_negative_case_does_not_claim_it_navigated():
+    # Invalid input must NOT get past the form, so the test must not bind the page the
+    # tap would otherwise open.
+    sources = _tests(_kit())
+    rejects = next(s for s in sources.values() if "def test_rejects_invalid_input" in s)
+    body = rejects.split("def test_rejects_invalid_input", 1)[1]
+    assert "= welcome_back_page.tap_sign_in()" not in body, body
+    assert "welcome_back_page.tap_sign_in()" in body, body
+
+
+def test_one_appium_session_per_run_with_an_app_restart_per_test():
+    # Fast by design: a new session per test costs 5-10 s; a cold app restart ~1-2 s.
+    conftest = _kit()["conftest.py"]
+    assert 'scope="session"' in conftest
+    assert "activate_app" in conftest and "terminate_app" in conftest
+
+
+def test_page_is_named_after_the_screen_title_not_a_paragraph():
+    res = CrawlResult(
+        screens={
+            "s": CrawlScreen(
+                "s",
+                [
+                    _el("android.widget.TextView", "Generate realistic test data — cards, IBANs and more.", clk=False),
+                    _el("android.widget.TextView", "Tools", clk=False),
+                    _el("android.widget.Button", "Open", rid="open"),
+                ],
+                platform="android",
+            )
+        }
+    )
+    files = _kit(res)
+    assert "pages/tools_page.py" in files, sorted(files)
+    assert not any("generate_realistic" in p for p in files), sorted(files)
+
+
+def test_test_names_are_not_numbered():
+    for source in _tests(_kit()).values():
+        assert not re.search(r"def test_\w+_\d+\(", source), source
