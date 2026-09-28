@@ -541,6 +541,9 @@ def multi_step_cases(
                 non_maximal.add(prefix)
     maximal = path_set - non_maximal
 
+    # Name/describe journeys by the screens they reach, not opaque node ids.
+    from framework.crawler.to_codegen import _screen_title, _slug
+
     scored: List[Tuple[tuple, TestCase]] = []
     seen_paths = set()
     for walk in all_walks:
@@ -582,12 +585,14 @@ def multi_step_cases(
             steps.extend(fs)
             steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {edge.label}"))
             taps.append(edge.label)
+            dest_title = _screen_title(_owned(result.screens[to_fp], app_package))
+            reached = f"On the {dest_title} screen" if dest_title else f"Reached screen {edge.dst}"
             steps.append(
                 Step(
                     ActionType.ASSERT,
                     selector=landmark,
                     assertion=AssertionType.VISIBLE,
-                    description=f"Reached screen {edge.dst}",
+                    description=reached,
                 )
             )
         if not ok:
@@ -603,9 +608,7 @@ def multi_step_cases(
         # journey_from_transfer_to_confirm. A label-less Compose wrapper is only a
         # bare framework class ("android.view.View" -> android_view_view), which
         # names nothing — drop those and fall back to the destination screen's title
-        # (journey_to_checkout), then the path.
-        from framework.crawler.to_codegen import _screen_title, _slug  # _owned is module-level
-
+        # (journey_to_checkout), then the path. (_screen_title/_slug hoisted above.)
         tap_slugs = [s for s in (_slug(t) for t in taps) if s and not s.startswith("android_")]
         dest_screen = result.screens.get(fp_of[node_path[-1]])
         dest_title = _slug(_screen_title(_owned(dest_screen, app_package))) if dest_screen else ""

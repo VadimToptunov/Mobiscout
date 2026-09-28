@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from framework.codegen.ir import (
     ActionType,
@@ -525,6 +525,55 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
     return cases
 
 
+def _dedupe_cases(cases: List[TestCase]) -> List[TestCase]:
+    """Collapse the near-identical cases a crawl's overlapping paths produce, which made
+    kits read like a transcript (``…ShowsExpectedControls2/3/4``, ``journey…2``):
+
+    - a per-screen state case (``…_shows_expected_controls``) reached by different
+      navigations but asserting the SAME controls is one screen tested more than once —
+      keep the copy that reaches it in the fewest steps;
+    - a journey with the SAME sequence of taps as another is the same walk — keep the first.
+
+    Cases that assert different controls, or walk a different path, are kept: that is real
+    coverage, not a duplicate. Other case kinds (tapping_/rejects_/fuzz_) pass through."""
+    kept: List[TestCase] = []
+    state_by_asserts: Dict[frozenset, int] = {}  # asserted-control set -> index in `kept`
+    seen_journey_taps: set = set()
+
+    def _assert_sig(case: TestCase) -> frozenset:
+        return frozenset(
+            (s.assertion, s.selector.value)
+            for s in case.steps
+            if s.action is ActionType.ASSERT and s.selector is not None
+        )
+
+    def _tap_sig(case: TestCase) -> tuple:
+        return tuple(s.selector.value for s in case.steps if s.action is ActionType.TAP and s.selector is not None)
+
+    for case in cases:
+        if case.name.endswith("_shows_expected_controls"):
+            sig = _assert_sig(case)
+            if not sig:
+                kept.append(case)
+                continue
+            if sig in state_by_asserts:
+                idx = state_by_asserts[sig]
+                if len(case.steps) < len(kept[idx].steps):  # prefer the shortest path to the screen
+                    kept[idx] = case
+                continue
+            state_by_asserts[sig] = len(kept)
+            kept.append(case)
+        elif case.name.startswith("journey"):
+            taps = _tap_sig(case)
+            if taps and taps in seen_journey_taps:
+                continue
+            seen_journey_taps.add(taps)
+            kept.append(case)
+        else:
+            kept.append(case)
+    return kept
+
+
 def build_test_model(
     result: CrawlResult,
     app_package: str,
@@ -606,7 +655,12 @@ def build_test_model(
 
         cases.extend(fuzz_form_cases(result, app_package, graph=graph))
 
-    # Human-readable names can collide (two screens titled the same, two taps on
+    # Collapse the near-duplicate cases overlapping crawl paths produce (a screen tested
+    # via several routes, the same walk found twice) before naming — so the suite is a set
+    # of distinct scenarios, not a transcript with _2/_3/_4 suffixes.
+    cases = _dedupe_cases(cases)
+
+    # Human-readable names can still collide (two screens titled the same, two taps on
     # the same control) — keep every test method name unique.
     used: set = set()
     for case in cases:
