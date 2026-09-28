@@ -17,6 +17,11 @@ from typing import Callable, Dict
 from framework.codegen.emitters._naming import pascal
 from framework.codegen.ir import Platform, TestModel
 
+# The JVM kits' Appium client and the Selenium release it is pinned to. Bump them together:
+# java-client takes Selenium as an open range, so the pair must be verified by a real compile.
+APPIUM_JAVA_CLIENT_VERSION = "10.1.1"
+SELENIUM_VERSION = "4.49.0"
+
 
 def _js_webdriverio(model: TestModel, server: str, target: str) -> Dict[str, str]:
     is_ios = model.platform is Platform.IOS
@@ -226,11 +231,25 @@ def _java_maven(model: TestModel, server: str, target: str) -> Dict[str, str]:
         "    <maven.compiler.target>17</maven.compiler.target>\n"
         "    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>\n"
         "  </properties>\n"
+        # Pin every Selenium artifact: java-client declares Selenium as an open range, and an
+        # unpinned build resolves the newest Selenium — which removed classes older clients
+        # were compiled against (java-client 9.3.0 no longer compiles against Selenium 4.49).
+        "  <dependencyManagement>\n"
+        "    <dependencies>\n"
+        "      <dependency>\n"
+        "        <groupId>org.seleniumhq.selenium</groupId>\n"
+        "        <artifactId>selenium-bom</artifactId>\n"
+        f"        <version>{SELENIUM_VERSION}</version>\n"
+        "        <type>pom</type>\n"
+        "        <scope>import</scope>\n"
+        "      </dependency>\n"
+        "    </dependencies>\n"
+        "  </dependencyManagement>\n"
         "  <dependencies>\n"
         "    <dependency>\n"
         "      <groupId>io.appium</groupId>\n"
         "      <artifactId>java-client</artifactId>\n"
-        "      <version>9.3.0</version>\n"
+        f"      <version>{APPIUM_JAVA_CLIENT_VERSION}</version>\n"
         "      <scope>test</scope>\n"
         "    </dependency>\n"
         f"{extra_deps}"
@@ -282,7 +301,8 @@ def _kotlin_gradle(model: TestModel, server: str, target: str) -> Dict[str, str]
         "}\n\n"
         "repositories { mavenCentral() }\n\n"
         "dependencies {\n"
-        '    testImplementation("io.appium:java-client:9.3.0")\n'
+        f'    testImplementation("io.appium:java-client:{APPIUM_JAVA_CLIENT_VERSION}")\n'
+        f'    testImplementation(platform("org.seleniumhq.selenium:selenium-bom:{SELENIUM_VERSION}"))\n'
         '    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")\n'
         "}\n\n"
         "sourceSets {\n"

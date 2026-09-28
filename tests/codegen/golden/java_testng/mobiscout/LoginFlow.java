@@ -7,7 +7,6 @@
 package mobiscout;
 
 import io.appium.java_client.AppiumBy;
-import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.options.UiAutomator2Options;
 import org.openqa.selenium.By;
@@ -28,7 +27,7 @@ import java.util.List;
 
 public class LoginFlow {
 
-    private AppiumDriver driver;
+    private AndroidDriver driver;
 
     // Run anywhere without regenerating: point at a different Appium/cloud-grid
     // hub with MOBISCOUT_APPIUM_SERVER.

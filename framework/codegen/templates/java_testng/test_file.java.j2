@@ -9,7 +9,6 @@
 package mobiscout;
 
 import io.appium.java_client.AppiumBy;
-import io.appium.java_client.AppiumDriver;
 {% if model.platform.value == "ios" %}
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.options.XCUITestOptions;
@@ -35,7 +34,11 @@ import java.util.List;
 
 public class {{ class_name }} {
 
-    private AppiumDriver driver;
+{% if model.platform.value == "ios" %}
+    private IOSDriver driver;
+{% else %}
+    private AndroidDriver driver;
+{% endif %}
 
     // Run anywhere without regenerating: point at a different Appium/cloud-grid
     // hub with MOBISCOUT_APPIUM_SERVER.
