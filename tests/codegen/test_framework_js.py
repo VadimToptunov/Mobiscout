@@ -3,6 +3,7 @@ generated specs EXECUTED in a device-free WebdriverIO runtime (tests/support/wdi
 — green against a healthy app, red when a tap goes nowhere. Both platforms."""
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -130,7 +131,8 @@ def _run(kit: Path, app: dict) -> subprocess.CompletedProcess:
     assert _NODE is not None
     return subprocess.run(
         [_NODE, str(_RUNNER), str(kit)],
-        env={"MOBISCOUT_FAKE_APP": str(app_path), "PATH": ""},
+        # Inherit the environment: Node aborts on Windows without SystemRoot and friends.
+        env={**os.environ, "MOBISCOUT_FAKE_APP": str(app_path)},
         capture_output=True,
         text=True,
         timeout=60,
