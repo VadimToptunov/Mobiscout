@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Callable, Dict, Optional
 
 from framework.codegen.framework_java import render_java
+from framework.codegen.framework_js import render_js
 from framework.codegen.framework_model import FrameworkModel, build_framework_model
 from framework.codegen.framework_python import render_python
 from framework.codegen.ir import TestModel
@@ -29,6 +30,7 @@ from framework.crawler.app_crawler import CrawlResult
 # without one still gets the flat emitter.
 _TARGET_FRAMEWORKS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
     "java_testng": render_java,
+    "js_webdriverio": render_js,
 }
 
 
