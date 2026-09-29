@@ -8,6 +8,18 @@
 
 const APP = {{ app_package | js_str }};
 
+/**
+ * Reopen the session if it no longer answers (Appium or the driver crashed): one crash costs
+ * one test, not every test after it.
+ */
+async function ensureAlive() {
+    try {
+        await driver.queryAppState(APP);
+    } catch {
+        await driver.reloadSession();
+    }
+}
+
 export const config = {
     runner: 'local',
     port: 4723,
@@ -60,6 +72,7 @@ export const config = {
     /** A fresh app for every test on the worker's shared session. */
     beforeTest: async () => {
 {% endif %}
+        await ensureAlive();
         try {
             await driver.terminateApp(APP);
         } catch {

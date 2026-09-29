@@ -42,10 +42,29 @@ public final class Session {
         return driver;
     }
 
+    /**
+     * Drop the session if it no longer answers (Appium or the driver crashed), so the next
+     * {@link #driver()} opens a new one: one crash costs one scenario, not the rest of the run.
+     */
+    static synchronized void ensureAlive() {
+        if (driver == null) {
+            return;
+        }
+        try {
+            driver.queryAppState(APP);
+        } catch (RuntimeException e) {
+            close();
+        }
+    }
+
     /** Close the session, if one was opened. */
     static synchronized void close() {
         if (driver != null) {
-            driver.quit();
+            try {
+                driver.quit();
+            } catch (RuntimeException ignored) {
+                // already gone
+            }
             driver = null;
         }
     }

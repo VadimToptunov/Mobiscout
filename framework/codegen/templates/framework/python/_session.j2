@@ -39,3 +39,56 @@ def _options():
 {% endmacro %}
 
 {% macro idle_settings(platform) %}{% if platform == "ios" %}{"waitForIdleTimeout": 0, "animationCoolOffTimeout": 0}{% else %}{"waitForIdleTimeout": 100}{% endif %}{% endmacro %}
+
+{% macro session_class(platform) %}
+class Session:
+    """The Appium session the whole run shares, reopened if it died.
+
+    Opening a session costs 5-10 s, so one serves every test. But an Appium server or driver
+    that crashes must cost ONE test, not every test after it: before each test the session
+    is checked with one cheap call and reopened if it is gone.
+    """
+
+    def __init__(self):
+        self._driver = None
+
+    def restart_app(self):
+        """The live session with the app cold-restarted, so the test begins clean."""
+        driver = self._live()
+        try:
+            driver.terminate_app(APP)
+        except Exception:
+            pass  # the app was not running
+        driver.activate_app(APP)
+        return driver
+
+    def close(self):
+        """End the session, if one is open."""
+        if self._driver is not None:
+            try:
+                self._driver.quit()
+            except Exception:
+                pass  # already gone
+            self._driver = None
+
+    def _live(self):
+        if self._driver is not None and not self._alive():
+            self.close()
+        if self._driver is None:
+            self._driver = webdriver.Remote(SERVER, options=_options())
+            try:
+                # Don't wait for the UI to go idle after every command: a live app rarely
+                # does, and the driver would otherwise stall up to 10 s per command.
+                self._driver.update_settings({{ idle_settings(platform) }})
+            except Exception:
+                pass
+        return self._driver
+
+    def _alive(self):
+        try:
+            self._driver.query_app_state(APP)
+            return True
+        except Exception:
+            return False
+{% endmacro %}
+

@@ -4,7 +4,9 @@
 //
 // Model JSON ($MOBISCOUT_FAKE_APP): {"start": int, "screens": [[selector, ...], ...],
 //                                     "transitions": [[from, selector, to], ...],
-//                                     "crashes": [[screen, selector], ...]}  // tapping it kills the app
+//                                     "crashes": [[screen, selector], ...],  // tapping it kills the app
+//                                     "sessionKillers": [[screen, selector], ...]}  // kills the SESSION:
+//                                     every command fails until reloadSession()
 
 import { readFileSync } from 'node:fs';
 
@@ -18,6 +20,11 @@ export function installFakeApp() {
         typed: new Map(),
         history: [],
         running: true,
+        dead: false,
+        killers: new Set((model.sessionKillers ?? []).map(([from, sel]) => `${from}\u0000${sel}`)),
+        check() {
+            if (this.dead) throw new Error('invalid session id: the session is gone');
+        },
         crashes: new Set((model.crashes ?? []).map(([from, sel]) => `${from}\u0000${sel}`)),
         present(sel) {
             if (!this.running) return false;
@@ -33,6 +40,10 @@ export function installFakeApp() {
             return true;
         },
         tap(sel) {
+            if (this.killers.has(`${this.current}\u0000${sel}`)) {
+                this.dead = true;
+                return;
+            }
             if (this.crashes.has(`${this.current}\u0000${sel}`)) {
                 this.running = false;
                 return;
@@ -82,7 +93,10 @@ export function installFakeApp() {
         }
     }
 
-    globalThis.$ = async (selector) => new FakeElement(selector);
+    globalThis.$ = async (selector) => {
+        app.check();
+        return new FakeElement(selector);
+    };
     globalThis.driver = {
         async waitUntil(condition) {
             for (let i = 0; i < 5; i += 1) {
@@ -100,12 +114,18 @@ export function installFakeApp() {
         async hideKeyboard() {},
         async terminateApp() {},
         async activateApp() {
+            app.check();
+            app.reset();
+        },
+        async reloadSession() {
+            app.dead = false;
             app.reset();
         },
         async back() {
             app.back();
         },
         async queryAppState() {
+            app.check();
             return app.running ? 4 : 1; // running in the foreground / not running
         },
     };

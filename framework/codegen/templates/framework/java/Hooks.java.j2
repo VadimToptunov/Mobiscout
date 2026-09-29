@@ -12,6 +12,7 @@ public class Hooks {
 
     @Before
     public void restartApp() {
+        Session.ensureAlive();
         try {
             Session.driver().terminateApp(Session.APP);
         } catch (RuntimeException ignored) {
