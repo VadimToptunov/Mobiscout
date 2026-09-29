@@ -8,12 +8,16 @@ import pytest
 
 from framework.crawler import appium_server
 from framework.crawler.appium_server import (
+    ManagedAppiumServer,
     _free_port,
     _is_default_local,
     ensure_appium,
     find_appium_executable,
 )
 from framework.crawler.errors import CrawlerDriverError
+
+# Captured at import, before conftest's _forbid_real_appium swaps it out per test.
+_REAL_START = ManagedAppiumServer.start
 
 
 class _FakeManaged:
@@ -122,3 +126,32 @@ def test_find_appium_returns_none_when_absent(monkeypatch):
     # No candidate paths exist in the test environment.
     monkeypatch.setattr(appium_server.os.path, "isfile", lambda p: False)
     assert find_appium_executable() is None
+
+
+@pytest.mark.parametrize(
+    "popen_raises,expected",
+    [(False, "Appium exited before it became ready"), (True, "Could not launch Appium")],
+    ids=["exited-early", "launch-failed"],
+)
+def test_autostart_failure_tells_the_user_what_to_do(monkeypatch, popen_raises, expected):
+    """A failed auto-start (broken install, port taken) must say how to recover, not
+    just that it failed. Popen is faked, so no real process is ever launched."""
+
+    class _ExitedProc:
+        pid = -1
+
+        def poll(self):
+            return 1  # already exited
+
+    def _popen(cmd, **kwargs):
+        if popen_raises:
+            raise PermissionError("not executable")
+        return _ExitedProc()
+
+    monkeypatch.setattr(ManagedAppiumServer, "start", _REAL_START)
+    monkeypatch.setattr(appium_server.subprocess, "Popen", _popen)
+    with pytest.raises(CrawlerDriverError) as exc:
+        ManagedAppiumServer("/opt/homebrew/bin/appium").start()
+    msg = str(exc.value)
+    assert expected in msg
+    assert "Start Appium yourself" in msg and "cloud-grid hub" in msg

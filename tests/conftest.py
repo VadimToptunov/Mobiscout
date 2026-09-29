@@ -42,3 +42,23 @@ def _reset_classifier_cache():
     classify.reset_cache()
     yield
     classify.reset_cache()
+
+
+@pytest.fixture(autouse=True)
+def _forbid_real_appium(monkeypatch):
+    """No test may spawn a real Appium server. The driver path auto-starts one when
+    none is reachable and ``appium`` is installed, so on a dev box with Appium a test
+    that under-stubbed the path launched (and could leak) a real ``node appium``,
+    while CI (no Appium) passed. Fail such a test loudly instead: ``pytest.fail``
+    raises a BaseException, so no ``except Exception`` on the path can swallow it.
+
+    Importing the module here also means it is never *first* imported under some
+    test's patch of ``framework.health.preflight.appium_status`` — ensure_appium
+    binds that function as a default argument at import time, so a first import
+    under the patch froze the stub in for every later test in the worker."""
+    from framework.crawler import appium_server
+
+    def _refuse(self, *a, **k):
+        pytest.fail("test tried to start a real Appium server; stub ensure_appium or its seams")
+
+    monkeypatch.setattr(appium_server.ManagedAppiumServer, "start", _refuse)
