@@ -192,18 +192,13 @@ def test_every_file_compiles(platform, flavour, tmp_path):
 
 
 def test_scenarios_differing_only_in_data_become_one_outline(platform):
+    # Invalid and empty input on the same form differ in their data alone: one Outline,
+    # the data in its Examples table.
     fm = _framework(platform)
     welcome = fm.pages[0].name
-    src = next(sc for sc in fm.scenarios if sc.group == welcome and any(c.op == "enter" for c in sc.calls))
-    twin = type(src)(
-        name=f"{src.name}_again",
-        description=f"{src.description} Again.",
-        calls=[type(c)(c.page, c.op, c.element, "other@x" if c.op == "enter" else c.value) for c in src.calls],
-        group=src.group,
-    )
-    fm.scenarios.append(twin)
     feature = next(f for f in build_bdd_model(fm).features if f.page == welcome)
     outlines = [sc for sc in feature.scenarios if sc.examples]
     assert len(outlines) == 1, feature
     columns, rows = outlines[0].examples
-    assert len(rows) == 2 and all(any("<" + c + ">" in s.text for s in outlines[0].steps) for c in columns)
+    assert len(rows) == 2 and ["", ""] in rows, rows
+    assert all(any("<" + c + ">" in s.text for s in outlines[0].steps) for c in columns)

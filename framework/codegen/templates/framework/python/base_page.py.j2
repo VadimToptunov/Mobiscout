@@ -91,6 +91,11 @@ class BasePage:
         return self._find(name).is_enabled()
 
     # --- acting ---------------------------------------------------------------------
+    def go_back(self):
+        """Press the system Back."""
+        self.driver.back()
+        self._settle()
+
     def _tap(self, name):
         self._find(name).click()
         self._settle()

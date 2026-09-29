@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
-from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario
+from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario, repeated
 
 PARAM = "{string}"
 
@@ -46,6 +46,7 @@ class StepDef:
     op: str  # "arrive", "stays" (still on the page after a tap on it) or a Call.op
     element: Optional[str] = None
     path: List[Call] = field(default_factory=list)  # arrive: the taps from the app's start
+    sample: Optional[str] = None  # enter_long: the fixed value it types (a long run of one char)
 
     @property
     def has_param(self) -> bool:
@@ -119,7 +120,7 @@ def _label(page: PageDef, key: str) -> str:
     return _words(e.label) or key.replace("_", " ")
 
 
-def _phrase(op: str, page: PageDef, key: Optional[str]) -> Tuple[str, str]:
+def _phrase(op: str, page: PageDef, key: Optional[str], sample: Optional[str] = None) -> Tuple[str, str]:
     """(keyword, phrase) for a page call."""
     title = _words(page.title) or page.name
     label = _label(page, key) if key else ""
@@ -127,6 +128,7 @@ def _phrase(op: str, page: PageDef, key: Optional[str]) -> Tuple[str, str]:
         "arrive": ("Given", f"I am on the {title} screen"),
         "tap": ("When", f"I tap {label}"),
         "enter": ("When", f"I enter {PARAM} into {label}"),
+        "enter_long": ("When", f"I enter {len(sample or '')} characters into {label}"),
         "is_displayed": ("Then", f"I see the {title} screen"),
         "stays": ("Then", f"I am still on the {title} screen"),
         "has": ("Then", f"I see {label}"),
@@ -134,6 +136,7 @@ def _phrase(op: str, page: PageDef, key: Optional[str]) -> Tuple[str, str]:
         "text_is": ("Then", f"{label} shows {PARAM}"),
         "is_enabled": ("Then", f"{label} is enabled"),
         "app_running": ("Then", "the app is still running"),
+        "back": ("When", "I go back"),
     }[op]
 
 
@@ -191,14 +194,14 @@ class _Catalog:
 
     def __init__(self, fm: FrameworkModel, paths: Dict[str, List[Call]]):
         self.fm, self.paths = fm, paths
-        self.defs: Dict[Tuple[str, str, Optional[str]], StepDef] = {}
+        self.defs: Dict[Tuple[str, str, Optional[str], Optional[str]], StepDef] = {}
 
-    def get(self, page: str, op: str, element: Optional[str] = None) -> StepDef:
+    def get(self, page: str, op: str, element: Optional[str] = None, sample: Optional[str] = None) -> StepDef:
         """The step definition for a page call, created on first use."""
-        key = (page, op, element)
+        key = (page, op, element, sample)
         if key not in self.defs:
-            keyword, text = _phrase(op, self.fm.page(page), element)
-            self.defs[key] = StepDef(keyword, text, page, op, element, list(self.paths.get(page, [])))
+            keyword, text = _phrase(op, self.fm.page(page), element, sample)
+            self.defs[key] = StepDef(keyword, text, page, op, element, list(self.paths.get(page, [])), sample)
         return self.defs[key]
 
     def finish(self) -> List[StepDef]:
@@ -229,11 +232,16 @@ def _lines(catalog: _Catalog, start: str, calls: List[Call], with_given: bool) -
             calls = calls[1:]  # the Given already proved this screen is shown
     for i, call in enumerate(calls):
         op = call.op
-        if op == "app_running":  # not about any one screen: one definition, on the entry page
-            steps.append(GherkinStep("Then", catalog.get(catalog.fm.pages[0].name, op)))
+        if op in ("app_running", "back"):  # not about any one screen: one definition, on the entry page
+            d = catalog.get(catalog.fm.pages[0].name, op)
+            steps.append(GherkinStep(d.keyword, d))
             continue
         if op == "is_displayed" and i and calls[i - 1].op == "tap" and calls[i - 1].page == call.page:
             op = "stays"  # the tap was meant to go nowhere (a rejected form)
+        if op == "enter" and repeated(call.value):  # too-long input: say its length, not 300 x's
+            d = catalog.get(call.page, "enter_long", call.element, sample=call.value)
+            steps.append(GherkinStep(d.keyword, d))
+            continue
         d = catalog.get(call.page, op, call.element)
         steps.append(GherkinStep(d.keyword, d, safe_value(call.value) if d.has_param else None))
     prev = None
@@ -273,10 +281,37 @@ def _outlines(scenarios: List[GherkinScenario]) -> List[GherkinScenario]:
                 name, n = f"{base}_{n}", n + 1
             columns.append(name)
         rows = [[v.steps[i].value or "" for i in enters] for v in group]
+        sc.title = _merged_title([v.title for v in group])
         for i, col in zip(enters, columns):
             sc.steps[i].value = f"<{col}>"
         sc.examples = (columns, rows)
     return [g[0] for g in groups]
+
+
+def _merged_title(titles: List[str]) -> str:
+    """One title for scenarios merged into an Outline: the words they share, with the parts
+    that differ joined by "or" — "Submitting the form with invalid data or empty fields is
+    rejected"."""
+    if len(set(titles)) == 1:
+        return titles[0]
+    words = [t.split() for t in titles]
+    head = 0
+    while all(len(w) > head for w in words) and len({w[head] for w in words}) == 1:
+        head += 1
+    tail = 0
+    while all(len(w) > head + tail for w in words) and len({w[-1 - tail] for w in words}) == 1:
+        tail += 1
+    middles = []
+    for w in words:
+        middle = " ".join(w[head : len(w) - tail])
+        if middle and middle not in middles:
+            middles.append(middle)
+    parts = [
+        " ".join(words[0][:head]),
+        " or ".join(middles),
+        " ".join(words[0][len(words[0]) - tail :] if tail else []),
+    ]
+    return " ".join(p for p in parts if p)
 
 
 def build_bdd_model(fm: FrameworkModel) -> BddModel:

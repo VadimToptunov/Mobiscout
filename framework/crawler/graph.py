@@ -26,6 +26,7 @@ from typing import Dict, List, Optional, Tuple
 
 from framework.codegen.ir import ActionType, AssertionType, Selector, Step, TestCase
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
+from framework.crawler.models import is_generic_error
 from framework.crawler.classify import classify
 from framework.crawler.form_values import (
     _ALWAYS_FINANCIAL_LABELS,
@@ -847,15 +848,53 @@ def fuzz_form_cases(
     return cases
 
 
+@dataclass
+class _Form:
+    """A form the crawl reached: where it is, how to get there and how to submit it."""
+
+    fp: str
+    screen: CrawlScreen
+    submit: Selector
+    submit_label: str
+    anchor: Optional[Selector]  # a locator unique to this screen (None: none exists)
+    nav: List[Step]  # LAUNCH + the gate/probe/auth-aware route to the form
+    title: str  # slug naming the form
+
+
+def _reachable_forms(result: CrawlResult, app_package: str, graph: InteractionGraph) -> List[_Form]:
+    """Every screen with a submittable form the tests can reach, in crawl order."""
+    from framework.crawler.to_codegen import _screen_title, _slug
+
+    nav_by_fp = _form_nav_context(result, app_package, graph)
+    locator_values = _locator_values(result, app_package)
+    forms: List[_Form] = []
+    for fp, screen in result.screens.items():
+        submit = _submit_element(screen, app_package)
+        if submit is None:
+            continue
+        submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
+        nav = _launch_nav_prefix(nav_by_fp, fp)
+        if submit_sel is None or nav is None:
+            continue
+        anchor = _non_advance_anchor(fp, screen, app_package, submit, locator_values)
+        title = _slug(_screen_title(_owned(screen, app_package))) or _slug(submit.label or "") or "form"
+        forms.append(_Form(fp, screen, submit_sel, submit.label or "form", anchor, nav, title))
+    return forms
+
+
 def negative_form_cases(
     result: CrawlResult, app_package: str = "", max_cases: int = 12, graph: Optional[InteractionGraph] = None
 ) -> List[TestCase]:
-    """Negative-path tests: for each screen with a submittable form (input +
-    submit control), navigate to it, type *invalid* data, submit, and assert the
-    app *rejects* it — a locator unique to the form screen
-    (:func:`_non_advance_anchor`) is still visible, i.e. the form did not advance.
-    A correct app stays put; a buggy one advances and fails the test, which is
-    exactly the validation defect we want caught.
+    """Negative-path tests: for each screen with a submittable form (input + submit
+    control), navigate to it, submit it *invalid* — type-specific bad data, and empty —
+    and assert the app *rejects* it: a locator unique to the form screen
+    (:func:`_non_advance_anchor`) is still visible, i.e. the form did not advance. A
+    correct app stays put; a buggy one advances and fails the test, which is exactly the
+    validation defect we want caught.
+
+    Only forms with a strongly-typed field (email, phone, number, password, ...) get them:
+    those are the forms whose fields are required and validated. A search box legitimately
+    accepts an empty query, and a test demanding otherwise would fail a correct app.
 
     This is the negative counterpart to the positive form-filling already done by
     :func:`multi_step_cases`; together they cover both branches of every form.
@@ -864,54 +903,145 @@ def negative_form_cases(
     given (deterministic, so output is identical) instead of rebuilt.
     """
     graph = graph if graph is not None else build_graph(result, app_package)
+    cases: List[TestCase] = []
+    for form in _reachable_forms(result, app_package, graph):
+        invalid_steps = _invalid_form_steps(form.screen, app_package)
+        # No typed field to make invalid, or no way to prove the form did not advance:
+        # emit nothing rather than a case that cannot fail.
+        if not invalid_steps or form.anchor is None:
+            continue
+        name = form.title.replace("_", " ")
+        variants = [
+            ("invalid", invalid_steps, f"Submitting the {name} form with invalid data is rejected"),
+            (
+                "empty",
+                _fuzz_form_steps(form.screen, app_package, ""),
+                f"Submitting the {name} form with empty fields is rejected",
+            ),
+        ]
+        for kind, fill, description in variants:
+            steps = [*form.nav, *fill]
+            steps.append(Step(ActionType.TAP, selector=form.submit, description=f"Submit {form.submit_label}"))
+            steps.append(
+                Step(
+                    ActionType.ASSERT,
+                    selector=form.anchor,
+                    assertion=AssertionType.VISIBLE,
+                    description=f"{kind.capitalize()} input is rejected — the form did not advance",
+                )
+            )
+            cases.append(TestCase(name=f"rejects_{kind}_input_on_{form.title}", steps=steps, description=description))
+            if len(cases) >= max_cases:
+                return cases
+    return cases
+
+
+# Input a robust app must survive whatever it decides to do with it: accept it, trim it or
+# reject it is the app's business — crashing is not.
+_ROBUSTNESS_PAYLOADS: List[Tuple[str, str, str]] = [
+    ("too_long", "x" * 300, "too-long input"),
+    # Every character here is literal in Python, Java, Kotlin and JS strings and in a
+    # Gherkin step, so each target types exactly the same data.
+    ("special_characters", "!@#$%^&*()_+-=[]{};:,.?/~`'", "special characters"),
+]
+
+
+def robustness_form_cases(
+    result: CrawlResult, app_package: str = "", max_cases: int = 8, graph: Optional[InteractionGraph] = None
+) -> List[TestCase]:
+    """For each reachable form: fill every input with too-long text, then with special
+    characters, submit, and assert the app is still running. It does not assert the form
+    was rejected — a free-text field may legitimately accept both — only that the app
+    survived. Page-Object kits only (the "still running" check is theirs)."""
+    graph = graph if graph is not None else build_graph(result, app_package)
+    cases: List[TestCase] = []
+    for form in _reachable_forms(result, app_package, graph):
+        for kind, payload, what in _ROBUSTNESS_PAYLOADS:
+            fill = _fuzz_form_steps(form.screen, app_package, payload)
+            if not fill:
+                break
+            steps = [*form.nav, *fill]
+            steps.append(Step(ActionType.TAP, selector=form.submit, description=f"Submit {form.submit_label}"))
+            steps.append(Step(ActionType.ASSERT, assertion=AssertionType.APP_RUNNING, description="The app survived"))
+            cases.append(
+                TestCase(
+                    name=f"survives_{kind}_on_{form.title}",
+                    steps=steps,
+                    description=f"The {form.title.replace('_', ' ')} form survives {what}",
+                )
+            )
+            if len(cases) >= max_cases:
+                return cases
+    return cases
+
+
+def back_navigation_cases(
+    result: CrawlResult, app_package: str = "", max_cases: int = 8, graph: Optional[InteractionGraph] = None
+) -> List[TestCase]:
+    """Back returns where the crawl saw it return: reach the child screen, press Back, and
+    assert the parent is on screen again. Only pairs the crawl OBSERVED (a plain Back, not a
+    modal's Close button), so the test pins real behaviour rather than a guess; Android only
+    — iOS has no system Back."""
+    if not result.back_returns or not result.screens:
+        return []
+    if next(iter(result.screens.values())).platform != "android":
+        return []
+    graph = graph if graph is not None else build_graph(result, app_package)
     nav_by_fp = _form_nav_context(result, app_package, graph)
     locator_values = _locator_values(result, app_package)
 
     from framework.crawler.to_codegen import _screen_title, _slug
 
     cases: List[TestCase] = []
-    for target_fp, screen in result.screens.items():
-        submit = _submit_element(screen, app_package)
-        if submit is None:
+    for child_fp, parent_fp in result.back_returns:
+        child, parent = result.screens.get(child_fp), result.screens.get(parent_fp)
+        nav = _launch_nav_prefix(nav_by_fp, child_fp) if child is not None else None
+        if child is None or parent is None or nav is None:
             continue
-        invalid_steps = _invalid_form_steps(screen, app_package)
-        if not invalid_steps:
-            continue  # no strongly-typed field to make invalid — skip
-        submit_sel = selector_for(submit, _owned(screen, app_package), screen.platform)
-        if submit_sel is None:
-            continue
-        # Without a locator unique to this screen there is no way to prove the invalid
-        # input didn't advance the form, so no case is emitted rather than one that
-        # cannot fail.
-        anchor = _non_advance_anchor(target_fp, screen, app_package, submit, locator_values)
-        if anchor is None:
-            continue
-        # Reach the form via the shared gate/probe/auth-aware prefix (None => unreachable).
-        steps = _launch_nav_prefix(nav_by_fp, target_fp)
-        if steps is None:
-            continue
-
-        steps.extend(invalid_steps)
-        steps.append(Step(ActionType.TAP, selector=submit_sel, description=f"Submit {submit.label or 'form'}"))
-        steps.append(
+        here = _unique_anchor(child_fp, child, app_package, locator_values)
+        back = _unique_anchor(parent_fp, parent, app_package, locator_values)
+        if here is None or back is None:
+            continue  # nothing can prove which screen is on display
+        child_title = _screen_title(_owned(child, app_package)) or "the screen"
+        parent_title = _screen_title(_owned(parent, app_package)) or "the previous screen"
+        steps = [
+            *nav,
+            Step(ActionType.ASSERT, selector=here, assertion=AssertionType.VISIBLE, description=f"On {child_title}"),
+            Step(ActionType.BACK, description="Press Back"),
             Step(
-                ActionType.ASSERT,
-                selector=anchor,
-                assertion=AssertionType.VISIBLE,
-                description="Invalid input is rejected — the form did not advance",
-            )
-        )
-        title = _slug(_screen_title(_owned(screen, app_package))) or _slug(submit.label or "") or "form"
+                ActionType.ASSERT, selector=back, assertion=AssertionType.VISIBLE, description=f"Back on {parent_title}"
+            ),
+        ]
         cases.append(
             TestCase(
-                name=f"rejects_invalid_input_on_{title}",
+                name=f"back_from_{_slug(child_title) or 'screen'}_returns_to_{_slug(parent_title) or 'previous'}",
                 steps=steps,
-                description=f"Submitting invalid data on the {title.replace('_', ' ')} form is rejected",
+                description=f"Back from {child_title} returns to {parent_title}",
             )
         )
         if len(cases) >= max_cases:
             break
     return cases
+
+
+def _unique_anchor(
+    fp: str, screen: CrawlScreen, app_package: str, locator_values: Dict[str, set]
+) -> Optional[Selector]:
+    """A locator that resolves on this screen and on no other the crawl saw (fallbacks
+    stripped), preferring a title — proof of which screen is on display. None if none."""
+    from framework.crawler.to_codegen import _title_element
+
+    owned = _owned(screen, app_package)
+    title = _title_element(owned)
+    elsewhere: set = set().union(*(v for other, v in locator_values.items() if other != fp))
+    for element in ([title] if title is not None else []) + [e for e in owned if e is not title]:
+        if is_generic_error(f"{element.text} {element.content_desc}"):
+            continue
+        sel = selector_for(element, owned, screen.platform)
+        if sel is None or sel.score < _ASSERTABLE_SCORE or sel.value in elsewhere:
+            continue
+        return replace(sel, fallbacks=[])
+    return None
 
 
 def _annotate_depth(graph: InteractionGraph) -> None:

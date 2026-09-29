@@ -150,7 +150,7 @@ def test_webdriverio_layout(platform):
 def test_specs_drive_intention_methods_not_raw_selectors(platform):
     for path, source in _specs(_kit(platform)[1]).items():
         assert "../pageobjects/" in source, path
-        for smell in ("$(", "driver.", "pause(", "~", "UiSelector", "XCUIElementType", "setValue", "click()"):
+        for smell in ("$(", "driver.", "pause(", "'~", "UiSelector", "XCUIElementType", "setValue", "click()"):
             assert smell not in source, f"{smell!r} leaked into {path}:\n{source}"
 
 

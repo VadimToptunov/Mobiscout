@@ -157,3 +157,7 @@ class CrawlResult:
     ended_early: Optional[str] = None
     # Defects the crawl ran into (see Finding), in the order it met them.
     findings: List["Finding"] = field(default_factory=list)
+    # (child_fp, parent_fp) pairs where a plain Back returned from the child to the parent —
+    # observed behaviour a generated test can pin. Kept apart from ``transitions`` so the
+    # graph (dead ends, depth) still describes forward navigation only.
+    back_returns: List[Tuple[str, str]] = field(default_factory=list)

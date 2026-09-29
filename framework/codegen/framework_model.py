@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
 from framework.codegen.emitters._naming import pascal, snake
-from framework.codegen.ir import ActionType, AssertionType, Platform, Selector, TestCase, TestModel
+from framework.codegen.ir import ActionType, AssertionType, Platform, Selector, Step, TestCase, TestModel
 from framework.crawler.models import CrawlElement, CrawlResult, is_generic_error
 from framework.crawler.to_codegen import _ASSERTABLE_SCORE, _looks_verbose, _owned, _title_element, selector_for
 
@@ -73,7 +73,7 @@ class Call:
     """One step of a scenario, as a call on a page."""
 
     page: str  # PageDef.name
-    op: str  # "tap" | "enter" | "is_displayed" | "has" | "lacks" | "text_is" | "is_enabled" | "app_running"
+    op: str  # tap | enter | back | is_displayed | has | lacks | text_is | is_enabled | app_running
     element: Optional[str] = None
     value: Optional[str] = None
 
@@ -112,6 +112,14 @@ class FrameworkModel:
     def page(self, name: str) -> PageDef:
         """The page with this name."""
         return next(p for p in self.pages if p.name == name)
+
+
+def repeated(value: Optional[str]) -> Optional[Tuple[str, int]]:
+    """(char, count) when ``value`` is one character repeated at length (too-long input), so
+    a renderer writes ``"x" * 300`` / ``"x".repeat(300)`` instead of a 300-char literal."""
+    if value and len(value) >= 40 and len(set(value)) == 1:
+        return value[0], len(value)
+    return None
 
 
 def _sentence(text: str) -> str:
@@ -307,16 +315,24 @@ def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenari
     out: List[Scenario] = []
     for case in cases:
         current = entry
+        history: List[PageDef] = []  # pages a navigating tap left, for Back to return to
         last_asserted: Optional[PageDef] = None
+        acted = entry  # the page the last tap/entry happened on
         calls: List[Call] = []
         ok, asserted = True, False
         for step in case.steps:
             if step.action is ActionType.LAUNCH:
-                current = entry
+                current, history = entry, []
+                continue
+            if step.action is ActionType.BACK:
+                calls.append(Call(current.name, "back"))
+                current = history.pop() if history else entry
                 continue
             if step.assertion is AssertionType.APP_RUNNING:
-                asserted = True
-                calls.append(Call(current.name, "app_running"))
+                # About the screen that was acted on (a form that got too-long input), not
+                # wherever its submit would lead.
+                asserted, last_asserted = True, acted
+                calls.append(Call(acted.name, "app_running"))
                 continue
             if step.selector is None:
                 continue  # waits / back / swipe: the page layer covers settling
@@ -328,25 +344,20 @@ def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenari
                 continue
             page = current if current in candidates else candidates[0]
             el = next(e for e in page.elements if _sel_key(e.selector) == _sel_key(step.selector))
+            if step.action in (ActionType.TAP, ActionType.TYPE):
+                acted = page
             if step.action is ActionType.TAP:
                 calls.append(Call(page.name, "tap", el.key))
                 current = by_name.get(el.navigates_to or "", page)
+                if current is not page:
+                    history.append(page)
             elif step.action is ActionType.TYPE:
                 calls.append(Call(page.name, "enter", el.key, step.text or ""))
                 current = page
             elif step.action is ActionType.ASSERT:
                 asserted = True
                 current = last_asserted = page
-                if step.assertion is AssertionType.NOT_VISIBLE:
-                    calls.append(Call(page.name, "lacks", el.key))
-                elif step.assertion is AssertionType.TEXT_EQUALS and step.expected is not None:
-                    calls.append(Call(page.name, "text_is", el.key, step.expected))
-                elif step.assertion is AssertionType.ENABLED:
-                    calls.append(Call(page.name, "is_enabled", el.key))
-                elif el.key == page.identity:
-                    calls.append(Call(page.name, "is_displayed"))
-                else:
-                    calls.append(Call(page.name, "has", el.key))
+                calls.append(_assert_call(page, el, step))
         if not ok or not asserted:
             continue
         calls = _still_here(calls, by_name)
@@ -359,6 +370,19 @@ def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenari
             )
         )
     return out
+
+
+def _assert_call(page: PageDef, el: ElementDef, step: Step) -> Call:
+    """An ASSERT step as the page call that checks it."""
+    if step.assertion is AssertionType.NOT_VISIBLE:
+        return Call(page.name, "lacks", el.key)
+    if step.assertion is AssertionType.TEXT_EQUALS and step.expected is not None:
+        return Call(page.name, "text_is", el.key, step.expected)
+    if step.assertion is AssertionType.ENABLED:
+        return Call(page.name, "is_enabled", el.key)
+    if el.key == page.identity:
+        return Call(page.name, "is_displayed")
+    return Call(page.name, "has", el.key)
 
 
 def _still_here(calls: List[Call], by_name: Dict[str, PageDef]) -> List[Call]:
@@ -384,14 +408,16 @@ def build_framework_model(result: CrawlResult, model: TestModel, app_package: st
 
     unique: List[Tuple[Scenario, tuple]] = []
     seen_sigs: Set[tuple] = set()
-    from framework.crawler.graph import defect_cases  # lazy: graph imports the crawler stack
+    from framework.crawler.graph import defect_cases, robustness_form_cases  # lazy: graph imports the crawler
 
+    # The app must survive too-long input and special characters (whatever it does with them).
+    robustness = _flow_scenarios(robustness_form_cases(result, app_package), pages)
     defects: List[Scenario] = []
     for case, evidence in defect_cases(result, app_package):
         for sc in _flow_scenarios([case], pages):
             sc.defect = evidence
             defects.append(sc)
-    for sc in _navigation_scenarios(pages) + _flow_scenarios(model.cases, pages) + defects:
+    for sc in _navigation_scenarios(pages) + _flow_scenarios(model.cases, pages) + robustness + defects:
         sig = tuple((c.page, c.op, c.element, c.value) for c in sc.calls)
         if sig in seen_sigs:  # the same test reached two ways — keep one
             continue

@@ -192,6 +192,7 @@ class AppCrawler:
         # Flips once any gate is passed; screens recorded afterward are "behind auth"
         # and tagged in result.gated so codegen can prepend the auth steps.
         self._passed_gate = False
+        self._plain_back = False  # whether the last _go_back got there with Back alone
         # The waypoints that fired, in execution order (login -> OTP -> passcode),
         # deduped — codegen emits the auth prefix in this order.
         self._fired_waypoints: List["Waypoint"] = []
@@ -414,7 +415,9 @@ class AppCrawler:
         the frame unsynced on False so it won't tap that frame's stale coordinates."""
         self.driver.back()
         self._recover()
+        self._plain_back = False
         if not parent_fp or self._current_fp() == parent_fp:
+            self._plain_back = bool(parent_fp)
             return True
         # Still off the parent — likely a modal. Try an explicit dismissal control.
         screen = parse_screen(self.driver.page_source())
@@ -430,6 +433,13 @@ class AppCrawler:
         self._scroll("up")
         self._recover()
         return self._current_fp() == parent_fp
+
+    def _note_back(self, result: CrawlResult, child_fp: str, parent_fp: str, returned: bool) -> None:
+        """Record that a plain Back returned from ``child_fp`` to ``parent_fp`` (not a modal
+        dismissed by its Close button or a swipe) — observed behaviour a test can pin."""
+        pair = (child_fp, parent_fp)
+        if returned and self._plain_back and child_fp != parent_fp and pair not in result.back_returns:
+            result.back_returns.append(pair)
 
     @staticmethod
     def _screen_bottom(screen: CrawlScreen) -> int:
@@ -1003,10 +1013,11 @@ class AppCrawler:
             if not todo:
                 if self._refill(frame, pending, result, exclude_nav):
                     continue
-                stack.pop()
+                child_fp = stack.pop().fingerprint
                 if stack:  # return to the parent screen (dismissing any modal)
                     result.steps += 1
                     stack[-1].synced = self._go_back(stack[-1].fingerprint)
+                    self._note_back(result, child_fp, stack[-1].fingerprint, stack[-1].synced)
                 continue
 
             element = todo.popleft()
@@ -1116,3 +1127,4 @@ class AppCrawler:
                 # Otherwise: don't re-explore, return to parent.
                 result.steps += 1
                 frame.synced = self._go_back(current_fp)
+                self._note_back(result, new_screen.fingerprint, current_fp, frame.synced)

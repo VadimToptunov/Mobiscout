@@ -69,7 +69,7 @@ def test_daemon_kit_generate_requires_package():
 
 
 # --- open-core entitlement enforcement (the seam a paid tier limits) -----------
-# FakeDriver yields 4 screens / 7 cases unlimited; a limited provider must cap the
+# FakeDriver yields 4 screens / 8 cases unlimited; a limited provider must cap the
 # kit. These prove cap_screens/cap_tests are actually wired into build_kit, not
 # just defined — the free-tier quota the PRO layer sells against.
 
@@ -175,7 +175,7 @@ def test_unlimited_default_caps_nothing(tmp_path):
 
     reset_provider()  # the open-core default is UNLIMITED
     summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
-    assert summary["screens"] == 4 and summary["cases"] == 7
+    assert summary["screens"] == 4 and summary["cases"] == 8
 
 
 # --- crawl + captured traffic (HAR) -> UI tests AND API tests in one kit --------

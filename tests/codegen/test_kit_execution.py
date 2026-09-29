@@ -618,3 +618,19 @@ def test_python_bdd_negative_scenario_fails_when_the_app_accepts_invalid_input(t
     proc = _run_python_bdd(kit, _fake_app(result, "com.x"), flavour)
     assert proc.returncode != 0, f"an app that accepts invalid input must fail the negative scenario:\n{proc.stdout}"
     assert "rejected" in proc.stdout.lower(), f"a different scenario failed, not the negative one:\n{proc.stdout}"
+
+
+def test_back_navigation_test_runs_green_and_fails_when_back_goes_nowhere(tmp_path):
+    # Only pairs the crawl OBSERVED returning become tests; this one pins home <- catalog.
+    result = _shared_chrome()
+    result.back_returns = [("catalog", "home")]
+    kit = _emit_pom_kit(result, tmp_path)
+    tests = _pom_tests(kit)
+    assert "go_back()" in tests, tests
+    healthy = _run_pytest(kit, _fake_app(result, "com.x"), verbose=True)
+    assert healthy.returncode == 0, f"back test failed on a healthy app:\n{healthy.stdout}\n{healthy.stderr}"
+    assert "back_from_catalog_returns_to_home PASSED" in healthy.stdout, healthy.stdout
+    broken = _fake_app(result, "com.x")
+    broken["back_works"] = False
+    proc = _run_pytest(kit, broken, verbose=True)
+    assert "back_from_catalog_returns_to_home FAILED" in proc.stdout, proc.stdout

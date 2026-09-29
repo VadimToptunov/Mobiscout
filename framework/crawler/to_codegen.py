@@ -645,12 +645,15 @@ def build_test_model(
 
     # Negative-path coverage needs graph.negative_form_cases (lazy import:
     # graph.py imports this module, so importing here avoids a cycle).
-    from framework.crawler.graph import negative_form_cases
+    from framework.crawler.graph import back_navigation_cases, negative_form_cases
 
     # Negative-path coverage: submit each form with invalid data and assert it is
     # rejected — the counterpart to the valid-data filling multi_step_cases does,
     # so both branches of every form are exercised.
     cases.extend(negative_form_cases(result, app_package, graph=graph))
+
+    # Back returns where the crawl saw it return (Android) — pinned, observed behaviour.
+    cases.extend(back_navigation_cases(result, app_package, graph=graph))
 
     # Opt-in fuzz coverage: adversarial-input tests per form, only when the caller asked
     # for them (the user chooses whether they want fuzz tests in the kit).

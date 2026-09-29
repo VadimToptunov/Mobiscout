@@ -29,6 +29,7 @@ from framework.codegen.framework_model import FrameworkModel
 from framework.codegen.framework_python import (
     PYTHON_REQUIREMENTS,
     page_module,
+    py_value,
     render_behave_environment,
     render_python_pages,
 )
@@ -44,6 +45,7 @@ def _fn_name(d: StepDef) -> str:
         "arrive": f"on_{page}_screen",
         "tap": f"tap_{el}",
         "enter": f"enter_{el}",
+        "enter_long": f"enter_{len(d.sample or '')}_characters_into_{el}",
         "is_displayed": f"see_{page}_screen",
         "stays": f"still_on_{page}_screen",
         "has": f"see_{el}",
@@ -51,6 +53,7 @@ def _fn_name(d: StepDef) -> str:
         "text_is": f"{el}_shows",
         "is_enabled": f"{el}_is_enabled",
         "app_running": "app_is_running",
+        "back": "go_back",
     }[d.op]
 
 
@@ -68,6 +71,7 @@ def _body(bm: BddModel, d: StepDef, driver: str) -> Tuple[List[str], Set[str]]:
     call = {
         "tap": f"{page.class_name}({driver}).tap_{el}()",
         "enter": f"{page.class_name}({driver}).enter_{el}(value)",
+        "enter_long": f"{page.class_name}({driver}).enter_{el}({py_value(d.sample)})",
         "is_displayed": f"assert {page.class_name}({driver}).is_displayed()",
         "stays": f"assert {page.class_name}({driver}).is_displayed()",
         "has": f"assert {page.class_name}({driver}).has_{el}()",
@@ -75,6 +79,7 @@ def _body(bm: BddModel, d: StepDef, driver: str) -> Tuple[List[str], Set[str]]:
         "text_is": f"assert {page.class_name}({driver}).{el}_text() == value",
         "is_enabled": f"assert {page.class_name}({driver}).{el}_is_enabled()",
         "app_running": f"assert {page.class_name}({driver}).is_app_running()",
+        "back": f"{page.class_name}({driver}).go_back()",
     }[d.op]
     return [call], {d.page}
 
