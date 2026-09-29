@@ -133,6 +133,15 @@ class GenerateKitAction : AnAction() {
                     // fails until the bug is fixed.
                     val defects = result.get("defects")?.asInt ?: 0
                     val defectNote = if (defects > 0) " · 🐞 $defects defect test(s) → defects.md" else ""
+                    // Nothing is left out silently: scenarios that could not be built (each a
+                    // skipped test with its reason) and targets whose generation failed.
+                    val notGenerated = result.get("not_generated")?.asInt ?: 0
+                    val failedTargets = result.getAsJsonObject("errors")?.keySet()?.size ?: 0
+                    val gapNote = buildString {
+                        if (notGenerated > 0) append(" · ⚠️ $notGenerated not generated")
+                        if (failedTargets > 0) append(" · ❌ $failedTargets target(s) failed")
+                        if (notGenerated > 0 || failedTargets > 0) append(" → generation-report.md")
+                    }
                     // Set only when the crawl stopped on a device failure: the counts below
                     // are how far it got, not the app's real shape, so this must not be
                     // reported as a finished kit.
@@ -181,7 +190,7 @@ class GenerateKitAction : AnAction() {
                             notifyKit(
                                 project,
                                 "Partial kit — the crawl ended early",
-                                "Wrote $cases test case(s) from $screens screen(s) reached$extra$crashNote$defectNote" +
+                                "Wrote $cases test case(s) from $screens screen(s) reached$extra$crashNote$defectNote$gapNote" +
                                     "\nWritten to: $output$cleanupNote$tierNote" +
                                     "\n\nWhy it stopped: $endedEarly",
                                 (output as? String),
@@ -191,7 +200,7 @@ class GenerateKitAction : AnAction() {
                             notifyKit(
                                 project,
                                 "Test kit generated",
-                                "$screens screen(s), $cases test case(s)$extra$crashNote$defectNote" +
+                                "$screens screen(s), $cases test case(s)$extra$crashNote$defectNote$gapNote" +
                                     "\nWritten to: $output$cleanupNote$tierNote",
                                 (output as? String),
                                 NotificationType.INFORMATION,

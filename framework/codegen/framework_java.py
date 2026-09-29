@@ -200,10 +200,20 @@ def _render_call(
 def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -> str:
     """One TestNG test class holding the scenarios about ``page``."""
     cls = f"{page.name}Test"
+    skips = False
     used_pages: Set[str] = set()
     used_asserts: Set[str] = set()
     bodies: List[str] = []
     for sc in scenarios:
+        if sc.skip:  # could not be built: say so where the test would be, never drop it
+            skips = True
+            bodies.append(
+                f"    /** {_javadoc(sc.description)} */\n"
+                "    @Test\n"
+                f"    public void {camel(sc.name)}() {{\n"
+                f"        throw new SkipException({java_str(sc.skip)});\n    }}\n"
+            )
+            continue
         declared: Dict[str, str] = {}
         lines: List[str] = []
         for i, call in enumerate(sc.calls):
@@ -222,7 +232,8 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
         f"{static}\n"
         f"{pages}"
         "import mobiscout.support.BaseTest;\n"
-        "import org.testng.annotations.Test;\n\n"
+        + ("import org.testng.SkipException;\n" if skips else "")
+        + "import org.testng.annotations.Test;\n\n"
         f"/**\n * Tests for the {_javadoc(page.title)} screen.\n *\n * <p>{_HEADER}\n */\n"
         f"public class {cls} extends BaseTest {{\n\n" + "\n".join(bodies) + "}\n"
     )
@@ -252,7 +263,7 @@ def render_java(fm: FrameworkModel) -> Dict[str, str]:
             page=page, platform=platform, methods=_methods(fm, page)
         )
     by_group: Dict[str, List[Scenario]] = {}
-    for sc in fm.scenarios:
+    for sc in [*fm.scenarios, *fm.skipped]:
         by_group.setdefault(sc.group, []).append(sc)
     for page in fm.pages:
         if page.name in by_group:

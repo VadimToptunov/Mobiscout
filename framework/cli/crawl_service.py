@@ -15,7 +15,7 @@ from __future__ import annotations
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from framework.domain import MobiscoutError
 from framework.utils.logger import get_logger
@@ -371,27 +371,46 @@ def _emit_targets(
     when ``style == "pom"`` and the target has one, else the flat emitter. Returns the targets
     written as frameworks: each is already a runnable project (its own build file), so the
     scaffold step skips them."""
-    from framework.codegen import get_emitter
-    from framework.crawler.page_kit import FRAMEWORK_ONLY_TARGETS, build_target_framework
+    from framework.crawler.page_kit import generation_error_note, generation_report, target_files
 
     framework_targets: set = set()
+    errors: Dict[str, str] = {}
     for target in requested:
         if target not in target_ids:
             report.warnings.append(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
             continue
-        as_framework = style == "pom" or target in FRAMEWORK_ONLY_TARGETS
-        framework = build_target_framework(target, result, model, package) if as_framework and model.cases else None
-        if framework:
-            _write_files(out / target, framework)
-            framework_targets.add(target)
-            report.info.append(f"Framework ({target}, Page Objects + base test + tests): {out / target}")
+        try:
+            files, is_framework = target_files(target, result, model, package, style == "pom")
+        except Exception as exc:  # one target's failure must not cost the kit the others
+            errors[target] = f"{type(exc).__name__}: {exc}"
+            _write_files(out / target, {"GENERATION_ERROR.md": generation_error_note(target, errors[target])})
+            report.warnings.append(f"{target} failed to generate ({errors[target]}); the other targets are unaffected")
             continue
-        if target in FRAMEWORK_ONLY_TARGETS:
+        if not files:
             report.warnings.append(f"No tests for {target}: the crawl found no testable screens.")
             continue
-        _write_files(out / target, get_emitter(target).emit(model))
-        report.info.append(f"Tests ({target}): {out / target}")
+        _write_files(out / target, files)
+        if is_framework:
+            framework_targets.add(target)
+            report.info.append(f"Framework ({target}, Page Objects + base test + tests): {out / target}")
+        else:
+            report.info.append(f"Tests ({target}): {out / target}")
+    fm = _framework_model(result, model, package) if style == "pom" and model.cases else None
+    _write_files(out, {"generation-report.md": generation_report(fm, errors)})
+    if fm is not None and fm.skipped:
+        report.warnings.append(f"{len(fm.skipped)} scenario(s) could not be generated: {out / 'generation-report.md'}")
     return framework_targets
+
+
+def _framework_model(result: Any, model: Any, package: str) -> Any:
+    """The Page-Object framework model, for the generation report — None if it cannot be
+    built (the targets already reported that failure)."""
+    from framework.codegen.framework_model import build_framework_model
+
+    try:
+        return build_framework_model(result, model, package)
+    except Exception:
+        return None
 
 
 def write_kit(
