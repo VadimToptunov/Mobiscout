@@ -119,7 +119,9 @@ def _kit(result, tmp_path):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
     conftest = kit / "conftest.py"
-    conftest.write_text(_CONFTEST.read_text(encoding="utf-8") + "\n\n" + conftest.read_text(encoding="utf-8"))
+    conftest.write_text(
+        _CONFTEST.read_text(encoding="utf-8") + "\n\n" + conftest.read_text(encoding="utf-8"), encoding="utf-8"
+    )
     return kit
 
 
