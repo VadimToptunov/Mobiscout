@@ -176,8 +176,8 @@ def _render_spec(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -
     )
 
 
-def _package_json(ios: bool) -> str:
-    """The npm manifest (ESM, WebdriverIO v9 + Mocha + the appium service)."""
+def package_json(ios: bool, framework: str = "mocha") -> str:
+    """The npm manifest (ESM, WebdriverIO v9 + the ``framework`` adapter + the appium service)."""
     manifest = {
         "name": "mobile-tests",
         "version": "1.0.0",
@@ -187,7 +187,7 @@ def _package_json(ios: bool) -> str:
         "devDependencies": {
             "@wdio/cli": "^9.0.0",
             "@wdio/local-runner": "^9.0.0",
-            "@wdio/mocha-framework": "^9.0.0",
+            f"@wdio/{framework}-framework": "^9.0.0",
             "@wdio/appium-service": "^9.0.0",
             "@wdio/spec-reporter": "^9.0.0",
             "appium": "^2.11.0",
@@ -195,6 +195,22 @@ def _package_json(ios: bool) -> str:
         },
     }
     return json.dumps(manifest, indent=2) + "\n"
+
+
+def render_wdio_conf(fm: FrameworkModel, cucumber: bool) -> str:
+    """``wdio.conf.js``: one session per worker and an app restart per test (Mocha) or per
+    scenario (Cucumber)."""
+    return (
+        _env()
+        .get_template("wdio.conf.js.j2")
+        .render(
+            ios=fm.platform.value == "ios",
+            app_package=fm.app_package,
+            app_activity=fm.app_activity,
+            launch_args=fm.launch_args,
+            cucumber=cucumber,
+        )
+    )
 
 
 def render_js(fm: FrameworkModel) -> Dict[str, str]:
@@ -206,10 +222,8 @@ def render_js(fm: FrameworkModel) -> Dict[str, str]:
     ios = platform == "ios"
     busy = "//XCUIElementTypeActivityIndicator" if ios else "//android.widget.ProgressBar"
     files: Dict[str, str] = {
-        "package.json": _package_json(ios),
-        "wdio.conf.js": env.get_template("wdio.conf.js.j2").render(
-            ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args
-        ),
+        "package.json": package_json(ios),
+        "wdio.conf.js": render_wdio_conf(fm, cucumber=False),
         f"{_PAGES}/base.page.js": env.get_template("base.page.js.j2").render(ios=ios, busy=busy),
     }
     page_tpl = env.get_template("page.js.j2")

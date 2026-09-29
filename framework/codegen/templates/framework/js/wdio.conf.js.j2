@@ -11,7 +11,11 @@ const APP = {{ app_package | js_str }};
 export const config = {
     runner: 'local',
     port: 4723,
+{% if cucumber %}
+    specs: ['./features/**/*.feature'],
+{% else %}
     specs: ['./test/specs/**/*.e2e.js'],
+{% endif %}
     maxInstances: 1,
     capabilities: [
         {
@@ -41,12 +45,21 @@ export const config = {
         },
     ],
     services: ['appium'],
+{% if cucumber %}
+    framework: 'cucumber',
+    reporters: ['spec'],
+    cucumberOpts: { require: ['./features/step-definitions/*.steps.js'], timeout: 90000 },
+
+    /** A fresh app for every scenario on the worker's shared session. */
+    beforeScenario: async () => {
+{% else %}
     framework: 'mocha',
     reporters: ['spec'],
     mochaOpts: { ui: 'bdd', timeout: 90000 },
 
     /** A fresh app for every test on the worker's shared session. */
     beforeTest: async () => {
+{% endif %}
         try {
             await driver.terminateApp(APP);
         } catch {

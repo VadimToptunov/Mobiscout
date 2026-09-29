@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Optional
 
+from framework.codegen.framework_bdd_js import render_js_cucumber
 from framework.codegen.framework_bdd_jvm import render_java_cucumber, render_kotlin_cucumber
 from framework.codegen.framework_bdd_python import render_behave, render_pytest_bdd
 from framework.codegen.framework_java import render_java
@@ -38,6 +39,7 @@ _TARGET_FRAMEWORKS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
     "python_pytest": render_python,
     "python_pytest_bdd": render_pytest_bdd,
     "java_cucumber": render_java_cucumber,
+    "js_cucumber": render_js_cucumber,
 }
 
 # Targets that exist ONLY as a Page-Object framework: they are generated from a crawl (the
