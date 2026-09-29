@@ -25,7 +25,42 @@ object Session {
 
     private val server = System.getenv("MOBISCOUT_APPIUM_SERVER") ?: "http://localhost:4723"
 
-    val driver: {{ "IOSDriver" if ios else "AndroidDriver" }} by lazy {
+    private var current: {{ "IOSDriver" if ios else "AndroidDriver" }}? = null
+
+    init {
+        // Close whatever session is open when the test JVM exits.
+        Runtime.getRuntime().addShutdownHook(Thread { close() })
+    }
+
+    /** The shared session, opened on first use — and again after [ensureAlive] dropped a dead one. */
+    val driver: {{ "IOSDriver" if ios else "AndroidDriver" }}
+        @Synchronized get() = current ?: open().also { current = it }
+
+    /**
+     * Drop the session if it no longer answers (Appium or the driver crashed), so the next
+     * [driver] opens a new one: one crash costs one test, not the rest of the run.
+     */
+    @Synchronized
+    fun ensureAlive() {
+        val session = current ?: return
+        try {
+            session.queryAppState(APP)
+        } catch (e: RuntimeException) {
+            close()
+        }
+    }
+
+    @Synchronized
+    private fun close() {
+        try {
+            current?.quit()
+        } catch (ignored: RuntimeException) {
+            // already gone
+        }
+        current = null
+    }
+
+    private fun open(): {{ "IOSDriver" if ios else "AndroidDriver" }} {
 {% if ios %}
         val options = XCUITestOptions()
             .setBundleId(APP)
@@ -33,11 +68,10 @@ object Session {
 {% if launch_args %}
         options.setCapability("appium:processArguments", mapOf("args" to listOf({{ launch_args | kotlin_str_list }})))
 {% endif %}
-        IOSDriver(URI.create(server).toURL(), options).apply {
+        return IOSDriver(URI.create(server).toURL(), options).apply {
             // Don't wait for the UI to go idle after every command: a live app rarely does.
             setSetting("waitForIdleTimeout", 0)
             setSetting("animationCoolOffTimeout", 0)
-            Runtime.getRuntime().addShutdownHook(Thread { quit() })
         }
 {% else %}
         val options = UiAutomator2Options()
@@ -47,11 +81,10 @@ object Session {
 {% endif %}
             .setNoReset(true) // keep app data; each test restarts the app itself
         options.setCapability("appium:disableWindowAnimation", true) // animations only cost time
-        AndroidDriver(URI.create(server).toURL(), options).apply {
+        return AndroidDriver(URI.create(server).toURL(), options).apply {
             // Don't wait for the UI to go idle after every command: a live app rarely does, and
             // UiAutomator2 would otherwise stall up to 10 s per command.
             setSetting("waitForIdleTimeout", 100)
-            Runtime.getRuntime().addShutdownHook(Thread { quit() })
         }
 {% endif %}
     }

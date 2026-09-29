@@ -19,6 +19,7 @@ abstract class BaseTest {
 
     @BeforeEach
     fun restartApp() {
+        Session.ensureAlive() // a crashed session costs one test, not the rest of the run
         try {
             driver.terminateApp(Session.APP)
         } catch (ignored: RuntimeException) {

@@ -634,3 +634,39 @@ def test_back_navigation_test_runs_green_and_fails_when_back_goes_nowhere(tmp_pa
     broken["back_works"] = False
     proc = _run_pytest(kit, broken, verbose=True)
     assert "back_from_catalog_returns_to_home FAILED" in proc.stdout, proc.stdout
+
+
+@pytest.mark.parametrize("flavour", ["pytest", "pytest_bdd", "behave"])
+def test_a_dead_session_costs_one_test_not_the_rest_of_the_run(tmp_path, flavour):
+    # Tapping Sign in kills the SESSION (an Appium/driver crash). The tests that tap it fail;
+    # every later test must get a new session and pass, not fail on the dead one.
+    if flavour != "pytest":
+        pytest.importorskip("behave" if flavour == "behave" else "pytest_bdd")
+    result = _shared_chrome()
+    kit = _emit_pom_kit(result, tmp_path) if flavour == "pytest" else _emit_python_bdd_kit(result, tmp_path, flavour)
+    app = _fake_app(result, "com.x")
+    app["session_killers"] = [[0, by, value] for by, value in _element_chain(result, "home", -1)]
+    proc = _run_pytest(kit, app, verbose=True) if flavour == "pytest" else _run_python_bdd(kit, app, flavour)
+    out = proc.stdout
+    assert proc.returncode != 0, out  # the tests that crash the session do fail
+    if flavour == "behave":
+        assert re.search(r"[1-9]\d* scenarios? passed", out), f"nothing survived the dead session:\n{out}"
+    else:
+        passed = [ln for ln in out.splitlines() if " PASSED" in ln]
+        assert any("home" in ln for ln in passed), f"the Home tests after the crash must pass:\n{out}"
+
+
+def test_without_the_health_check_the_dead_session_would_fail_everything_after_it(tmp_path):
+    # The negative control for the test above: switch the check off and the Home tests,
+    # which never touch Sign in, fail on the dead session too — so it is the check that
+    # saves them, not test order.
+    result = _shared_chrome()
+    kit = _emit_pom_kit(result, tmp_path)
+    conftest = kit / "conftest.py"
+    source = conftest.read_text(encoding="utf-8")
+    assert "if self._driver is not None and not self._alive():" in source
+    conftest.write_text(source.replace("and not self._alive():", "and False:"), encoding="utf-8")
+    app = _fake_app(result, "com.x")
+    app["session_killers"] = [[0, by, value] for by, value in _element_chain(result, "home", -1)]
+    out = _run_pytest(kit, app, verbose=True).stdout
+    assert not any("home" in ln and " PASSED" in ln for ln in out.splitlines()), out

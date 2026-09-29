@@ -134,7 +134,10 @@ def test_negative_case_does_not_claim_it_navigated(platform):
 def test_one_appium_session_per_run_with_an_app_restart_per_test(platform):
     files = _kit(platform)
     session, base = files[f"{_SRC}/support/Session.kt"], files[f"{_SRC}/support/BaseTest.kt"]
-    assert "object Session" in session and "by lazy" in session and "addShutdownHook" in session
+    assert "object Session" in session and "addShutdownHook" in session
+    # A crashed session is dropped and reopened before the next test, not reused dead.
+    assert "fun ensureAlive()" in session and "queryAppState(APP)" in session
+    assert "Session.ensureAlive()" in base
     assert ("val driver: IOSDriver" if platform == "ios" else "val driver: AndroidDriver") in session
     assert "waitForIdleTimeout" in session and "setNoReset(true)" in session
     assert "@BeforeEach" in base and "terminateApp(Session.APP)" in base and "activateApp(Session.APP)" in base

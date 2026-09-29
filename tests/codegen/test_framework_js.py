@@ -200,3 +200,20 @@ def test_kit_runs_green_on_a_healthy_app_and_red_when_a_tap_goes_nowhere(platfor
     proc = _run(tmp_path, broken)
     assert proc.returncode == 1, f"broken navigation should fail the kit:\n{proc.stdout}\n{proc.stderr}"
     assert "FAIL: Catalog screen" in proc.stdout, proc.stdout
+
+
+@pytest.mark.skipif(_NODE is None, reason="node not available")
+def test_a_dead_session_costs_one_test_not_the_rest_of_the_run(platform, tmp_path):
+    # Tapping Sign in kills the session. The Catalog specs (run first) that tap it fail; the
+    # Welcome back specs after them must get a reloaded session and pass.
+    result, files = _kit(platform)
+    _write(tmp_path, files)
+    app = _fake_app(result, _package(platform))
+    app["sessionKillers"] = [[t[0], t[1]] for t in app["transitions"]]
+    out = _run(tmp_path, app).stdout
+    assert "FAIL: Catalog screen" in out and "PASS: Welcome back screen" in out, out
+    # The negative control: without the health check the Welcome back specs fail as well.
+    conf = tmp_path / "wdio.conf.js"
+    conf.write_text(conf.read_text(encoding="utf-8").replace("await ensureAlive();", ""), encoding="utf-8")
+    out = _run(tmp_path, app).stdout
+    assert "PASS: Welcome back screen" not in out, out

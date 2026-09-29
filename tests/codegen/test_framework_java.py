@@ -140,6 +140,8 @@ def test_one_appium_session_per_suite_with_an_app_restart_per_test(platform):
     ) in base
     assert "@BeforeSuite" in base and "@AfterSuite" in base
     assert "terminateApp(APP)" in base and "activateApp(APP)" in base
+    # A crashed session is replaced before the next test, not reused dead.
+    assert "if (!alive())" in base and "queryAppState(APP)" in base
     assert "waitForIdleTimeout" in base
 
 

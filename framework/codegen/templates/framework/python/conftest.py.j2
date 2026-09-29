@@ -31,25 +31,16 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "defect: reproduces a defect found by the crawl; fails until it is fixed")
 
 
+{{ session.session_class(platform) }}
+
 @pytest.fixture(scope="session")
 def _appium_session():
-    session = webdriver.Remote(SERVER, options=_options())
-    try:
-        # Don't wait for the UI to go idle after every command: a live app rarely does,
-        # and the driver would otherwise stall up to 10 s per command.
-        session.update_settings({{ session.idle_settings(platform) }})
-    except Exception:
-        pass
+    session = Session()
     yield session
-    session.quit()
+    session.close()
 
 
 @pytest.fixture()
 def driver(_appium_session):
-    """The shared session, with the app freshly restarted for this test."""
-    try:
-        _appium_session.terminate_app(APP)
-    except Exception:
-        pass
-    _appium_session.activate_app(APP)
-    return _appium_session
+    """The shared session (reopened if it died), with the app freshly restarted for this test."""
+    return _appium_session.restart_app()

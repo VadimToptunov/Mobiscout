@@ -14,7 +14,10 @@ Model JSON: {"start": int, "screens": [[[by, value], ...], ...],
              "transitions": [[from_idx, by, value, to_idx], ...],
              "reveals": [[screen_idx, by, value], ...],  # revealed only after a scroll
              "crashes": [[screen_idx, by, value], ...],  # tapping it kills the app
-             "back_works": bool}  # false: Back does nothing (a broken back stack)
+             "back_works": bool,  # false: Back does nothing (a broken back stack)
+             "session_killers": [[screen_idx, by, value], ...]}  # tapping it kills the SESSION
+                                                                # (an Appium/driver crash): every
+                                                                # command fails until a new one opens
 """
 
 import json
@@ -68,6 +71,7 @@ class _Element:
         self.id = f"{by}:{value}"
 
     def click(self):
+        self._driver._check()
         self._driver._apply_transition(self._by, self._value)
 
     def send_keys(self, *args, **_k):
@@ -95,6 +99,8 @@ class _Driver:
         for r in model.get("reveals", []):
             self._reveals.setdefault(r[0], set()).add((r[1], r[2]))
         self._crashes = {(c[0], c[1], c[2]) for c in model.get("crashes", [])}
+        self._killers = {(k[0], k[1], k[2]) for k in model.get("session_killers", [])}
+        self._dead = False
         self._running = True
         self._history = []  # screens a transition left, for back()
         self._back_works = model.get("back_works", True)
@@ -116,7 +122,14 @@ class _Driver:
                 return False
         return True
 
+    def _check(self):
+        if self._dead:
+            raise WebDriverException("invalid session id: the session is gone")
+
     def _apply_transition(self, by, value):
+        if (self.current, by, value) in self._killers:
+            self._dead = True
+            return
         if (self.current, by, value) in self._crashes:
             self._running = False
             return
@@ -135,9 +148,11 @@ class _Driver:
 
     # webdriver surface used by generated kits
     def query_app_state(self, *_a, **_k):
+        self._check()
         return 4 if self._running else 1  # running in the foreground / not running
 
     def activate_app(self, *_a, **_k):
+        self._check()
         self._running = True
         self._history = []
         self.current = self._start
@@ -145,11 +160,13 @@ class _Driver:
         self._typed.clear()
 
     def find_element(self, by, value):
+        self._check()
         if self._present(by, value):
             return _Element(self, by, value)
         raise NoSuchElementException(f"{by}={value} not on screen {self.current}")
 
     def find_elements(self, by, value):
+        self._check()
         return [_Element(self, by, value)] if self._present(by, value) else []
 
     def execute_script(self, name, *args):

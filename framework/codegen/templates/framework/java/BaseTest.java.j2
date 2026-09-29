@@ -64,7 +64,13 @@ public abstract class BaseTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void restartApp() {
+    public void restartApp() throws MalformedURLException {
+        if (!alive()) {
+            // Appium or the driver crashed: this test gets a new session instead of the whole
+            // rest of the run failing on a dead one.
+            endSession();
+            startSession();
+        }
         try {
             driver.terminateApp(APP);
         } catch (RuntimeException ignored) {
@@ -76,7 +82,22 @@ public abstract class BaseTest {
     @AfterSuite(alwaysRun = true)
     public void endSession() {
         if (driver != null) {
-            driver.quit();
+            try {
+                driver.quit();
+            } catch (RuntimeException ignored) {
+                // already gone
+            }
+            driver = null;
+        }
+    }
+
+    /** Whether the session still answers — one cheap call. */
+    private static boolean alive() {
+        try {
+            driver.queryAppState(APP);
+            return true;
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 }

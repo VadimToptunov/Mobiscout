@@ -11,6 +11,7 @@ class Hooks {
 
     @Before
     fun restartApp() {
+        Session.ensureAlive() // a crashed session costs one test, not the rest of the run
         try {
             Session.driver.terminateApp(Session.APP)
         } catch (ignored: RuntimeException) {

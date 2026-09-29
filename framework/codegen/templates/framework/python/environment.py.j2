@@ -16,26 +16,18 @@ import os
 {{ session.imports(platform) }}
 {{ session.options(platform, app_package, app_activity, launch_args) }}
 
+{{ session.session_class(platform) }}
+
 def before_all(context):
-    """Open the session the whole run shares."""
-    context.driver = webdriver.Remote(SERVER, options=_options())
-    try:
-        # Don't wait for the UI to go idle after every command: a live app rarely does,
-        # and the driver would otherwise stall up to 10 s per command.
-        context.driver.update_settings({{ session.idle_settings(platform) }})
-    except Exception:
-        pass
+    """The session the whole run shares (opened on the first scenario)."""
+    context.session = Session()
 
 
 def before_scenario(context, scenario):
-    """Restart the app, so every scenario begins clean."""
-    try:
-        context.driver.terminate_app(APP)
-    except Exception:
-        pass
-    context.driver.activate_app(APP)
+    """The live session (reopened if it died), with the app restarted so every scenario begins clean."""
+    context.driver = context.session.restart_app()
 
 
 def after_all(context):
     """Close the session."""
-    context.driver.quit()
+    context.session.close()
