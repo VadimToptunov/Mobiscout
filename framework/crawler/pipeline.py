@@ -16,7 +16,7 @@ Config keys (all but ``package`` optional):
     scaffold       also write a runnable project shell (new framework) [False]
     max_steps      crawl step budget                                 [40]
     max_depth      crawl depth budget                                [8]
-    style          "flat" | "pom" (page-object layout)               [flat]
+    style          "pom" (page objects) | "flat" (standalone files)  [pom]
     allow_destructive  explore controls a safe crawl skips (sandbox app) [False]
     serial/udid/device_name/server/extra_caps   driver connection details
 
@@ -159,33 +159,25 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # filtering, so the final kit carries at most N cases). No-op when unlimited.
     model.cases = model.cases[: cap_tests(len(model.cases))]
 
-    target_ids = {t.id for t in available_targets()}
+    from framework.crawler.page_kit import FRAMEWORK_ONLY_TARGETS, build_target_framework
+
+    target_ids = {t.id for t in available_targets()} | set(FRAMEWORK_ONLY_TARGETS)
     from framework.licensing import allow_targets
 
     # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
     targets: List[str] = allow_targets([t for t in (config.get("targets") or _DEFAULT_TARGETS) if t])
     written: List[str] = []
 
-    # Page-object layout (``style: "pom"``, the CLI's --style): page objects + conftest +
-    # tests driven through them. This path ignored the key, so a caller who asked for a
-    # framework kit got a flat one back with a success summary that never said so.
-    framework_files: Dict[str, str] = {}
-    if config.get("style") == "pom" and model.cases:
-        from framework.crawler.page_kit import build_framework_kit
-
-        framework_files = build_framework_kit(result, model, package)
-        for rel, content in framework_files.items():
-            _write(out / rel, content)
-
+    # Page-object layout (``style: "pom"``, the default; the CLI's --style): each target is
+    # its own framework project (page objects, base test/fixtures, tests, build file). A
+    # target with no page-object renderer yet gets its flat tests; a page-object-only target
+    # (Behave, ...) is always a framework.
+    pom = config.get("style", "pom") == "pom"
     framework_targets: set = set()
     for target in targets:
         if target not in target_ids:
             continue
-        if framework_files and target == "python_pytest":
-            continue  # the page-object layout above already covers pytest
-        if config.get("style") == "pom" and model.cases:
-            from framework.crawler.page_kit import build_target_framework
-
+        if (pom or target in FRAMEWORK_ONLY_TARGETS) and model.cases:
             target_framework = build_target_framework(target, result, model, package)
             if target_framework:
                 for rel, content in target_framework.items():
@@ -193,6 +185,8 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
                 framework_targets.add(target)
                 written.append(target)
                 continue
+        if target in FRAMEWORK_ONLY_TARGETS:
+            continue  # no testable screens: nothing to build it from
         for name, content in get_emitter(target).emit(model).items():
             _write(out / target / name, content)
         written.append(target)
@@ -246,7 +240,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "targets": written,
         # What the kit actually is, not what was asked for: "pom" only when page objects
         # were written (an app with no locatable pages still yields a flat kit).
-        "style": "pom" if framework_files else "flat",
+        "style": "pom" if framework_targets else "flat",
         "scaffolded": scaffolded,
         "gap": gap,
         "invariants": invariant_count,

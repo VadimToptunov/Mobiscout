@@ -107,10 +107,10 @@ def _gate_waypoints(
 @click.option("--app-activity", default=None, help="Android entry activity (for the generated test setup)")
 @click.option(
     "--style",
-    type=click.Choice(["flat", "pom"]),
-    default="flat",
+    type=click.Choice(["pom", "flat"]),
+    default="pom",
     show_default=True,
-    help="flat = standalone test files; pom = a framework (Page Objects + conftest + tests). pom: python targets",
+    help="pom = a test framework (page objects, base test/fixtures, tests); flat = standalone test files",
 )
 @click.option(
     "--scaffold",

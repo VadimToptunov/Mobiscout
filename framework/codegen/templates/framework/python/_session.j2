@@ -1,0 +1,41 @@
+{# The Appium session setup every Python suite shares (pytest fixtures, Behave hooks). #}
+{% macro imports(platform) %}
+from appium import webdriver
+{% if platform == "ios" %}
+from appium.options.ios import XCUITestOptions
+{% else %}
+from appium.options.android import UiAutomator2Options
+{% endif %}
+{% endmacro %}
+
+{% macro options(platform, app_package, app_activity, launch_args) %}
+APP = {{ app_package | py_str }}
+SERVER = os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")
+
+
+def _options():
+{% if platform == "ios" %}
+    options = XCUITestOptions()
+    options.platform_name = "iOS"
+    options.automation_name = "XCUITest"
+    options.bundle_id = APP
+{% if launch_args %}
+    options.set_capability("appium:processArguments", {"args": {{ launch_args | py_list }}})
+{% endif %}
+{% else %}
+    options = UiAutomator2Options()
+    options.platform_name = "Android"
+    options.automation_name = "UiAutomator2"
+    options.app_package = APP
+{% if app_activity %}
+    options.app_activity = {{ app_activity | py_str }}
+{% endif %}
+    # Window animations only cost time in a test run.
+    options.set_capability("appium:disableWindowAnimation", True)
+{% endif %}
+    # Keep the app's data between tests; each test restarts the app itself (below).
+    options.set_capability("appium:noReset", True)
+    return options
+{% endmacro %}
+
+{% macro idle_settings(platform) %}{% if platform == "ios" %}{"waitForIdleTimeout": 0, "animationCoolOffTimeout": 0}{% else %}{"waitForIdleTimeout": 100}{% endif %}{% endmacro %}

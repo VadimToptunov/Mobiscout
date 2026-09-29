@@ -549,3 +549,72 @@ def test_bdd_kit_reaches_a_below_fold_element_like_the_pytest_kit(tmp_path):
     assert flat.returncode == 0, f"flat kit did not pass:\n{flat.stdout}\n{flat.stderr}"
     bdd = _run_pytest(_emit_bdd_kit(result, tmp_path), model)
     assert bdd.returncode == 0, f"BDD kit did not scroll to the below-fold element:\n{bdd.stdout}\n{bdd.stderr}"
+
+
+def _emit_python_bdd_kit(result: CrawlResult, tmp: Path, flavour: str) -> Path:
+    """A Page-Object BDD suite (pytest-bdd or Behave), run device-free: the fake app is
+    prepended to the pytest-bdd conftest, and installed in-process ahead of Behave."""
+    from framework.codegen.framework_bdd_python import render_behave, render_pytest_bdd
+    from framework.codegen.framework_model import build_framework_model
+
+    ios = next(iter(result.screens.values())).platform == "ios"
+    package = "" if ios else "com.x"
+    model = build_test_model(result, app_package="com.x", app_activity=None if ios else ".Main")
+    render = render_behave if flavour == "behave" else render_pytest_bdd
+    kit = tmp / flavour
+    for name, content in render(build_framework_model(result, model, package or "com.x")).items():
+        path = kit / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    if flavour == "pytest_bdd":
+        conftest = kit / "conftest.py"
+        conftest.write_text(
+            _CONFTEST.read_text(encoding="utf-8") + "\n\n" + conftest.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    return kit
+
+
+def _run_behave(kit: Path, model: dict) -> subprocess.CompletedProcess:
+    """Run Behave on ``kit`` with the fake app installed in the same interpreter first."""
+    model_file = kit / "_fake_app.json"
+    model_file.write_text(json.dumps(model), encoding="utf-8")
+    env = {**os.environ, "MOBISCOUT_FAKE_APP": str(model_file), "MOBISCOUT_APPIUM_SERVER": "http://fake"}
+    launcher = (
+        "import sys\n"
+        f"exec(compile(open({str(_CONFTEST)!r}, encoding='utf-8').read(), 'fake_app', 'exec'))\n"
+        "from behave.__main__ import main\n"
+        "sys.exit(main(['--no-capture', '--format', 'plain']))\n"
+    )
+    return subprocess.run(
+        [sys.executable, "-c", launcher], cwd=kit, capture_output=True, text=True, env=env, timeout=120
+    )
+
+
+def _run_python_bdd(kit: Path, model: dict, flavour: str) -> subprocess.CompletedProcess:
+    return _run_behave(kit, model) if flavour == "behave" else _run_pytest(kit, model, verbose=True)
+
+
+@pytest.mark.parametrize("flavour", ["pytest_bdd", "behave"])
+@pytest.mark.parametrize("platform", ["android", "ios"])
+def test_python_bdd_kit_runs_green_and_fails_when_the_tap_navigates_nowhere(tmp_path, flavour, platform):
+    pytest.importorskip("behave" if flavour == "behave" else "pytest_bdd")
+    result = _ios_login_catalog() if platform == "ios" else _shared_chrome()
+    package = "" if platform == "ios" else "com.x"
+    kit = _emit_python_bdd_kit(result, tmp_path, flavour)
+    healthy = _run_python_bdd(kit, _fake_app(result, package), flavour)
+    assert healthy.returncode == 0, f"{flavour} kit failed against a healthy app:\n{healthy.stdout}\n{healthy.stderr}"
+    broken = _fake_app(result, package)
+    broken["transitions"] = []
+    proc = _run_python_bdd(kit, broken, flavour)
+    assert proc.returncode != 0, f"broken navigation should fail the {flavour} kit but passed:\n{proc.stdout}"
+    assert "Catalog" in proc.stdout, f"the failure should be arriving on the Catalog screen:\n{proc.stdout}"
+
+
+@pytest.mark.parametrize("flavour", ["pytest_bdd", "behave"])
+def test_python_bdd_negative_scenario_fails_when_the_app_accepts_invalid_input(tmp_path, flavour):
+    pytest.importorskip("behave" if flavour == "behave" else "pytest_bdd")
+    result = _wizard()
+    kit = _emit_python_bdd_kit(result, tmp_path, flavour)
+    proc = _run_python_bdd(kit, _fake_app(result, "com.x"), flavour)
+    assert proc.returncode != 0, f"an app that accepts invalid input must fail the negative scenario:\n{proc.stdout}"
+    assert "rejected" in proc.stdout.lower(), f"a different scenario failed, not the negative one:\n{proc.stdout}"

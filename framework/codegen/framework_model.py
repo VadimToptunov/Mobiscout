@@ -328,6 +328,7 @@ def _flow_scenarios(model: TestModel, pages: List[PageDef]) -> List[Scenario]:
                     calls.append(Call(page.name, "has", el.key))
         if not ok or not asserted:
             continue
+        calls = _still_here(calls, by_name)
         out.append(
             Scenario(
                 name=snake(case.name) or "scenario",
@@ -336,6 +337,22 @@ def _flow_scenarios(model: TestModel, pages: List[PageDef]) -> List[Scenario]:
                 group=(last_asserted or current).name,
             )
         )
+    return out
+
+
+def _still_here(calls: List[Call], by_name: Dict[str, PageDef]) -> List[Call]:
+    """ "The control I just tapped is still shown" means "the tap did not leave this screen"
+    (a rejected form) — so prove it by the page's identity. The control itself proves
+    nothing: the next screen of a wizard has an identical Continue, so the check would pass
+    even when the app accepted invalid input and moved on."""
+    out: List[Call] = []
+    for i, c in enumerate(calls):
+        prev = calls[i - 1] if i else None
+        stays = prev is not None and prev.op == "tap" and (prev.page, prev.element) == (c.page, c.element)
+        if c.op == "has" and stays and by_name[c.page].identity is not None:
+            out.append(Call(c.page, "is_displayed"))
+        else:
+            out.append(c)
     return out
 
 

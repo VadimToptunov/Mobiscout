@@ -372,21 +372,22 @@ def _emit_targets(
     written as frameworks: each is already a runnable project (its own build file), so the
     scaffold step skips them."""
     from framework.codegen import get_emitter
-    from framework.crawler.page_kit import build_target_framework
+    from framework.crawler.page_kit import FRAMEWORK_ONLY_TARGETS, build_target_framework
 
     framework_targets: set = set()
     for target in requested:
         if target not in target_ids:
             report.warnings.append(f"Unknown target '{target}'. Available: {', '.join(sorted(target_ids))}")
             continue
-        # In pom mode the Python framework layout (written at the kit root) covers pytest.
-        if style == "pom" and target == "python_pytest":
-            continue
-        framework = build_target_framework(target, result, model, package) if style == "pom" and model.cases else None
+        as_framework = style == "pom" or target in FRAMEWORK_ONLY_TARGETS
+        framework = build_target_framework(target, result, model, package) if as_framework and model.cases else None
         if framework:
             _write_files(out / target, framework)
             framework_targets.add(target)
             report.info.append(f"Framework ({target}, Page Objects + base test + tests): {out / target}")
+            continue
+        if target in FRAMEWORK_ONLY_TARGETS:
+            report.warnings.append(f"No tests for {target}: the crawl found no testable screens.")
             continue
         _write_files(out / target, get_emitter(target).emit(model))
         report.info.append(f"Tests ({target}): {out / target}")
@@ -437,6 +438,7 @@ def write_kit(
     """
     from framework.codegen import available_targets
     from framework.crawler import build_test_model
+    from framework.crawler.page_kit import FRAMEWORK_ONLY_TARGETS
     from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
     from framework.crawler.report import inventory_json_str, inventory_markdown
     from framework.crawler.pipeline import _cap_screens  # noqa: WPS437 — shared quota trim
@@ -472,7 +474,7 @@ def write_kit(
 
     # 3) Tests. flat = one standalone file per target; pom = a framework layout
     # (Page Objects + conftest + POM-style tests) for the Python targets.
-    target_ids = {t.id for t in available_targets()}
+    target_ids = {t.id for t in available_targets()} | set(FRAMEWORK_ONLY_TARGETS)
     model = build_test_model(
         result,
         app_package=package,
@@ -525,17 +527,6 @@ def write_kit(
 
     # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
     requested = allow_targets([t.strip() for t in targets.split(",") if t.strip()])
-
-    if style == "pom" and model.cases:
-        from framework.crawler.page_kit import build_framework_kit
-
-        framework_files = build_framework_kit(result, model, package)
-        for rel, content in framework_files.items():
-            dest = out / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content, encoding="utf-8", newline="\n")
-        if framework_files:
-            report.info.append(f"Framework (Page Objects + conftest + tests): {out}")
 
     framework_targets = _emit_targets(requested, target_ids, style, result, model, package, out, report)
 

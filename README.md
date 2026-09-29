@@ -80,7 +80,7 @@ def test_path_1_2_3_4(driver):
     ...
 ```
 
-**Framework structure, not loose files** (`--style pom`): the same crawl also produces a
+**Framework structure, not loose files** (the default, `--style pom`): the same crawl produces a
 proper layout — [Page Objects](examples/shop_demo/framework/pages) +
 [`conftest.py`](examples/shop_demo/framework/conftest.py) +
 [navigation tests](examples/shop_demo/framework/tests/test_navigation.py) and
@@ -192,11 +192,12 @@ AI-powered** — no runtime LLM); MCP is only the interface. Register it in your
 
 ### Multi-Language & Structured Output — available now
 
-- 🌍 **9 targets** — Python (pytest), Java (TestNG) and JavaScript (WebdriverIO)
-  each in an imperative **or BDD/Gherkin** style, Kotlin imperative (Appium + Espresso),
-  plus **Maestro** declarative YAML flows
-- 🏗️ **Framework-structured output** — Page Objects + a shared `conftest` + POM-style tests
-  (`--style pom`), or standalone files (`--style flat`)
+- 🌍 **10 targets** — Python (pytest, pytest-bdd, Behave), Java (TestNG, Cucumber),
+  JavaScript (WebdriverIO, Cucumber), Kotlin (Appium + Espresso), plus **Maestro**
+  declarative YAML flows
+- 🏗️ **Framework-structured output by default** — per language, a runnable project with
+  page objects, one Appium session per run and an app restart per test, and tests (or
+  declarative Gherkin features) that read like intent; standalone files with `--style flat`
 - 🔌 **Backends** — Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso
 - 🧠 **Ranked, self-healing selectors** — accessibility-id → resource-id → text, with fallbacks
 - 🔄 **Interaction graph** — the app's navigation map, mined into multi-step, form-filling tests

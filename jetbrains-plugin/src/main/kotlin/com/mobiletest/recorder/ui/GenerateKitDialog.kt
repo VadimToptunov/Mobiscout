@@ -42,7 +42,11 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     // Language -> the frameworks it actually has, each as (menu label -> codegen
     // target id). BDD is just a Gherkin framework here, not a separate toggle.
     private val frameworksByLanguage: Map<String, List<Pair<String, String>>> = mapOf(
-        "python" to listOf("pytest" to "python_pytest", "pytest-bdd (Gherkin)" to "python_pytest_bdd"),
+        "python" to listOf(
+            "pytest" to "python_pytest",
+            "pytest-bdd (Gherkin)" to "python_pytest_bdd",
+            "Behave (Gherkin)" to "python_behave",
+        ),
         "java" to listOf("TestNG" to "java_testng", "Cucumber (Gherkin)" to "java_cucumber"),
         "kotlin" to listOf("Appium" to "kotlin_appium", "Espresso (Android)" to "kotlin_espresso"),
         "javascript" to listOf("WebdriverIO" to "js_webdriverio", "Cucumber (Gherkin)" to "js_cucumber"),
