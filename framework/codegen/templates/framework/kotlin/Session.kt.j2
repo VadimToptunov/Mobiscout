@@ -13,7 +13,7 @@ import java.net.URI
  * The Appium session every test shares.
  *
  * Fast by design: ONE session serves the whole run (opening a session costs 5-10 s), opened on
- * first use and closed when the test JVM exits; [BaseTest] cold-restarts the app before each
+ * first use and closed when the test JVM exits; the app is cold-restarted before each
  * test (~1-2 s), so every test still begins clean. Run against another Appium server or a cloud
  * grid with `MOBISCOUT_APPIUM_SERVER`.
  *

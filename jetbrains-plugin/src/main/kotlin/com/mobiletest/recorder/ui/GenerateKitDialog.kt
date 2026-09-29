@@ -48,7 +48,11 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             "Behave (Gherkin)" to "python_behave",
         ),
         "java" to listOf("TestNG" to "java_testng", "Cucumber (Gherkin)" to "java_cucumber"),
-        "kotlin" to listOf("Appium" to "kotlin_appium", "Espresso (Android)" to "kotlin_espresso"),
+        "kotlin" to listOf(
+            "Appium" to "kotlin_appium",
+            "Cucumber (Gherkin)" to "kotlin_cucumber",
+            "Espresso (Android)" to "kotlin_espresso",
+        ),
         "javascript" to listOf("WebdriverIO" to "js_webdriverio", "Cucumber (Gherkin)" to "js_cucumber"),
         // Maestro isn't a programming language — it's declarative YAML flows — but the
         // dialog groups targets under this control, so it lives here as its own entry.
