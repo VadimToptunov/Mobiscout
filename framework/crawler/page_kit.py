@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict, Optional
 
+from framework.codegen.framework_bdd_python import render_behave, render_pytest_bdd
 from framework.codegen.framework_java import render_java
 from framework.codegen.framework_js import render_js
 from framework.codegen.framework_kotlin import render_kotlin
@@ -33,6 +34,14 @@ _TARGET_FRAMEWORKS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
     "java_testng": render_java,
     "js_webdriverio": render_js,
     "kotlin_appium": render_kotlin,
+    "python_pytest": render_python,
+    "python_pytest_bdd": render_pytest_bdd,
+}
+
+# Targets that exist ONLY as a Page-Object framework: they are generated from a crawl (the
+# page structure comes from its screens), in either style, and have no flat emitter.
+FRAMEWORK_ONLY_TARGETS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
+    "python_behave": render_behave,
 }
 
 
@@ -46,7 +55,7 @@ def build_target_framework(
 ) -> Optional[Dict[str, str]]:
     """The Page-Object framework for ``target`` (paths relative to ``<kit>/<target>/``), or
     ``None`` when the target has no framework renderer yet and should get the flat emitter."""
-    render = _TARGET_FRAMEWORKS.get(target)
+    render = _TARGET_FRAMEWORKS.get(target) or FRAMEWORK_ONLY_TARGETS.get(target)
     if render is None:
         return None
     return render(build_framework_model(result, model, app_package))
