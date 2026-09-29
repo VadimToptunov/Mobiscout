@@ -603,7 +603,13 @@ def multi_step_cases(
         steps.extend(terminal_forms)
 
         seen_paths.add(node_path)
-        label = " → ".join(f"screen {n}" for n in node_path)
+        # Describe the journey by the screens it crosses, the way a person would.
+        titles = []
+        for n in node_path:
+            screen = result.screens.get(fp_of[n])
+            titles.append((_screen_title(_owned(screen, app_package)) if screen else "") or f"screen {n}")
+        via = f" through {', '.join(titles[1:-1])}" if len(titles) > 2 else ""
+        story = f"The journey from {titles[0]}{via} to {titles[-1]}"
         # Name the journey after the controls it taps, so it reads like a story:
         # journey_from_transfer_to_confirm. A label-less Compose wrapper is only a
         # bare framework class ("android.view.View" -> android_view_view), which
@@ -623,7 +629,7 @@ def multi_step_cases(
         case = TestCase(
             name=journey,
             steps=steps,
-            description=f"Multi-step path ({len(node_path)} screens): {label}",
+            description=story,
         )
         # Priority: deepest first, then most form interaction, then most hub traffic.
         hub_score = sum(degree.get(n, 0) for n in node_path)

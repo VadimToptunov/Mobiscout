@@ -27,7 +27,7 @@ def test_run_kit_writes_full_kit(tmp_path):
     assert (tmp_path / "inventory.md").exists()
     assert (tmp_path / "graph.mmd").exists()
     assert (tmp_path / "graph.json").exists()
-    assert list((tmp_path / "python_pytest").glob("test_*.py"))
+    assert list((tmp_path / "python_pytest").rglob("test_*.py"))
     # graph json is well-formed
     json.loads((tmp_path / "graph.json").read_text(encoding="utf-8"))
 
@@ -52,7 +52,8 @@ def test_unknown_target_is_skipped(tmp_path):
 def test_scaffold_writes_runnable_project(tmp_path):
     pytest.importorskip("framework.codegen.scaffold")
     summary = run_kit(
-        {"package": APP, "targets": ["js_webdriverio"], "output": str(tmp_path), "scaffold": True},
+        # The scaffold is the flat kit's project shell (a framework kit carries its own).
+        {"package": APP, "targets": ["js_webdriverio"], "output": str(tmp_path), "scaffold": True, "style": "flat"},
         driver=FakeDriver(),
     )
     assert summary["scaffolded"] == "js_webdriverio"
@@ -313,3 +314,30 @@ def test_android_no_crash_when_buffer_clean(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: SimpleNamespace(stdout="", returncode=0))
     assert pipeline._collect_crashes({"platform": "android", "package": "com.x.App", "udid": "s1"}, 0.0) == []
+
+
+def test_a_kit_is_page_objects_by_default(tmp_path):
+    # The plugin sends no style: its users must get the framework, not flat scripts.
+    summary = run_kit({"package": APP, "targets": ["python_pytest"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert summary["style"] == "pom"
+    suite = tmp_path / "python_pytest"
+    assert (suite / "pages" / "base_page.py").exists() and (suite / "conftest.py").exists()
+    assert (suite / "requirements.txt").exists()
+
+
+def test_a_java_kit_writes_no_python(tmp_path):
+    # Page objects used to be written at the kit root for EVERY request, Java-only included.
+    summary = run_kit({"package": APP, "targets": ["java_testng"], "output": str(tmp_path)}, driver=FakeDriver())
+    assert summary["targets"] == ["java_testng"]
+    assert not list(tmp_path.rglob("*.py")), sorted(str(p) for p in tmp_path.rglob("*.py"))
+    assert (tmp_path / "java_testng" / "pom.xml").exists()
+
+
+def test_behave_is_always_a_framework(tmp_path):
+    summary = run_kit(
+        {"package": APP, "targets": ["python_behave"], "output": str(tmp_path), "style": "flat"},
+        driver=FakeDriver(),
+    )
+    assert summary["targets"] == ["python_behave"]
+    suite = tmp_path / "python_behave"
+    assert (suite / "features" / "environment.py").exists() and list((suite / "features").glob("*.feature"))
