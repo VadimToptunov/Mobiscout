@@ -54,6 +54,7 @@ def _method(d: StepDef) -> str:
         "lacks": f"notSee{el}",
         "text_is": f"{camel(d.element or '')}Shows",
         "is_enabled": f"{camel(d.element or '')}IsEnabled",
+        "app_running": "appIsRunning",
     }[d.op]
 
 
@@ -79,6 +80,7 @@ def _call(bm: BddModel, d: StepDef, new: str, driver: str) -> Tuple[str, Set[str
         "lacks": f"assertTrue({obj}.lacks{pascal(el)}())",
         "text_is": f"assertEquals(value, {obj}.{camel(el)}Text())",
         "is_enabled": f"assertTrue({obj}.{camel(el)}IsEnabled())",
+        "app_running": f"assertTrue({obj}.isAppRunning())",
     }[d.op]
     return statement, {cls}
 

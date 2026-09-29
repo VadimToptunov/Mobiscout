@@ -4,6 +4,8 @@ import io.appium.java_client.AppiumBy
 import io.appium.java_client.AppiumDriver
 import io.appium.java_client.HasOnScreenKeyboard
 import io.appium.java_client.HidesKeyboard
+import io.appium.java_client.InteractsWithApps
+import io.appium.java_client.appmanagement.ApplicationState
 import java.time.Duration
 import org.openqa.selenium.By
 import org.openqa.selenium.NoSuchElementException
@@ -40,6 +42,10 @@ abstract class BasePage(protected val driver: AppiumDriver) {
             )
         return isVisible(id)
     }
+
+    /** Whether the app under test is still up in the foreground — it did not crash. */
+    fun isAppRunning(): Boolean =
+        (driver as InteractsWithApps).queryAppState(APP) == ApplicationState.RUNNING_IN_FOREGROUND
 
     private fun locate(name: String): WebElement? =
         locators.getValue(name).firstNotNullOfOrNull { by -> driver.findElements(by).firstOrNull() }
@@ -130,5 +136,6 @@ abstract class BasePage(protected val driver: AppiumDriver) {
         val SETTLE_TIMEOUT: Duration = Duration.ofSeconds(5)
         const val SCROLL_TRIES = 4
         val BUSY: By = AppiumBy.xpath({{ busy | kotlin_str }})
+        const val APP = {{ app_package | kotlin_str }}
     }
 }

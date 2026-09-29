@@ -135,6 +135,8 @@ def _render_call(
         lines.append(f"assert {var}.{el}_text() == {py_str(call.value or '')}")
     elif call.op == "is_enabled":
         lines.append(f"assert {var}.{el}_is_enabled()")
+    elif call.op == "app_running":
+        lines.append(f"assert {var}.is_app_running()")
     return lines
 
 
@@ -150,11 +152,14 @@ def _render_test_module(fm: FrameworkModel, page: PageDef, scenarios: List[Scena
             later = {c.page for c in sc.calls[i + 1 :]}
             lines.extend(_render_call(fm, call, bound, constructed, later))
         imported |= constructed
+        marker = "@pytest.mark.defect\n" if sc.defect else ""
         bodies.append(
-            f"def test_{sc.name}(driver):\n"
+            f"{marker}def test_{sc.name}(driver):\n"
             f'    """{_doc(sc.description)}"""\n' + "".join(f"    {ln}\n" for ln in lines)
         )
     imports = "".join(f"from pages.{page_module(p)} import {p.class_name}\n" for p in fm.pages if p.name in imported)
+    if any(sc.defect for sc in scenarios):
+        imports = "import pytest\n\n" + imports
     return (
         f'"""\nTests for the {_doc(page.title)} screen.\n\n{_HEADER}\n"""\n\n' + imports + "\n\n" + "\n\n".join(bodies)
     )
@@ -175,7 +180,9 @@ def render_python_pages(fm: FrameworkModel, step_modules: Sequence[str] = ()) ->
             step_modules=list(step_modules),
         ),
         "pages/__init__.py": "",
-        "pages/base_page.py": env.get_template("base_page.py.j2").render(busy_xpath=busy, platform=platform),
+        "pages/base_page.py": env.get_template("base_page.py.j2").render(
+            busy_xpath=busy, platform=platform, app_package=fm.app_package
+        ),
     }
     page_tpl = env.get_template("page.py.j2")
     for page in fm.pages:

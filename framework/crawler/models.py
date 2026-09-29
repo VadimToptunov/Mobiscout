@@ -105,6 +105,34 @@ class Transition:
         return (self.src, self.element, self.dst)[index]
 
 
+# Generic failure wording an app shows instead of doing its job. Deliberately narrow:
+# "failed"/"invalid" are what a form SHOULD say to bad input, so they are not defects.
+GENERIC_ERROR_TEXTS = ("something went wrong", "unexpected error", "an error occurred", "error occurred")
+
+
+def is_generic_error(text: str) -> bool:
+    """Whether ``text`` is a generic app failure message (see GENERIC_ERROR_TEXTS)."""
+    lowered = (text or "").lower()
+    return any(k in lowered for k in GENERIC_ERROR_TEXTS)
+
+
+@dataclass
+class Finding:
+    """A defect the crawl ran into — codegen turns each into a test that reproduces it and
+    fails until it is fixed.
+
+    ``crash``: tapping ``element`` on screen ``src`` took the app down (the system's crash
+    dialog, or straight to the home screen). ``error_screen``: the tap led to screen ``dst``,
+    a generic error ("Something went wrong") the app shows instead of doing its job.
+    """
+
+    kind: str  # "crash" | "error_screen"
+    src: str
+    element: "CrawlElement"
+    dst: Optional[str] = None
+    evidence: str = ""  # what was seen, for the test's description and the report
+
+
 @dataclass
 class CrawlResult:
     """Outcome of a crawl: unique screens, transitions, and steps taken."""
@@ -127,3 +155,5 @@ class CrawlResult:
     # as we got" — otherwise a kit built from 6 of 40 screens is reported as a finished
     # one, and its coverage numbers read as the app's real shape.
     ended_early: Optional[str] = None
+    # Defects the crawl ran into (see Finding), in the order it met them.
+    findings: List["Finding"] = field(default_factory=list)

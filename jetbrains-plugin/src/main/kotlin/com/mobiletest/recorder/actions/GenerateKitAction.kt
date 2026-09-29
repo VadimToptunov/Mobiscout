@@ -129,6 +129,10 @@ class GenerateKitAction : AnAction() {
                     // surface it, it's usually the most valuable thing a crawl finds.
                     val crashes = result.get("crashes")?.asInt ?: 0
                     val crashNote = if (crashes > 0) " · ⚠️ $crashes crash(es) → crashes/" else ""
+                    // Defects the crawl tied to a tap: each became a test marked `defect` that
+                    // fails until the bug is fixed.
+                    val defects = result.get("defects")?.asInt ?: 0
+                    val defectNote = if (defects > 0) " · 🐞 $defects defect test(s) → defects.md" else ""
                     // Set only when the crawl stopped on a device failure: the counts below
                     // are how far it got, not the app's real shape, so this must not be
                     // reported as a finished kit.
@@ -177,7 +181,7 @@ class GenerateKitAction : AnAction() {
                             notifyKit(
                                 project,
                                 "Partial kit — the crawl ended early",
-                                "Wrote $cases test case(s) from $screens screen(s) reached$extra$crashNote" +
+                                "Wrote $cases test case(s) from $screens screen(s) reached$extra$crashNote$defectNote" +
                                     "\nWritten to: $output$cleanupNote$tierNote" +
                                     "\n\nWhy it stopped: $endedEarly",
                                 (output as? String),
@@ -187,7 +191,7 @@ class GenerateKitAction : AnAction() {
                             notifyKit(
                                 project,
                                 "Test kit generated",
-                                "$screens screen(s), $cases test case(s)$extra$crashNote" +
+                                "$screens screen(s), $cases test case(s)$extra$crashNote$defectNote" +
                                     "\nWritten to: $output$cleanupNote$tierNote",
                                 (output as? String),
                                 NotificationType.INFORMATION,

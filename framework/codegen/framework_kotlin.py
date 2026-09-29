@@ -86,7 +86,7 @@ def _env() -> Environment:
 
 def _test_name(scenario: Scenario) -> str:
     """The scenario's description as a backticked-name-safe sentence."""
-    text = scenario.description.rstrip(".") or scenario.name.replace("_", " ")
+    text = scenario.title or scenario.name.replace("_", " ")
     return " ".join(_ILLEGAL_IN_NAME.sub(" ", text).split())
 
 
@@ -120,6 +120,8 @@ def _render_call(fm: FrameworkModel, call: Call, declared: Set[str], later_pages
         lines.append(f"assertEquals({kotlin_str(call.value or '')}, {var}.{camel(el)}Text())")
     elif call.op == "is_enabled":
         lines.append(f"assertTrue({var}.{camel(el)}IsEnabled())")
+    elif call.op == "app_running":
+        lines.append(f"assertTrue({var}.isAppRunning())")
     return lines
 
 
@@ -138,7 +140,8 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
             later = {c.page for c in sc.calls[i + 1 :]}
             lines.extend(_render_call(fm, call, declared, later))
         body = "".join(f"        {ln}\n" for ln in lines)
-        bodies.append(f"    @Test\n    fun `{name}`() {{\n{body}    }}\n")
+        tag = '    @Tag("defect")\n' if sc.defect else ""
+        bodies.append(f"    @Test\n{tag}    fun `{name}`() {{\n{body}    }}\n")
     source = "\n".join(bodies)
     used = {c.page for s in scenarios for c in s.calls}
     asserts = [a for a in ("assertEquals", "assertTrue") if f"{a}(" in source]
@@ -146,6 +149,8 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
     imports += ["mobiscout.support.BaseTest"]
     imports += [f"org.junit.jupiter.api.Assertions.{a}" for a in asserts]
     imports += ["org.junit.jupiter.api.Test"]
+    if any(sc.defect for sc in scenarios):
+        imports += ["org.junit.jupiter.api.Tag"]
     return (
         "package mobiscout.tests\n\n"
         + "".join(f"import {i}\n" for i in sorted(imports))
@@ -173,7 +178,9 @@ def render_kotlin(fm: FrameworkModel) -> Dict[str, str]:
             ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args
         ),
         f"{_SRC}/support/BaseTest.kt": env.get_template("BaseTest.kt.j2").render(ios=ios),
-        f"{_SRC}/pages/BasePage.kt": env.get_template("BasePage.kt.j2").render(ios=ios, busy=busy),
+        f"{_SRC}/pages/BasePage.kt": env.get_template("BasePage.kt.j2").render(
+            ios=ios, busy=busy, app_package=fm.app_package
+        ),
     }
     page_tpl = env.get_template("Page.kt.j2")
     for page in fm.pages:

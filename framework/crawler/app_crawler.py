@@ -33,7 +33,15 @@ from framework.crawler.form_values import (
     _label_has_token,
     _sample_value,
 )
-from framework.crawler.models import CrawlElement, CrawlResult, CrawlerDriver, CrawlScreen, Transition
+from framework.crawler.models import (
+    CrawlElement,
+    CrawlResult,
+    CrawlerDriver,
+    CrawlScreen,
+    Finding,
+    Transition,
+    is_generic_error,
+)
 from framework.crawler.obstacles import clear_obstacle, error_retry, terminal_obstacle
 from framework.crawler.parse import parse_screen
 from framework.utils.logger import get_logger
@@ -281,6 +289,38 @@ class AppCrawler:
     # also reads as one of these is skipped (the substring match alone can't tell them
     # apart, which is exactly how the deny button used to get tapped).
     _UNSAFE_DIALOG_LABELS = ("don't", "dont", "do not", "disallow", "deny", "not now", "no thanks")
+
+    # What the system shows when an app crashes, and the home screens a crash drops you on.
+    # A tap that opens the browser or a share sheet leaves the app too — but lands in
+    # another app, not on the home screen, so it is a hand-off, not a defect.
+    _CRASH_TEXTS = ("keeps stopping", "has stopped", "unfortunately")
+    _HOME_SCREENS = ("launcher", "com.apple.springboard")
+
+    def _crash_evidence(self) -> Optional[str]:
+        """Why leaving the app looks like a crash, or None when it looks like a hand-off."""
+        try:
+            source = self.driver.page_source().lower()
+            package = (self.driver.current_package() or "").lower()
+        except Exception:
+            return None
+        for text in self._CRASH_TEXTS:
+            if text in source:
+                return f"the system reported the app '{text}'"
+        if any(home in package for home in self._HOME_SCREENS):
+            return f"the app closed to the home screen ({package})"
+        return None
+
+    def _new_error(self, before: Optional[CrawlScreen], after: CrawlScreen) -> Optional[str]:
+        """The generic error text ``after`` shows that ``before`` did not, or None."""
+
+        def errors(screen: Optional[CrawlScreen]) -> List[str]:
+            if screen is None:
+                return []
+            texts = [f"{e.text} {e.content_desc}".strip() for e in screen.elements]
+            return [t for t in texts if is_generic_error(t)]
+
+        fresh = [t for t in errors(after) if t not in errors(before)]
+        return fresh[0] if fresh else None
 
     def _clear_blocking_dialog(self) -> bool:
         """A capricious device throws blocking dialogs over the app — an ANR, a
@@ -978,8 +1018,12 @@ class AppCrawler:
             result.steps += 1
 
             # Left the app (opened another app / launcher / chooser) -> come back
-            # and abandon this branch. Never crawl a foreign screen.
+            # and abandon this branch. Never crawl a foreign screen. Leaving by crashing is
+            # a defect, not a hand-off: record it so the kit gets a test that reproduces it.
             if not self._on_app():
+                crash = self._crash_evidence()
+                if crash:
+                    result.findings.append(Finding("crash", current_fp, element, evidence=crash))
                 self._recover()
                 continue
 
@@ -999,6 +1043,10 @@ class AppCrawler:
 
             if new_screen.fingerprint == current_fp:
                 continue  # no navigation; keep trying elements on this screen
+
+            error = self._new_error(result.screens.get(current_fp), new_screen)
+            if error:
+                result.findings.append(Finding("error_screen", current_fp, element, new_screen.fingerprint, error))
 
             # Pass a gate on this screen — a login/OTP/biometric step, OR a gate
             # that *re-appears* mid-crawl (a session expiring drops us back on

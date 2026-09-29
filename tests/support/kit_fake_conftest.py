@@ -12,7 +12,8 @@ surfaces as a real NoSuchElementException failure.
 
 Model JSON: {"start": int, "screens": [[[by, value], ...], ...],
              "transitions": [[from_idx, by, value, to_idx], ...],
-             "reveals": [[screen_idx, by, value], ...]}  # revealed only after a scroll
+             "reveals": [[screen_idx, by, value], ...],  # revealed only after a scroll
+             "crashes": [[screen_idx, by, value], ...]}  # tapping it kills the app
 """
 
 import json
@@ -92,6 +93,8 @@ class _Driver:
         self._reveals = {}
         for r in model.get("reveals", []):
             self._reveals.setdefault(r[0], set()).add((r[1], r[2]))
+        self._crashes = {(c[0], c[1], c[2]) for c in model.get("crashes", [])}
+        self._running = True
         self._start = model.get("start", 0)
         self._revealed = set()  # (screen, by, value) unlocked by a scroll
         self._typed = {}  # (by, value) -> text, to model input validation
@@ -111,18 +114,27 @@ class _Driver:
         return True
 
     def _apply_transition(self, by, value):
+        if (self.current, by, value) in self._crashes:
+            self._running = False
+            return
         nxt = self._transitions.get((self.current, by, value))
         if nxt is not None and self._valid_input():
             self.current = nxt
             self._typed.clear()
 
     def _present(self, by, value):
+        if not self._running:
+            return False
         if (by, value) in self._screens[self.current]:
             return True
         return (self.current, by, value) in self._revealed
 
     # webdriver surface used by generated kits
+    def query_app_state(self, *_a, **_k):
+        return 4 if self._running else 1  # running in the foreground / not running
+
     def activate_app(self, *_a, **_k):
+        self._running = True
         self.current = self._start
         self._revealed.clear()
         self._typed.clear()

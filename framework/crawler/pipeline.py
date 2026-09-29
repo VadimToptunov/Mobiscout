@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from framework.codegen import available_targets, get_emitter
 from framework.crawler.app_crawler import AppCrawler, CrawlResult
-from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
+from framework.crawler.graph import build_graph, findings_markdown, to_dot, to_json, to_mermaid
 from framework.crawler.report import inventory_json_str, inventory_markdown
 from framework.crawler.to_codegen import build_test_model
 
@@ -93,6 +93,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     from framework.crawler.invariants import check_invariants, invariants_markdown
 
     _write(out / "invariants.md", invariants_markdown(graph))
+    _write(out / "defects.md", findings_markdown(result, package))
     invariant_count = len(check_invariants(graph))
 
     model = build_test_model(
@@ -244,6 +245,7 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "scaffolded": scaffolded,
         "gap": gap,
         "invariants": invariant_count,
+        "defects": len(result.findings),
         "output": str(out.absolute()),
         # Present only when the crawl stopped on a device failure. Callers must report a
         # kit built from a truncated map as partial — its screen/case counts are how far

@@ -183,6 +183,9 @@ def _render_call(
     elif call.op == "is_enabled":
         used_asserts.add("assertTrue")
         lines.append(f"assertTrue({var}.{camel(el)}IsEnabled());")
+    elif call.op == "app_running":
+        used_asserts.add("assertTrue")
+        lines.append(f"assertTrue({var}.isAppRunning());")
     return lines
 
 
@@ -201,8 +204,8 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
         body = "".join(f"        {ln}\n" for ln in lines)
         bodies.append(
             f"    /** {_javadoc(sc.description)} */\n"
-            "    @Test\n"
-            f"    public void {camel(sc.name)}() {{\n{body}    }}\n"
+            + ('    @Test(groups = "defect")\n' if sc.defect else "    @Test\n")
+            + f"    public void {camel(sc.name)}() {{\n{body}    }}\n"
         )
     static = "".join(f"import static org.testng.Assert.{a};\n" for a in sorted(used_asserts))
     pages = "".join(f"import mobiscout.pages.{p.class_name};\n" for p in fm.pages if p.name in used_pages)
@@ -231,7 +234,9 @@ def render_java(fm: FrameworkModel) -> Dict[str, str]:
         f"{_SRC}/support/BaseTest.java": env.get_template("BaseTest.java.j2").render(
             ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args
         ),
-        f"{_SRC}/pages/BasePage.java": env.get_template("BasePage.java.j2").render(ios=ios, busy=busy),
+        f"{_SRC}/pages/BasePage.java": env.get_template("BasePage.java.j2").render(
+            ios=ios, busy=busy, app_package=fm.app_package
+        ),
     }
     page_tpl = env.get_template("Page.java.j2")
     for page in fm.pages:

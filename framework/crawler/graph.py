@@ -973,3 +973,88 @@ def to_dot(graph: InteractionGraph) -> str:
 def to_json(graph: InteractionGraph) -> str:
     """Render the graph as pretty-printed JSON."""
     return json.dumps(graph.to_dict(), indent=2)
+
+
+def defect_cases(
+    result: CrawlResult, app_package: str = "", graph: Optional[InteractionGraph] = None
+) -> List[Tuple[TestCase, str]]:
+    """A test per defect the crawl ran into (``result.findings``), with its evidence: reach
+    the screen, tap the control that broke the app, and assert the app survived — still
+    running (a crash) or not showing the generic error (an error screen).
+
+    Each one FAILS today — it reproduces the bug — and passes once the bug is fixed. A
+    finding whose screen or control cannot be reached or located is skipped (reported by
+    the caller, never silently turned into a test that cannot fail)."""
+    if not result.findings:
+        return []
+    graph = graph if graph is not None else build_graph(result, app_package)
+    nav_by_fp = _form_nav_context(result, app_package, graph)
+
+    from framework.crawler.to_codegen import _screen_title, _slug
+
+    out: List[Tuple[TestCase, str]] = []
+    seen = set()
+    for f in result.findings:
+        screen = result.screens.get(f.src)
+        steps = _launch_nav_prefix(nav_by_fp, f.src) if screen is not None else None
+        if screen is None or steps is None:
+            continue
+        owned = _owned(screen, app_package)
+        tap = selector_for(f.element, owned, screen.platform)
+        if tap is None or (f.kind, f.src, tap.value) in seen:
+            continue
+        seen.add((f.kind, f.src, tap.value))
+        where = _screen_title(owned) or "the screen"
+        label = f.element.label or "the control"
+        steps.append(Step(ActionType.TAP, selector=tap, description=f"Tap {label}"))
+        if f.kind == "crash":
+            outcome = "crashes the app"
+            steps.append(Step(ActionType.ASSERT, assertion=AssertionType.APP_RUNNING, description="The app survived"))
+        else:
+            error_screen = result.screens.get(f.dst or "")
+            error_el = _error_element(error_screen, app_package, f.evidence) if error_screen else None
+            if error_screen is None or error_el is None:
+                continue
+            outcome = "shows an error"
+            steps.append(
+                Step(
+                    ActionType.ASSERT,
+                    selector=error_el,
+                    assertion=AssertionType.NOT_VISIBLE,
+                    description=f"No '{f.evidence}'",
+                )
+            )
+        name = f"defect_{_slug(label) or 'tap'}_on_{_slug(where) or 'screen'}_{'crashes' if f.kind == 'crash' else 'errors'}"
+        description = (
+            f"Tapping {label} on {where} {outcome}. Seen during the crawl: {f.evidence}. "
+            "A defect: this test fails until it is fixed."
+        )
+        out.append((TestCase(name=name, steps=steps, description=description), f.evidence))
+    return out
+
+
+def _error_element(screen: CrawlScreen, app_package: str, evidence: str) -> Optional[Selector]:
+    """The locator of the element showing ``evidence`` (the generic error text) on ``screen``."""
+    owned = _owned(screen, app_package)
+    for e in owned:
+        if evidence and evidence in f"{e.text} {e.content_desc}".strip():
+            return selector_for(e, owned, screen.platform)
+    return None
+
+
+def findings_markdown(result: CrawlResult, app_package: str = "") -> str:
+    """A tester-facing list of the defects the crawl ran into (``defects.md``); each one
+    also became a ``defect``-marked test in the kit that fails until it is fixed."""
+    out = ["# Defects found by the crawl", ""]
+    if not result.findings:
+        out.append("None: no tap crashed the app or led to a generic error screen.")
+        return "\n".join(out) + "\n"
+    from framework.crawler.to_codegen import _screen_title
+
+    for f in result.findings:
+        screen = result.screens.get(f.src)
+        where = (_screen_title(_owned(screen, app_package)) if screen else "") or "a screen"
+        what = "crashes the app" if f.kind == "crash" else "shows an error"
+        out.append(f"- 🔴 Tapping **{f.element.label or 'a control'}** on **{where}** {what} — {f.evidence}.")
+    out += ["", "Each has a test marked `defect` in the kit: it fails until the bug is fixed."]
+    return "\n".join(out) + "\n"

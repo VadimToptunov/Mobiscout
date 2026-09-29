@@ -76,6 +76,7 @@ class GherkinScenario:
     title: str
     steps: List[GherkinStep]
     examples: Optional[Tuple[List[str], List[List[str]]]] = None  # (columns, rows)
+    tags: List[str] = field(default_factory=list)  # e.g. "defect" — rendered as @defect
 
 
 @dataclass
@@ -132,6 +133,7 @@ def _phrase(op: str, page: PageDef, key: Optional[str]) -> Tuple[str, str]:
         "lacks": ("Then", f"I do not see {label}"),
         "text_is": ("Then", f"{label} shows {PARAM}"),
         "is_enabled": ("Then", f"{label} is enabled"),
+        "app_running": ("Then", "the app is still running"),
     }[op]
 
 
@@ -227,6 +229,9 @@ def _lines(catalog: _Catalog, start: str, calls: List[Call], with_given: bool) -
             calls = calls[1:]  # the Given already proved this screen is shown
     for i, call in enumerate(calls):
         op = call.op
+        if op == "app_running":  # not about any one screen: one definition, on the entry page
+            steps.append(GherkinStep("Then", catalog.get(catalog.fm.pages[0].name, op)))
+            continue
         if op == "is_displayed" and i and calls[i - 1].op == "tap" and calls[i - 1].page == call.page:
             op = "stays"  # the tap was meant to go nowhere (a rejected form)
         d = catalog.get(call.page, op, call.element)
@@ -240,8 +245,8 @@ def _lines(catalog: _Catalog, start: str, calls: List[Call], with_given: bool) -
 
 
 def _title(sc: Scenario) -> str:
-    """A scenario's title: its description as a phrase."""
-    return _words(sc.description.rstrip(".")) or sc.name.replace("_", " ")
+    """A scenario's title: its description's first sentence, as a phrase."""
+    return _words(sc.title) or sc.name.replace("_", " ")
 
 
 def _outlines(scenarios: List[GherkinScenario]) -> List[GherkinScenario]:
@@ -298,7 +303,8 @@ def build_bdd_model(fm: FrameworkModel) -> BddModel:
             if title in titles:
                 title = f"{title} ({sc.name.replace('_', ' ')})"
             titles.add(title)
-            scenarios.append(GherkinScenario(title, _lines(catalog, start, calls, with_given)))
+            tags = ["defect"] if sc.defect else []
+            scenarios.append(GherkinScenario(title, _lines(catalog, start, calls, with_given), tags=tags))
         scenarios = _outlines(scenarios)
         background: List[GherkinStep] = []
         firsts = {gs.steps[0].step.text if gs.steps else None for gs in scenarios}
@@ -329,6 +335,8 @@ def render_feature(feature: Feature, app_package: str) -> str:
         out += [f"    {s.keyword} {s.text}" for s in feature.background]
         out.append("")
     for sc in feature.scenarios:
+        if sc.tags:
+            out.append("  " + " ".join(f"@{t}" for t in sc.tags))
         out.append(f"  {'Scenario Outline' if sc.examples else 'Scenario'}: {sc.title}")
         out += [f"    {s.keyword} {s.text}" for s in sc.steps]
         if sc.examples:

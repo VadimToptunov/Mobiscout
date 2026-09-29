@@ -26,6 +26,7 @@ from framework.codegen.ir import (
     TestModel,
 )
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
+from framework.crawler.models import is_generic_error
 
 
 def _auth_field_selector(hint: str, platform: str) -> Selector:
@@ -482,7 +483,10 @@ def _navigation_cases(result: CrawlResult, app_package: str) -> List[TestCase]:
             key = e.content_desc or e.text or e.resource_id
             return bool(key) and key not in start_keys
 
-        ranked_targets = sorted(target_elements, key=lambda e: 0 if _distinctive(e) else 1)
+        # Never prove arrival by a generic error message: it is a bug, so once fixed and gone
+        # the navigation test would break for no reason.
+        provable = [e for e in target_elements if not is_generic_error(f"{e.text} {e.content_desc}")]
+        ranked_targets = sorted(provable, key=lambda e: 0 if _distinctive(e) else 1)
         # The landmark must also clear the assertion score bar. A fully unlabelled
         # destination (Compose/Flutter/game UI) otherwise lands on the positional
         # XPath _structural_selector mints, which matches "the Nth View of that class"

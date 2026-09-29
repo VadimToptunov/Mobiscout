@@ -22,6 +22,8 @@ class BasePage:
     SCROLL_TRIES = 4  # scrolls tried for a below-the-fold element before giving up
     SETTLE_TIMEOUT = 5  # longest a loading spinner is waited out after an action
     BUSY_XPATH = {{ busy_xpath | py_str }}
+    APP = {{ app_package | py_str }}  # the app under test
+    _FOREGROUND = 4  # Appium's app state: running in the foreground
 
     SCREEN = ""  # set by each page: its screen's title
     IDENTITY = None  # set by each page: the element distinctive to it
@@ -36,6 +38,10 @@ class BasePage:
         if self.IDENTITY is None:
             raise NotImplementedError(f"{type(self).__name__} has no element distinctive enough to identify it")
         return self._is_visible(self.IDENTITY)
+
+    def is_app_running(self):
+        """Whether the app under test is still up in the foreground — it did not crash."""
+        return self.driver.query_app_state(self.APP) == self._FOREGROUND
 
     # --- locating -------------------------------------------------------------------
     def _locate(self, name):
