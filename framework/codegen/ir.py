@@ -44,6 +44,9 @@ class AssertionType(Enum):
     NOT_VISIBLE = "not_visible"
     ENABLED = "enabled"
     TEXT_EQUALS = "text_equals"
+    # The app under test is still running in the foreground (it did not crash). Carries no
+    # selector; only the Page-Object framework kits render it (defect tests).
+    APP_RUNNING = "app_running"
 
 
 class SelectorStrategy(Enum):

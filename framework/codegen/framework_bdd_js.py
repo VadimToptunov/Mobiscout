@@ -48,6 +48,7 @@ def _statements(bm: BddModel, d: StepDef) -> Tuple[List[str], Set[str]]:
         "lacks": f"expect(await {var}.lacks{pascal(el)}()).toBe(true);",
         "text_is": f"expect(await {var}.{camel(el)}Text()).toBe(value);",
         "is_enabled": f"expect(await {var}.{camel(el)}IsEnabled()).toBe(true);",
+        "app_running": f"expect(await {var}.isAppRunning()).toBe(true);",
     }[d.op]
     return [statement], {d.page}
 

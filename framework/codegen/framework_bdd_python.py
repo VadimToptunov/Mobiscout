@@ -50,6 +50,7 @@ def _fn_name(d: StepDef) -> str:
         "lacks": f"not_see_{el}",
         "text_is": f"{el}_shows",
         "is_enabled": f"{el}_is_enabled",
+        "app_running": "app_is_running",
     }[d.op]
 
 
@@ -73,6 +74,7 @@ def _body(bm: BddModel, d: StepDef, driver: str) -> Tuple[List[str], Set[str]]:
         "lacks": f"assert {page.class_name}({driver}).lacks_{el}()",
         "text_is": f"assert {page.class_name}({driver}).{el}_text() == value",
         "is_enabled": f"assert {page.class_name}({driver}).{el}_is_enabled()",
+        "app_running": f"assert {page.class_name}({driver}).is_app_running()",
     }[d.op]
     return [call], {d.page}
 

@@ -14,6 +14,8 @@ const POLL = 250; // how often a wait re-checks — condition-based, never a fix
 const SCROLL_TRIES = 4; // scrolls tried for a below-the-fold element before giving up
 const SETTLE_TIMEOUT = 5000; // longest a loading spinner is waited out after an action
 const BUSY = {{ busy | js_str }};
+const APP = {{ app_package | js_str }}; // the app under test
+const FOREGROUND = 4; // Appium's app state: running in the foreground
 
 export default class BasePage {
     /**
@@ -31,6 +33,11 @@ export default class BasePage {
             throw new Error(`${this.constructor.name} has no element distinctive enough to identify it`);
         }
         return this._isVisible(this.identity);
+    }
+
+    /** Whether the app under test is still up in the foreground — it did not crash. */
+    async isAppRunning() {
+        return (await driver.queryAppState(APP)) === FOREGROUND;
     }
 
     /** One pass over the element's ranked selectors, no waiting. */

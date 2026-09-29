@@ -23,8 +23,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
 from framework.codegen.emitters._naming import pascal, snake
-from framework.codegen.ir import ActionType, AssertionType, Platform, Selector, TestModel
-from framework.crawler.models import CrawlElement, CrawlResult
+from framework.codegen.ir import ActionType, AssertionType, Platform, Selector, TestCase, TestModel
+from framework.crawler.models import CrawlElement, CrawlResult, is_generic_error
 from framework.crawler.to_codegen import _ASSERTABLE_SCORE, _looks_verbose, _owned, _title_element, selector_for
 
 # Page stems a renderer already uses for its own classes (BasePage / base_page).
@@ -73,7 +73,7 @@ class Call:
     """One step of a scenario, as a call on a page."""
 
     page: str  # PageDef.name
-    op: str  # "tap" | "enter" | "is_displayed" | "has" | "lacks" | "text_is" | "is_enabled"
+    op: str  # "tap" | "enter" | "is_displayed" | "has" | "lacks" | "text_is" | "is_enabled" | "app_running"
     element: Optional[str] = None
     value: Optional[str] = None
 
@@ -86,6 +86,16 @@ class Scenario:
     description: str
     calls: List[Call]
     group: str  # the page this scenario is about — its test module
+    # Set for a defect the crawl found (its evidence): the test reproduces the bug and fails
+    # until it is fixed. Renderers mark it (a "defect" marker/tag/group) so a team can run or
+    # exclude known defects deliberately.
+    defect: Optional[str] = None
+
+    @property
+    def title(self) -> str:
+        """The description's first sentence — what a test NAME carries (a defect's second
+        sentence, the evidence, stays in its docstring)."""
+        return self.description.split(". ", 1)[0].rstrip(".")
 
 
 @dataclass
@@ -218,8 +228,15 @@ def _build_pages(result: CrawlResult, app_package: str) -> Tuple[List[PageDef], 
     labels = {p.name: {e.label for e in p.elements if e.label} for p in pages}
     for page in pages:
         others: Set[str] = set().union(*(labels[p.name] for p in pages if p is not page)) if len(pages) > 1 else set()
+        # Never an error message: it is the bug, and the page must still be recognised once
+        # the bug is fixed and the message is gone.
         distinctive = [
-            e for e in page.elements if e.label and e.label not in others and e.selector.score >= _ASSERTABLE_SCORE
+            e
+            for e in page.elements
+            if e.label
+            and e.label not in others
+            and e.selector.score >= _ASSERTABLE_SCORE
+            and not is_generic_error(e.label)
         ]
         titled = [e for e in distinctive if e.label == page.title]
         pool = titled or distinctive
@@ -270,7 +287,7 @@ def _navigation_scenarios(pages: List[PageDef]) -> List[Scenario]:
     return out
 
 
-def _flow_scenarios(model: TestModel, pages: List[PageDef]) -> List[Scenario]:
+def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenario]:
     """The IR's behavioural cases (screen state, journeys, form filling, negative input)
     as page calls. The current page is tracked through the steps, so an element that
     appears on several pages (a Back button) is resolved on the page actually on screen.
@@ -288,7 +305,7 @@ def _flow_scenarios(model: TestModel, pages: List[PageDef]) -> List[Scenario]:
             on_pages.setdefault(_sel_key(e.selector), []).append(p)
 
     out: List[Scenario] = []
-    for case in model.cases:
+    for case in cases:
         current = entry
         last_asserted: Optional[PageDef] = None
         calls: List[Call] = []
@@ -296,6 +313,10 @@ def _flow_scenarios(model: TestModel, pages: List[PageDef]) -> List[Scenario]:
         for step in case.steps:
             if step.action is ActionType.LAUNCH:
                 current = entry
+                continue
+            if step.assertion is AssertionType.APP_RUNNING:
+                asserted = True
+                calls.append(Call(current.name, "app_running"))
                 continue
             if step.selector is None:
                 continue  # waits / back / swipe: the page layer covers settling
@@ -363,7 +384,14 @@ def build_framework_model(result: CrawlResult, model: TestModel, app_package: st
 
     unique: List[Tuple[Scenario, tuple]] = []
     seen_sigs: Set[tuple] = set()
-    for sc in _navigation_scenarios(pages) + _flow_scenarios(model, pages):
+    from framework.crawler.graph import defect_cases  # lazy: graph imports the crawler stack
+
+    defects: List[Scenario] = []
+    for case, evidence in defect_cases(result, app_package):
+        for sc in _flow_scenarios([case], pages):
+            sc.defect = evidence
+            defects.append(sc)
+    for sc in _navigation_scenarios(pages) + _flow_scenarios(model.cases, pages) + defects:
         sig = tuple((c.page, c.op, c.element, c.value) for c in sc.calls)
         if sig in seen_sigs:  # the same test reached two ways — keep one
             continue

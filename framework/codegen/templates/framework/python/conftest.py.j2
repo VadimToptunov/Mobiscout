@@ -26,6 +26,11 @@ pytest_plugins = [
 {% endif %}
 {{ session.options(platform, app_package, app_activity, launch_args) }}
 
+def pytest_configure(config):
+    """Register the marker on tests that reproduce a defect the crawl found."""
+    config.addinivalue_line("markers", "defect: reproduces a defect found by the crawl; fails until it is fixed")
+
+
 @pytest.fixture(scope="session")
 def _appium_session():
     session = webdriver.Remote(SERVER, options=_options())

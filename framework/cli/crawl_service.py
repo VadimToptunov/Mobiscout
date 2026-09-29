@@ -439,7 +439,7 @@ def write_kit(
     from framework.codegen import available_targets
     from framework.crawler import build_test_model
     from framework.crawler.page_kit import FRAMEWORK_ONLY_TARGETS
-    from framework.crawler.graph import build_graph, to_dot, to_json, to_mermaid
+    from framework.crawler.graph import build_graph, findings_markdown, to_dot, to_json, to_mermaid
     from framework.crawler.report import inventory_json_str, inventory_markdown
     from framework.crawler.pipeline import _cap_screens  # noqa: WPS437 — shared quota trim
     from framework.licensing import allow_targets, cap_screens, cap_tests
@@ -471,6 +471,11 @@ def write_kit(
     report.info.append(
         f"Graph: {gm['screens']} screens, {gm['transitions']} transitions, {gm['dead_ends']} dead-end(s)"
     )
+
+    # Defects the crawl ran into — each also becomes a `defect`-marked test in the kit.
+    (out / "defects.md").write_text(findings_markdown(result, package), encoding="utf-8", newline="\n")
+    if result.findings:
+        report.warnings.append(f"{len(result.findings)} defect(s) found by the crawl: {out / 'defects.md'}")
 
     # 3) Tests. flat = one standalone file per target; pom = a framework layout
     # (Page Objects + conftest + POM-style tests) for the Python targets.

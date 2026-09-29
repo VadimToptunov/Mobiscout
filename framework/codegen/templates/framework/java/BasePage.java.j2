@@ -4,6 +4,8 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.HasOnScreenKeyboard;
 import io.appium.java_client.HidesKeyboard;
+import io.appium.java_client.InteractsWithApps;
+import io.appium.java_client.appmanagement.ApplicationState;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,7 @@ public abstract class BasePage {
     protected static final Duration SETTLE_TIMEOUT = Duration.ofSeconds(5);
     private static final int SCROLL_TRIES = 4;
     private static final By BUSY = AppiumBy.xpath({{ busy | java_str }});
+    private static final String APP = {{ app_package | java_str }};
 
     protected final AppiumDriver driver;
 
@@ -57,6 +60,11 @@ public abstract class BasePage {
                     getClass().getSimpleName() + " has no element distinctive enough to identify it");
         }
         return isVisible(id);
+    }
+
+    /** Whether the app under test is still up in the foreground — it did not crash. */
+    public boolean isAppRunning() {
+        return ((InteractsWithApps) driver).queryAppState(APP) == ApplicationState.RUNNING_IN_FOREGROUND;
     }
 
     private WebElement locate(String name) {

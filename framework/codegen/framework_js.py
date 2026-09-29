@@ -151,6 +151,8 @@ def _render_call(fm: FrameworkModel, call: Call) -> str:
         return f"expect(await {var}.lacks{pascal(el)}()).toBe(true);"
     if call.op == "text_is":
         return f"expect(await {var}.{camel(el)}Text()).toBe({js_str(call.value or '')});"
+    if call.op == "app_running":
+        return f"expect(await {var}.isAppRunning()).toBe(true);"
     return f"expect(await {var}.{camel(el)}IsEnabled()).toBe(true);"  # is_enabled
 
 
@@ -160,7 +162,9 @@ def _render_spec(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -
     titles: Set[str] = set()
     blocks: List[str] = []
     for sc in scenarios:
-        title = sc.description.rstrip(".") or sc.name.replace("_", " ")
+        title = sc.title or sc.name.replace("_", " ")
+        if sc.defect:
+            title = f"{title} @defect"  # WebdriverIO's tag-in-title convention (--mochaOpts.grep)
         if title in titles:  # Mocha allows it, but a duplicate title hides which one failed
             title = f"{title} ({sc.name.replace('_', ' ')})"
         titles.add(title)
@@ -224,7 +228,9 @@ def render_js(fm: FrameworkModel) -> Dict[str, str]:
     files: Dict[str, str] = {
         "package.json": package_json(ios),
         "wdio.conf.js": render_wdio_conf(fm, cucumber=False),
-        f"{_PAGES}/base.page.js": env.get_template("base.page.js.j2").render(ios=ios, busy=busy),
+        f"{_PAGES}/base.page.js": env.get_template("base.page.js.j2").render(
+            ios=ios, busy=busy, app_package=fm.app_package
+        ),
     }
     page_tpl = env.get_template("page.js.j2")
     for page in fm.pages:
