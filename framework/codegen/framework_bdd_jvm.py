@@ -27,9 +27,9 @@ from framework.codegen.emitters._java_common import java_str
 from framework.codegen.emitters._kotlin_common import kotlin_str
 from framework.codegen.emitters._naming import camel, pascal, snake
 from framework.codegen.framework_java import _env as _java_env
-from framework.codegen.framework_java import render_java
+from framework.codegen.framework_java import java_value, render_java
 from framework.codegen.framework_kotlin import _env as _kotlin_env
-from framework.codegen.framework_kotlin import render_kotlin
+from framework.codegen.framework_kotlin import kotlin_value, render_kotlin
 from framework.codegen.framework_model import FrameworkModel
 from framework.codegen.scaffold import APPIUM_JAVA_CLIENT_VERSION, SELENIUM_VERSION
 
@@ -48,6 +48,7 @@ def _method(d: StepDef) -> str:
         "arrive": f"on{page}Screen",
         "tap": f"tap{el}",
         "enter": f"enter{el}",
+        "enter_long": f"enter{len(d.sample or '')}CharactersInto{el}",
         "is_displayed": f"see{page}Screen",
         "stays": f"stillOn{page}Screen",
         "has": f"see{el}",
@@ -55,6 +56,7 @@ def _method(d: StepDef) -> str:
         "text_is": f"{camel(d.element or '')}Shows",
         "is_enabled": f"{camel(d.element or '')}IsEnabled",
         "app_running": "appIsRunning",
+        "back": "goBack",
     }[d.op]
 
 
@@ -74,6 +76,7 @@ def _call(bm: BddModel, d: StepDef, new: str, driver: str) -> Tuple[str, Set[str
     statement = {
         "tap": f"{obj}.tap{pascal(el)}()",
         "enter": f"{obj}.enter{pascal(el)}(value)",
+        "enter_long": f"{obj}.enter{pascal(el)}({java_value(d.sample) if new else kotlin_value(d.sample)})",
         "is_displayed": f"assertTrue({obj}.isDisplayed())",
         "stays": f"assertTrue({obj}.isDisplayed())",
         "has": f"assertTrue({obj}.has{pascal(el)}())",
@@ -81,6 +84,7 @@ def _call(bm: BddModel, d: StepDef, new: str, driver: str) -> Tuple[str, Set[str
         "text_is": f"assertEquals(value, {obj}.{camel(el)}Text())",
         "is_enabled": f"assertTrue({obj}.{camel(el)}IsEnabled())",
         "app_running": f"assertTrue({obj}.isAppRunning())",
+        "back": f"{obj}.goBack()",
     }[d.op]
     return statement, {cls}
 

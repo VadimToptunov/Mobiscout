@@ -121,6 +121,12 @@ public abstract class BasePage {
         return find(name).isEnabled();
     }
 
+    /** Press the system Back. */
+    public void goBack() {
+        driver.navigate().back();
+        settle();
+    }
+
     protected void tap(String name) {
         find(name).click();
         settle();

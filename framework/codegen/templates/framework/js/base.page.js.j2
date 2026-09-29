@@ -102,6 +102,12 @@ export default class BasePage {
         return (await this._find(name)).isEnabled();
     }
 
+    /** Press the system Back. */
+    async goBack() {
+        await driver.back();
+        await this._settle();
+    }
+
     async _tap(name) {
         await (await this._find(name)).click();
         await this._settle();

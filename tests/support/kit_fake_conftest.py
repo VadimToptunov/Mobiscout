@@ -13,7 +13,8 @@ surfaces as a real NoSuchElementException failure.
 Model JSON: {"start": int, "screens": [[[by, value], ...], ...],
              "transitions": [[from_idx, by, value, to_idx], ...],
              "reveals": [[screen_idx, by, value], ...],  # revealed only after a scroll
-             "crashes": [[screen_idx, by, value], ...]}  # tapping it kills the app
+             "crashes": [[screen_idx, by, value], ...],  # tapping it kills the app
+             "back_works": bool}  # false: Back does nothing (a broken back stack)
 """
 
 import json
@@ -95,6 +96,8 @@ class _Driver:
             self._reveals.setdefault(r[0], set()).add((r[1], r[2]))
         self._crashes = {(c[0], c[1], c[2]) for c in model.get("crashes", [])}
         self._running = True
+        self._history = []  # screens a transition left, for back()
+        self._back_works = model.get("back_works", True)
         self._start = model.get("start", 0)
         self._revealed = set()  # (screen, by, value) unlocked by a scroll
         self._typed = {}  # (by, value) -> text, to model input validation
@@ -119,6 +122,7 @@ class _Driver:
             return
         nxt = self._transitions.get((self.current, by, value))
         if nxt is not None and self._valid_input():
+            self._history.append(self.current)
             self.current = nxt
             self._typed.clear()
 
@@ -135,6 +139,7 @@ class _Driver:
 
     def activate_app(self, *_a, **_k):
         self._running = True
+        self._history = []
         self.current = self._start
         self._revealed.clear()
         self._typed.clear()
@@ -158,7 +163,9 @@ class _Driver:
         pass
 
     def back(self):
-        pass
+        if self._back_works and self._history:
+            self.current = self._history.pop()
+            self._typed.clear()
 
     def get_window_size(self):
         return {"width": 1080, "height": 1920}

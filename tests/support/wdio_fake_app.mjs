@@ -3,7 +3,8 @@
 // selector strings + transitions). Shared by the Mocha and Cucumber fake runners.
 //
 // Model JSON ($MOBISCOUT_FAKE_APP): {"start": int, "screens": [[selector, ...], ...],
-//                                     "transitions": [[from, selector, to], ...]}
+//                                     "transitions": [[from, selector, to], ...],
+//                                     "crashes": [[screen, selector], ...]}  // tapping it kills the app
 
 import { readFileSync } from 'node:fs';
 
@@ -15,7 +16,11 @@ export function installFakeApp() {
         start: model.start ?? 0,
         current: model.start ?? 0,
         typed: new Map(),
+        history: [],
+        running: true,
+        crashes: new Set((model.crashes ?? []).map(([from, sel]) => `${from}\u0000${sel}`)),
         present(sel) {
+            if (!this.running) return false;
             return this.screens[this.current].has(sel);
         },
         validInput() {
@@ -28,13 +33,24 @@ export function installFakeApp() {
             return true;
         },
         tap(sel) {
+            if (this.crashes.has(`${this.current}\u0000${sel}`)) {
+                this.running = false;
+                return;
+            }
             const next = this.transitions.get(`${this.current}\u0000${sel}`);
             if (next !== undefined && this.validInput()) {
+                this.history.push(this.current);
                 this.current = next;
                 this.typed.clear();
             }
         },
+        back() {
+            if (this.history.length) this.current = this.history.pop();
+            this.typed.clear();
+        },
         reset() {
+            this.running = true;
+            this.history = [];
             this.current = this.start;
             this.typed.clear();
         },
@@ -85,6 +101,12 @@ export function installFakeApp() {
         async terminateApp() {},
         async activateApp() {
             app.reset();
+        },
+        async back() {
+            app.back();
+        },
+        async queryAppState() {
+            return app.running ? 4 : 1; // running in the foreground / not running
         },
     };
     globalThis.expect = (actual) => ({

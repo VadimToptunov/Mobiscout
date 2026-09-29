@@ -58,11 +58,11 @@ def _email_form_result():
     return res
 
 
-def test_generates_a_negative_case_for_a_form():
+def test_generates_invalid_and_empty_negative_cases_for_a_form():
     cases = G.negative_form_cases(_email_form_result(), "com.x")
-    assert len(cases) == 1
-    case = cases[0]
-    assert "rejects_invalid_input" in case.name
+    assert [c.name.split("_input")[0] for c in cases] == ["rejects_invalid", "rejects_empty"]
+    empty = [s.text for s in cases[1].steps if s.action.value == "type"]
+    assert empty == [""], "the empty case submits the form with its fields left empty"
 
 
 def test_negative_case_types_invalid_data_then_submits_and_asserts():

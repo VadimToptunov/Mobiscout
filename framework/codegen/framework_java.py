@@ -26,7 +26,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from framework.codegen.emitters._java_common import by_expr, java_str
 from framework.codegen.emitters._naming import camel, pascal
-from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario
+from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario, repeated
 from framework.codegen.ir import Selector
 
 _TEMPLATES = os.path.join(os.path.dirname(__file__), "templates", "framework", "java")
@@ -45,6 +45,12 @@ _TESTNG_XML = (
     "  </test>\n"
     "</suite>\n"
 )
+
+
+def java_value(value: Optional[str]) -> str:
+    """A typed value as Java — a long single-character run as ``"x".repeat(300)``."""
+    run = repeated(value)
+    return f"{java_str(run[0])}.repeat({run[1]})" if run else java_str(value or "")
 
 
 def _javadoc(text: Optional[str]) -> str:
@@ -167,7 +173,7 @@ def _render_call(
         else:
             lines.append(f"{var}.tap{pascal(el)}();")
     elif call.op == "enter":
-        lines.append(f"{var}.enter{pascal(el)}({java_str(call.value or '')});")
+        lines.append(f"{var}.enter{pascal(el)}({java_value(call.value)});")
     elif call.op == "is_displayed":
         used_asserts.add("assertTrue")
         lines.append(f"assertTrue({var}.isDisplayed());")
@@ -186,6 +192,8 @@ def _render_call(
     elif call.op == "app_running":
         used_asserts.add("assertTrue")
         lines.append(f"assertTrue({var}.isAppRunning());")
+    elif call.op == "back":
+        lines.append(f"{var}.goBack();")
     return lines
 
 

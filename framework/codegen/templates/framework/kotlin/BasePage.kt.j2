@@ -83,6 +83,12 @@ abstract class BasePage(protected val driver: AppiumDriver) {
 
     protected fun isEnabled(name: String): Boolean = find(name).isEnabled
 
+    /** Press the system Back. */
+    fun goBack() {
+        driver.navigate().back()
+        settle()
+    }
+
     protected fun tap(name: String) {
         find(name).click()
         settle()
