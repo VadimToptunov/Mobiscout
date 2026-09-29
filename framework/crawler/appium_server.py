@@ -33,6 +33,8 @@ _DEFAULT_LOCAL = {"", _DEFAULT_SERVER, "http://127.0.0.1:4723"}
 # How long to wait for a freshly-launched server to answer /status before giving up.
 _READY_TIMEOUT_S = 40.0
 _READY_POLL_S = 0.5
+# What to do when auto-start fails: the user can still run Appium themselves or use a hub.
+_AUTOSTART_HINT = " Start Appium yourself (`appium`) and retry, or point 'server' at your Appium / cloud-grid hub."
 
 
 def _is_default_local(server: Optional[str]) -> bool:
@@ -100,20 +102,24 @@ class ManagedAppiumServer:
         try:
             self._proc = subprocess.Popen(cmd, **popen_kwargs)  # noqa: S603 - fixed argv, no shell
         except Exception as exc:  # a broken install / not actually executable
-            raise CrawlerDriverError(f"Could not launch Appium ({self._executable}): {exc}") from exc
+            raise CrawlerDriverError(f"Could not launch Appium ({self._executable}): {exc}.{_AUTOSTART_HINT}") from exc
 
         deadline = time.monotonic() + ready_timeout
         while time.monotonic() < deadline:
             if self._proc.poll() is not None:  # it exited on its own — port taken / bad install
                 self.stop()
-                raise CrawlerDriverError(f"Appium exited before it became ready (started from {self._executable}).")
+                raise CrawlerDriverError(
+                    f"Appium exited before it became ready (started from {self._executable}).{_AUTOSTART_HINT}"
+                )
             reachable, _ = appium_status(self.url)
             if reachable:
                 logger.info("Auto-started Appium is ready at %s", self.url)
                 return self
             time.sleep(_READY_POLL_S)
         self.stop()
-        raise CrawlerDriverError(f"Auto-started Appium did not become ready within {int(ready_timeout)}s.")
+        raise CrawlerDriverError(
+            f"Auto-started Appium did not become ready within {int(ready_timeout)}s.{_AUTOSTART_HINT}"
+        )
 
     def stop(self) -> None:
         """Terminate the server (and its process group), best-effort and idempotent."""
