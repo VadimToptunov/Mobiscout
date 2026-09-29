@@ -153,6 +153,13 @@ def _render_test_module(fm: FrameworkModel, page: PageDef, scenarios: List[Scena
     bodies: List[str] = []
     imported: Set[str] = set()
     for sc in scenarios:
+        if sc.skip:  # could not be built: say so where the test would be, never drop it
+            bodies.append(
+                f"@pytest.mark.skip(reason={py_str(sc.skip)})\n"
+                f"def test_{sc.name}(driver):\n"
+                f'    """{_doc(sc.description)}"""\n'
+            )
+            continue
         bound: Dict[str, str] = {}
         constructed: Set[str] = set()
         lines: List[str] = []
@@ -166,7 +173,7 @@ def _render_test_module(fm: FrameworkModel, page: PageDef, scenarios: List[Scena
             f'    """{_doc(sc.description)}"""\n' + "".join(f"    {ln}\n" for ln in lines)
         )
     imports = "".join(f"from pages.{page_module(p)} import {p.class_name}\n" for p in fm.pages if p.name in imported)
-    if any(sc.defect for sc in scenarios):
+    if any(sc.defect or sc.skip for sc in scenarios):
         imports = "import pytest\n\n" + imports
     return (
         f'"""\nTests for the {_doc(page.title)} screen.\n\n{_HEADER}\n"""\n\n' + imports + "\n\n" + "\n\n".join(bodies)
@@ -221,7 +228,7 @@ def render_python(fm: FrameworkModel) -> Dict[str, str]:
     files = render_python_pages(fm)
     files["requirements.txt"] = PYTHON_REQUIREMENTS + "pytest>=8.0.0\n"
     by_group: Dict[str, List[Scenario]] = {}
-    for sc in fm.scenarios:
+    for sc in [*fm.scenarios, *fm.skipped]:
         by_group.setdefault(sc.group, []).append(sc)
     if by_group:
         files["tests/__init__.py"] = ""

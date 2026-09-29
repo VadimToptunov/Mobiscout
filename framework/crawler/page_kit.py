@@ -16,7 +16,7 @@ distinctive identity, scenarios as page calls — and then rendered per language
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Optional, Tuple
 
 from framework.codegen.framework_bdd_js import render_js_cucumber
 from framework.codegen.framework_bdd_jvm import render_java_cucumber, render_kotlin_cucumber
@@ -64,3 +64,55 @@ def build_target_framework(
     if render is None:
         return None
     return render(build_framework_model(result, model, app_package))
+
+
+def target_files(
+    target: str, result: CrawlResult, model: TestModel, app_package: str, pom: bool
+) -> Tuple[Dict[str, str], bool]:
+    """(the files kit target ``target`` consists of, whether they form a framework project).
+
+    A Page-Object framework when ``pom`` (or the target only exists as one) and it has a
+    renderer; otherwise the flat emitter's files. Empty when a page-object-only target has
+    no testable screen to build from."""
+    if (pom or target in FRAMEWORK_ONLY_TARGETS) and model.cases:
+        framework = build_target_framework(target, result, model, app_package)
+        if framework:
+            return framework, True
+    if target in FRAMEWORK_ONLY_TARGETS:
+        return {}, False
+    from framework.codegen import get_emitter
+
+    return get_emitter(target).emit(model), False
+
+
+def generation_error_note(target: str, error: str) -> str:
+    """``<kit>/<target>/GENERATION_ERROR.md`` — why a target has no tests, in its own folder."""
+    return (
+        f"# {target}: not generated\n\n"
+        f"Generating this target failed, so it has no tests; the rest of the kit is unaffected.\n\n"
+        f"```\n{error}\n```\n\n"
+        "Please report it with this file and the crawl's inventory.json.\n"
+    )
+
+
+def generation_report(fm: Optional[FrameworkModel], errors: Dict[str, str]) -> str:
+    """``generation-report.md``: every scenario that could not be built (and why) and every
+    target whose generation failed — nothing the kit leaves out is left out silently."""
+    out = ["# Generation report", ""]
+    skipped = fm.skipped if fm is not None else []
+    if not skipped and not errors:
+        out.append("Everything the crawl found was generated.")
+        return "\n".join(out) + "\n"
+    if skipped:
+        out += ["## Not generated — needs attention", ""]
+        out.append("Each is also in the kit as a skipped test that carries the reason.")
+        out.append("")
+        titles = {p.name: p.title for p in fm.pages} if fm is not None else {}
+        for sc in skipped:
+            out.append(f"- **{titles.get(sc.group, sc.group)}** — {sc.title}: {sc.skip}")
+        out.append("")
+    if errors:
+        out += ["## Targets that failed", ""]
+        out += [f"- **{target}** — {error} (see `{target}/GENERATION_ERROR.md`)" for target, error in errors.items()]
+        out.append("")
+    return "\n".join(out)

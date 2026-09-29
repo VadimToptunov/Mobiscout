@@ -90,6 +90,9 @@ class Scenario:
     # until it is fixed. Renderers mark it (a "defect" marker/tag/group) so a team can run or
     # exclude known defects deliberately.
     defect: Optional[str] = None
+    # Set when the scenario could NOT be built (why): it is rendered as a skipped test with
+    # this reason — never silently dropped — and listed in the kit's generation report.
+    skip: Optional[str] = None
 
     @property
     def title(self) -> str:
@@ -108,6 +111,7 @@ class FrameworkModel:
     launch_args: List[str]
     pages: List[PageDef]
     scenarios: List[Scenario]
+    skipped: List[Scenario] = field(default_factory=list)  # could not be built; each carries .skip
 
     def page(self, name: str) -> PageDef:
         """The page with this name."""
@@ -269,9 +273,10 @@ def _wire_navigation(result: CrawlResult, app_package: str, by_fp: Dict[str, Pag
                 break
 
 
-def _navigation_scenarios(pages: List[PageDef]) -> List[Scenario]:
+def _navigation_scenarios(pages: List[PageDef], skipped: List[Scenario]) -> List[Scenario]:
     """From the entry page: tap each control that opens another page and prove arrival
-    by that page's identity — a test with teeth (a tap that goes nowhere fails it)."""
+    by that page's identity — a test with teeth (a tap that goes nowhere fails it). One
+    that cannot be proven goes to ``skipped`` with the reason."""
     if not pages:
         return []
     entry = pages[0]
@@ -281,28 +286,35 @@ def _navigation_scenarios(pages: List[PageDef]) -> List[Scenario]:
         if el.navigates_to is None or el.key in seen:
             continue
         dst = next(p for p in pages if p.name == el.navigates_to)
-        if dst.identity is None:
-            continue
         seen.add(el.key)
-        out.append(
-            Scenario(
-                name=f"{el.key}_opens_{snake(dst.name)}",
-                description=f"On {entry.title}, tapping {el.label or el.key} opens {dst.title}.",
-                calls=[Call(entry.name, "tap", el.key), Call(dst.name, "is_displayed")],
-                group=dst.name,
-            )
+        sc = Scenario(
+            name=f"{el.key}_opens_{snake(dst.name)}",
+            description=f"On {entry.title}, tapping {el.label or el.key} opens {dst.title}.",
+            calls=[Call(entry.name, "tap", el.key), Call(dst.name, "is_displayed")],
+            group=dst.name,
         )
+        if dst.identity is None:
+            sc.calls, sc.skip = [], (
+                f"Nothing on the {dst.title} screen is distinctive enough to prove the tap arrived there; "
+                "give the screen an accessibility id or a unique title."
+            )
+            skipped.append(sc)
+            continue
+        out.append(sc)
     return out
 
 
-def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenario]:
+def _flow_scenarios(
+    cases: List[TestCase], pages: List[PageDef], skipped: Optional[List[Scenario]] = None
+) -> List[Scenario]:
     """The IR's behavioural cases (screen state, journeys, form filling, negative input)
     as page calls. The current page is tracked through the steps, so an element that
     appears on several pages (a Back button) is resolved on the page actually on screen.
 
-    A case is dropped rather than emitted broken: an interaction with no page element means
-    its later assertions would check a screen the test never reached; a case left with no
-    assertion would pass unconditionally under a name claiming it verified something."""
+    A case is never emitted broken: an interaction with no page element means its later
+    assertions would check a screen the test never reached; a case left with no assertion
+    would pass unconditionally under a name claiming it verified something. Such a case goes
+    to ``skipped`` with the reason instead."""
     if not pages:
         return []
     entry = pages[0]
@@ -320,6 +332,7 @@ def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenari
         acted = entry  # the page the last tap/entry happened on
         calls: List[Call] = []
         ok, asserted = True, False
+        missing = ""
         for step in case.steps:
             if step.action is ActionType.LAUNCH:
                 current, history = entry, []
@@ -339,7 +352,7 @@ def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenari
             candidates = on_pages.get(_sel_key(step.selector), [])
             if not candidates:
                 if step.action in (ActionType.TAP, ActionType.TYPE):
-                    ok = False
+                    ok, missing = False, step.selector.description or step.selector.value
                     break
                 continue
             page = current if current in candidates else candidates[0]
@@ -359,6 +372,17 @@ def _flow_scenarios(cases: List[TestCase], pages: List[PageDef]) -> List[Scenari
                 current = last_asserted = page
                 calls.append(_assert_call(page, el, step))
         if not ok or not asserted:
+            if skipped is not None:
+                reason = (
+                    f"'{missing}' has no stable locator on any screen the crawl mapped, so the steps after it "
+                    "cannot be driven; give it an accessibility id."
+                    if not ok
+                    else "Nothing it reaches is stable enough to check, so it would pass without testing anything."
+                )
+                skipped.append(
+                    Scenario(snake(case.name) or "scenario", _sentence(case.description or case.name), [], current.name)
+                )
+                skipped[-1].skip = reason
             continue
         calls = _still_here(calls, by_name)
         out.append(
@@ -411,13 +435,15 @@ def build_framework_model(result: CrawlResult, model: TestModel, app_package: st
     from framework.crawler.graph import defect_cases, robustness_form_cases  # lazy: graph imports the crawler
 
     # The app must survive too-long input and special characters (whatever it does with them).
-    robustness = _flow_scenarios(robustness_form_cases(result, app_package), pages)
+    skipped: List[Scenario] = []
+    robustness = _flow_scenarios(robustness_form_cases(result, app_package), pages, skipped)
     defects: List[Scenario] = []
     for case, evidence in defect_cases(result, app_package):
-        for sc in _flow_scenarios([case], pages):
+        for sc in _flow_scenarios([case], pages, skipped):
             sc.defect = evidence
             defects.append(sc)
-    for sc in _navigation_scenarios(pages) + _flow_scenarios(model.cases, pages) + robustness + defects:
+    navigation = _navigation_scenarios(pages, skipped)
+    for sc in navigation + _flow_scenarios(model.cases, pages, skipped) + robustness + defects:
         sig = tuple((c.page, c.op, c.element, c.value) for c in sc.calls)
         if sig in seen_sigs:  # the same test reached two ways — keep one
             continue
@@ -454,4 +480,20 @@ def build_framework_model(result: CrawlResult, model: TestModel, app_package: st
         launch_args=list(model.launch_args or []),
         pages=pages,
         scenarios=scenarios,
+        skipped=_unique_names(skipped, used_names),
     )
+
+
+def _unique_names(skipped: List[Scenario], taken: Set[str]) -> List[Scenario]:
+    """The skipped scenarios, one per name, renamed clear of the built ones."""
+    out: List[Scenario] = []
+    for sc in skipped:
+        if any(o.name == sc.name and o.skip == sc.skip for o in out):
+            continue
+        name, n = sc.name, 2
+        while name in taken:
+            name, n = f"{sc.name}_{n}", n + 1
+        taken.add(name)
+        sc.name = name
+        out.append(sc)
+    return out

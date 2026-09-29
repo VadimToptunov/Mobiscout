@@ -142,6 +142,9 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
         if name in names:  # the same sentence twice would not compile
             name = f"{name} ({sc.name.replace('_', ' ')})"
         names.add(name)
+        if sc.skip:  # could not be built: say so where the test would be, never drop it
+            bodies.append(f"    @Test\n    @Disabled({kotlin_str(sc.skip)})\n    fun `{name}`() {{\n    }}\n")
+            continue
         declared: Set[str] = set()
         lines: List[str] = []
         for i, call in enumerate(sc.calls):
@@ -159,6 +162,8 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
     imports += ["org.junit.jupiter.api.Test"]
     if any(sc.defect for sc in scenarios):
         imports += ["org.junit.jupiter.api.Tag"]
+    if any(sc.skip for sc in scenarios):
+        imports += ["org.junit.jupiter.api.Disabled"]
     return (
         "package mobiscout.tests\n\n"
         + "".join(f"import {i}\n" for i in sorted(imports))
@@ -196,7 +201,7 @@ def render_kotlin(fm: FrameworkModel) -> Dict[str, str]:
             page=page, platform=platform, methods=_methods(fm, page)
         )
     by_group: Dict[str, List[Scenario]] = {}
-    for sc in fm.scenarios:
+    for sc in [*fm.scenarios, *fm.skipped]:
         by_group.setdefault(sc.group, []).append(sc)
     for page in fm.pages:
         if page.name in by_group:

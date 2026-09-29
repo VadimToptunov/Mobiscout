@@ -176,6 +176,9 @@ def _render_spec(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -
         if title in titles:  # Mocha allows it, but a duplicate title hides which one failed
             title = f"{title} ({sc.name.replace('_', ' ')})"
         titles.add(title)
+        if sc.skip:  # could not be built: say so where the test would be, never drop it
+            blocks.append(f"    // Not generated: {sc.skip}\n    it.skip({js_str(title)}, async () => {{}});\n")
+            continue
         body = "".join(f"        {_render_call(fm, c)}\n" for c in sc.calls)
         blocks.append(f"    it({js_str(title)}, async () => {{\n{body}    }});\n")
     imports = "".join(f"import {_var(p)} from '../pageobjects/{_module(p)}';\n" for p in fm.pages if p.name in used)
@@ -247,7 +250,7 @@ def render_js(fm: FrameworkModel) -> Dict[str, str]:
             page=page, platform=platform, methods=methods, imports=_imports(fm, methods)
         )
     by_group: Dict[str, List[Scenario]] = {}
-    for sc in fm.scenarios:
+    for sc in [*fm.scenarios, *fm.skipped]:
         by_group.setdefault(sc.group, []).append(sc)
     for page in fm.pages:
         if page.name in by_group:

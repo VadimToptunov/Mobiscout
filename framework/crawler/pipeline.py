@@ -32,7 +32,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from framework.codegen import available_targets, get_emitter
+from framework.codegen import available_targets
 from framework.crawler.app_crawler import AppCrawler, CrawlResult
 from framework.crawler.graph import build_graph, findings_markdown, to_dot, to_json, to_mermaid
 from framework.crawler.report import inventory_json_str, inventory_markdown
@@ -61,6 +61,17 @@ def _cap_screens(result: CrawlResult, limit: int) -> CrawlResult:
 def _write(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8", newline="\n")
+
+
+def _framework_model(result: CrawlResult, model: Any, package: str) -> Any:
+    """The Page-Object framework model, for the generation report — None if it cannot be
+    built (the targets already reported that failure)."""
+    from framework.codegen.framework_model import build_framework_model
+
+    try:
+        return build_framework_model(result, model, package)
+    except Exception:
+        return None
 
 
 def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -160,7 +171,12 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # filtering, so the final kit carries at most N cases). No-op when unlimited.
     model.cases = model.cases[: cap_tests(len(model.cases))]
 
-    from framework.crawler.page_kit import FRAMEWORK_ONLY_TARGETS, build_target_framework
+    from framework.crawler.page_kit import (
+        FRAMEWORK_ONLY_TARGETS,
+        generation_error_note,
+        generation_report,
+        target_files,
+    )
 
     target_ids = {t.id for t in available_targets()} | set(FRAMEWORK_ONLY_TARGETS)
     from framework.licensing import allow_targets
@@ -175,22 +191,25 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
     # (Behave, ...) is always a framework.
     pom = config.get("style", "pom") == "pom"
     framework_targets: set = set()
+    errors: Dict[str, str] = {}
     for target in targets:
         if target not in target_ids:
             continue
-        if (pom or target in FRAMEWORK_ONLY_TARGETS) and model.cases:
-            target_framework = build_target_framework(target, result, model, package)
-            if target_framework:
-                for rel, content in target_framework.items():
-                    _write(out / target / rel, content)
-                framework_targets.add(target)
-                written.append(target)
-                continue
-        if target in FRAMEWORK_ONLY_TARGETS:
-            continue  # no testable screens: nothing to build it from
-        for name, content in get_emitter(target).emit(model).items():
-            _write(out / target / name, content)
+        try:
+            files, is_framework = target_files(target, result, model, package, pom)
+        except Exception as exc:  # one target's failure must not cost the kit the others
+            errors[target] = f"{type(exc).__name__}: {exc}"
+            _write(out / target / "GENERATION_ERROR.md", generation_error_note(target, errors[target]))
+            continue
+        if not files:
+            continue  # a page-object-only target with no testable screen to build from
+        for rel, content in files.items():
+            _write(out / target / rel, content)
+        if is_framework:
+            framework_targets.add(target)
         written.append(target)
+    fm = _framework_model(result, model, package) if pom and model.cases else None
+    _write(out / "generation-report.md", generation_report(fm, errors))
 
     scaffolded: Optional[str] = None
     if config.get("scaffold") and model.cases:
@@ -246,6 +265,10 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
         "gap": gap,
         "invariants": invariant_count,
         "defects": len(result.findings),
+        # Scenarios that could not be built (each a skipped test with its reason) and
+        # targets whose generation failed — see generation-report.md.
+        "not_generated": len(fm.skipped) if fm is not None else 0,
+        "errors": errors,
         "output": str(out.absolute()),
         # Present only when the crawl stopped on a device failure. Callers must report a
         # kit built from a truncated map as partial — its screen/case counts are how far
