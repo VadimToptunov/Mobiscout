@@ -205,6 +205,11 @@ jobs:
       - name: Set up Kotlin (kotlinc gate for Kotlin targets)
         run: sudo snap install --classic kotlin
 
+      - name: Set up .NET (real build of the C# NUnit / Reqnroll kits)
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+
       - name: Set up Gradle (real compile of the Kotlin Page-Object kit)
         uses: gradle/actions/setup-gradle@v6.3.0
         with:
@@ -223,6 +228,7 @@ jobs:
           node --version
           kotlinc -version
           gradle --version
+          dotnet --version
 
       - name: Validate every codegen target (golden + real toolchain compile)
         # MOBISCOUT_REAL_COMPILE: also compile the Page-Object framework kits against their real

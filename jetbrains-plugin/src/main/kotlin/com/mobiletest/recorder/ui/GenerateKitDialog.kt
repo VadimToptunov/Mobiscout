@@ -54,6 +54,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
             "Espresso (Android)" to "kotlin_espresso",
         ),
         "javascript" to listOf("WebdriverIO" to "js_webdriverio", "Cucumber (Gherkin)" to "js_cucumber"),
+        "csharp" to listOf("NUnit" to "csharp_nunit", "Reqnroll (Gherkin)" to "csharp_reqnroll"),
         // Maestro isn't a programming language — it's declarative YAML flows — but the
         // dialog groups targets under this control, so it lives here as its own entry.
         "maestro" to listOf("YAML flows" to "maestro"),
@@ -65,7 +66,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     private val packageField = JBTextField(30)
     private val platformCombo = comboBox("android", "ios")
     private val driverCombo = comboBox("adb", "appium")
-    private val languageCombo = comboBox("python", "java", "javascript", "kotlin", "maestro")
+    private val languageCombo = comboBox("python", "java", "javascript", "kotlin", "csharp", "maestro")
     private val frameworkCombo = ComboBox<String>()
     private val outputField = TextFieldWithBrowseButton()
     private val newProjectCheck = JBCheckBox("Create a new runnable project (scaffold)", settings.createNewFramework)

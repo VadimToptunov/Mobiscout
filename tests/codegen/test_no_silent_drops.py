@@ -2,6 +2,8 @@
 skipped test that carries the reason (and a line in generation-report.md), and one target
 failing to generate never costs the kit the others."""
 
+import os
+
 import pytest
 
 from framework.codegen.bdd_model import build_bdd_model, render_feature
@@ -35,6 +37,8 @@ def test_an_unprovable_navigation_becomes_a_skipped_scenario_with_its_reason():
         ("python_pytest_bdd", "# Not generated — needs attention:"),
         ("java_cucumber", "# Not generated — needs attention:"),
         ("js_cucumber", "# Not generated — needs attention:"),
+        ("csharp_nunit", "[Test, Ignore("),
+        ("csharp_reqnroll", "# Not generated — needs attention:"),
     ],
 )
 def test_every_target_shows_what_it_could_not_generate(target, stub):
@@ -97,19 +101,20 @@ def test_a_feature_holding_only_notes_runs_cleanly(tmp_path, flavour):
     assert proc.returncode == 0, f"{proc.stdout}\n{proc.stderr}"
 
 
-@pytest.mark.skipif(not __import__("os").environ.get("MOBISCOUT_REAL_COMPILE"), reason="needs Maven/Gradle + network")
+@pytest.mark.skipif(not os.environ.get("MOBISCOUT_REAL_COMPILE"), reason="needs Maven/Gradle/.NET + network")
 @pytest.mark.parametrize(
     "target, tool, args",
     [
         ("java_testng", "mvn", ["-q", "-B", "test-compile"]),
         ("kotlin_appium", "gradle", ["-q", "--no-daemon", "compileTestKotlin"]),
+        ("csharp_nunit", "dotnet", ["build", "-nologo", "-warnaserror"]),
     ],
 )
 def test_skipped_stubs_compile(tmp_path, target, tool, args):
     import shutil
     import subprocess
 
-    exe = shutil.which(tool)
+    exe = (os.environ.get("DOTNET") if tool == "dotnet" else None) or shutil.which(tool)
     if exe is None:
         pytest.skip(f"{tool} not installed")
     result = _unlabelled_destination()
