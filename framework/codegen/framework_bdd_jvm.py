@@ -160,7 +160,7 @@ def _kotlin_steps(bm: BddModel, page_name: str) -> str:
 
 def _features(bm: BddModel) -> Dict[str, str]:
     """One feature file per screen, on the test classpath."""
-    return {f"{_FEATURES}/{snake(f.page)}.feature": render_feature(f, bm.fm.app_package) for f in bm.features}
+    return {f"{_FEATURES}/{snake(f.page)}.feature": render_feature(f, bm.fm.app_name) for f in bm.features}
 
 
 def _step_pages(bm: BddModel) -> List[str]:

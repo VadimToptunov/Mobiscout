@@ -86,7 +86,7 @@ def render_js_cucumber(fm: FrameworkModel) -> Dict[str, str]:
     files["package.json"] = package_json(fm.platform.value == "ios", framework="cucumber")
     files["wdio.conf.js"] = render_wdio_conf(fm, cucumber=True)
     for f in bm.features:
-        files[f"features/{snake(f.page)}.feature"] = render_feature(f, fm.app_package)
+        files[f"features/{snake(f.page)}.feature"] = render_feature(f, fm.app_name)
     used = {d.page for d in bm.steps}
     for p in fm.pages:
         if p.name in used:

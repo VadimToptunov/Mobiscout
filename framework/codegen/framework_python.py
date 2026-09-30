@@ -168,16 +168,22 @@ def _render_test_module(fm: FrameworkModel, page: PageDef, scenarios: List[Scena
             lines.extend(_render_call(fm, call, bound, constructed, later))
         imported |= constructed
         marker = "@pytest.mark.defect\n" if sc.defect else ""
+        marker += "".join(f"@pytest.mark.{p}\n" for p in sc.platforms or [])
         bodies.append(
             f"{marker}def test_{sc.name}(driver):\n"
             f'    """{_doc(sc.description)}"""\n' + "".join(f"    {ln}\n" for ln in lines)
         )
     imports = "".join(f"from pages.{page_module(p)} import {p.class_name}\n" for p in fm.pages if p.name in imported)
-    if any(sc.defect or sc.skip for sc in scenarios):
+    if any(sc.defect or sc.skip or sc.platforms for sc in scenarios):
         imports = "import pytest\n\n" + imports
     return (
         f'"""\nTests for the {_doc(page.title)} screen.\n\n{_HEADER}\n"""\n\n' + imports + "\n\n" + "\n\n".join(bodies)
     )
+
+
+def _platforms(fm: FrameworkModel) -> dict:
+    """Template context for a cross-platform kit (``multi``: pick the platform at run time)."""
+    return {"multi": bool(fm.apps), "apps": fm.apps, "platforms": list(fm.apps)}
 
 
 def render_python_pages(fm: FrameworkModel, step_modules: Sequence[str] = ()) -> Dict[str, str]:
@@ -193,16 +199,17 @@ def render_python_pages(fm: FrameworkModel, step_modules: Sequence[str] = ()) ->
             app_activity=fm.app_activity,
             launch_args=fm.launch_args,
             step_modules=list(step_modules),
+            **_platforms(fm),
         ),
         "pages/__init__.py": "",
         "pages/base_page.py": env.get_template("base_page.py.j2").render(
-            busy_xpath=busy, platform=platform, app_package=fm.app_package
+            busy_xpath=busy, platform=platform, app_package=fm.app_package, **_platforms(fm)
         ),
     }
     page_tpl = env.get_template("page.py.j2")
     for page in fm.pages:
         files[f"pages/{page_module(page)}.py"] = page_tpl.render(
-            page=page, platform=platform, methods=_methods(fm, page)
+            page=page, platform=platform, methods=_methods(fm, page), **_platforms(fm)
         )
     return files
 
@@ -217,6 +224,7 @@ def render_behave_environment(fm: FrameworkModel) -> str:
             app_package=fm.app_package,
             app_activity=fm.app_activity,
             launch_args=fm.launch_args,
+            **_platforms(fm),
         )
     )
 

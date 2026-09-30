@@ -43,6 +43,9 @@ class ElementDef:
     role: str  # "tap" | "input" | "text"
     label: str = ""  # the crawl label, for distinctiveness checks
     navigates_to: Optional[str] = None  # page name a tap on it opens (from the crawl)
+    # Cross-platform kit: the locator on each platform ("android"/"ios") that has the element.
+    # Empty in a single-platform model, where ``selector`` is the only one.
+    selectors: Dict[str, Selector] = field(default_factory=dict)
 
 
 @dataclass
@@ -57,6 +60,8 @@ class PageDef:
     # Queries scenarios actually call ("has"/"lacks"/"text"/"enabled", key) — rendered on
     # demand so pages stay lean instead of growing a getter per label.
     queries: Set[Tuple[str, str]] = field(default_factory=set)
+    # Cross-platform kit: the identity element on each platform that has this page.
+    identities: Dict[str, Optional[str]] = field(default_factory=dict)
 
     @property
     def class_name(self) -> str:
@@ -93,12 +98,23 @@ class Scenario:
     # Set when the scenario could NOT be built (why): it is rendered as a skipped test with
     # this reason — never silently dropped — and listed in the kit's generation report.
     skip: Optional[str] = None
+    # Cross-platform kit: the platforms it runs on, when not all of them (Back is Android-only).
+    platforms: Optional[List[str]] = None
 
     @property
     def title(self) -> str:
         """The description's first sentence — what a test NAME carries (a defect's second
         sentence, the evidence, stays in its docstring)."""
         return self.description.split(". ", 1)[0].rstrip(".")
+
+
+@dataclass
+class PlatformApp:
+    """The app under test on one platform of a cross-platform kit."""
+
+    app_id: str  # Android package / iOS bundle id
+    app_activity: Optional[str] = None
+    launch_args: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -112,10 +128,20 @@ class FrameworkModel:
     pages: List[PageDef]
     scenarios: List[Scenario]
     skipped: List[Scenario] = field(default_factory=list)  # could not be built; each carries .skip
+    # Cross-platform kit: the app on each platform ("android"/"ios"), in run order. Empty in a
+    # single-platform model (``platform``/``app_package``/... describe its one app).
+    apps: Dict[str, "PlatformApp"] = field(default_factory=dict)
 
     def page(self, name: str) -> PageDef:
         """The page with this name."""
         return next(p for p in self.pages if p.name == name)
+
+    @property
+    def app_name(self) -> str:
+        """How the kit names the app under test — both ids in a cross-platform kit."""
+        if self.apps:
+            return " / ".join(f"{app.app_id} ({platform})" for platform, app in self.apps.items())
+        return self.app_package
 
 
 def repeated(value: Optional[str]) -> Optional[Tuple[str, int]]:

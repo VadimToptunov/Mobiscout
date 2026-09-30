@@ -133,7 +133,7 @@ def _step_module(bm: BddModel, page_name: str, flavour: str) -> str:
 
 def _features(bm: BddModel, directory: str) -> Dict[str, str]:
     """One feature file per screen."""
-    return {f"{directory}/{snake(f.page)}.feature": render_feature(f, bm.fm.app_package) for f in bm.features}
+    return {f"{directory}/{snake(f.page)}.feature": render_feature(f, bm.fm.app_name) for f in bm.features}
 
 
 def _step_pages(bm: BddModel) -> List[str]:

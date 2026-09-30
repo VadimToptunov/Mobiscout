@@ -295,7 +295,7 @@ def render_reqnroll(fm: FrameworkModel) -> Dict[str, str]:
     files = _base(fm, reqnroll=True)
     files["Support/Hooks.cs"] = _env().get_template("Hooks.cs.j2").render()
     for f in bm.features:
-        files[f"Features/{snake(f.page)}.feature"] = render_feature(f, fm.app_package)
+        files[f"Features/{snake(f.page)}.feature"] = render_feature(f, fm.app_name)
     used = {d.page for d in bm.steps}
     for p in fm.pages:
         if p.name in used:
