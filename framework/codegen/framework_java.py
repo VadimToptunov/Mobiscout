@@ -219,11 +219,21 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
         for i, call in enumerate(sc.calls):
             later = {c.page for c in sc.calls[i + 1 :]}
             lines.extend(_render_call(fm, call, declared, used_pages, used_asserts, later))
+        if sc.platforms:  # one suite, both platforms: this one only runs where it was found
+            lines.insert(0, f"onlyOn({java_str(sc.platforms[0])});")
         body = "".join(f"        {ln}\n" for ln in lines)
+        groups = (["defect"] if sc.defect else []) + list(sc.platforms or [])
+        annotation = (
+            "@Test"
+            if not groups
+            else "@Test(groups = "
+            + (java_str(groups[0]) if len(groups) == 1 else "{" + ", ".join(java_str(g) for g in groups) + "}")
+            + ")"
+        )
         bodies.append(
             f"    /** {_javadoc(sc.description)} */\n"
-            + ('    @Test(groups = "defect")\n' if sc.defect else "    @Test\n")
-            + f"    public void {camel(sc.name)}() {{\n{body}    }}\n"
+            f"    {annotation}\n"
+            f"    public void {camel(sc.name)}() {{\n{body}    }}\n"
         )
     static = "".join(f"import static org.testng.Assert.{a};\n" for a in sorted(used_asserts))
     pages = "".join(f"import mobiscout.pages.{p.class_name};\n" for p in fm.pages if p.name in used_pages)
@@ -239,29 +249,48 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
     )
 
 
+def platform_context(fm: FrameworkModel) -> dict:
+    """Template context for a cross-platform kit (``multi``: pick the platform at run time)."""
+    return {"multi": bool(fm.apps), "apps": fm.apps, "platforms": list(fm.apps)}
+
+
+def render_java_pages(fm: FrameworkModel) -> Dict[str, str]:
+    """The page objects (and, cross-platform, the Platform switch) every Java suite shares."""
+    env = _env()
+    ctx = platform_context(fm)
+    platform = fm.platform.value
+    ios = platform == "ios"
+    busy = "//XCUIElementTypeActivityIndicator" if ios else "//android.widget.ProgressBar"
+    files: Dict[str, str] = {
+        f"{_SRC}/pages/BasePage.java": env.get_template("BasePage.java.j2").render(
+            ios=ios, busy=busy, app_package=fm.app_package, **ctx
+        ),
+    }
+    if fm.apps:
+        files[f"{_SRC}/support/Platform.java"] = env.get_template("Platform.java.j2").render(**ctx)
+    page_tpl = env.get_template("Page.java.j2")
+    for page in fm.pages:
+        files[f"{_SRC}/pages/{page.class_name}.java"] = page_tpl.render(
+            page=page, platform=platform, methods=_methods(fm, page), **ctx
+        )
+    return files
+
+
 def render_java(fm: FrameworkModel) -> Dict[str, str]:
     """The TestNG Page-Object framework as a Maven project (relative path -> source)."""
     if not fm.pages:
         return {}
     env = _env()
-    platform = fm.platform.value
-    ios = platform == "ios"
-    busy = "//XCUIElementTypeActivityIndicator" if ios else "//android.widget.ProgressBar"
+    ios = fm.platform.value == "ios"
+    ctx = platform_context(fm)
     files: Dict[str, str] = {
         "pom.xml": env.get_template("pom.xml.j2").render(),
         "testng.xml": _TESTNG_XML,
         f"{_SRC}/support/BaseTest.java": env.get_template("BaseTest.java.j2").render(
-            ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args
-        ),
-        f"{_SRC}/pages/BasePage.java": env.get_template("BasePage.java.j2").render(
-            ios=ios, busy=busy, app_package=fm.app_package
+            ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args, **ctx
         ),
     }
-    page_tpl = env.get_template("Page.java.j2")
-    for page in fm.pages:
-        files[f"{_SRC}/pages/{page.class_name}.java"] = page_tpl.render(
-            page=page, platform=platform, methods=_methods(fm, page)
-        )
+    files.update(render_java_pages(fm))
     by_group: Dict[str, List[Scenario]] = {}
     for sc in [*fm.scenarios, *fm.skipped]:
         by_group.setdefault(sc.group, []).append(sc)

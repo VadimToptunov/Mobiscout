@@ -45,16 +45,19 @@ function parseFeature(text) {
     const feature = { name: '', background: [], scenarios: [] };
     let current = null;
     let table = null;
+    let tags = [];
     for (const raw of text.split('\n')) {
         const line = raw.trim();
         if (!line || line.startsWith('#')) continue;
         let m;
-        if ((m = line.match(/^Feature:\s*(.*)$/))) feature.name = m[1];
+        if (line.startsWith('@')) tags.push(...line.split(/\s+/));
+        else if ((m = line.match(/^Feature:\s*(.*)$/))) feature.name = m[1];
         else if (line.startsWith('Background:')) current = { steps: feature.background };
         else if ((m = line.match(/^Scenario(?: Outline)?:\s*(.*)$/))) {
-            current = { name: m[1], steps: [], examples: null };
+            current = { name: m[1], steps: [], examples: null, tags };
             feature.scenarios.push(current);
             table = null;
+            tags = [];
         } else if (line.startsWith('Examples:')) {
             table = [];
             current.examples = table;
@@ -66,9 +69,10 @@ function parseFeature(text) {
 }
 
 function expand(scenario) {
-    if (!scenario.examples) return [{ name: scenario.name, steps: scenario.steps }];
+    if (!scenario.examples) return [{ name: scenario.name, steps: scenario.steps, tags: scenario.tags }];
     const [header, ...rows] = scenario.examples;
     return rows.map((row, i) => ({
+        tags: scenario.tags,
         name: `${scenario.name} #${i + 1}`,
         steps: scenario.steps.map((s) => header.reduce((acc, col, j) => acc.replaceAll(`<${col}>`, row[j]), s)),
     }));
@@ -96,7 +100,13 @@ let failed = 0;
 const featuresDir = join(kit, 'features');
 for (const file of readdirSync(featuresDir).filter((f) => f.endsWith('.feature')).sort()) {
     const feature = parseFeature(readFileSync(join(featuresDir, file), 'utf8'));
+    // The config's tag expression, as far as the generated kits use it: "not @tag".
+    const excluded = (config.cucumberOpts?.tags ?? '').match(/^not (@\S+)$/)?.[1];
     for (const scenario of feature.scenarios.flatMap(expand)) {
+        if (excluded && scenario.tags.includes(excluded)) {
+            console.log(`SKIP: ${feature.name} > ${scenario.name}`);
+            continue;
+        }
         const title = `${feature.name} > ${scenario.name}`;
         try {
             if (config.beforeScenario) await config.beforeScenario();

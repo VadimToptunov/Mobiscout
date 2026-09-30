@@ -4,6 +4,9 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import java.util.List;
 import java.util.Map;
+{% if multi %}
+import mobiscout.support.Platform;
+{% endif %}
 import org.openqa.selenium.By;
 
 /**
@@ -13,11 +16,30 @@ import org.openqa.selenium.By;
  */
 public class {{ page.class_name }} extends BasePage {
 
+{% if multi %}
+    // Element -> platform -> ranked locators. One page for both platforms.
+    private static final Map<String, Map<String, List<By>>> LOCATORS = Map.ofEntries(
+{% for e in page.elements %}
+            Map.entry({{ e.key | java_str }}, Map.of(
+{% for p, sel in e.selectors.items() %}
+                    {{ p | java_str }}, List.of({{ sel | by_items(p) }}){{ "," if not loop.last }}
+{% endfor %}
+            )){{ "," if not loop.last }}
+{% endfor %}
+    );
+
+    private static final Map<String, String> IDENTITIES = Map.of(
+{% for p, key in page.identities.items() if key %}
+            {{ p | java_str }}, {{ key | java_str }}{{ "," if not loop.last }}
+{% endfor %}
+    );
+{% else %}
     private static final Map<String, List<By>> LOCATORS = Map.ofEntries(
 {% for e in page.elements %}
             Map.entry({{ e.key | java_str }}, List.of({{ e.selector | by_items(platform) }})){{ "," if not loop.last }}
 {% endfor %}
     );
+{% endif %}
 
     public {{ page.class_name }}(AppiumDriver driver) {
         super(driver);
@@ -30,12 +52,20 @@ public class {{ page.class_name }} extends BasePage {
 
     @Override
     protected String identity() {
+{% if multi %}
+        return IDENTITIES.get(Platform.CURRENT);
+{% else %}
         return {{ page.identity | java_opt_str }};
+{% endif %}
     }
 
     @Override
     protected List<By> locators(String name) {
+{% if multi %}
+        return LOCATORS.get(name).getOrDefault(Platform.CURRENT, List.of());
+{% else %}
         return LOCATORS.get(name);
+{% endif %}
     }
 {% for m in methods %}
 

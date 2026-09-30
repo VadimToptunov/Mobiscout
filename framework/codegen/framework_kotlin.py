@@ -31,7 +31,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from framework.codegen.emitters._kotlin_common import by_expr, kotlin_str
 from framework.codegen.emitters._naming import camel, pascal
-from framework.codegen.framework_java import _methods, _var
+from framework.codegen.framework_java import _methods, _var, platform_context
 from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario, repeated
 from framework.codegen.ir import Selector
 from framework.codegen.scaffold import APPIUM_JAVA_CLIENT_VERSION, SELENIUM_VERSION
@@ -150,6 +150,8 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
         for i, call in enumerate(sc.calls):
             later = {c.page for c in sc.calls[i + 1 :]}
             lines.extend(_render_call(fm, call, declared, later))
+        if sc.platforms:  # one suite, both platforms: this one only runs where it was found
+            lines.insert(0, f"onlyOn({kotlin_str(sc.platforms[0])})")
         body = "".join(f"        {ln}\n" for ln in lines)
         tag = '    @Tag("defect")\n' if sc.defect else ""
         bodies.append(f"    @Test\n{tag}    fun `{name}`() {{\n{body}    }}\n")
@@ -181,6 +183,7 @@ def render_kotlin(fm: FrameworkModel) -> Dict[str, str]:
     env = _env()
     platform = fm.platform.value
     ios = platform == "ios"
+    ctx = platform_context(fm)
     busy = "//XCUIElementTypeActivityIndicator" if ios else "//android.widget.ProgressBar"
     files: Dict[str, str] = {
         "build.gradle.kts": env.get_template("build.gradle.kts.j2").render(
@@ -188,17 +191,19 @@ def render_kotlin(fm: FrameworkModel) -> Dict[str, str]:
         ),
         "settings.gradle.kts": 'rootProject.name = "mobile-tests"\n',
         f"{_SRC}/support/Session.kt": env.get_template("Session.kt.j2").render(
-            ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args
+            ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args, **ctx
         ),
-        f"{_SRC}/support/BaseTest.kt": env.get_template("BaseTest.kt.j2").render(ios=ios),
+        f"{_SRC}/support/BaseTest.kt": env.get_template("BaseTest.kt.j2").render(ios=ios, **ctx),
         f"{_SRC}/pages/BasePage.kt": env.get_template("BasePage.kt.j2").render(
-            ios=ios, busy=busy, app_package=fm.app_package
+            ios=ios, busy=busy, app_package=fm.app_package, **ctx
         ),
     }
+    if fm.apps:
+        files[f"{_SRC}/support/Platform.kt"] = env.get_template("Platform.kt.j2").render(**ctx)
     page_tpl = env.get_template("Page.kt.j2")
     for page in fm.pages:
         files[f"{_SRC}/pages/{page.class_name}.kt"] = page_tpl.render(
-            page=page, platform=platform, methods=_methods(fm, page)
+            page=page, platform=platform, methods=_methods(fm, page), **ctx
         )
     by_group: Dict[str, List[Scenario]] = {}
     for sc in [*fm.scenarios, *fm.skipped]:

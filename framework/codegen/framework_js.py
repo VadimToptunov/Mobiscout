@@ -27,6 +27,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from framework.codegen.emitters._js_common import js_str, selector_array
 from framework.codegen.emitters._naming import camel, pascal
+from framework.codegen.framework_java import platform_context
 from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario, repeated
 
 _TEMPLATES = os.path.join(os.path.dirname(__file__), "templates", "framework", "js")
@@ -180,8 +181,12 @@ def _render_spec(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -
             blocks.append(f"    // Not generated: {sc.skip}\n    it.skip({js_str(title)}, async () => {{}});\n")
             continue
         body = "".join(f"        {_render_call(fm, c)}\n" for c in sc.calls)
-        blocks.append(f"    it({js_str(title)}, async () => {{\n{body}    }});\n")
+        # One suite, both platforms: a test only one platform does runs there, skips elsewhere.
+        runner = f"(PLATFORM === {js_str(sc.platforms[0])} ? it : it.skip)" if sc.platforms else "it"
+        blocks.append(f"    {runner}({js_str(title)}, async () => {{\n{body}    }});\n")
     imports = "".join(f"import {_var(p)} from '../pageobjects/{_module(p)}';\n" for p in fm.pages if p.name in used)
+    if any(sc.platforms for sc in scenarios):
+        imports = "import { PLATFORM } from '../pageobjects/base.page.js';\n" + imports
     return (
         f"/**\n * Specs for the {_jsdoc(page.title)} screen.\n *\n * {_HEADER}\n */\n\n"
         + imports
@@ -191,8 +196,10 @@ def _render_spec(fm: FrameworkModel, page: PageDef, scenarios: List[Scenario]) -
     )
 
 
-def package_json(ios: bool, framework: str = "mocha") -> str:
-    """The npm manifest (ESM, WebdriverIO v9 + the ``framework`` adapter + the appium service)."""
+def package_json(platforms: List[str], framework: str = "mocha") -> str:
+    """The npm manifest (ESM, WebdriverIO v9 + the ``framework`` adapter + the appium service
+    and the Appium driver of every platform the suite runs on)."""
+    drivers = {"android": "appium-uiautomator2-driver", "ios": "appium-xcuitest-driver"}
     manifest = {
         "name": "mobile-tests",
         "version": "1.0.0",
@@ -206,10 +213,15 @@ def package_json(ios: bool, framework: str = "mocha") -> str:
             "@wdio/appium-service": "^9.0.0",
             "@wdio/spec-reporter": "^9.0.0",
             "appium": "^2.11.0",
-            ("appium-xcuitest-driver" if ios else "appium-uiautomator2-driver"): "*",
+            **{drivers[p]: "*" for p in platforms},
         },
     }
     return json.dumps(manifest, indent=2) + "\n"
+
+
+def suite_platforms(fm: FrameworkModel) -> List[str]:
+    """The platforms the suite runs on — both in a cross-platform kit."""
+    return list(fm.apps) or [fm.platform.value]
 
 
 def render_wdio_conf(fm: FrameworkModel, cucumber: bool) -> str:
@@ -224,6 +236,7 @@ def render_wdio_conf(fm: FrameworkModel, cucumber: bool) -> str:
             app_activity=fm.app_activity,
             launch_args=fm.launch_args,
             cucumber=cucumber,
+            **platform_context(fm),
         )
     )
 
@@ -237,17 +250,17 @@ def render_js(fm: FrameworkModel) -> Dict[str, str]:
     ios = platform == "ios"
     busy = "//XCUIElementTypeActivityIndicator" if ios else "//android.widget.ProgressBar"
     files: Dict[str, str] = {
-        "package.json": package_json(ios),
+        "package.json": package_json(suite_platforms(fm)),
         "wdio.conf.js": render_wdio_conf(fm, cucumber=False),
         f"{_PAGES}/base.page.js": env.get_template("base.page.js.j2").render(
-            ios=ios, busy=busy, app_package=fm.app_package
+            ios=ios, busy=busy, app_package=fm.app_package, **platform_context(fm)
         ),
     }
     page_tpl = env.get_template("page.js.j2")
     for page in fm.pages:
         methods = _methods(fm, page)
         files[f"{_PAGES}/{_module(page)}"] = page_tpl.render(
-            page=page, platform=platform, methods=methods, imports=_imports(fm, methods)
+            page=page, platform=platform, methods=methods, imports=_imports(fm, methods), **platform_context(fm)
         )
     by_group: Dict[str, List[Scenario]] = {}
     for sc in [*fm.scenarios, *fm.skipped]:

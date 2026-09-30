@@ -1,6 +1,10 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Appium;
-{% if ios %}
+{% if multi %}
+using MobileTests.Support;
+using OpenQA.Selenium.Appium.Android;
+using OpenQA.Selenium.Appium.iOS;
+{% elif ios %}
 using OpenQA.Selenium.Appium.iOS;
 {% else %}
 using OpenQA.Selenium.Appium.Android;
@@ -26,8 +30,14 @@ public abstract class BasePage({{ driver }} driver)
     private static readonly TimeSpan Poll = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan SettleTimeout = TimeSpan.FromSeconds(5);
     private const int ScrollTries = 4;
+{% if multi %}
+    private static readonly string App = TargetPlatform.App;
+    private static readonly By Busy =
+        By.XPath(TargetPlatform.IsIos ? "//XCUIElementTypeActivityIndicator" : "//android.widget.ProgressBar");
+{% else %}
     private const string App = {{ app_package | cs_str }};
     private static readonly By Busy = By.XPath({{ busy | cs_str }});
+{% endif %}
 
     protected {{ driver }} Driver { get; } = driver;
 
@@ -47,7 +57,17 @@ public abstract class BasePage({{ driver }} driver)
             : throw new InvalidOperationException($"{GetType().Name} has no element distinctive enough to identify it");
 
     /// <summary>Whether the app under test is still up in the foreground — it did not crash.</summary>
+{% if multi %}
+    public bool IsAppRunning() =>
+        Driver switch
+        {
+            IOSDriver ios => ios.GetAppState(App),
+            AndroidDriver android => android.GetAppState(App),
+            _ => throw new InvalidOperationException($"not an Android or iOS session: {Driver.GetType().Name}"),
+        } == AppState.RunningInForeground;
+{% else %}
     public bool IsAppRunning() => Driver.GetAppState(App) == AppState.RunningInForeground;
+{% endif %}
 
     /// <summary>Press the system Back.</summary>
     public void GoBack()
@@ -151,7 +171,14 @@ public abstract class BasePage({{ driver }} driver)
 
     private void ScrollDown()
     {
-{% if ios %}
+{% if multi %}
+        if (TargetPlatform.IsIos)
+        {
+            Driver.ExecuteScript("mobile: scroll", new Dictionary<string, object> { ["direction"] = "down" });
+            return;
+        }
+{% endif %}
+{% if ios and not multi %}
         Driver.ExecuteScript("mobile: scroll", new Dictionary<string, object> { ["direction"] = "down" });
 {% else %}
         var size = Driver.Manage().Window.Size;

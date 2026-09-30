@@ -24,6 +24,7 @@ globalThis.describe = (title, body) => {
     suite = outer;
 };
 globalThis.it = (title, fn) => tests.push({ title: `${suite} > ${title}`, fn });
+globalThis.it.skip = (title) => tests.push({ title: `${suite} > ${title}`, skip: true });
 
 const { config } = await import(pathToFileURL(join(kit, 'wdio.conf.js')).href);
 const specsDir = join(kit, 'test', 'specs');
@@ -33,6 +34,10 @@ for (const file of readdirSync(specsDir).filter((f) => f.endsWith('.e2e.js')).so
 
 let failed = 0;
 for (const test of tests) {
+    if (test.skip) {
+        console.log(`SKIP: ${test.title}`);
+        continue;
+    }
     try {
         if (config.beforeTest) await config.beforeTest();
         await test.fn();
@@ -42,5 +47,6 @@ for (const test of tests) {
         console.log(`FAIL: ${test.title}: ${error.message}`);
     }
 }
-console.log(`${tests.length - failed} passed, ${failed} failed`);
-process.exit(failed ? 1 : tests.length ? 0 : 2);
+const ran = tests.filter((t) => !t.skip).length;
+console.log(`${ran - failed} passed, ${failed} failed`);
+process.exit(failed ? 1 : ran ? 0 : 2);

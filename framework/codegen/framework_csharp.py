@@ -30,7 +30,7 @@ from jinja2 import Environment, FileSystemLoader, StrictUndefined
 from framework.codegen.bdd_model import BddModel, StepDef, build_bdd_model, render_feature
 from framework.codegen.emitters._java_common import java_str
 from framework.codegen.emitters._naming import ios_text_xpath, pascal, snake, ua_escape
-from framework.codegen.framework_java import _lower_first, _methods
+from framework.codegen.framework_java import _lower_first, _methods, platform_context
 from framework.codegen.framework_model import Call, FrameworkModel, PageDef, Scenario, repeated
 from framework.codegen.ir import Selector, SelectorStrategy
 
@@ -159,7 +159,10 @@ def _render_test_class(fm: FrameworkModel, page: PageDef, scenarios: List[Scenar
         lines: List[str] = []
         for i, call in enumerate(sc.calls):
             lines.extend(_render_call(fm, call, declared, {c.page for c in sc.calls[i + 1 :]}))
-        attrs = '[Test, Category("defect")]' if sc.defect else "[Test]"
+        if sc.platforms:  # one suite, both platforms: this one only runs where it was found
+            lines.insert(0, f"OnlyOn({cs_str(sc.platforms[0])});")
+        categories = (["defect"] if sc.defect else []) + list(sc.platforms or [])
+        attrs = "[" + ", ".join(["Test", *(f"Category({cs_str(c)})" for c in categories)]) + "]"
         body = "".join(f"        {ln}\n" for ln in lines)
         blocks.append(f"{doc}    {attrs}\n    public void {pascal(sc.name)}()\n    {{\n{body}    }}\n")
     return (
@@ -176,7 +179,9 @@ def _base(fm: FrameworkModel, reqnroll: bool) -> Dict[str, str]:
     env = _env()
     platform = fm.platform.value
     ios = platform == "ios"
-    driver = "IOSDriver" if ios else "AndroidDriver"
+    ctx = platform_context(fm)
+    # One suite for both platforms drives either, so it holds the common driver type.
+    driver = "AppiumDriver" if fm.apps else ("IOSDriver" if ios else "AndroidDriver")
     busy = "//XCUIElementTypeActivityIndicator" if ios else "//android.widget.ProgressBar"
     files: Dict[str, str] = {
         "MobileTests.csproj": env.get_template("MobileTests.csproj.j2").render(versions=VERSIONS, reqnroll=reqnroll),
@@ -186,15 +191,18 @@ def _base(fm: FrameworkModel, reqnroll: bool) -> Dict[str, str]:
             app_package=fm.app_package,
             app_activity=fm.app_activity,
             launch_args=fm.launch_args,
+            **ctx,
         ),
         "Pages/BasePage.cs": env.get_template("BasePage.cs.j2").render(
-            ios=ios, driver=driver, busy=busy, app_package=fm.app_package
+            ios=ios, driver=driver, busy=busy, app_package=fm.app_package, **ctx
         ),
     }
+    if fm.apps:
+        files["Support/TargetPlatform.cs"] = env.get_template("TargetPlatform.cs.j2").render(**ctx)
     page_tpl = env.get_template("Page.cs.j2")
     for page in fm.pages:
         files[f"Pages/{page.class_name}.cs"] = page_tpl.render(
-            page=page, platform=platform, driver=driver, methods=_methods(fm, page)
+            page=page, platform=platform, driver=driver, methods=_methods(fm, page), **ctx
         )
     return files
 
@@ -207,7 +215,7 @@ def render_csharp(fm: FrameworkModel) -> Dict[str, str]:
     ios = fm.platform.value == "ios"
     files = _base(fm, reqnroll=False)
     files["Support/BaseTest.cs"] = env.get_template("BaseTest.cs.j2").render(
-        ios=ios, driver="IOSDriver" if ios else "AndroidDriver"
+        ios=ios, driver="IOSDriver" if ios else "AndroidDriver", **platform_context(fm)
     )
     files["SessionLifetime.cs"] = env.get_template("SessionLifetime.cs.j2").render()
     by_group: Dict[str, List[Scenario]] = {}
@@ -293,7 +301,7 @@ def render_reqnroll(fm: FrameworkModel) -> Dict[str, str]:
     if not bm.features:
         return {}
     files = _base(fm, reqnroll=True)
-    files["Support/Hooks.cs"] = _env().get_template("Hooks.cs.j2").render()
+    files["Support/Hooks.cs"] = _env().get_template("Hooks.cs.j2").render(**platform_context(fm))
     for f in bm.features:
         files[f"Features/{snake(f.page)}.feature"] = render_feature(f, fm.app_name)
     used = {d.page for d in bm.steps}
