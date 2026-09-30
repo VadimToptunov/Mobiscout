@@ -4,6 +4,11 @@ MOBISCOUT_PLATFORM=android against the Android app and =ios against the iOS app 
 red when either breaks; what only one platform does (Back) runs there and is skipped, with the
 reason, on the other."""
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from framework.codegen.bdd_model import build_bdd_model
@@ -48,6 +53,9 @@ def _merged():
 def _fake(platform, broken=False):
     result = _crawls()[platform]
     app = _fake_app(result, "" if platform == "ios" else "com.x")
+    # iOS has no system Back: if a kit ran its Android-only Back test there, it would FAIL — so
+    # a green iOS run proves the test was skipped, not merely that it happened to pass.
+    app["back_works"] = platform != "ios"
     if broken:
         app["transitions"] = []
     return app
@@ -125,3 +133,76 @@ def test_one_bdd_kit_runs_green_on_each_platform(flavour, platform, tmp_path, mo
     assert proc.returncode == 0, f"{flavour} on {platform}:\n{proc.stdout}\n{proc.stderr}"
     broken = _run_python_bdd(kit, _fake(platform, broken=True), flavour)
     assert broken.returncode != 0, f"{flavour} on {platform} passed with navigation broken:\n{broken.stdout}"
+
+
+# --- the other languages: the same one-kit-both-platforms contract ---------------------------
+
+
+def _js_fake(platform, broken=False):
+    from tests.codegen.test_framework_js import _fake_app as js_fake_app
+
+    app = js_fake_app(_crawls()[platform], "" if platform == "ios" else "com.x")
+    app["backWorks"] = platform != "ios"  # see _fake
+    if broken:
+        app["transitions"] = []
+    return app
+
+
+@pytest.mark.parametrize("flavour", ["mocha", "cucumber"])
+@pytest.mark.parametrize("platform", ["android", "ios"])
+def test_one_webdriverio_kit_runs_green_on_each_platform(flavour, platform, tmp_path, monkeypatch):
+    from framework.codegen.framework_bdd_js import render_js_cucumber
+    from framework.codegen.framework_js import render_js
+    from tests.codegen import test_framework_bdd_js, test_framework_js
+
+    if test_framework_js._NODE is None:
+        pytest.skip("node not available")
+    render, run = (
+        (render_js, test_framework_js._run)
+        if flavour == "mocha"
+        else (
+            render_js_cucumber,
+            test_framework_bdd_js._run,
+        )
+    )
+    kit = tmp_path / flavour
+    test_framework_js._write(kit, render(_merged()))
+    monkeypatch.setenv("MOBISCOUT_PLATFORM", platform)
+    healthy = run(kit, _js_fake(platform))
+    assert healthy.returncode == 0, f"{flavour} on {platform}:\n{healthy.stdout}\n{healthy.stderr}"
+    assert ("SKIP:" in healthy.stdout) == (platform == "ios"), healthy.stdout  # Back: Android only
+    broken = run(kit, _js_fake(platform, broken=True))
+    assert broken.returncode != 0, f"{flavour} on {platform} passed with navigation broken:\n{broken.stdout}"
+
+
+@pytest.mark.skipif(not os.environ.get("MOBISCOUT_REAL_COMPILE"), reason="needs Maven/Gradle/.NET + network")
+@pytest.mark.parametrize(
+    "target", ["java_testng", "java_cucumber", "kotlin_appium", "kotlin_cucumber", "csharp_nunit", "csharp_reqnroll"]
+)
+def test_one_jvm_or_dotnet_kit_runs_green_on_each_platform(target, tmp_path):
+    from framework.crawler import page_kit
+    from tests.codegen.test_jvm_dotnet_execution import _RUNNERS, _tool
+
+    sys.path.insert(0, str(Path(__file__).parent.parent / "support"))
+    from fake_appium_server import FakeAppiumServer
+
+    name, args = _RUNNERS[target]
+    tool = _tool(name)
+    if tool is None:
+        pytest.skip(f"{name} not installed")
+    render = {**page_kit._TARGET_FRAMEWORKS, **page_kit.FRAMEWORK_ONLY_TARGETS}[target]
+    kit = tmp_path / target
+    for rel, content in render(_merged()).items():
+        path = kit / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    for platform, broken in (("android", False), ("ios", False), ("ios", True)):
+        with FakeAppiumServer(_fake(platform, broken)) as server:
+            env = {**os.environ, "MOBISCOUT_APPIUM_SERVER": server.url, "MOBISCOUT_PLATFORM": platform}
+            proc = subprocess.run([tool, *args], cwd=kit, capture_output=True, text=True, timeout=900, env=env)
+            assert not server.unknown, server.unknown
+        out = (proc.stdout + proc.stderr)[-5000:]
+        if broken:
+            assert proc.returncode != 0, f"{target} on {platform} passed with navigation broken:\n{out}"
+        else:
+            assert proc.returncode == 0, f"{target} failed on a healthy {platform} app:\n{out}"

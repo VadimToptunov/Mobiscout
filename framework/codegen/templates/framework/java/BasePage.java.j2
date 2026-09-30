@@ -9,8 +9,11 @@ import io.appium.java_client.appmanagement.ApplicationState;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-{% if not ios %}
+{% if not ios or multi %}
 import org.openqa.selenium.Dimension;
+{% endif %}
+{% if multi %}
+import mobiscout.support.Platform;
 {% endif %}
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
@@ -34,8 +37,14 @@ public abstract class BasePage {
     protected static final Duration POLL = Duration.ofMillis(250);
     protected static final Duration SETTLE_TIMEOUT = Duration.ofSeconds(5);
     private static final int SCROLL_TRIES = 4;
+{% if multi %}
+    private static final By BUSY = AppiumBy.xpath(
+            Platform.IOS ? "//XCUIElementTypeActivityIndicator" : "//android.widget.ProgressBar");
+    private static final String APP = Platform.APP;
+{% else %}
     private static final By BUSY = AppiumBy.xpath({{ busy | java_str }});
     private static final String APP = {{ app_package | java_str }};
+{% endif %}
 
     protected final AppiumDriver driver;
 
@@ -155,7 +164,13 @@ public abstract class BasePage {
     }
 
     private void scrollDown() {
-{% if ios %}
+{% if multi %}
+        if (Platform.IOS) {
+            driver.executeScript("mobile: scroll", Map.of("direction", "down"));
+            return;
+        }
+{% endif %}
+{% if ios and not multi %}
         driver.executeScript("mobile: scroll", Map.of("direction", "down"));
 {% else %}
         Dimension size = driver.manage().window().getSize();

@@ -6,7 +6,41 @@
  * begins clean. The appium service starts the Appium server for you.
  */
 
+{% if multi %}
+/** Which platform this run drives — one suite serves both (MOBISCOUT_PLATFORM: android | ios). */
+const PLATFORM = (process.env.MOBISCOUT_PLATFORM ?? {{ platforms[0] | js_str }}).toLowerCase();
+const APP = PLATFORM === 'ios' ? {{ apps["ios"].app_id | js_str }} : {{ apps["android"].app_id | js_str }};
+
+const CAPABILITIES = {
+    ios: {
+        platformName: 'iOS',
+        'appium:automationName': 'XCUITest',
+        'appium:bundleId': APP,
+{% if apps["ios"].launch_args %}
+        'appium:processArguments': { args: {{ apps["ios"].launch_args | js_list }} },
+{% endif %}
+        // Don't wait for the UI to go idle after every command: a live app rarely does.
+        'appium:settings[waitForIdleTimeout]': 0,
+        'appium:settings[animationCoolOffTimeout]': 0,
+        'appium:noReset': true, // keep app data; each test restarts the app itself (below)
+    },
+    android: {
+        platformName: 'Android',
+        'appium:automationName': 'UiAutomator2',
+        'appium:appPackage': APP,
+{% if apps["android"].app_activity %}
+        'appium:appActivity': {{ apps["android"].app_activity | js_str }},
+{% endif %}
+        'appium:disableWindowAnimation': true, // animations only cost time
+        // Don't wait for the UI to go idle after every command: a live app rarely does, and
+        // UiAutomator2 would otherwise stall up to 10 s per command.
+        'appium:settings[waitForIdleTimeout]': 100,
+        'appium:noReset': true, // keep app data; each test restarts the app itself (below)
+    },
+};
+{% else %}
 const APP = {{ app_package | js_str }};
+{% endif %}
 
 /**
  * Reopen the session if it no longer answers (Appium or the driver crashed): one crash costs
@@ -29,6 +63,9 @@ export const config = {
     specs: ['./test/specs/**/*.e2e.js'],
 {% endif %}
     maxInstances: 1,
+{% if multi %}
+    capabilities: [CAPABILITIES[PLATFORM]],
+{% else %}
     capabilities: [
         {
 {% if ios %}
@@ -56,11 +93,21 @@ export const config = {
             'appium:noReset': true, // keep app data; each test restarts the app itself (below)
         },
     ],
+{% endif %}
     services: ['appium'],
 {% if cucumber %}
     framework: 'cucumber',
     reporters: ['spec'],
+{% if multi %}
+    cucumberOpts: {
+        require: ['./features/step-definitions/*.steps.js'],
+        timeout: 90000,
+        // One suite, both platforms: leave out what only the other platform does.
+        tags: PLATFORM === 'ios' ? 'not @android' : 'not @ios',
+    },
+{% else %}
     cucumberOpts: { require: ['./features/step-definitions/*.steps.js'], timeout: 90000 },
+{% endif %}
 
     /** A fresh app for every scenario on the worker's shared session. */
     beforeScenario: async () => {

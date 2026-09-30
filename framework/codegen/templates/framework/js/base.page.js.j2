@@ -13,8 +13,17 @@ const TIMEOUT = 10000; // ms an element may take to appear
 const POLL = 250; // how often a wait re-checks — condition-based, never a fixed pause
 const SCROLL_TRIES = 4; // scrolls tried for a below-the-fold element before giving up
 const SETTLE_TIMEOUT = 5000; // longest a loading spinner is waited out after an action
+{% if multi %}
+/** Which platform this run drives — one suite serves both (MOBISCOUT_PLATFORM: android | ios). */
+export const PLATFORM = (process.env.MOBISCOUT_PLATFORM ?? {{ platforms[0] | js_str }}).toLowerCase();
+const IOS = PLATFORM === 'ios';
+const BUSY = IOS ? '//XCUIElementTypeActivityIndicator' : '//android.widget.ProgressBar';
+/** The app under test on this platform. */
+export const APP = IOS ? {{ apps["ios"].app_id | js_str }} : {{ apps["android"].app_id | js_str }};
+{% else %}
 const BUSY = {{ busy | js_str }};
 const APP = {{ app_package | js_str }}; // the app under test
+{% endif %}
 const FOREGROUND = 4; // Appium's app state: running in the foreground
 
 export default class BasePage {
@@ -23,8 +32,16 @@ export default class BasePage {
      */
     constructor({ screen, identity, locators }) {
         this.screen = screen;
+{% if multi %}
+        // One page for both platforms: keep this run's column of identities and locators.
+        this.identity = identity[PLATFORM] ?? null;
+        this.locators = Object.fromEntries(
+            Object.entries(locators).map(([name, byPlatform]) => [name, byPlatform[PLATFORM] ?? []]),
+        );
+{% else %}
         this.identity = identity;
         this.locators = locators;
+{% endif %}
     }
 
     /** Whether this screen is the one on display, proven by an element only it has. */
@@ -139,7 +156,13 @@ export default class BasePage {
     }
 
     async _scrollDown() {
-{% if ios %}
+{% if multi %}
+        if (IOS) {
+            await driver.execute('mobile: scroll', { direction: 'down' });
+            return;
+        }
+{% endif %}
+{% if ios and not multi %}
         await driver.execute('mobile: scroll', { direction: 'down' });
 {% else %}
         const { width, height } = await driver.getWindowSize();

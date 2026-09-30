@@ -2,6 +2,9 @@ package mobiscout.pages
 
 import io.appium.java_client.AppiumBy
 import io.appium.java_client.AppiumDriver
+{% if multi %}
+import mobiscout.support.Platform
+{% endif %}
 
 /**
  * The {{ page.title | kdoc }} screen.
@@ -12,6 +15,24 @@ class {{ page.class_name }}(driver: AppiumDriver) : BasePage(driver) {
 
     override val screen = {{ page.title | kotlin_str }}
 
+{% if multi %}
+    override val identity: String? = mapOf(
+{% for p, key in page.identities.items() if key %}
+        {{ p | kotlin_str }} to {{ key | kotlin_str }},
+{% endfor %}
+    )[Platform.CURRENT]
+
+    // Element -> platform -> ranked locators; this run's platform picks its column.
+    override val locators = mapOf(
+{% for e in page.elements %}
+        {{ e.key | kotlin_str }} to mapOf(
+{% for p, sel in e.selectors.items() %}
+            {{ p | kotlin_str }} to listOf({{ sel | by_items(p) }}),
+{% endfor %}
+        ),
+{% endfor %}
+    ).mapValues { (_, byPlatform) -> byPlatform[Platform.CURRENT].orEmpty() }
+{% else %}
     override val identity: String? = {{ page.identity | kotlin_opt_str }}
 
     override val locators = mapOf(
@@ -19,6 +40,7 @@ class {{ page.class_name }}(driver: AppiumDriver) : BasePage(driver) {
         {{ e.key | kotlin_str }} to listOf({{ e.selector | by_items(platform) }}),
 {% endfor %}
     )
+{% endif %}
 {% for m in methods %}
 
 {% if m.kind == "tap" %}

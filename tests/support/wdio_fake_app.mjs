@@ -5,6 +5,7 @@
 // Model JSON ($MOBISCOUT_FAKE_APP): {"start": int, "screens": [[selector, ...], ...],
 //                                     "transitions": [[from, selector, to], ...],
 //                                     "crashes": [[screen, selector], ...],  // tapping it kills the app
+//                                     "backWorks": bool,  // false: Back does nothing (iOS)
 //                                     "sessionKillers": [[screen, selector], ...]}  // kills the SESSION:
 //                                     every command fails until reloadSession()
 
@@ -56,6 +57,7 @@ export function installFakeApp() {
             }
         },
         back() {
+            if (model.backWorks === false) return; // a platform without a system Back
             if (this.history.length) this.current = this.history.pop();
             this.typed.clear();
         },

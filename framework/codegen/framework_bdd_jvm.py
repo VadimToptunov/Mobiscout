@@ -27,7 +27,7 @@ from framework.codegen.emitters._java_common import java_str
 from framework.codegen.emitters._kotlin_common import kotlin_str
 from framework.codegen.emitters._naming import camel, pascal, snake
 from framework.codegen.framework_java import _env as _java_env
-from framework.codegen.framework_java import java_value, render_java
+from framework.codegen.framework_java import java_value, platform_context, render_java_pages
 from framework.codegen.framework_kotlin import _env as _kotlin_env
 from framework.codegen.framework_kotlin import kotlin_value, render_kotlin
 from framework.codegen.framework_model import FrameworkModel
@@ -187,13 +187,14 @@ def render_java_cucumber(fm: FrameworkModel) -> Dict[str, str]:
     src = "src/test/java/mobiscout"
     env = _java_env()
     ios = fm.platform.value == "ios"
-    files = {p: c for p, c in render_java(fm).items() if p.startswith(f"{src}/pages/")}
+    files = render_java_pages(fm)
+    ctx = platform_context(fm)
     files["pom.xml"] = env.get_template("cucumber-pom.xml.j2").render(**_versions())
     files[f"{src}/RunCucumberTest.java"] = env.get_template("RunCucumberTest.java.j2").render()
     files[f"{src}/support/Session.java"] = env.get_template("Session.java.j2").render(
-        ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args
+        ios=ios, app_package=fm.app_package, app_activity=fm.app_activity, launch_args=fm.launch_args, **ctx
     )
-    files[f"{src}/support/Hooks.java"] = env.get_template("Hooks.java.j2").render()
+    files[f"{src}/support/Hooks.java"] = env.get_template("Hooks.java.j2").render(**ctx)
     files.update(_features(bm))
     for p in _step_pages(bm):
         files[f"{src}/steps/{pascal(p)}Steps.java"] = _java_steps(bm, p)
@@ -206,12 +207,12 @@ def render_kotlin_cucumber(fm: FrameworkModel) -> Dict[str, str]:
     if not bm.features:
         return {}
     src = "src/test/kotlin/mobiscout"
-    keep = (f"{src}/pages/", f"{src}/support/Session.kt", "settings.gradle.kts")
+    keep = (f"{src}/pages/", f"{src}/support/Session.kt", f"{src}/support/Platform.kt", "settings.gradle.kts")
     files = {p: c for p, c in render_kotlin(fm).items() if p.startswith(keep)}
     env = _kotlin_env()
     files["build.gradle.kts"] = env.get_template("cucumber.build.gradle.kts.j2").render(**_versions())
     files[f"{src}/RunCucumberTest.kt"] = env.get_template("RunCucumberTest.kt.j2").render()
-    files[f"{src}/support/Hooks.kt"] = env.get_template("Hooks.kt.j2").render()
+    files[f"{src}/support/Hooks.kt"] = env.get_template("Hooks.kt.j2").render(**platform_context(fm))
     files.update(_features(bm))
     for p in _step_pages(bm):
         files[f"{src}/steps/{pascal(p)}Steps.kt"] = _kotlin_steps(bm, p)
