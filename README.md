@@ -192,9 +192,9 @@ AI-powered** — no runtime LLM); MCP is only the interface. Register it in your
 
 ### Multi-Language & Structured Output — available now
 
-- 🌍 **10 targets** — Python (pytest, pytest-bdd, Behave), Java (TestNG, Cucumber),
-  JavaScript (WebdriverIO, Cucumber), Kotlin (Appium + Espresso), plus **Maestro**
-  declarative YAML flows
+- 🌍 **13 targets** — Python (pytest, pytest-bdd, Behave), Java (TestNG, Cucumber),
+  JavaScript (WebdriverIO, Cucumber), Kotlin (Appium, Cucumber, Espresso), C# (NUnit,
+  Reqnroll), plus **Maestro** declarative YAML flows
 - 🏗️ **Framework-structured output by default** — per language, a runnable project with
   page objects, one Appium session per run and an app restart per test, and tests (or
   declarative Gherkin features) that read like intent; standalone files with `--style flat`

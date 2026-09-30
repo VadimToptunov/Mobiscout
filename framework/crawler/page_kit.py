@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Callable, Dict, Optional, Tuple
 
 from framework.codegen.framework_bdd_js import render_js_cucumber
+from framework.codegen.framework_csharp import render_csharp, render_reqnroll
 from framework.codegen.framework_bdd_jvm import render_java_cucumber, render_kotlin_cucumber
 from framework.codegen.framework_bdd_python import render_behave, render_pytest_bdd
 from framework.codegen.framework_java import render_java
@@ -47,6 +48,8 @@ _TARGET_FRAMEWORKS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
 FRAMEWORK_ONLY_TARGETS: Dict[str, Callable[[FrameworkModel], Dict[str, str]]] = {
     "python_behave": render_behave,
     "kotlin_cucumber": render_kotlin_cucumber,
+    "csharp_nunit": render_csharp,
+    "csharp_reqnroll": render_reqnroll,
 }
 
 

@@ -180,6 +180,8 @@ def test_every_language_marks_its_defect_tests_and_checks_the_app_survived():
         "kotlin_cucumber": ("@defect", "isAppRunning()"),
         "js_webdriverio": ("@defect", "isAppRunning()"),
         "js_cucumber": ("@defect", "isAppRunning()"),
+        "csharp_nunit": ('[Test, Category("defect")]', "IsAppRunning()"),
+        "csharp_reqnroll": ("@defect", "IsAppRunning()"),
     }
     assert set(FRAMEWORK_ONLY_TARGETS) <= set(marks)
     for target, (mark, check) in marks.items():
