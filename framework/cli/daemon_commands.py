@@ -196,6 +196,7 @@ class JSONRPCServer:
             "action/type": self.handle_type,
             "kit/generate": self.handle_kit_generate,
             "kit/generateMany": self.handle_kit_generate_many,
+            "kit/generateCrossPlatform": self.handle_kit_generate_cross_platform,
             "codegen/generate": self.handle_kit_generate,  # alias: same parameterized pipeline
             "flow/getGraph": self.handle_flow_get_graph,
             "environment/detect": self.handle_environment_detect,
@@ -376,6 +377,20 @@ class JSONRPCServer:
         # Default the wall-clock budget per config (see handle_kit_generate).
         configs = [{"max_seconds": self._DEFAULT_KIT_MAX_SECONDS, **c} for c in configs]
         return {"results": run_kits(configs, parallel=bool(params.get("parallel", True)))}
+
+    def handle_kit_generate_cross_platform(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """ONE kit for a project's Android and iOS apps: both crawled (each on its own device),
+        merged into one suite that picks its platform at run time. params: {configs: [<the
+        Android kit/generate params>, <the iOS ones>]}; the Android config's output and targets
+        name the kit. Returns the kit summary (with a per-platform ``platforms`` breakdown)."""
+        from framework.crawler.pipeline import run_cross_platform_kit
+
+        configs = params.get("configs") or []
+        for config in configs:
+            if not config.get("package"):
+                raise ValueError("each config in kit/generateCrossPlatform requires 'package'")
+        # Default the wall-clock budget per config (see handle_kit_generate).
+        return run_cross_platform_kit([{"max_seconds": self._DEFAULT_KIT_MAX_SECONDS, **c} for c in configs])
 
     def handle_health_check(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """

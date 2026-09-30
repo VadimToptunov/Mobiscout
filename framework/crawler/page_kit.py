@@ -119,3 +119,9 @@ def generation_report(fm: Optional[FrameworkModel], errors: Dict[str, str]) -> s
         out += [f"- **{target}** — {error} (see `{target}/GENERATION_ERROR.md`)" for target, error in errors.items()]
         out.append("")
     return "\n".join(out)
+
+
+def cross_platform_renderer(target: str) -> Optional[Callable[[FrameworkModel], Dict[str, str]]]:
+    """The renderer that writes ``target`` as one suite for both platforms, or None when the
+    target has no cross-platform form (Maestro flows, Android-only Espresso)."""
+    return _TARGET_FRAMEWORKS.get(target) or FRAMEWORK_ONLY_TARGETS.get(target)

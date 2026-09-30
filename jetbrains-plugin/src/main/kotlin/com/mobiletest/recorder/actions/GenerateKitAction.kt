@@ -76,6 +76,13 @@ class GenerateKitAction : AnAction() {
             return
         }
 
+        // Android + iOS: crawl both and write ONE suite that runs on either platform.
+        val crossConfigs = dialog.crossPlatformConfigs()
+        if (crossConfigs.size == 2) {
+            generateCrossPlatform(project, daemonService, crossConfigs)
+            return
+        }
+
         // Multi-app: "generate all detected apps" builds one config per app (each on its
         // own device) and generates them in parallel via kit/generateMany.
         val multiConfigs = dialog.multiAppConfigs()
@@ -275,6 +282,49 @@ class GenerateKitAction : AnAction() {
         val preferred = settings.defaultSimulatorName.trim()
         return (sims.firstOrNull { (it.get("name")?.asString ?: "") == preferred } ?: sims.firstOrNull())
             ?.get("id")?.asString
+    }
+
+    /** ONE kit for a project's Android and iOS apps via the engine's kit/generateCrossPlatform:
+     *  both crawled at once (each on its own device), merged into one suite whose tests pick
+     *  their platform at run time. Reports what each platform contributed. */
+    private fun generateCrossPlatform(project: Project, daemonService: MTRDaemonService, configs: List<Map<String, Any>>) {
+        // Not cancellable, same as the single-kit path: one blocking RPC.
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Generating one suite for Android + iOS", false) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "Crawling the Android and the iOS app…"
+                try {
+                    val result = daemonService.getClient()
+                        ?.call("kit/generateCrossPlatform", mapOf("configs" to configs), timeoutMs = KIT_RPC_TIMEOUT_MS)
+                        ?.getResultOrThrow() ?: throw IllegalStateException("No response from daemon")
+                    val platforms = result.getAsJsonObject("platforms")
+                    val perPlatform = listOf("android" to "Android", "ios" to "iOS").joinToString("\n") { (key, name) ->
+                        val r = platforms?.getAsJsonObject(key)
+                        "• $name — ${r?.get("screens")?.asInt ?: 0} screen(s)"
+                    }
+                    val cases = result.get("cases")?.asInt ?: 0
+                    val output = result.get("output")?.asString ?: ""
+                    val gaps = buildString {
+                        val defects = result.get("defects")?.asInt ?: 0
+                        if (defects > 0) append("\n🐞 $defects defect test(s) → platforms/*/defects.md")
+                        val notGenerated = result.get("not_generated")?.asInt ?: 0
+                        val failed = result.getAsJsonObject("errors")?.keySet()?.size ?: 0
+                        if (notGenerated > 0 || failed > 0) append("\n⚠️ see generation-report.md")
+                    }
+                    ApplicationManager.getApplication().invokeLater {
+                        Notifier.info(
+                            project,
+                            "One suite for Android + iOS: $cases scenario(s)",
+                            "$perPlatform\nRun it on either with MOBISCOUT_PLATFORM=android|ios.\n$output$gaps",
+                        )
+                    }
+                } catch (ex: Exception) {
+                    ApplicationManager.getApplication().invokeLater {
+                        Notifier.error(project, "Generation failed", ex.message ?: "Unknown error")
+                    }
+                }
+            }
+        })
     }
 
     /** Generate a kit for several apps at once (a project's Android + iOS apps) via the

@@ -82,6 +82,12 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
     private var detectedApps: List<JsonObject> = emptyList()
     private val generateAllCheck = JBCheckBox("Generate all detected apps in parallel", false)
         .apply { isVisible = false }
+
+    // A project with an Android AND an iOS app: crawl both and write ONE suite whose tests run
+    // on either platform (MOBISCOUT_PLATFORM picks it at run time). On by default when offered —
+    // one suite to maintain instead of two diverging ones.
+    private val crossPlatformCheck = JBCheckBox("One suite for Android + iOS (runs on both)", true)
+        .apply { isVisible = false }
     private val serverField = JBTextField("http://localhost:4723", 24)
     private val maxStepsField = JBTextField("40", 5)
     private val maxDepthField = JBTextField("8", 5)
@@ -195,6 +201,8 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
                 detectedApps = apps?.map { it.asJsonObject } ?: emptyList()
                 generateAllCheck.isVisible = detectedApps.size > 1
                 generateAllCheck.text = "Generate all ${detectedApps.size} detected apps in parallel"
+                val platforms = detectedApps.mapNotNull { it.get("platform")?.asString }.toSet()
+                crossPlatformCheck.isVisible = platforms.containsAll(listOf("android", "ios"))
                 when {
                     apps == null || apps.size() == 0 -> setErrorText("No Android or iOS app found in that folder.")
                     apps.size() == 1 -> fillFromApp(apps[0].asJsonObject)
@@ -301,6 +309,7 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         // re-pack when it toggles — which left a large empty area under a collapsed Advanced.
         return panel {
             row { cell(detectButton) }
+            row { cell(crossPlatformCheck) }
             row { cell(generateAllCheck) }
             row("App package / bundle id:") { cell(packageField) }
             row("Platform:") { cell(platformCombo) }
@@ -352,7 +361,23 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         // only. Say so here rather than dropping the options silently — "Detect from project"
         // auto-fills the build path, so the combination is one click away, and the crawls
         // would then run against whatever build already happens to be on each device.
-        if (generateAllCheck.isVisible && generateAllCheck.isSelected) {
+        if (crossPlatformCheck.isVisible && crossPlatformCheck.isSelected) {
+            CROSS_PLATFORM_UNSUPPORTED[selectedTarget()]?.let { return ValidationInfo(it, frameworkCombo) }
+            if (buildPathField.text.isNotBlank()) {
+                return ValidationInfo(
+                    "\"Install build first\" isn't supported with one suite for Android + iOS — install " +
+                        "both builds yourself, or clear this field",
+                    buildPathField,
+                )
+            }
+            if (uninstallAfterCheck.isSelected) {
+                return ValidationInfo(
+                    "\"Uninstall the app after crawling\" isn't supported with one suite for Android + iOS",
+                    uninstallAfterCheck,
+                )
+            }
+        }
+        if (generateAllCheck.isVisible && generateAllCheck.isSelected && !crossPlatformSelected()) {
             if (buildPathField.text.isNotBlank()) {
                 return ValidationInfo(
                     "\"Install build first\" isn't supported with \"Generate all detected apps\" — " +
@@ -453,6 +478,12 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
         /** Why [target] can't be used for a "generate all" run over [platforms], or null when
          *  it runs on all of them. "Generate all" applies the one selected framework to every
          *  detected app, so a platform-only target is a hard mismatch, not a preference. */
+        /** Targets that cannot be ONE suite for both platforms, and why. */
+        val CROSS_PLATFORM_UNSUPPORTED = mapOf(
+            "kotlin_espresso" to "Espresso runs on Android only — pick another framework for one suite for Android + iOS",
+            "maestro" to "Maestro flows are written per platform — pick another framework for one suite for Android + iOS",
+        )
+
         fun multiAppTargetError(target: String, platforms: Collection<String>): String? {
             val only = PLATFORM_ONLY_TARGETS[target] ?: return null
             val foreign = platforms.filter { it != only }.distinct()
@@ -522,8 +553,28 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
      *  each with its own package/platform, a device of that platform, and its own output
      *  subdir — sharing the stack/output/budget/login from the form. Empty otherwise (the
      *  caller then does the normal single-app generate). */
+    private fun crossPlatformSelected() = crossPlatformCheck.isVisible && crossPlatformCheck.isSelected
+
+    /** When "one suite for Android + iOS" is on, the kit/generate config of the project's
+     *  Android app and of its iOS app — each on a device of its platform — sharing the form's
+     *  stack, output and budget (the engine writes ONE kit into that output). Empty otherwise. */
+    fun crossPlatformConfigs(): List<Map<String, Any>> {
+        if (!crossPlatformSelected()) return emptyList()
+        val base = params()
+        return listOf("android", "ios").mapNotNull { platform ->
+            val app = detectedApps.firstOrNull { it.get("platform")?.asString == platform } ?: return@mapNotNull null
+            val cfg = LinkedHashMap(base)
+            cfg["package"] = app.get("package")?.asString ?: ""
+            cfg["platform"] = platform
+            val device = devicePlatforms.entries.firstOrNull { it.value == platform }?.key
+            if (device != null) cfg["udid"] = device else cfg.remove("udid")
+            cfg
+        }
+    }
+
     fun multiAppConfigs(): List<Map<String, Any>> {
         if (!generateAllCheck.isVisible || !generateAllCheck.isSelected || detectedApps.size < 2) return emptyList()
+        if (crossPlatformSelected()) return emptyList()
         val base = params()
         val baseOutput = (base["output"] as? String) ?: "mobile-tests"
         // Hand each app a DISTINCT device of its platform — two Android apps crawled in

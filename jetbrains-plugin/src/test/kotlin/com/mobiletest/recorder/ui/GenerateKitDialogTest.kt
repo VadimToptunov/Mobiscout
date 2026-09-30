@@ -67,4 +67,15 @@ class GenerateKitDialogTest {
         assertEquals("log in", (gates[0]["data"] as Map<*, *>)["submit"])
         assertEquals("verify", (gates[1]["data"] as Map<*, *>)["submit"])
     }
+
+    @Test
+    fun `one suite for Android and iOS refuses a framework that cannot run on both`() {
+        // Espresso is Android instrumentation and Maestro flows are per platform: neither can be
+        // ONE suite for both, so the dialog must say so before a crawl is spent on it.
+        assertEquals(true, GenerateKitDialog.CROSS_PLATFORM_UNSUPPORTED.containsKey("kotlin_espresso"))
+        assertEquals(true, GenerateKitDialog.CROSS_PLATFORM_UNSUPPORTED.containsKey("maestro"))
+        for (target in listOf("python_pytest", "java_testng", "kotlin_appium", "js_webdriverio", "csharp_nunit")) {
+            assertEquals(false, GenerateKitDialog.CROSS_PLATFORM_UNSUPPORTED.containsKey(target), target)
+        }
+    }
 }
