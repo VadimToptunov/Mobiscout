@@ -183,6 +183,8 @@ def build_kit(result: CrawlResult, config: Dict[str, Any]) -> Dict[str, Any]:
 
     # No-op on the open-core (unlimited) tier; a paid layer can cap the languages.
     targets: List[str] = allow_targets([t for t in (config.get("targets") or _DEFAULT_TARGETS) if t])
+    if config.get("tests") is False:  # reports only (a cross-platform kit writes its tests merged)
+        targets = []
     written: List[str] = []
 
     # Page-object layout (``style: "pom"``, the default; the CLI's --style): each target is
@@ -739,3 +741,96 @@ def crawl_graph(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     from framework.crawler.graph import build_graph
 
     return build_graph(_crawl(config, driver), config.get("package", "")).to_dict()
+
+
+def build_cross_platform_kit(
+    results: Dict[str, Tuple[CrawlResult, Dict[str, Any]]], output: str, targets: List[str]
+) -> Dict[str, Any]:
+    """One kit for both platforms from an Android and an iOS crawl of the same app. Device-free.
+
+    Each platform's reports (inventory, graph, invariants, defects, coverage) go under
+    ``platforms/<platform>/``; the tests of every target are rendered ONCE from the merged model
+    (:func:`framework.codegen.cross_platform.merge_platform_models`) and pick their platform at
+    run time (``MOBISCOUT_PLATFORM``). A target with no cross-platform form is named in
+    ``generation-report.md`` and the summary's ``errors``, never silently dropped."""
+    from framework.codegen.cross_platform import merge_platform_models
+    from framework.codegen.framework_model import build_framework_model
+    from framework.crawler.page_kit import cross_platform_renderer, generation_error_note, generation_report
+    from framework.licensing import allow_targets, cap_screens, cap_tests
+
+    out = Path(output)
+    out.mkdir(parents=True, exist_ok=True)
+    reports: Dict[str, Dict[str, Any]] = {}
+    models = {}
+    for platform, (result, config) in results.items():
+        reports[platform] = build_kit(result, {**config, "output": str(out / "platforms" / platform), "tests": False})
+        capped = _cap_screens(result, cap_screens(len(result.screens)))
+        model = build_test_model(
+            capped,
+            app_package=config["package"],
+            app_activity=config.get("app_activity"),
+            launch_args=config.get("process_args"),
+            waypoints=config.get("waypoints"),
+            fuzz=bool(config.get("fuzz")),
+        )
+        model.cases = model.cases[: cap_tests(len(model.cases))]
+        models[platform] = build_framework_model(capped, model, config["package"])
+    fm = merge_platform_models(models)
+
+    written: List[str] = []
+    errors: Dict[str, str] = {}
+    for target in allow_targets([t for t in targets if t] or _DEFAULT_TARGETS):
+        render = cross_platform_renderer(target)
+        if render is None:
+            errors[target] = "has no cross-platform form; generate it per platform"
+            continue
+        try:
+            files = render(fm)
+        except Exception as exc:  # one target's failure must not cost the kit the others
+            errors[target] = f"{type(exc).__name__}: {exc}"
+            _write(out / target / "GENERATION_ERROR.md", generation_error_note(target, errors[target]))
+            continue
+        for rel, content in files.items():
+            _write(out / target / rel, content)
+        written.append(target)
+    _write(out / "generation-report.md", generation_report(fm, errors))
+
+    return {
+        "cross_platform": True,
+        "platforms": reports,
+        "screens": sum(r["screens"] for r in reports.values()),
+        "transitions": sum(r["transitions"] for r in reports.values()),
+        "cases": len(fm.scenarios),
+        "defects": sum(r.get("defects", 0) for r in reports.values()),
+        "not_generated": len(fm.skipped),
+        "errors": errors,
+        "targets": written,
+        "style": "pom",
+        "scaffolded": None,
+        "output": str(out.absolute()),
+    }
+
+
+def run_cross_platform_kit(configs: List[Dict[str, Any]], drivers: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Crawl the Android and the iOS app of one project (at the same time — they are on
+    different devices) and build ONE kit for both: :func:`build_cross_platform_kit`.
+
+    ``configs``: exactly one kit config per platform; the Android one's ``output`` and
+    ``targets`` name the kit. ``drivers`` injects a driver per platform (tests)."""
+    by_platform = {str(c.get("platform", "android")).lower(): c for c in configs}
+    if len(configs) != 2 or set(by_platform) != {"android", "ios"}:
+        raise ValueError("a cross-platform kit needs exactly one Android and one iOS app config")
+    from concurrent.futures import ThreadPoolExecutor
+
+    from framework.devices.android_sdk import ensure_tooling_on_path
+
+    ensure_tooling_on_path()
+    order = ["android", "ios"]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        crawls = dict(zip(order, pool.map(lambda p: _crawl(by_platform[p], (drivers or {}).get(p)), order)))
+    primary = by_platform["android"]
+    return build_cross_platform_kit(
+        {p: (crawls[p], by_platform[p]) for p in order},
+        output=str(primary.get("output", "crawl-kit")),
+        targets=list(primary.get("targets") or _DEFAULT_TARGETS),
+    )

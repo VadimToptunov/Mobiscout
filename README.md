@@ -198,6 +198,9 @@ AI-powered** — no runtime LLM); MCP is only the interface. Register it in your
 - 🏗️ **Framework-structured output by default** — per language, a runnable project with
   page objects, one Appium session per run and an app restart per test, and tests (or
   declarative Gherkin features) that read like intent; standalone files with `--style flat`
+- 📱 **One suite for Android + iOS** — crawl a project's two apps and get ONE kit: screens
+  and controls aligned by name, a locator per platform, run it on either with
+  `MOBISCOUT_PLATFORM=android|ios` (what only one platform does is skipped on the other)
 - 🔌 **Backends** — Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso
 - 🧠 **Ranked, self-healing selectors** — accessibility-id → resource-id → text, with fallbacks
 - 🔄 **Interaction graph** — the app's navigation map, mined into multi-step, form-filling tests
