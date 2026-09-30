@@ -38,7 +38,7 @@ def _options():
     return options
 {% endmacro %}
 
-{% macro idle_settings(platform) %}{% if platform == "ios" %}{"waitForIdleTimeout": 0, "animationCoolOffTimeout": 0}{% else %}{"waitForIdleTimeout": 100}{% endif %}{% endmacro %}
+{% macro idle_settings(platform) %}{% if platform == "multi" %}{"android": {"waitForIdleTimeout": 100}, "ios": {"waitForIdleTimeout": 0, "animationCoolOffTimeout": 0}}[PLATFORM]{% elif platform == "ios" %}{"waitForIdleTimeout": 0, "animationCoolOffTimeout": 0}{% else %}{"waitForIdleTimeout": 100}{% endif %}{% endmacro %}
 
 {% macro session_class(platform) %}
 class Session:
@@ -90,5 +90,43 @@ class Session:
             return True
         except Exception:
             return False
+{% endmacro %}
+
+{# --- Cross-platform kit: the platform is chosen at run time (MOBISCOUT_PLATFORM). --- #}
+{% macro imports_multi() %}
+from appium import webdriver
+from appium.options.android import UiAutomator2Options
+from appium.options.ios import XCUITestOptions
+
+from pages.base_page import APPS, PLATFORM
+{% endmacro %}
+
+{% macro options_multi(apps) %}
+APP = APPS[PLATFORM]
+SERVER = os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")
+
+
+def _options():
+    if PLATFORM == "ios":
+        options = XCUITestOptions()
+        options.platform_name = "iOS"
+        options.automation_name = "XCUITest"
+        options.bundle_id = APP
+{% if apps["ios"].launch_args %}
+        options.set_capability("appium:processArguments", {"args": {{ apps["ios"].launch_args | py_list }}})
+{% endif %}
+    else:
+        options = UiAutomator2Options()
+        options.platform_name = "Android"
+        options.automation_name = "UiAutomator2"
+        options.app_package = APP
+{% if apps["android"].app_activity %}
+        options.app_activity = {{ apps["android"].app_activity | py_str }}
+{% endif %}
+        # Window animations only cost time in a test run.
+        options.set_capability("appium:disableWindowAnimation", True)
+    # Keep the app's data between tests; each test restarts the app itself (below).
+    options.set_capability("appium:noReset", True)
+    return options
 {% endmacro %}
 

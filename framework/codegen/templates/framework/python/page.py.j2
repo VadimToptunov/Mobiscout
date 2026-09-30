@@ -13,12 +13,29 @@ class {{ page.class_name }}(BasePage):
     """The {{ page.title | doc }} screen."""
 
     SCREEN = {{ page.title | py_str }}
+{% if multi %}
+    IDENTITY = {
+{% for p, key in page.identities.items() %}
+        {{ p | py_str }}: {{ key | py_opt_str }},
+{% endfor %}
+    }
+    LOCATORS = {
+{% for e in page.elements %}
+        "{{ e.key }}": {
+{% for p, sel in e.selectors.items() %}
+            {{ p | py_str }}: {{ sel | locator_chain(p) }},
+{% endfor %}
+        },
+{% endfor %}
+    }
+{% else %}
     IDENTITY = {{ page.identity | py_opt_str }}
     LOCATORS = {
 {% for e in page.elements %}
         "{{ e.key }}": {{ e.selector | locator_chain(platform) }},
 {% endfor %}
     }
+{% endif %}
 {% for m in methods %}
 
 {% if m.kind == "tap" %}
