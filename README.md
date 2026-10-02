@@ -47,10 +47,10 @@ Types come from a hybrid ML + heuristic classifier; locators are ranked
 
 ```mermaid
 flowchart TD
-    N1(["Screen 1<br/>Login · 6 el"])
-    N2["Screen 2<br/>Catalog · 4 el"]
-    N3["Screen 3<br/>Product · 3 el"]
-    N4["Screen 4<br/>Cart · 2 el"]
+    N1(["Screen 1<br/>native·android · 6 el"])
+    N2["Screen 2<br/>native·android · 4 el"]
+    N3["Screen 3<br/>native·android · 3 el"]
+    N4["Screen 4<br/>native·android · 2 el"]
     N1 -->|"tap Sign in (button)"| N2
     N2 -->|"tap Running Shoes (button)"| N3
     N2 -->|"tap Cart (button)"| N4
@@ -62,54 +62,56 @@ flowchart TD
 The graph is mined for reachability, depth, cycles, dead-ends and hub screens,
 and exported as Mermaid / Graphviz DOT / JSON.
 
-### 3. Runnable tests — including multi-step paths that *fill forms*, not just navigate
+### 3. Runnable tests — a Page-Object framework per language, with journeys that *fill forms*
 
-From the graph, the tool generates model-based paths. This one walks
-Login → Catalog → Cart, typing sample data into the login form on the way
-([flat file](examples/shop_demo/flat/python_pytest/test_crawl_flow.py)):
-
-```python
-def test_path_1_2_3_4(driver):
-    """Multi-step path (4 screens): screen 1 → screen 2 → screen 3 → screen 4"""
-    driver.activate_app("com.example.shop")
-    _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Email"), [...]).send_keys("test@example.com")
-    _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Password"), [...]).send_keys("Password123!")
-    _find(driver, (AppiumBy.ID, "com.example.shop:id/remember"), [...]).click()   # toggle
-    _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [...]).click()     # Sign in
-    assert _find(driver, ...).is_displayed()                                      # reached Catalog
-    ...
-```
-
-**Framework structure, not loose files** (the default, `--style pom`): the same crawl produces a
-proper layout — [Page Objects](examples/shop_demo/framework/pages) +
-[`conftest.py`](examples/shop_demo/framework/conftest.py) +
-[navigation tests](examples/shop_demo/framework/tests/test_navigation.py) and
-[flow tests](examples/shop_demo/framework/tests/test_flows.py) that read like intent.
-The POM style carries the **same behavioural coverage as `flat`** — form-filling,
-multi-step journeys and negative cases — rendered as page-object method calls instead of
-raw locators. Pick `flat` for standalone files, `pom` for a maintainable framework layout:
+By default (`--style pom`) every target is its own runnable project under `<kit>/<target>/`.
+For Python + pytest ([`python_pytest/`](examples/shop_demo/python_pytest)) that is
+[Page Objects](examples/shop_demo/python_pytest/pages) +
+[`conftest.py`](examples/shop_demo/python_pytest/conftest.py) +
+[one test module per screen](examples/shop_demo/python_pytest/tests) +
+[`requirements.txt`](examples/shop_demo/python_pytest/requirements.txt). Tests read like intent —
+this journey walks Login → Catalog → Product → Cart, typing sample data into the login form on
+the way ([`tests/test_your_cart.py`](examples/shop_demo/python_pytest/tests/test_your_cart.py)):
 
 ```python
-def test_navigate_1(driver):
-    WelcomeBackPage(driver).sign_in().click()
-    assert CatalogPage(driver).search_products().is_displayed()
+def test_journey_from_sign_in_to_add_to_cart(driver):
+    """The journey from Welcome back through Search products, Running Shoes to Your cart."""
+    welcome_back_page = WelcomeBackPage(driver)
+    welcome_back_page.enter_email("test@example.com")
+    welcome_back_page.enter_password("Password123!")
+    welcome_back_page.tap_remember_me()
+    search_products_page = welcome_back_page.tap_sign_in()
+    assert search_products_page.is_displayed()
+    search_products_page.enter_search_products("test")
+    running_shoes_page = search_products_page.tap_running_shoes()
+    assert running_shoes_page.is_displayed()
+    your_cart_page = running_shoes_page.tap_add_to_cart()
+    assert your_cart_page.is_displayed()
 ```
 
-**BDD too** — Gherkin `.feature` files + step definitions, in
-[Python (pytest-bdd)](examples/shop_demo/bdd/python_pytest_bdd) and
-[JavaScript (Cucumber)](examples/shop_demo/bdd/js_cucumber):
+Negative cases come with it — invalid, empty, too-long and special-character input on every form
+([`tests/test_welcome_back.py`](examples/shop_demo/python_pytest/tests/test_welcome_back.py)).
+Prefer standalone files? `--style flat` renders the same coverage with raw locators in one file
+([flat example](examples/shop_demo/flat/python_pytest/test_crawl_flow.py)).
+
+**BDD too** — Gherkin `.feature` files + step modules over the same page objects, in
+[pytest-bdd](examples/shop_demo/python_pytest_bdd), [Behave](examples/shop_demo/python_behave) and
+[Cucumber JS](examples/shop_demo/js_cucumber)
+([`welcome_back.feature`](examples/shop_demo/python_pytest_bdd/features/welcome_back.feature)):
 
 ```gherkin
-Scenario: State checks for discovered screen 1
-  Given the app is launched
-  Then "Email" is visible
-  And "Sign in" is enabled
+Scenario Outline: Submitting the welcome back form with invalid data or empty fields is rejected
+  When I enter "<email>" into Email
+  And I enter "<password>" into Password
+  And I tap Sign in
+  Then I am still on the Welcome back screen
 ```
 
-The **same crawl** also emits [Java + TestNG](examples/shop_demo/flat/java_testng)
-and [JavaScript + WebdriverIO](examples/shop_demo/flat/js_webdriverio) — one IR, 9
-targets (including Maestro YAML flows). iOS suites are generated too, with the correct XCUITest capabilities and
-locators.
+The **same crawl** also emits [Java + TestNG](examples/shop_demo/java_testng) (Maven),
+[Kotlin + Appium](examples/shop_demo/kotlin_appium) (Gradle) and
+[JavaScript + WebdriverIO](examples/shop_demo/js_webdriverio) (npm) — one IR, many targets
+(including C#/NUnit, Reqnroll and Maestro YAML flows). iOS suites are generated too, with the
+correct XCUITest capabilities and locators.
 
 **Opt-in fuzz tests** (`mobiscout crawl … --fuzz`, or the "Also generate fuzz tests"
 checkbox in the IDE): for each form, generate tests that submit adversarial inputs —

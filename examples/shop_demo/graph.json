@@ -12,6 +12,7 @@
     {
       "id": 1,
       "fingerprint": "login",
+      "name": "",
       "platform": "android",
       "toolkit": "native",
       "element_count": 6,
@@ -28,6 +29,7 @@
     {
       "id": 2,
       "fingerprint": "catalog",
+      "name": "",
       "platform": "android",
       "toolkit": "native",
       "element_count": 4,
@@ -42,6 +44,7 @@
     {
       "id": 3,
       "fingerprint": "product",
+      "name": "",
       "platform": "android",
       "toolkit": "native",
       "element_count": 3,
@@ -56,6 +59,7 @@
     {
       "id": 4,
       "fingerprint": "cart",
+      "name": "",
       "platform": "android",
       "toolkit": "native",
       "element_count": 2,

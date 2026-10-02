@@ -2,25 +2,36 @@
 Generate the example crawl-kit committed under examples/shop_demo/.
 
 Deterministic and device-free: it builds a realistic CrawlResult for a small
-shopping app (Login -> Catalog -> Product -> Cart) and runs the real pipeline —
-element inventory, interaction graph, and multi-language tests — so the README
-can show exactly what the tool produces. Re-run to refresh:
+shopping app (Login -> Catalog -> Product -> Cart) and writes the kit through the
+same code path as `mobiscout crawl --style pom` (``write_kit``) — inventory,
+interaction graph, coverage, and one runnable Page-Object project per target —
+so the README can show exactly what the tool produces. Re-run to refresh:
 
     python examples/generate.py
 """
 
+import shutil
 from pathlib import Path
 
+from framework.cli.crawl_service import write_kit
 from framework.codegen import get_emitter
 from framework.codegen.api_test import emit_api_tests
 from framework.crawler.app_crawler import CrawlElement, CrawlResult, CrawlScreen
-from framework.crawler.graph import build_graph, to_json, to_mermaid
-from framework.crawler.page_kit import build_framework_kit
-from framework.crawler.report import inventory_markdown
 from framework.crawler.to_codegen import build_test_model
 
 PKG = "com.example.shop"
+ACTIVITY = ".MainActivity"
 OUT = Path(__file__).parent / "shop_demo"
+# Each becomes its own runnable project under shop_demo/<target>/.
+TARGETS = (
+    "python_pytest",
+    "python_pytest_bdd",
+    "python_behave",
+    "java_testng",
+    "kotlin_appium",
+    "js_webdriverio",
+    "js_cucumber",
+)
 
 
 def el(cls, text="", rid="", desc="", clickable=True):
@@ -99,44 +110,40 @@ class _Api:
     }
 
 
-def main():
-    result = build_result()
-    OUT.mkdir(parents=True, exist_ok=True)
-
-    (OUT / "inventory.md").write_text(inventory_markdown(result, PKG), encoding="utf-8", newline="\n")
-
-    graph = build_graph(result, PKG)
-    (OUT / "graph.mmd").write_text(to_mermaid(graph), encoding="utf-8", newline="\n")
-    (OUT / "graph.json").write_text(to_json(graph), encoding="utf-8", newline="\n")
-
-    model = build_test_model(result, app_package=PKG, app_activity=".MainActivity")
-
-    # 1) Framework-structured output — Page Objects + conftest + POM-style tests.
-    for rel, content in build_framework_kit(result, model, PKG).items():
-        dest = OUT / "framework" / rel
+def _write(root: Path, files: dict) -> None:
+    for name, content in files.items():
+        dest = root / name
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8", newline="\n")
 
-    # 2) BDD — Gherkin .feature files + step definitions (Python + JS).
-    for target in ("python_pytest_bdd", "js_cucumber"):
-        for name, content in get_emitter(target).emit(model).items():
-            dest = OUT / "bdd" / target / name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content, encoding="utf-8", newline="\n")
 
-    # 3) Flat multi-language suites — same IR, many targets (for comparison).
-    for target in ("python_pytest", "java_testng", "js_webdriverio"):
-        for name, content in get_emitter(target).emit(model).items():
-            dest = OUT / "flat" / target / name
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(content, encoding="utf-8", newline="\n")
+def main():
+    result = build_result()
+    shutil.rmtree(OUT, ignore_errors=True)  # no stale files from an older layout
 
-    # 4) API contract tests.
-    for name, content in emit_api_tests(_Api(), base_url="https://api.example-shop.com").items():
-        (OUT / "api" / name).parent.mkdir(parents=True, exist_ok=True)
-        (OUT / "api" / name).write_text(content, encoding="utf-8", newline="\n")
+    # 1) The kit, exactly as `mobiscout crawl --style pom --targets ...` writes it.
+    report = write_kit(
+        result=result,
+        output=str(OUT),
+        package=PKG,
+        targets=",".join(TARGETS),
+        style="pom",
+        scaffold=False,
+        server="http://localhost:4723",
+        app_activity=ACTIVITY,
+        launch_args=(),
+    )
+    for line in report.warnings:
+        print(f"warning: {line}")
 
-    print(f"Wrote example kit to {OUT} ({len(model.cases)} test cases, {len(graph.nodes)} screens)")
+    # 2) For comparison: the same crawl as a standalone file (`--style flat`).
+    model = build_test_model(result, app_package=PKG, app_activity=ACTIVITY)
+    _write(OUT / "flat" / "python_pytest", get_emitter("python_pytest").emit(model))
+
+    # 3) API contract tests.
+    _write(OUT / "api", emit_api_tests(_Api(), base_url="https://api.example-shop.com"))
+
+    print(f"Wrote example kit to {OUT} ({len(model.cases)} test cases, {len(result.screens)} screens)")
 
 
 if __name__ == "__main__":

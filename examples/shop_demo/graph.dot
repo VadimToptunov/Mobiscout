@@ -1,0 +1,12 @@
+digraph InteractionGraph {
+  rankdir=TB;
+  node [shape=box, fontname="Helvetica"];
+  N1 [label="Screen 1\nnative·android (6 el)", shape=doublecircle];
+  N2 [label="Screen 2\nnative·android (4 el)", shape=box];
+  N3 [label="Screen 3\nnative·android (3 el)", shape=box];
+  N4 [label="Screen 4\nnative·android (2 el)", shape=box];
+  N1 -> N2 [label="tap Sign in (button)"];
+  N2 -> N3 [label="tap Running Shoes (button)"];
+  N2 -> N4 [label="tap Cart (button)"];
+  N3 -> N4 [label="tap Add to cart (button)"];
+}
