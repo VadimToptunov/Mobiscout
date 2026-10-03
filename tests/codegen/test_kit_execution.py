@@ -146,10 +146,8 @@ def _emit_kit(result: CrawlResult, tmp: Path, fuzz: bool = False) -> Path:
 def _run_pytest(kit: Path, model: dict, verbose: bool = False) -> subprocess.CompletedProcess:
     model_file = kit / "_fake_app.json"
     model_file.write_text(json.dumps(model), encoding="utf-8")
-    # Run the emitted kit in a CLEAN pytest environment. Inheriting the outer run's
-    # PYTEST_ADDOPTS and pytest-cov subprocess vars (COV_CORE_*/COVERAGE_*) makes the child
-    # pytest try to load the parent's config / coverage data file — a temp path the parent
-    # may already have cleaned, which crashes the child at collection (a Windows-CI flake).
+    # Run the emitted kit in a CLEAN pytest environment: don't inherit the outer run's
+    # PYTEST_ADDOPTS or pytest-cov subprocess vars (COV_CORE_*/COVERAGE_*).
     env = {
         k: v
         for k, v in os.environ.items()
@@ -172,7 +170,15 @@ def _run_pytest(kit: Path, model: dict, verbose: bool = False) -> subprocess.Com
             "no:cacheprovider",
             "--basetemp",
             str(kit / ".pytest_tmp"),
+            # Pin the child's rootdir (and cwd) to the kit. Otherwise, on Windows CI where the
+            # repo (D:) and the temp dir (C:) are on different drives, pytest falls back to the
+            # cwd (the repo) as rootdir, so collection walks down from C:\ and lstat()s every
+            # sibling in %TEMP% — and crashes when another xdist worker deletes its mkdtemp()
+            # dir mid-walk ("ERROR collecting test session ... FileNotFoundError ...\Temp\tmpXXXX").
+            "--rootdir",
+            str(kit),
         ],
+        cwd=kit,
         capture_output=True,
         text=True,
         env=env,
@@ -186,6 +192,16 @@ def test_emitted_kit_runs_green_against_fake_app(tmp_path):
     proc = _run_pytest(kit, _fake_app(result, "com.x"))
     assert proc.returncode == 0, f"kit did not pass:\n{proc.stdout}\n{proc.stderr}"
     assert "passed" in proc.stdout
+
+
+def test_child_pytest_is_rooted_at_the_kit(tmp_path):
+    # A child rooted anywhere above the kit walks (and on Windows lstat()s) shared temp dirs
+    # during collection, racing other workers' tempdir cleanup — see _run_pytest.
+    result = _shop()
+    kit = _emit_kit(result, tmp_path)
+    proc = _run_pytest(kit, _fake_app(result, "com.x"), verbose=True)
+    assert proc.returncode == 0, f"kit did not pass:\n{proc.stdout}\n{proc.stderr}"
+    assert f"rootdir: {kit}" in proc.stdout, proc.stdout
 
 
 def _element_chain(result: CrawlResult, fingerprint: str, index: int):
