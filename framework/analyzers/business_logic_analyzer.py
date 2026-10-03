@@ -21,6 +21,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from framework.model.api import APICall
+
 
 class BusinessRuleType(Enum):
     """Types of business rules"""
@@ -94,21 +96,6 @@ class StateMachine:
 
 
 @dataclass
-class APIContract:
-    """Represents an API contract/specification"""
-
-    endpoint: str
-    method: str  # GET, POST, PUT, DELETE, etc.
-    request_schema: Dict[str, Any] = field(default_factory=dict)
-    response_schema: Dict[str, Any] = field(default_factory=dict)
-    error_responses: List[Dict[str, Any]] = field(default_factory=list)
-    authentication: Optional[str] = None
-    rate_limit: Optional[str] = None
-    description: Optional[str] = None
-    source_file: Optional[str] = None
-
-
-@dataclass
 class BusinessLogicAnalysis:
     """Complete business logic analysis result"""
 
@@ -117,7 +104,7 @@ class BusinessLogicAnalysis:
     data_models: List[DataModel] = field(default_factory=list)
     state_machines: List[StateMachine] = field(default_factory=list)
     edge_cases: List[EdgeCase] = field(default_factory=list)
-    api_contracts: List[APIContract] = field(default_factory=list)
+    api_contracts: List[APICall] = field(default_factory=list)  # the endpoints the app calls
     mock_data: Dict[str, Any] = field(default_factory=dict)
     negative_test_cases: List[Dict[str, Any]] = field(default_factory=list)
     platform: str = "android"  # android or ios

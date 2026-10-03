@@ -1,16 +1,16 @@
 """Adapt statically-extracted API endpoints into codegen ``APICall`` inputs.
 
 Bridges the source analyzers — which discover the endpoints an app actually calls
-(Retrofit interfaces on Android via ``AnalysisResult.api_endpoints``, URLSession
-contracts on iOS via ``APIContract``) — to the codegen model, so
+(Retrofit interfaces on Android via ``AnalysisResult.api_endpoints``; URLSession calls
+on iOS, which the business analyzer already produces as ``APICall``) — to the codegen
+model, so
 ``generate api-tests --source <dir>`` produces API tests from the app's *own
 code*, not only from a user-supplied OpenAPI spec.
 
 Source gives an endpoint's method/path (and a request/response *type name*), but
 no response schema or status codes, so the resulting ``APICall`` carries empty
 schemas — the generated test still exercises the endpoint. When the analyzer does
-infer schemas (the business-analyzer ``APIContract`` path), they are carried
-through.
+infer schemas (the business-analyzer path), they are carried through.
 """
 
 from __future__ import annotations
@@ -19,21 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Set
 from urllib.parse import urlparse
 
-from framework.model.api import APICall
-
-
-def _slug(path: str) -> str:
-    """A short, name-safe slug for a URL path (used to derive a call name)."""
-    cleaned = "".join(char if char.isalnum() else "_" for char in path).strip("_")
-    return (cleaned or "root").lower()[:40]
-
-
-def _as_path(endpoint: str) -> str:
-    """Reduce a full URL to its path so the generated test can prepend BASE_URL.
-    iOS URLSession calls carry absolute URLs; Android Retrofit paths pass through."""
-    if endpoint.startswith(("http://", "https://")):
-        return urlparse(endpoint).path or "/"
-    return endpoint
+from framework.model.api import APICall, call_name, endpoint_path
 
 
 def _unique(name: str, seen: Set[str]) -> str:
@@ -58,41 +44,32 @@ def endpoints_to_api_calls(endpoints: Iterable[Any]) -> List[APICall]:
         method = (getattr(endpoint, "method", "") or "GET").upper()
         path = getattr(endpoint, "path", "") or ""
         function_name = getattr(endpoint, "function_name", "") or ""
-        name = _unique(function_name or f"{method.lower()}_{_slug(path)}", seen)
+        name = _unique(function_name or call_name(method, path), seen)
         # triggers_state_change is optional (default None); mypy can't see the
         # pydantic Field default without the plugin, as in codegen/openapi.py.
         calls.append(APICall(name=name, endpoint=path, method=method))  # type: ignore[call-arg]
     return calls
 
 
-def contracts_to_api_calls(contracts: Iterable[Any]) -> List[APICall]:
-    """Map ``APIContract`` (the business-analyzer / iOS path) to ``APICall`` —
-    richer: it carries the request/response schemas the analyzer inferred."""
-    calls: List[APICall] = []
+def for_codegen(calls: Iterable[APICall]) -> List[APICall]:
+    """The analyzer's ``APICall``s ready for codegen: endpoints as paths (the test prepends
+    BASE_URL) and names unique within the set (the model keys calls by name). Everything
+    else the analyzer inferred — schemas, responses, auth — is kept as is."""
     seen: Set[str] = set()
-    for contract in contracts:
-        method = (getattr(contract, "method", "") or "GET").upper()
-        endpoint = _as_path(getattr(contract, "endpoint", "") or "")
-        name = _unique(f"{method.lower()}_{_slug(endpoint)}", seen)
-        responses: List[Dict[str, Any]] = []
-        response_schema = getattr(contract, "response_schema", None)
-        if response_schema:
-            responses.append({"status": 200, "schema": response_schema})
-        responses.extend(getattr(contract, "error_responses", None) or [])
-        calls.append(
-            APICall(  # type: ignore[call-arg]  # triggers_state_change is optional (default None)
-                name=name,
-                endpoint=endpoint,
-                method=method,
-                request_schema=dict(getattr(contract, "request_schema", None) or {}),
-                responses=responses,
-            )
+    return [
+        call.model_copy(
+            update={
+                "endpoint": endpoint_path(call.endpoint),
+                "name": _unique(call_name(call.method, call.endpoint), seen),
+            }
         )
-    return calls
+        for call in calls
+    ]
 
 
 def har_calls_to_api_calls(har_calls: Iterable[Any]) -> List[APICall]:
-    """Convert captured HAR traffic (``api_analyzer.APICall``) to ``model.APICall``.
+    """Group captured HAR traffic (``api_analyzer.CapturedCall``, one per request) into the
+    endpoints it hit (``model.APICall``).
 
     Repeated calls to the same ``(method, path)`` are grouped and their **observed**
     response statuses unioned, so the generated test asserts the status the API
@@ -103,7 +80,7 @@ def har_calls_to_api_calls(har_calls: Iterable[Any]) -> List[APICall]:
     for call in har_calls:
         raw_method = getattr(call, "method", None)
         method = str(getattr(raw_method, "value", raw_method) or "GET").upper()
-        path = _as_path(getattr(call, "url", "") or "")
+        path = endpoint_path(getattr(call, "url", "") or "")
         key = (method, path)
         if key not in grouped:
             grouped[key] = set()
@@ -115,7 +92,7 @@ def har_calls_to_api_calls(har_calls: Iterable[Any]) -> List[APICall]:
     calls: List[APICall] = []
     seen: Set[str] = set()
     for method, path in order:
-        name = _unique(f"{method.lower()}_{_slug(path)}", seen)
+        name = _unique(call_name(method, path), seen)
         responses = [{"status": status} for status in sorted(grouped[(method, path)])]
         # triggers_state_change is optional (default None); see openapi.py.
         calls.append(APICall(name=name, endpoint=path, method=method, responses=responses))  # type: ignore[call-arg]
@@ -139,7 +116,7 @@ def _ios_source_api_calls(root: Path) -> List[APICall]:
 
     analysis = BusinessLogicAnalysis(platform="ios")
     IOSBusinessAnalyzer(root, analysis).generate_api_contracts()
-    return contracts_to_api_calls(analysis.api_contracts)
+    return for_codegen(analysis.api_contracts)
 
 
 def source_api_calls(source_path: str) -> List[APICall]:

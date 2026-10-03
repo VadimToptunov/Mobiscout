@@ -1,8 +1,8 @@
-"""Parse a HAR (HTTP Archive) capture into ``APICall`` objects.
+"""Parse a HAR (HTTP Archive) capture into ``CapturedCall`` objects.
 
 A HAR file is what a proxy (mitmproxy, Charles, Chrome DevTools, the framework's
 own ``mock`` proxy) exports for recorded HTTP traffic. This turns its
-``log.entries`` into the ``APICall`` shape the API analyzer consumes, so a real
+``log.entries`` into the ``CapturedCall`` shape the API analyzer consumes, so a real
 capture can be analysed for patterns and turned into test assertions.
 """
 
@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from framework.api_analyzer.api_log_analyzer import APICall, APIMethod
+from framework.api_analyzer.api_log_analyzer import CapturedCall, APIMethod
 
 
 def _headers(entries: Optional[List[Dict[str, Any]]]) -> Dict[str, str]:
@@ -30,7 +30,7 @@ def _parse_ts(value: Optional[str]) -> datetime:
         return datetime.fromtimestamp(0)
 
 
-def load_har_calls(path: Path) -> List[APICall]:
+def load_har_calls(path: Path) -> List[CapturedCall]:
     """Load the API calls from a HAR file.
 
     Entries whose HTTP method is not one Mobiscout models (``APIMethod``) are
@@ -43,7 +43,7 @@ def load_har_calls(path: Path) -> List[APICall]:
         The parsed API calls, in file order.
     """
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    calls: List[APICall] = []
+    calls: List[CapturedCall] = []
     for entry in data.get("log", {}).get("entries", []):
         request = entry.get("request", {}) or {}
         response = entry.get("response", {}) or {}
@@ -52,7 +52,7 @@ def load_har_calls(path: Path) -> List[APICall]:
         except ValueError:
             continue  # a method we don't model (e.g. TRACE) — skip it
         calls.append(
-            APICall(
+            CapturedCall(
                 timestamp=_parse_ts(entry.get("startedDateTime")),
                 method=method,
                 url=request.get("url", ""),

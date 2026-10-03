@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from framework.analyzers.business_logic_analyzer import (
-    APIContract,
     BusinessLogicAnalysis,
     BusinessRule,
     BusinessRuleType,
@@ -23,6 +22,7 @@ from framework.analyzers.business_logic_analyzer import (
     StateMachine,
     UserFlow,
 )
+from framework.model.api import APICall, call_name
 
 
 class AndroidBusinessAnalyzer:
@@ -325,11 +325,12 @@ class AndroidBusinessAnalyzer:
                         auth = "Bearer Token"
 
                     # Create API contract
-                    contract = APIContract(
+                    contract = APICall(
+                        name=call_name(method, endpoint),
                         endpoint=endpoint,
                         method=method,
                         request_schema=request_params,
-                        response_schema={"type": return_type},
+                        responses=[{"status": 200, "schema": {"type": return_type}}],
                         authentication=auth,
                         description=f"API endpoint: {func_name}",
                         source_file=str(file_path),
@@ -344,7 +345,7 @@ class AndroidBusinessAnalyzer:
 
                         error_codes = re.findall(r"(4\d{2}|5\d{2})", func_context)
                         if error_codes:
-                            contract.error_responses = [
+                            contract.responses = contract.responses + [
                                 {"code": code, "description": "Error response"} for code in set(error_codes)
                             ]
 

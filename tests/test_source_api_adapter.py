@@ -9,11 +9,12 @@ from types import SimpleNamespace
 from framework.codegen.api_test import emit_api_tests
 from framework.codegen.source_api_adapter import (
     base_url_from_har,
-    contracts_to_api_calls,
     endpoints_to_api_calls,
+    for_codegen,
     har_calls_to_api_calls,
     source_api_calls,
 )
+from framework.model.api import APICall
 
 
 def _ep(method, path, function_name="", request_type=None, response_type=None):
@@ -47,27 +48,27 @@ def test_endpoint_without_function_name_gets_a_derived_name():
     assert call.name  # derived, non-empty
 
 
-def test_contract_full_urls_are_reduced_to_paths():
+def test_analyzer_full_urls_are_reduced_to_paths():
     # iOS URLSession endpoints are absolute URLs; the generated test prepends
     # BASE_URL, so they must become paths (Android Retrofit paths pass through).
-    contract = SimpleNamespace(method="GET", endpoint="https://api.bank.com/accounts/me", response_schema={})
-    (call,) = contracts_to_api_calls([contract])
+    (call,) = for_codegen([APICall(name="x", method="GET", endpoint="https://api.bank.com/accounts/me")])
     assert call.endpoint == "/accounts/me"
+    assert call.name == "get_accounts_me"
 
 
-def test_contracts_carry_schemas_and_responses():
-    contract = SimpleNamespace(
+def test_analyzer_calls_keep_schemas_and_responses_and_get_unique_names():
+    login = APICall(
+        name="login",
         method="POST",
         endpoint="/login",
         request_schema={"user": "string", "pass": "string"},
-        response_schema={"token": "string"},
-        error_responses=[{"status": 401}],
+        responses=[{"status": 200, "schema": {"token": "string"}}, {"status": 401}],
     )
-    (call,) = contracts_to_api_calls([contract])
-    assert call.method == "POST" and call.endpoint == "/login"
-    assert call.request_schema == {"user": "string", "pass": "string"}
-    assert {"status": 200, "schema": {"token": "string"}} in call.responses
-    assert {"status": 401} in call.responses
+    first, second = for_codegen([login, login])
+    assert first.request_schema == {"user": "string", "pass": "string"}
+    assert first.response_schema == {"token": "string"}
+    assert first.error_responses == [{"status": 401}]
+    assert [first.name, second.name] == ["post_login", "post_login_2"]
 
 
 def test_source_to_runnable_api_tests_end_to_end(tmp_path):

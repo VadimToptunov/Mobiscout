@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from framework.api_analyzer.api_log_analyzer import (
     APIAnalyzer,
-    APICall,
+    CapturedCall,
     APIMethod,
     LogAnalyzer,
     LogEntry,
@@ -18,7 +18,7 @@ _T0 = datetime(2026, 1, 1, 12, 0, 0)
 
 
 def _call(url, method=APIMethod.GET, status=200, dur=100.0, ui=None, offset=0):
-    return APICall(
+    return CapturedCall(
         timestamp=_T0 + timedelta(seconds=offset),
         method=method,
         url=url,

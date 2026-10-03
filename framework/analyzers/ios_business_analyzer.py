@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 
 from framework.analyzers._scope import enclosing_block
 from framework.analyzers.business_logic_analyzer import (
-    APIContract,
     BusinessLogicAnalysis,
     BusinessRule,
     BusinessRuleType,
@@ -24,6 +23,7 @@ from framework.analyzers.business_logic_analyzer import (
     StateMachine,
     UserFlow,
 )
+from framework.model.api import APICall, call_name
 
 _HTTP_METHOD = re.compile(r'httpMethod\s*=\s*"(GET|POST|PUT|DELETE|PATCH)"')
 
@@ -382,11 +382,12 @@ class IOSBusinessAnalyzer:
                     if "Authorization" in context or "Bearer" in context:
                         auth = "Bearer Token"
 
-                    contract = APIContract(
+                    contract = APICall(
+                        name=call_name(method, url),
                         endpoint=url,
                         method=method,
                         request_schema=request_schema,
-                        response_schema=response_schema,
+                        responses=[{"status": 200, "schema": response_schema}] if response_schema else [],
                         authentication=auth,
                         description=f"iOS API call from {file_path.name}",
                         source_file=str(file_path),
@@ -394,7 +395,7 @@ class IOSBusinessAnalyzer:
 
                     # Extract error handling
                     if "catch" in context or "Result" in context:
-                        contract.error_responses = [
+                        contract.responses = contract.responses + [
                             {"type": "NetworkError", "description": "Network failure"},
                             {
                                 "type": "DecodingError",
