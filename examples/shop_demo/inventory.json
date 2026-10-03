@@ -1,0 +1,364 @@
+{
+  "app_package": "com.example.shop",
+  "screen_count": 4,
+  "screens": [
+    {
+      "index": 1,
+      "platform": "android",
+      "toolkit": "native",
+      "fingerprint": "login",
+      "element_count": 6,
+      "elements": [
+        {
+          "class": "android.widget.TextView",
+          "resource_id": "",
+          "text": "Welcome back",
+          "content_desc": "",
+          "clickable": false,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "text",
+          "type_confidence": 0.84,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "text",
+            "value": "Welcome back"
+          }
+        },
+        {
+          "class": "android.widget.EditText",
+          "resource_id": "com.example.shop:id/email",
+          "text": "",
+          "content_desc": "Email",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "input",
+          "type_confidence": 0.75,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "accessibility_id",
+            "value": "Email"
+          }
+        },
+        {
+          "class": "android.widget.EditText",
+          "resource_id": "com.example.shop:id/password",
+          "text": "",
+          "content_desc": "Password",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "input",
+          "type_confidence": 0.75,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "accessibility_id",
+            "value": "Password"
+          }
+        },
+        {
+          "class": "android.widget.CheckBox",
+          "resource_id": "com.example.shop:id/remember",
+          "text": "Remember me",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "checkbox",
+          "type_confidence": 0.37,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/remember"
+          }
+        },
+        {
+          "class": "android.widget.Button",
+          "resource_id": "com.example.shop:id/signin",
+          "text": "Sign in",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.82,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/signin"
+          }
+        },
+        {
+          "class": "android.widget.TextView",
+          "resource_id": "com.example.shop:id/forgot",
+          "text": "Forgot password?",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.51,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/forgot"
+          }
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "platform": "android",
+      "toolkit": "native",
+      "fingerprint": "catalog",
+      "element_count": 4,
+      "elements": [
+        {
+          "class": "android.widget.EditText",
+          "resource_id": "com.example.shop:id/search",
+          "text": "",
+          "content_desc": "Search products",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "input",
+          "type_confidence": 0.75,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "accessibility_id",
+            "value": "Search products"
+          }
+        },
+        {
+          "class": "android.widget.Button",
+          "resource_id": "com.example.shop:id/p_shoes",
+          "text": "Running Shoes",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.8,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/p_shoes"
+          }
+        },
+        {
+          "class": "android.widget.Button",
+          "resource_id": "com.example.shop:id/p_bag",
+          "text": "Backpack",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.81,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/p_bag"
+          }
+        },
+        {
+          "class": "android.widget.ImageButton",
+          "resource_id": "com.example.shop:id/cart",
+          "text": "",
+          "content_desc": "Cart",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.59,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "accessibility_id",
+            "value": "Cart"
+          }
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "platform": "android",
+      "toolkit": "native",
+      "fingerprint": "product",
+      "element_count": 3,
+      "elements": [
+        {
+          "class": "android.widget.TextView",
+          "resource_id": "",
+          "text": "Running Shoes",
+          "content_desc": "",
+          "clickable": false,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "text",
+          "type_confidence": 0.84,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "text",
+            "value": "Running Shoes"
+          }
+        },
+        {
+          "class": "android.widget.TextView",
+          "resource_id": "",
+          "text": "$89.00",
+          "content_desc": "",
+          "clickable": false,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "text",
+          "type_confidence": 0.79,
+          "type_source": "heuristic",
+          "locator": {
+            "strategy": "text",
+            "value": "$89.00"
+          }
+        },
+        {
+          "class": "android.widget.Button",
+          "resource_id": "com.example.shop:id/add",
+          "text": "Add to cart",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.81,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/add"
+          }
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "platform": "android",
+      "toolkit": "native",
+      "fingerprint": "cart",
+      "element_count": 2,
+      "elements": [
+        {
+          "class": "android.widget.TextView",
+          "resource_id": "",
+          "text": "Your cart",
+          "content_desc": "",
+          "clickable": false,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "text",
+          "type_confidence": 0.84,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "text",
+            "value": "Your cart"
+          }
+        },
+        {
+          "class": "android.widget.Button",
+          "resource_id": "com.example.shop:id/order",
+          "text": "Place order",
+          "content_desc": "",
+          "clickable": true,
+          "bounds": [
+            0,
+            0,
+            320,
+            64
+          ],
+          "type": "button",
+          "type_confidence": 0.81,
+          "type_source": "ml",
+          "locator": {
+            "strategy": "id",
+            "value": "com.example.shop:id/order"
+          }
+        }
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "from": 1,
+      "tap": "Sign in",
+      "to": 2
+    },
+    {
+      "from": 2,
+      "tap": "Running Shoes",
+      "to": 3
+    },
+    {
+      "from": 2,
+      "tap": "Cart",
+      "to": 4
+    },
+    {
+      "from": 3,
+      "tap": "Add to cart",
+      "to": 4
+    }
+  ]
+}

@@ -174,3 +174,5 @@ htmlcov/
 # Local crawl/generate artifacts (CLAUDE.md: never commit these to the repo)
 features/
 test_scenarios.yaml
+# ...except the committed example kit's BDD feature files.
+!examples/shop_demo/**/features/

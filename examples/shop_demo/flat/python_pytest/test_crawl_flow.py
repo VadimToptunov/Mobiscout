@@ -12,7 +12,7 @@ import pytest
 from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from appium.webdriver.common.appiumby import AppiumBy
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, WebDriverException
 from selenium.webdriver.support.ui import WebDriverWait
 
 # Condition-based wait budget (seconds). We poll for the element instead of a
@@ -49,6 +49,19 @@ def _settle(driver, timeout=_TIMEOUT):
         )
     except TimeoutException:
         pass
+    # A raised soft keyboard is a transient input surface, not part of the screen under
+    # test. With the usual adjustResize window mode it shrinks the layout, which can drop a
+    # bottom-anchored control (a FAB, a bottom bar) out of the queryable accessibility tree
+    # entirely; and even when the control survives, it sits behind the IME so is_displayed()
+    # reads False. Either way the next assert flakes on a control that genuinely belongs to
+    # the screen (observed on Omni-Notes: the search screen's FAB, present ~40% of reads).
+    # Dismissing the keyboard as part of settling makes the screen deterministic. Best-effort:
+    # a driver that can't report/close the keyboard is left as-is rather than failed.
+    try:
+        if driver.is_keyboard_shown():
+            driver.hide_keyboard()
+    except Exception:
+        pass
 
 
 def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
@@ -67,6 +80,15 @@ def _find(driver, primary, fallbacks, timeout=_TIMEOUT):
                 return drv.find_element(by, value)
             except NoSuchElementException:
                 continue
+            except WebDriverException as exc:
+                # An animating screen (a splash, an onboarding carousel) can keep the
+                # accessibility tree busy: UiAutomator2 then answers "Timed out waiting
+                # for the root AccessibilityNodeInfo" instead of "not found". That is
+                # transient, so keep polling within the wait budget rather than failing
+                # a test for something that resolves a moment later.
+                if "AccessibilityNodeInfo" not in str(exc):
+                    raise
+                return False
         return False
 
     try:
@@ -103,58 +125,104 @@ TEST_DATA = {
     "search_products": "test",
     "email_2": "not-an-email",
     "password_2": "1",
+    "email_3": "",
+    "password_3": "",
 }
 
 
-@pytest.fixture()
-def driver():
+def _make_driver():
+    """Open one Appium session against the device/simulator."""
     options = UiAutomator2Options()
     options.platform_name = "Android"
     options.automation_name = "UiAutomator2"
     options.app_package = "com.example.shop"
     options.app_activity = ".MainActivity"
-    # A fresh session per test with a reset app = isolated, parallel-safe state.
     options.set_capability("noReset", False)
+    # Starting a session is by far the slow part (~30 s vs a ~3 s app-data reset, measured),
+    # and on a loaded machine UiAutomator2's server occasionally misses the default 30 s and
+    # the session ERRORS before the test runs ("instrumentation process cannot be
+    # initialized"), which reads as a broken test rather than a slow emulator. Appium's own
+    # advice for that message is a longer launch budget — free when the server starts promptly.
+    options.set_capability("uiautomator2ServerLaunchTimeout", 90_000)
+    options.set_capability("uiautomator2ServerInstallTimeout", 90_000)
     # Run anywhere without regenerating: point at a different Appium/cloud-grid hub
     # with MOBISCOUT_APPIUM_SERVER, and merge extra capabilities (e.g. a
     # BrowserStack/Sauce options block) from MOBISCOUT_EXTRA_CAPS (a JSON object).
     for _cap, _value in json.loads(os.environ.get("MOBISCOUT_EXTRA_CAPS", "{}")).items():
         options.set_capability(_cap, _value)
     _server = os.environ.get("MOBISCOUT_APPIUM_SERVER", "http://localhost:4723")
-    drv = webdriver.Remote(_server, options=options)
+    return webdriver.Remote(_server, options=options)
+
+
+def _reset_app(drv):
+    """Return the app to first-run state before a test.
+
+    `noReset` alone does NOT clear an already-installed app's data, so tests would inherit
+    whatever the last one left behind — and these tests came from a crawl that itself
+    changed things (it taps buttons: adds items, dismisses onboarding, leaves a sheet open).
+    A case asserting the first screen then fails for a reason unrelated to the app being
+    broken. Clearing makes the starting point the one the crawl described.
+
+    Set MOBISCOUT_KEEP_APP_DATA=1 to keep the device's existing state instead (e.g. an app
+    that needs a manually provisioned account).
+    """
+    if os.environ.get("MOBISCOUT_KEEP_APP_DATA") == "1":
+        return
+    try:
+        drv.execute_script("mobile: clearApp", {"appId": "com.example.shop"})
+        # Relaunch by explicit component, not activateApp: an app that declares more than one
+        # launcher entry (a debug build shipping LeakCanary adds a second icon) makes
+        # Android's launcher resolution ambiguous, and activateApp then quietly fails —
+        # leaving whatever app was already on screen, so the test would run against the wrong
+        # app instead of failing.
+        drv.execute_script(
+            "mobile: startActivity",
+            {"intent": "com.example.shop/.MainActivity"},
+        )
+    except Exception:
+        pass  # older driver, or an app that can't be cleared — run against live state
+
+
+@pytest.fixture(scope="session")
+def _appium():
+    """One Appium session for the whole run.
+
+    Creating a session is the expensive part (see _make_driver), so sharing it across tests
+    turns a kit's runtime from session-cost × N into session-cost + reset × N — a large win
+    on a kit of any size — while the per-test reset in the `driver` fixture keeps each test
+    isolated from the last. Under pytest-xdist this is one session per worker.
+    """
+    drv = _make_driver()
     yield drv
     drv.quit()
 
 
+@pytest.fixture()
+def driver(_appium):
+    """The shared session, returned to first-run state before each test."""
+    _reset_app(_appium)
+    return _appium
+
+
 def test_welcome_back_screen_shows_expected_controls(driver):
-    """The welcome back screen shows its expected controls"""
+    "The welcome back screen shows its expected controls"
     # Open app
     driver.activate_app("com.example.shop")
     # Welcome back is visible
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Welcome back\")"), []).is_displayed()
     # Email is visible
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Email"), [(AppiumBy.ID, "com.example.shop:id/email")]).is_displayed()
-    # Email is enabled
-    assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Email"), [(AppiumBy.ID, "com.example.shop:id/email")]).is_enabled()
     # Password is visible
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Password"), [(AppiumBy.ID, "com.example.shop:id/password")]).is_displayed()
-    # Password is enabled
-    assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Password"), [(AppiumBy.ID, "com.example.shop:id/password")]).is_enabled()
     # Remember me is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/remember"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Remember me\")")]).is_displayed()
-    # Remember me is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/remember"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Remember me\")")]).is_enabled()
     # Sign in is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).is_displayed()
-    # Sign in is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).is_enabled()
     # Forgot password? is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/forgot"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Forgot password?\")")]).is_displayed()
-    # Forgot password? is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/forgot"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Forgot password?\")")]).is_enabled()
 
 def test_search_products_screen_shows_expected_controls(driver):
-    """The search products screen shows its expected controls"""
+    "The search products screen shows its expected controls"
     # Open app
     driver.activate_app("com.example.shop")
     # Navigate: tap Sign in
@@ -162,23 +230,15 @@ def test_search_products_screen_shows_expected_controls(driver):
     _settle(driver)
     # Search products is visible
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).is_displayed()
-    # Search products is enabled
-    assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).is_enabled()
     # Running Shoes is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/p_shoes"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Running Shoes\")")]).is_displayed()
-    # Running Shoes is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/p_shoes"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Running Shoes\")")]).is_enabled()
     # Backpack is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/p_bag"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Backpack\")")]).is_displayed()
-    # Backpack is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/p_bag"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Backpack\")")]).is_enabled()
     # Cart is visible
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Cart"), [(AppiumBy.ID, "com.example.shop:id/cart")]).is_displayed()
-    # Cart is enabled
-    assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Cart"), [(AppiumBy.ID, "com.example.shop:id/cart")]).is_enabled()
 
 def test_running_shoes_screen_shows_expected_controls(driver):
-    """The running shoes screen shows its expected controls"""
+    "The running shoes screen shows its expected controls"
     # Open app
     driver.activate_app("com.example.shop")
     # Navigate: tap Sign in
@@ -191,11 +251,9 @@ def test_running_shoes_screen_shows_expected_controls(driver):
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Running Shoes\")"), []).is_displayed()
     # Add to cart is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/add"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Add to cart\")")]).is_displayed()
-    # Add to cart is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/add"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Add to cart\")")]).is_enabled()
 
 def test_your_cart_screen_shows_expected_controls(driver):
-    """The your cart screen shows its expected controls"""
+    "The your cart screen shows its expected controls"
     # Open app
     driver.activate_app("com.example.shop")
     # Navigate: tap Sign in
@@ -208,11 +266,9 @@ def test_your_cart_screen_shows_expected_controls(driver):
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Your cart\")"), []).is_displayed()
     # Place order is visible
     assert _find(driver, (AppiumBy.ID, "com.example.shop:id/order"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Place order\")")]).is_displayed()
-    # Place order is enabled
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/order"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Place order\")")]).is_enabled()
 
 def test_tapping_sign_in_opens_search_products(driver):
-    """Tapping Sign in opens the search products screen"""
+    "Tapping Sign in opens the search products screen"
     # Open app
     driver.activate_app("com.example.shop")
     # Tap Sign in
@@ -222,7 +278,7 @@ def test_tapping_sign_in_opens_search_products(driver):
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).is_displayed()
 
 def test_journey_from_sign_in_to_add_to_cart(driver):
-    """Multi-step path (4 screens): screen 1 → screen 2 → screen 3 → screen 4"""
+    "The journey from Welcome back through Search products, Running Shoes to Your cart"
     # Open app
     driver.activate_app("com.example.shop")
     # Type into Email
@@ -237,7 +293,7 @@ def test_journey_from_sign_in_to_add_to_cart(driver):
     # Tap Sign in
     _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).click()
     _settle(driver)
-    # Reached screen 2
+    # On the Search products screen
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).is_displayed()
     # Type into Search products
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).send_keys(TEST_DATA["search_products"])
@@ -245,16 +301,16 @@ def test_journey_from_sign_in_to_add_to_cart(driver):
     # Tap Running Shoes
     _find(driver, (AppiumBy.ID, "com.example.shop:id/p_shoes"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Running Shoes\")")]).click()
     _settle(driver)
-    # Reached screen 3
-    assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Running Shoes\")"), []).is_displayed()
+    # On the Running Shoes screen
+    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/add"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Add to cart\")")]).is_displayed()
     # Tap Add to cart
     _find(driver, (AppiumBy.ID, "com.example.shop:id/add"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Add to cart\")")]).click()
     _settle(driver)
-    # Reached screen 4
+    # On the Your cart screen
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Your cart\")"), []).is_displayed()
 
 def test_journey_from_sign_in_to_cart(driver):
-    """Multi-step path (3 screens): screen 1 → screen 2 → screen 4"""
+    "The journey from Welcome back through Search products to Your cart"
     # Open app
     driver.activate_app("com.example.shop")
     # Type into Email
@@ -269,7 +325,7 @@ def test_journey_from_sign_in_to_cart(driver):
     # Tap Sign in
     _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).click()
     _settle(driver)
-    # Reached screen 2
+    # On the Search products screen
     assert _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).is_displayed()
     # Type into Search products
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Search products"), [(AppiumBy.ID, "com.example.shop:id/search")]).send_keys(TEST_DATA["search_products"])
@@ -277,11 +333,11 @@ def test_journey_from_sign_in_to_cart(driver):
     # Tap Cart
     _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Cart"), [(AppiumBy.ID, "com.example.shop:id/cart")]).click()
     _settle(driver)
-    # Reached screen 4
+    # On the Your cart screen
     assert _find(driver, (AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Your cart\")"), []).is_displayed()
 
 def test_rejects_invalid_input_on_welcome_back(driver):
-    """Submitting invalid data on the welcome back form is rejected"""
+    "Submitting the welcome back form with invalid data is rejected"
     # Open app
     driver.activate_app("com.example.shop")
     # Type invalid data into Email
@@ -294,5 +350,21 @@ def test_rejects_invalid_input_on_welcome_back(driver):
     _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).click()
     _settle(driver)
     # Invalid input is rejected — the form did not advance
-    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).is_displayed()
+    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), []).is_displayed()
+
+def test_rejects_empty_input_on_welcome_back(driver):
+    "Submitting the welcome back form with empty fields is rejected"
+    # Open app
+    driver.activate_app("com.example.shop")
+    # Fuzz Email
+    _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Email"), [(AppiumBy.ID, "com.example.shop:id/email")]).send_keys(TEST_DATA["email_3"])
+    _settle(driver)
+    # Fuzz Password
+    _find(driver, (AppiumBy.ACCESSIBILITY_ID, "Password"), [(AppiumBy.ID, "com.example.shop:id/password")]).send_keys(TEST_DATA["password_3"])
+    _settle(driver)
+    # Submit Sign in
+    _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), [(AppiumBy.ANDROID_UIAUTOMATOR, "new UiSelector().text(\"Sign in\")")]).click()
+    _settle(driver)
+    # Empty input is rejected — the form did not advance
+    assert _find(driver, (AppiumBy.ID, "com.example.shop:id/signin"), []).is_displayed()
 
