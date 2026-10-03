@@ -124,11 +124,13 @@ def run(test_dir: Path, workers: int, shard_strategy: str, pytest_args: str) -> 
 @click.option("--platform", type=click.Choice(["android", "ios", "both"]), default="both")
 @click.option("--pytest-args", default="", help="Additional pytest arguments")
 def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
-    """Run tests in parallel across multiple devices."""
+    """List the devices a multi-device run would use. Running tests ACROSS several devices is
+    not implemented yet: this lists them and exits non-zero (no tests ran) — use
+    `mobiscout parallel run` to run in parallel on one device."""
     console.print(
         Panel(
             "[cyan]🔌 Multi-Device Parallel Execution[/cyan]\n\n"
-            "This will distribute tests across all available devices.",
+            "Lists the available devices. Distributing tests across them is not implemented yet.",
             title="Device Pool Execution",
             border_style="cyan",
         )
@@ -146,12 +148,9 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
 
     if not devices:
         console.print(f"[red]❌ No {platform} devices found[/red]")
-        return
+        raise SystemExit(1)
 
     console.print(f"[green]✓[/green] Found {len(devices)} device(s)")
-
-    # Note: Device pool requires Device objects, but we have dicts from DeviceManager
-    # This is a display-only operation, so we just show the available devices
 
     # Show devices
     table = Table(title="Available Devices")
@@ -170,8 +169,10 @@ def on_devices(test_dir: Path, platform: str, pytest_args: str) -> None:
 
     console.print(table)
 
-    console.print("\n[yellow]Note:[/yellow] Multi-device execution is a work in progress.")
-    console.print("For now, use [cyan]mobiscout parallel run[/cyan] for parallel execution on single device.")
+    # Say plainly that nothing ran, and exit non-zero so a CI step can't mistake a listing for a pass.
+    console.print("\n[yellow]No tests were run:[/yellow] distributing tests across devices is not implemented yet.")
+    console.print("Use [cyan]mobiscout parallel run[/cyan] to run tests in parallel on one device.")
+    raise SystemExit(2)
 
 
 @parallel.command()

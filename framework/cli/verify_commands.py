@@ -261,20 +261,19 @@ def languages() -> None:
 
 @verify.command()
 @click.argument("path", type=click.Path(exists=True))
-@click.option("--fix", is_flag=True, help="Attempt to auto-fix issues")
-def lint(path: str, fix: bool) -> None:
+def lint(path: str) -> None:
     """
-    Lint test files with auto-fix option.
+    Lint test files and show how to fix each issue.
+
+    It reports; it does not edit files. (A former --fix flag claimed fixes it never made: none of
+    the suggestions — stable locators, explicit waits, real test bodies — is safe to apply blind.)
 
     Example:
         mobiscout verify lint ./tests
-        mobiscout verify lint ./tests --fix
     """
     path_obj = Path(path)
 
-    console.print(
-        Panel.fit(f"🔧 Linting Test Files\n\nPath: {path}\nAuto-fix: {'Yes' if fix else 'No'}", style="bold magenta")
-    )
+    console.print(Panel.fit(f"🔧 Linting Test Files\n\nPath: {path}", style="bold magenta"))
 
     verifier = MultiLanguageVerifier()
 
@@ -284,25 +283,17 @@ def lint(path: str, fix: bool) -> None:
     else:
         results = verifier.verify_directory(path_obj)
 
-    fixable_issues = 0
-    fixed_issues = 0
-
-    for result in results:
-        for issue in result.issues:
-            if issue.suggestion:
-                fixable_issues += 1
-
-                if fix:
-                    # Auto-fix logic (placeholder - would need language-specific fixers)
-                    console.print(f"[dim]Would fix: {issue.message}[/dim]")
-                    fixed_issues += 1
+    suggested = [issue for result in results for issue in result.issues if issue.suggestion]
+    for issue in suggested:
+        where = f"{issue.file_path}:{issue.line_number}" if issue.line_number else issue.file_path
+        console.print(f"[yellow]•[/yellow] {where} — {issue.message}")
+        console.print(f"  [dim]fix:[/dim] {issue.suggestion}")
 
     console.print()
-    if fix:
-        console.print(f"[green]✓[/green] Fixed {fixed_issues}/{fixable_issues} issues")
+    if suggested:
+        console.print(f"[yellow]ℹ[/yellow] {len(suggested)} issue(s) with a suggested fix — apply them by hand")
     else:
-        console.print(f"[yellow]ℹ[/yellow] {fixable_issues} issues can be auto-fixed")
-        console.print("  Run with --fix to apply fixes")
+        console.print("[green]✓[/green] No issues with a suggested fix")
 
 
 if __name__ == "__main__":

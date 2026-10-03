@@ -74,7 +74,7 @@ def test_on_devices_handles_no_devices(runner, tmp_path, monkeypatch):
     tree = _test_tree(tmp_path)
     result = runner.invoke(parallel, ["on-devices", str(tree), "--platform", "android"])
     _no_crash(result)
-    assert result.exit_code == 0
+    assert result.exit_code == 1  # nothing ran
     assert "No android devices found" in result.output
 
 
@@ -87,7 +87,10 @@ def test_on_devices_lists_discovered_devices(runner, tmp_path, monkeypatch):
     tree = _test_tree(tmp_path)
     result = runner.invoke(parallel, ["on-devices", str(tree), "--platform", "android"])
     _no_crash(result)
-    assert result.exit_code == 0
+    # It lists the devices, then says plainly that no tests ran — and exits non-zero, so a CI
+    # step can't mistake the listing for a passing run.
+    assert result.exit_code == 2
+    assert "No tests were run" in result.output
     assert "Pixel_7" in result.output
     # iOS device filtered out by --platform android.
     assert "iPhone15" not in result.output

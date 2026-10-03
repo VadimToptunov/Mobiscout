@@ -2,7 +2,7 @@
 
 Runs the real MultiLanguageVerifier over tmp files: a clean Python test, a
 directory scan with a report export, the single-file path, the unsupported-type
-error path, the static `languages` listing, and `lint` with/without --fix.
+error path, the static `languages` listing, and `lint` (which reports fixes, never claims to make them).
 """
 
 from pathlib import Path
@@ -81,18 +81,18 @@ def test_check_empty_dir_reports_no_files(runner, tmp_path):
     assert "No supported files found" in result.output
 
 
-def test_lint_without_fix(runner, tmp_path):
+def test_lint_lists_each_issue_with_its_fix(runner, tmp_path):
     _py_test(tmp_path)
     result = runner.invoke(verify, ["lint", str(tmp_path)])
     _no_crash(result)
     assert result.exit_code == 0
-    # Without --fix the command only reports fixable-issue counts.
-    assert "auto-fix" in result.output.lower()
+    assert "fix:" in result.output and "apply them by hand" in result.output
 
 
-def test_lint_with_fix(runner, tmp_path):
+def test_lint_no_longer_claims_fixes_it_cannot_make(runner, tmp_path):
+    # --fix printed "Fixed N/N issues" while changing nothing; the flag is gone.
     _py_test(tmp_path)
+    before = {p: p.read_text(encoding="utf-8") for p in tmp_path.rglob("*.py")}
     result = runner.invoke(verify, ["lint", str(tmp_path), "--fix"])
-    _no_crash(result)
-    assert result.exit_code == 0
-    assert "Fixed" in result.output
+    assert result.exit_code != 0 and "no such option" in result.output.lower()
+    assert before == {p: p.read_text(encoding="utf-8") for p in tmp_path.rglob("*.py")}
