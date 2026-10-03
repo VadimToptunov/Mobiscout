@@ -97,6 +97,12 @@ class _App:
         self.typed.clear()
 
 
+class _Server(ThreadingHTTPServer):
+    """Closing must not wait for clients' idle keep-alive connections to end."""
+
+    block_on_close = False
+
+
 class FakeAppiumServer:
     """A threaded fake Appium server on a free local port. Each new session gets a fresh app."""
 
@@ -108,7 +114,7 @@ class FakeAppiumServer:
         self.elements: Dict[str, Tuple[str, str]] = {}
         self._ids = itertools.count(1)
         self._lock = threading.Lock()
-        self._httpd = ThreadingHTTPServer(("127.0.0.1", 0), self._handler())
+        self._httpd = _Server(("127.0.0.1", 0), self._handler())
         self._thread = threading.Thread(target=self._httpd.serve_forever, daemon=True)
 
     @property
@@ -243,6 +249,11 @@ class FakeAppiumServer:
         server = self
 
         class Handler(BaseHTTPRequestHandler):
+            # Keep-alive, as a real Appium server: clients (the .NET HttpClient above all) pool
+            # connections, and an HTTP/1.0 server closing each one after its response makes a
+            # pooled request fail now and then ("An error occurred while sending the request").
+            protocol_version = "HTTP/1.1"
+
             def _respond(self, status: int, payload: Any) -> None:
                 data = json.dumps({"value": payload}).encode("utf-8")
                 self.send_response(status)
