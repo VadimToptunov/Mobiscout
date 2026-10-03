@@ -19,7 +19,7 @@ import logging
 import re
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class SourceComplexity:
 #: ``rust_core/Cargo.toml``'s ``version`` — together with any incompatible change to the Rust
 #: surface (e.g. the #462 ``scan_lines`` signature). An older installed wheel is then treated
 #: as absent (with one warning) rather than failing every call into the silent Python path.
-_MIN_NATIVE_VERSION = (0, 2, 0)
+_MIN_NATIVE_VERSION = (0, 3, 0)
 
 _warned_native = False
 
@@ -157,6 +157,28 @@ def _scan_lines_py(
                 if rx.search(line):
                     out.append((file_idx, line_no, rule_idx))
     return out
+
+
+def extract_swiftui(source: str) -> Optional[Dict[str, Any]]:
+    """SwiftUI screens / elements / navigation read from the Swift AST by the Rust core (#317).
+
+    A dict of ``entry_screen``, ``screens`` [(name, line)], ``elements`` [(value,
+    is_identifier, view, screen, line)] and ``links`` / ``presented`` [(from_screen,
+    to_screen, label, trigger_tag, line)]. ``None`` when the core is absent, fails, or the
+    file doesn't parse cleanly (syntax the grammar doesn't know) — the caller then uses its
+    regex path for that file, so a file is never analyzed worse than before.
+    """
+    core = _native_core()
+    if core is None:
+        return None
+    try:
+        extracted = cast(Dict[str, Any], core.extract_swiftui(source))
+    except BaseException as e:  # noqa: BLE001 — a Rust panic isn't an Exception; Ctrl-C re-raised
+        if isinstance(e, (KeyboardInterrupt, SystemExit)):
+            raise
+        _warn_once_native(f"Rust extract_swiftui failed, using the regex path: {e}")
+        return None
+    return None if extracted["has_error"] else extracted
 
 
 def analyze_source_complexity(source: str, language: str = "python") -> SourceComplexity:
