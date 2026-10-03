@@ -15,9 +15,9 @@ Locators are derived from what the source exposes, best-first: a Compose
 
 from __future__ import annotations
 
-from collections import defaultdict
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
 
 from framework.model.app_model import AppModel, AppModelMeta
 from framework.model.element import Element
@@ -106,12 +106,74 @@ def source_app_model(source_path: str) -> AppModel:
     """Statically analyze an app source tree into an ``AppModel`` ready for
     ``build_smoke_model`` — the source → UI-tests entry point. Auto-detects the
     platform: Swift (iOS/SwiftUI) else Kotlin/Java (Android/Compose)."""
-    root = Path(source_path)
-    if any(root.rglob("*.swift")) and not (any(root.rglob("*.kt")) or any(root.rglob("*.java"))):
-        from framework.analyzers.ios_source_analyzer import IOSSourceAnalyzer
+    return source_smoke_inputs(source_path)[0]
 
-        return analysis_to_app_model(IOSSourceAnalyzer().analyze(source_path), platform=Platform.IOS)
 
-    from framework.analyzers.android_analyzer import AndroidAnalyzer
+def source_smoke_inputs(source_path: str) -> Tuple[AppModel, NavigationPaths]:
+    """The ``AppModel`` and the per-screen navigation paths (see :func:`navigation_paths`)
+    for an app source tree — everything ``build_smoke_model`` needs to write cases that reach
+    each screen before checking it."""
+    from framework.crawler.source_graph import analyze_source_tree
 
-    return analysis_to_app_model(AndroidAnalyzer().analyze(source_path), platform=Platform.ANDROID)
+    result = analyze_source_tree(source_path)
+    platform = Platform.IOS if result.platform == "ios" else Platform.ANDROID
+    return analysis_to_app_model(result, platform=platform), navigation_paths(result)
+
+
+@dataclass
+class NavigationPaths:
+    """How each screen is reached from the one the app opens on."""
+
+    entry: Optional[str]  # the screen the app opens on, when the source says
+    taps: Dict[str, List[Element]] = field(default_factory=dict)  # screen -> controls to tap, in order
+
+
+def _trigger_element(nav: Any, platform: str, index: int) -> Optional[Element]:
+    """The control a navigation edge is tapped through, as a locatable element — its testTag /
+    accessibilityIdentifier, else its visible text — or None when the source doesn't say."""
+    if nav.trigger_test_tag:
+        selector = (
+            Selector(test_id=nav.trigger_test_tag)
+            if platform == "ios"
+            else Selector(android=f"id:{nav.trigger_test_tag}")
+        )
+    elif nav.trigger:
+        # iOS matches a control's label as its accessibility id; Android by its text.
+        selector = Selector(test_id=nav.trigger) if platform == "ios" else Selector(android=f"text:{nav.trigger}")
+    else:
+        return None
+    return Element(  # type: ignore[call-arg]
+        id=nav.trigger_test_tag or nav.trigger or f"nav_{index}",
+        type=ElementType.BUTTON,
+        selector=selector,
+        text=nav.trigger,
+    )
+
+
+def navigation_paths(result: Any) -> NavigationPaths:
+    """Per screen, the shortest run of taps from the entry screen that reaches it, over the
+    navigation edges whose triggering control the source names. A screen no such path
+    reaches is absent (its case keeps launch-only, saying why)."""
+    from framework.crawler.source_graph import destination_resolver
+
+    resolve = destination_resolver(result)
+    entry = resolve(result.entry_screen) if getattr(result, "entry_screen", None) else None
+    paths = NavigationPaths(entry=entry)
+    if entry is None:
+        return paths
+    edges: Dict[str, List[Tuple[str, Element]]] = defaultdict(list)
+    for index, nav in enumerate(result.navigation):
+        if not nav.from_screen:
+            continue  # a route registry entry, not a call site
+        trigger = _trigger_element(nav, result.platform or "android", index)
+        if trigger is not None:
+            edges[nav.from_screen].append((resolve(nav.to_screen), trigger))
+    paths.taps[entry] = []
+    queue = deque([entry])
+    while queue:
+        here = queue.popleft()
+        for there, trigger in edges.get(here, []):
+            if there not in paths.taps:
+                paths.taps[there] = [*paths.taps[here], trigger]
+                queue.append(there)
+    return paths

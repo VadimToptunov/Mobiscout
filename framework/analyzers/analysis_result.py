@@ -41,7 +41,10 @@ class NavigationCandidate(BaseModel):
     from_screen: Optional[str] = None
     to_screen: str
     route: str
-    trigger: Optional[str] = None  # Button/action that triggers navigation
+    trigger: Optional[str] = None  # visible text of the control that triggers navigation
+    # A stable locator for that control, when the source gives it one (Compose testTag,
+    # SwiftUI accessibilityIdentifier) — preferred over the text for tapping it.
+    trigger_test_tag: Optional[str] = None
     file_path: str
     line_number: int
 
@@ -73,6 +76,9 @@ class AnalysisResult(BaseModel):
     ui_elements: List[UIElementCandidate] = Field(default_factory=list)
     navigation: List[NavigationCandidate] = Field(default_factory=list)
     api_endpoints: List[APIEndpointCandidate] = Field(default_factory=list)
+    # The screen (or route) the app opens on — NavHost startDestination / setContent on
+    # Android, the WindowGroup's root view on iOS. None when the source doesn't say.
+    entry_screen: Optional[str] = None
 
     files_analyzed: int = 0
     errors: List[str] = Field(default_factory=list)
