@@ -5,7 +5,7 @@ API & Log Analyzer package - STEP 6
 from framework.api_analyzer.api_log_analyzer import (
     LogLevel,
     APIMethod,
-    APICall,
+    CapturedCall,
     LogEntry,
     APIAssertion,
     LogPattern,
@@ -18,7 +18,7 @@ from framework.api_analyzer.api_log_analyzer import (
 __all__ = [
     "LogLevel",
     "APIMethod",
-    "APICall",
+    "CapturedCall",
     "LogEntry",
     "APIAssertion",
     "LogPattern",

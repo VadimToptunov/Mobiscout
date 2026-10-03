@@ -46,8 +46,9 @@ class APIMethod(Enum):
 
 
 @dataclass
-class APICall:
-    """Captured API call"""
+class CapturedCall:
+    """One observed request/response from traffic (not an endpoint definition — the endpoints
+    it reveals become ``framework.model.api.APICall``)."""
 
     timestamp: datetime
     method: APIMethod
@@ -107,10 +108,10 @@ class APIAnalyzer:
     """
 
     def __init__(self) -> None:
-        self.api_calls: List[APICall] = []
-        self.correlations: Dict[str, List[APICall]] = defaultdict(list)
+        self.api_calls: List[CapturedCall] = []
+        self.correlations: Dict[str, List[CapturedCall]] = defaultdict(list)
 
-    def add_api_call(self, api_call: APICall) -> None:
+    def add_api_call(self, api_call: CapturedCall) -> None:
         """Add API call to analyzer"""
         self.api_calls.append(api_call)
 
@@ -230,7 +231,7 @@ class APIAnalyzer:
 
         return assertions
 
-    def correlate_with_ui(self, screen_id: str) -> List[APICall]:
+    def correlate_with_ui(self, screen_id: str) -> List[CapturedCall]:
         """Get API calls correlated with specific UI screen"""
         return self.correlations.get(screen_id, [])
 
@@ -369,7 +370,9 @@ class LogAnalyzer:
             "warnings": len([l for l in filtered_logs if l.level == LogLevel.WARNING]),
         }
 
-    def correlate_with_api(self, api_calls: List[APICall], time_window_ms: int = 5000) -> Dict[APICall, List[LogEntry]]:
+    def correlate_with_api(
+        self, api_calls: List[CapturedCall], time_window_ms: int = 5000
+    ) -> Dict[CapturedCall, List[LogEntry]]:
         """
         Correlate logs with API calls
 
@@ -546,7 +549,7 @@ class APILogModule:
         self.log_analyzer = LogAnalyzer()
         self.correlator = APILogCorrelator(self.api_analyzer, self.log_analyzer)
 
-    def capture_api_call(self, method: str, url: str, **kwargs: Any) -> APICall:
+    def capture_api_call(self, method: str, url: str, **kwargs: Any) -> CapturedCall:
         """
         Capture API call
 
@@ -556,9 +559,9 @@ class APILogModule:
             **kwargs: Additional parameters
 
         Returns:
-            APICall object
+            CapturedCall object
         """
-        api_call = APICall(
+        api_call = CapturedCall(
             timestamp=kwargs.get("timestamp", datetime.now()),
             method=APIMethod(method.upper()),
             url=url,
