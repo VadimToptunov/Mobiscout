@@ -58,20 +58,20 @@ Comprehensive result summary:
 - Parallelization speedup
 - Per-shard breakdown
 
-### 4. Multi-Device Support (Coming Soon)
+### 4. Multi-Device Support (not implemented yet)
 
-Distribute tests across multiple physical devices:
+Distributing tests across several devices is not implemented. `on-devices` only **lists** the
+devices such a run would use, then says no tests ran and exits non-zero (2; 1 when no device is
+found), so a CI step can't mistake the listing for a pass:
 
 ```bash
-# Run on all available Android devices
+# List the available Android / iOS / all devices
 mobiscout parallel on-devices tests/ --platform android
-
-# Run on all iOS devices
 mobiscout parallel on-devices tests/ --platform ios
-
-# Run on all devices (Android + iOS)
 mobiscout parallel on-devices tests/ --platform both
 ```
+
+To run in parallel today, use `mobiscout parallel run` (several workers on one device).
 
 ## CLI Commands
 
