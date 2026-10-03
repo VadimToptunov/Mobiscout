@@ -60,7 +60,7 @@ allure-pytest>=2.16.2        # Allure reporting
 pytest-html>=4.2.0           # HTML reports
 pytest-json-report>=1.5.0    # JSON reports
 slack-sdk>=3.44.1            # Slack notifications
-gitpython>=3.1.59             # Git integration
+gitpython>=3.2.0             # Git integration
 junitparser>=5.0.3           # JUnit XML manipulation
 
 interrogate>=1.7.0            # docstring-coverage gate
