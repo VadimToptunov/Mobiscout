@@ -51,6 +51,10 @@ class _FakeAnalyzer:
     ssl_result = SSLAnalysisResult()
     api_result = APITestResult()
 
+    def __init__(self, active_config=None):
+        # Mirror DASTAnalyzer(active_config): the `api` command passes the active-scan config.
+        self.active_config = active_config
+
     def analyze(self, target, port=443):
         r = type(self).result
         r.target, r.port = target, port
@@ -210,3 +214,40 @@ def test_api_reads_endpoints_file(runner, monkeypatch, tmp_path):
     _no_crash(result)
     assert seen["endpoints"] == [{"path": "/health", "method": "GET"}]
     assert seen["headers"] == {"Authorization": "Bearer x"}
+
+
+def test_api_active_without_authorization_sends_nothing(runner, monkeypatch):
+    # --active but declining the confirmation must not construct an active scan or send traffic.
+    built = {}
+
+    class _Spy(_FakeAnalyzer):
+        def __init__(self, active_config=None):
+            super().__init__(active_config)
+            built["config"] = active_config
+
+    import importlib
+
+    dast_mod = importlib.import_module("framework.cli.security.dast")
+    monkeypatch.setattr(dast_mod, "DASTAnalyzer", _Spy)
+    # No --authorize and stdin says "no" to the prompt -> exit 2, analyzer never built.
+    result = runner.invoke(security, ["api", "https://api.example.com", "--active"], input="n\n")
+    assert result.exit_code == 2
+    assert "config" not in built
+
+
+def test_api_active_with_authorize_flag_builds_active_config(runner, monkeypatch):
+    built = {}
+
+    class _Spy(_FakeAnalyzer):
+        def __init__(self, active_config=None):
+            super().__init__(active_config)
+            built["config"] = active_config
+
+    import importlib
+
+    dast_mod = importlib.import_module("framework.cli.security.dast")
+    monkeypatch.setattr(dast_mod, "DASTAnalyzer", _Spy)
+    result = runner.invoke(security, ["api", "https://api.example.com", "--active", "--authorize", "--rate", "2"])
+    _no_crash(result)
+    config = built["config"]
+    assert config is not None and config.active and config.authorized and config.rate_limit_rps == 2.0

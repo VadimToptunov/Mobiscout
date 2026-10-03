@@ -2,6 +2,7 @@
 
 from typing import Dict, List, Optional
 
+from framework.security.dast.active import ActiveAPIScanner, ActiveScanConfig
 from framework.security.dast.base import (
     DASTTestType,
     DASTSeverity,
@@ -10,40 +11,28 @@ from framework.security.dast.base import (
 
 
 class APISecurityTester:
+    """API Security Tester.
+
+    By default (no :class:`ActiveScanConfig` with ``active=True``) this is passive: it issues no
+    requests and reports one honest INFO finding so a report distinguishes "not tested" from
+    "no vulnerabilities found". With an authorized active config it delegates to
+    :class:`~framework.security.dast.active.ActiveAPIScanner`, which does the real probing.
     """
-    API Security Tester
 
-    Tests API endpoints for common vulnerabilities.
-    """
-
-    # Common injection payloads
-    SQL_PAYLOADS = [
-        "' OR '1'='1",
-        "1; DROP TABLE users--",
-        "1' AND '1'='1",
-        "admin'--",
-        "' UNION SELECT NULL--",
-    ]
-
-    XSS_PAYLOADS = [
-        "<script>alert('XSS')</script>",
-        "'\"><img src=x onerror=alert('XSS')>",
-        "javascript:alert('XSS')",
-        "<svg onload=alert('XSS')>",
-    ]
-
-    NOSQL_PAYLOADS = [
-        '{"$gt": ""}',
-        '{"$ne": null}',
-        '{"$where": "sleep(5000)"}',
-    ]
-
-    PATH_TRAVERSAL_PAYLOADS = [
-        "../../../etc/passwd",
-        "..\\..\\..\\windows\\system32\\config\\sam",
-        "....//....//....//etc/passwd",
-        "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
-    ]
+    def __init__(self, config: Optional[ActiveScanConfig] = None) -> None:
+        self._config = config or ActiveScanConfig()
+        # Build the scanner once per tester so its rate limiter spans the whole scan. The
+        # authorization gate lives in ActiveAPIScanner.__init__, so an active-but-unauthorized
+        # config raises here rather than silently running.
+        self._scanner: Optional[ActiveAPIScanner] = (
+            ActiveAPIScanner(
+                authorized=self._config.authorized,
+                rate_limit_rps=self._config.rate_limit_rps,
+                transport=self._config.transport,
+            )
+            if self._config.active
+            else None
+        )
 
     def test_endpoint(
         self,
@@ -55,12 +44,12 @@ class APISecurityTester:
     ) -> List[DASTFinding]:
         """Test an API endpoint for vulnerabilities.
 
-        Active injection testing (SQL/XSS/path-traversal/auth/rate-limit/CORS)
-        is not yet implemented: it requires issuing real HTTP requests against
-        the target. Rather than return an empty list — which a caller would read
-        as "endpoint is secure" — surface one explicit INFO finding so the
-        report distinguishes "not tested" from "no vulnerabilities found".
+        Active mode (an authorized :class:`ActiveScanConfig`) runs the real injection / auth /
+        rate-limit / CORS probes. Otherwise this returns one explicit INFO finding — never an
+        empty list, which a caller would read as "endpoint is secure".
         """
+        if self._scanner is not None:
+            return self._scanner.scan_endpoint(url, method, headers, params)
         return [
             DASTFinding(
                 test_type=DASTTestType.API,
@@ -68,17 +57,15 @@ class APISecurityTester:
                 title="Active API security testing not performed",
                 description=(
                     "Active endpoint testing (SQL injection, XSS, path traversal, "
-                    "auth bypass, rate limiting, CORS) is not implemented in this "
-                    "build, so this endpoint was NOT assessed for those issues."
+                    "auth bypass, rate limiting, CORS) was not run, so this endpoint "
+                    "was NOT assessed for those issues. Pass an authorized active "
+                    "config (CLI: --active with authorization) to enable it."
                 ),
                 evidence=f"{method} {url}",
                 recommendation=(
-                    "Run a dedicated DAST tool against this endpoint, or treat "
-                    "this result as 'not tested' rather than 'secure'."
+                    "Re-run with active scanning enabled against a target you are "
+                    "authorized to test, or treat this result as 'not tested' rather "
+                    "than 'secure'."
                 ),
             )
         ]
-
-    # Active injection-test stubs were removed: they looped over payload lists
-    # but never issued a request, so they always returned [] (a false "secure").
-    # test_endpoint() now reports an explicit "not tested" finding instead.

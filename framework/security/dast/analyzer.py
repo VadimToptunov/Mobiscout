@@ -16,6 +16,7 @@ from framework.security.dast.base import (
     APITestResult,
 )
 
+from framework.security.dast.active import ActiveScanConfig
 from framework.security.dast.ssl_tls import SSLTLSAnalyzer
 from framework.security.dast.api import APISecurityTester
 from framework.security.dast.traffic import NetworkTrafficAnalyzer
@@ -27,11 +28,15 @@ class DASTAnalyzer:
     Comprehensive DAST Analyzer
 
     Combines all dynamic analysis techniques.
+
+    ``active_config`` is the single opt-in for active API probing: without it (the default),
+    API testing stays passive and reports "not tested". With an authorized
+    :class:`ActiveScanConfig` it runs the real checks (see :mod:`framework.security.dast.active`).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, active_config: Optional[ActiveScanConfig] = None) -> None:
         self.ssl_analyzer = SSLTLSAnalyzer()
-        self.api_tester = APISecurityTester()
+        self.api_tester = APISecurityTester(active_config)
         self.network_analyzer = NetworkTrafficAnalyzer()
         self.session_analyzer = SessionAnalyzer()
 

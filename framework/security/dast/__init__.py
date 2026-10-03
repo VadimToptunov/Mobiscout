@@ -9,6 +9,7 @@ from framework.security.dast.base import (
     DASTResult,
     APITestResult,
 )
+from framework.security.dast.active import ActiveAPIScanner, ActiveScanConfig, ActiveScanNotAuthorizedError
 from framework.security.dast.ssl_tls import SSLTLSAnalyzer
 from framework.security.dast.api import APISecurityTester
 from framework.security.dast.traffic import NetworkTrafficAnalyzer
@@ -23,6 +24,9 @@ __all__ = [
     "SSLAnalysisResult",
     "DASTResult",
     "APITestResult",
+    "ActiveAPIScanner",
+    "ActiveScanConfig",
+    "ActiveScanNotAuthorizedError",
     "SSLTLSAnalyzer",
     "APISecurityTester",
     "NetworkTrafficAnalyzer",

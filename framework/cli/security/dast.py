@@ -12,7 +12,7 @@ import click
 from rich.panel import Panel
 from rich.table import Table
 
-from framework.security.dast_analyzer import DASTAnalyzer
+from framework.security.dast_analyzer import ActiveScanConfig, DASTAnalyzer
 from framework.cli.rich_output import output_format, write_report
 from framework.cli.security.base import (
     security,
@@ -163,20 +163,53 @@ def ssl(host: str, port: int) -> None:
 @click.argument("base_url", type=str)
 @click.option("--auth-header", "-a", type=str, help="Authorization header value")
 @click.option("--endpoints", "-e", type=Path, help="File with endpoint definitions")
-def api(base_url: str, auth_header: Optional[str], endpoints: Optional[Path]) -> None:
+@click.option(
+    "--active",
+    is_flag=True,
+    help="Actively probe endpoints (sends attack traffic). Requires authorization; off by default.",
+)
+@click.option(
+    "--authorize",
+    is_flag=True,
+    help="Confirm you are authorized to actively test this target (skips the interactive prompt).",
+)
+@click.option("--rate", type=float, default=5.0, show_default=True, help="Max requests/second when --active.")
+def api(
+    base_url: str,
+    auth_header: Optional[str],
+    endpoints: Optional[Path],
+    active: bool,
+    authorize: bool,
+    rate: float,
+) -> None:
     """
     Test API security vulnerabilities.
 
-    Checks for injection, authentication bypass, and IDOR vulnerabilities.
+    Passive by default: reports what was NOT tested rather than sending any traffic. With
+    ``--active`` it probes each endpoint for injection, auth bypass, missing rate limiting and
+    CORS misconfiguration — which sends attack traffic, so it only runs against a target you
+    confirm you are authorized to test (``--authorize`` or the interactive prompt), rate-limited
+    by ``--rate``.
 
     Example:
         mobiscout security api https://api.example.com
         mobiscout security api https://api.example.com -a "Bearer token123"
-        mobiscout security api https://api.example.com -e endpoints.json
+        mobiscout security api https://api.example.com --active --authorize --rate 2
     """
     console.print(Panel.fit(f"API Security Testing: {base_url}", style="bold green"))
 
-    analyzer = DASTAnalyzer()
+    active_config = None
+    if active:
+        authorized = authorize or click.confirm(
+            f"Active scanning sends attack traffic to {base_url}. " "Confirm you are authorized to test this target",
+            default=False,
+        )
+        if not authorized:
+            console.print("[yellow]Active scanning not authorized — nothing was sent.[/yellow]")
+            raise SystemExit(2)
+        active_config = ActiveScanConfig(active=True, authorized=True, rate_limit_rps=rate)
+
+    analyzer = DASTAnalyzer(active_config)
 
     headers = {}
     if auth_header:
