@@ -24,7 +24,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
-    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-core:5.24.0")
     // Gradle 9 no longer bundles the launcher on the test runtime classpath.
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     // The bundled IntelliJ distribution registers test listeners that reference JUnit 4;
