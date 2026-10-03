@@ -158,6 +158,15 @@ def _gate_waypoints(
     "uninstall). Off by default; a failed uninstall only warns and never fails the crawl.",
 )
 @click.option(
+    "--capture-network",
+    "capture_network",
+    is_flag=True,
+    default=False,
+    help="Capture the app's HTTP traffic during the crawl (runs mitmproxy's mitmdump; Android "
+    "is routed automatically) and generate API contract tests from it — no separate HAR needed. "
+    "The capture is kept as <output>/network.har.",
+)
+@click.option(
     "--har",
     default=None,
     type=click.Path(exists=True, dir_okay=False),
@@ -264,6 +273,7 @@ def crawl(
     record_events: Optional[str],
     uninstall_after: bool,
     har: Optional[str],
+    capture_network: bool,
     fuzz: bool,
     diff: bool,
     baseline: Optional[str],
@@ -290,6 +300,8 @@ def crawl(
         write_kit,
     )
     from framework.crawler import AppCrawler
+    from framework.crawler.network_capture import NetworkCaptureError
+    from framework.crawler.pipeline import network_capture_for
     from framework.crawler.classify import ensure_model
 
     print_header("🕷️  Crawling app", f"{package} ({platform})")
@@ -344,14 +356,30 @@ def crawl(
             detect = getattr(crawl_driver, "current_activity", None)
             if callable(detect):
                 app_activity = detect(package) or None
-        result = AppCrawler(
-            crawl_driver,
-            package,
-            max_steps=max_steps,
-            max_depth=max_depth,
-            allow_destructive=allow_destructive,
-            waypoints=_gate_waypoints(login_user, login_password, login_submit, otp_secret, otp_submit),
-        ).crawl()
+        capture_config = {
+            "capture_network": capture_network,
+            "output": output,
+            "platform": platform,
+            "serial": serial,
+            "udid": udid,
+        }
+        with network_capture_for(capture_config) as capture:
+            if capture is not None and capture.instructions:
+                print_warning(capture.instructions)
+            result = AppCrawler(
+                crawl_driver,
+                package,
+                max_steps=max_steps,
+                max_depth=max_depth,
+                allow_destructive=allow_destructive,
+                waypoints=_gate_waypoints(login_user, login_password, login_submit, otp_secret, otp_submit),
+            ).crawl()
+        if capture is not None:
+            har = har or capture.captured
+            print_info(f"Network capture: {capture.captured or 'no HTTP traffic captured'}")
+    except NetworkCaptureError as e:
+        print_error(str(e))
+        raise click.Abort()
     finally:
         if appium_session:
             appium_session.quit()

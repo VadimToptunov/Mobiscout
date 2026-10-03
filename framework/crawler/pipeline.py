@@ -625,7 +625,16 @@ def run_kit(config: Dict[str, Any], driver: Any = None) -> Dict[str, Any]:
     ensure_tooling_on_path()
 
     started = time.time()
-    summary = build_kit(_crawl(config, driver), config)
+    # Opt-in (#312): capture the app's HTTP traffic during the crawl, so the kit gets API
+    # tests from it — no external proxy/HAR needed.
+    with network_capture_for(config) as capture:
+        result = _crawl(config, driver)
+    captured = capture.captured if capture is not None else None
+    if captured and not config.get("har"):
+        config = {**config, "har": captured}
+    summary = build_kit(result, config)
+    if capture is not None:
+        summary["network_capture"] = {"har": captured, "note": capture.instructions}
 
     crashes = _collect_crashes(config, started)
     if crashes:
@@ -833,4 +842,22 @@ def run_cross_platform_kit(configs: List[Dict[str, Any]], drivers: Optional[Dict
         {p: (crawls[p], by_platform[p]) for p in order},
         output=str(primary.get("output", "crawl-kit")),
         targets=list(primary.get("targets") or _DEFAULT_TARGETS),
+    )
+
+
+def network_capture_for(config: Dict[str, Any]) -> Any:
+    """The network capture for a crawl when ``capture_network`` is on (a
+    :class:`framework.crawler.network_capture.NetworkCapture` writing ``<output>/network.har``),
+    else a no-op context yielding None."""
+    from contextlib import nullcontext
+
+    if not config.get("capture_network"):
+        return nullcontext(None)
+    from framework.crawler.network_capture import NetworkCapture
+
+    platform = str(config.get("platform", "android")).lower()
+    return NetworkCapture(
+        Path(config.get("output", "crawl-kit")) / "network.har",
+        platform=platform,
+        serial=config.get("serial") or (config.get("udid") if platform == "android" else None),
     )

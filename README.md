@@ -130,6 +130,7 @@ mobiscout generate api-tests --source ./app/src        # extract the API the app
 mobiscout generate api-tests --openapi openapi.yaml    # from the backend's spec
 mobiscout api analyze capture.har --emit-tests tests/  # from recorded traffic
 mobiscout crawl --package com.x.app --har capture.har  # UI tests + API tests in one kit
+mobiscout crawl --package com.x.app --capture-network  # same, capturing the traffic itself (mitmproxy)
 ```
 
 Each test asserts the status the API documents (else that it did not 5xx) and, when
