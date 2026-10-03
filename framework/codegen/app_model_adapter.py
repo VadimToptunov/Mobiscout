@@ -12,7 +12,7 @@ with a usable locator is visible. As flows mature this grows into real paths.
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from framework.codegen.ir import (
     ActionType,
@@ -125,13 +125,19 @@ def build_smoke_model(
     app_package: str,
     suite_name: str = "SmokeFlow",
     app_activity: Optional[str] = None,
+    paths: Optional[Any] = None,
 ) -> TestModel:
-    """Build a smoke TestModel from a recorded AppModel: one TestCase per screen
-    that launches the app and asserts each locatable element is visible."""
+    """Build a smoke TestModel from a recorded AppModel: one TestCase per screen that
+    reaches the screen and asserts each locatable element is visible.
+
+    ``paths`` (:class:`framework.codegen.source_app_model.NavigationPaths`) says how each
+    screen is reached from the entry screen: its case taps that way first, so the checks run
+    ON that screen. A screen with no known path keeps launch-only, and its launch step says
+    so — the checks then assume the screen is what the app opens on."""
     cases: List[TestCase] = []
     used_names: set = set()
     for screen in app_model.screens.values():
-        steps: List[Step] = [Step(ActionType.LAUNCH, description=f"Open {screen.name}")]
+        steps = _reach(screen.name, paths)
         for element in screen.elements:
             selector = _selector_for(element)
             if selector is None:
@@ -144,7 +150,7 @@ def build_smoke_model(
                     description=f"{element.type.value} {element.id} is visible",
                 )
             )
-        if len(steps) > 1:  # only emit a case that checks something
+        if any(step.action is ActionType.ASSERT for step in steps):  # only emit a case that checks something
             cases.append(
                 TestCase(
                     name=_unique(_case_name(screen.name), used_names),
@@ -163,6 +169,22 @@ def build_smoke_model(
         cases=cases,
         description="Auto-generated smoke suite from the recorded app model.",
     )
+
+
+def _reach(screen: str, paths: Optional[Any]) -> List[Step]:
+    """Launch, then the taps that reach ``screen`` from the entry screen (when known)."""
+    if paths is None:
+        return [Step(ActionType.LAUNCH, description=f"Open {screen}")]
+    taps = paths.taps.get(screen)
+    if taps is None:
+        reason = "the app opens on it" if paths.entry is None else f"no known path from {paths.entry}"
+        return [Step(ActionType.LAUNCH, description=f"Open the app ({reason}: checks assume {screen} is shown)")]
+    steps = [Step(ActionType.LAUNCH, description="Open the app")]
+    for element in taps:
+        selector = _selector_for(element)
+        if selector is not None:
+            steps.append(Step(ActionType.TAP, selector=selector, description=f"Tap {element.text or element.id}"))
+    return steps
 
 
 def _ir_platform(app_model: AppModel) -> Platform:

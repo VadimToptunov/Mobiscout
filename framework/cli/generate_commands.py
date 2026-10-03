@@ -179,15 +179,17 @@ def tests(
     print_header("🧪 Generating tests", f"Target: {target}")
 
     try:
+        paths = None
         if source:
-            from framework.codegen.source_app_model import source_app_model
+            from framework.codegen.source_app_model import source_smoke_inputs
 
-            app_model = source_app_model(source)
+            # The source also says how each screen is reached: its case taps there first.
+            app_model, paths = source_smoke_inputs(source)
         else:
             app_model = load_app_model(Path(model))
 
         test_model = build_smoke_model(
-            app_model, app_package=app_package, suite_name=suite_name, app_activity=app_activity
+            app_model, app_package=app_package, suite_name=suite_name, app_activity=app_activity, paths=paths
         )
         if not test_model.cases:
             print_error("App model produced no test cases (no locatable elements found).")

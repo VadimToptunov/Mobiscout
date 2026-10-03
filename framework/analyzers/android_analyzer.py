@@ -10,9 +10,9 @@ Analyzes Android source code (Kotlin) to extract:
 
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from framework.analyzers._scope import block_text_after, enclosing_declaration
+from framework.analyzers._scope import block_text_after, enclosing_block, enclosing_declaration, paren_close
 from framework.analyzers.analysis_result import (
     AnalysisResult,
     ScreenCandidate,
@@ -20,6 +20,52 @@ from framework.analyzers.analysis_result import (
     NavigationCandidate,
     APIEndpointCandidate,
 )
+
+# Where an app opens: NavHost(startDestination = "home") / setContent { HomeScreen() }.
+_START_DESTINATION = re.compile(r'startDestination\s*=\s*["\']([^"\']+)["\']')
+_SET_CONTENT_SCREEN = re.compile(r"setContent\s*\{[^{}]*?\b(\w+Screen)\s*\(")
+# The control whose click handler a navigate() call sits in.
+_BUTTON_ONCLICK = re.compile(r"\b(\w*Button)\s*\((?:[^()]|\([^()]*\))*?onClick\s*=\s*$", re.S)
+_CLICKABLE = re.compile(r"\.clickable\s*(?:\([^()]*\))?\s*$")
+_TEXT_LITERAL = re.compile(r'\bText\s*\(\s*(?:text\s*=\s*)?"([^"]+)"')
+_TEST_TAG = re.compile(r'testTag\s*\(\s*"([^"]+)"\s*\)')
+
+
+def _navigation_trigger(content: str, pos: int) -> Tuple[Optional[str], Optional[str]]:
+    """(visible text, testTag) of the control whose click handler holds the navigate() at
+    ``pos`` — ``Button(onClick = { navigate(..) }) { Text("Details") }`` or a
+    ``Modifier.testTag("x").clickable { navigate(..) }`` — or (None, None) when the call is not
+    in a recognisable click handler (a LaunchedEffect, a callback passed down)."""
+    block = enclosing_block(content, pos)
+    if block is None:
+        return None, None
+    before = content[max(0, block[0] - 400) : block[0]]
+    button = _BUTTON_ONCLICK.search(before)
+    if button:
+        call_start = block[0] - len(before) + button.start()
+        args_end = paren_close(content, content.index("(", call_start))
+        args = content[call_start:args_end]
+        label_block = block_text_after(content, args_end)  # Button(...) { Text("Details") }
+        text = _TEXT_LITERAL.search(label_block)
+        tag = _TEST_TAG.search(args) or _TEST_TAG.search(label_block)
+        return (text.group(1) if text else None), (tag.group(1) if tag else None)
+    if _CLICKABLE.search(before):
+        # The modifier chain the .clickable belongs to, back to the start of its line.
+        chain = before[before.rfind("\n", 0, len(before) - 1) + 1 :]
+        tag = _TEST_TAG.search(chain)
+        # Text("Settings", modifier = Modifier.clickable { .. }): the Text( call whose
+        # argument list encloses the handler, not merely the nearest Text before it.
+        offset = block[0] - len(before)
+        label: Optional[str] = next(
+            (
+                m.group(1)
+                for m in reversed(list(_TEXT_LITERAL.finditer(before)))
+                if paren_close(content, content.index("(", offset + m.start())) > block[0]
+            ),
+            None,
+        )
+        return label, (tag.group(1) if tag else None)
+    return None, None
 
 
 class AndroidAnalyzer:
@@ -234,6 +280,12 @@ class AndroidAnalyzer:
     def _detect_navigation(self, content: str, file_path: Path, lines: List[str], result: AnalysisResult) -> None:
         """Detect navigation routes and transitions"""
 
+        # Where the app opens: the NavHost's start destination, else the screen setContent shows.
+        if result.entry_screen is None:
+            start = _START_DESTINATION.search(content) or _SET_CONTENT_SCREEN.search(content)
+            if start:
+                result.entry_screen = start.group(1)
+
         # Look for navigation calls: navController.navigate("route")
         nav_pattern = re.compile(r'navigate\s*\(\s*["\']([^"\']+)["\']\s*\)')
 
@@ -243,9 +295,16 @@ class AndroidAnalyzer:
 
             # Try to find which screen this is called from
             from_screen = self._find_containing_screen(content, match.start())
+            trigger, trigger_tag = _navigation_trigger(content, match.start())
 
             navigation = NavigationCandidate(
-                from_screen=from_screen, to_screen=route, route=route, file_path=str(file_path), line_number=line_num
+                from_screen=from_screen,
+                to_screen=route,
+                route=route,
+                trigger=trigger,
+                trigger_test_tag=trigger_tag,
+                file_path=str(file_path),
+                line_number=line_num,
             )
 
             result.navigation.append(navigation)

@@ -14,10 +14,15 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from framework.analyzers._scope import enclosing_declaration
-from framework.analyzers.analysis_result import AnalysisResult, ScreenCandidate, UIElementCandidate
+from framework.analyzers._scope import block_after, enclosing_declaration, paren_close
+from framework.analyzers.analysis_result import (
+    AnalysisResult,
+    NavigationCandidate,
+    ScreenCandidate,
+    UIElementCandidate,
+)
 
 # A struct conforming to View — a SwiftUI screen/view.
 _VIEW = re.compile(r"struct\s+(\w+)\s*:\s*(?:some\s+)?View\b")
@@ -25,6 +30,21 @@ _VIEW = re.compile(r"struct\s+(\w+)\s*:\s*(?:some\s+)?View\b")
 _A11Y_ID = re.compile(r"\.accessibilityIdentifier\(\s*[\"']([^\"']+)[\"']\s*\)")
 # accessibilityLabel("...") — also queryable, used when no identifier is present.
 _A11Y_LABEL = re.compile(r"\.accessibilityLabel\(\s*[\"']([^\"']+)[\"']\s*\)")
+
+# Where the app opens: @main struct X: App { ... WindowGroup { ContentView() } }.
+_WINDOW_GROUP_ROOT = re.compile(r"WindowGroup\s*\{\s*(\w+)\s*\(")
+# NavigationLink in its three forms: (destination:) { label }, ("Label", destination:),
+# and { destination } label: { label }.
+_NAV_LINK = re.compile(r"\bNavigationLink\s*([({])")
+_DESTINATION = re.compile(r"destination\s*:\s*\{?\s*(\w+)\s*\(")
+_FIRST_VIEW = re.compile(r"^\s*\{?\s*(\w+)\s*\(")
+_STRING_ARG = re.compile(r'^\s*"([^"]+)"')
+_TEXT = re.compile(r'\bText\s*\(\s*"([^"]+)"')
+_LABEL = re.compile(r"\blabel\s*:\s*\{")
+# A presented screen: .sheet(...) { SettingsView() } / .fullScreenCover(...) { ... }.
+_PRESENTED = re.compile(r"\.(?:sheet|fullScreenCover)\s*\(")
+# The modifier chain right after a view: each line starting with ".".
+_MODIFIERS = re.compile(r"\A(?:\s*\.[^\n]*)+")
 
 # SwiftUI component keyword -> UIElementCandidate.type (mapped to ElementType later).
 _COMPONENTS = ("Button", "SecureField", "TextField", "TextEditor", "Text", "Image", "Toggle", "Picker", "List")
@@ -53,6 +73,10 @@ class IOSSourceAnalyzer:
         return result
 
     def _analyze_file(self, content: str, path: Path, result: AnalysisResult) -> None:
+        root = _WINDOW_GROUP_ROOT.search(content)
+        if root and result.entry_screen is None:
+            result.entry_screen = root.group(1)
+        self._detect_navigation(content, path, result)
         for match in _VIEW.finditer(content):
             result.screens.append(
                 ScreenCandidate(
@@ -84,6 +108,43 @@ class IOSSourceAnalyzer:
                     )
                 )
 
+    def _detect_navigation(self, content: str, path: Path, result: AnalysisResult) -> None:
+        """One NavigationCandidate per NavigationLink (with the link's label text and its
+        accessibilityIdentifier, the tap target) and per .sheet / .fullScreenCover (its
+        trigger is a separate Button flipping a binding, so none is recorded)."""
+        for match in _NAV_LINK.finditer(content):
+            destination, label, end = _nav_link(content, match)
+            if destination is None:
+                continue
+            self._add_edge(content, path, result, match.start(), destination, label, _identifier_after(content, end))
+        for match in _PRESENTED.finditer(content):
+            body = block_after(content, paren_close(content, match.end() - 1))
+            view = _FIRST_VIEW.match(content[body[0] + 1 : body[1]]) if body else None
+            if view:
+                self._add_edge(content, path, result, match.start(), view.group(1), None, None)
+
+    @staticmethod
+    def _add_edge(
+        content: str,
+        path: Path,
+        result: AnalysisResult,
+        pos: int,
+        destination: str,
+        trigger: Optional[str],
+        trigger_tag: Optional[str],
+    ) -> None:
+        result.navigation.append(
+            NavigationCandidate(
+                from_screen=enclosing_declaration(content, pos, _VIEW),
+                to_screen=destination,
+                route=destination,
+                trigger=trigger,
+                trigger_test_tag=trigger_tag,
+                file_path=str(path),
+                line_number=content[:pos].count("\n") + 1,
+            )
+        )
+
     @staticmethod
     def _guess_type(content: str, pos: int) -> str:
         """The SwiftUI component the modifier is attached to — scan back a small
@@ -101,3 +162,40 @@ class IOSSourceAnalyzer:
         """The ``struct X: View`` whose body actually contains the element (brace-
         matched, so an element after a view's closing brace isn't misattributed)."""
         return enclosing_declaration(content, pos, _VIEW)
+
+
+def _nav_link(content: str, match: "re.Match[str]") -> Tuple[Optional[str], Optional[str], int]:
+    """(destination view, label text, end of the link) for the NavigationLink at ``match``."""
+    if match.group(1) == "(":
+        args_end = paren_close(content, match.end() - 1)
+        args = content[match.end() : args_end]
+        destination = _DESTINATION.search(args)
+        label = _STRING_ARG.match(args)
+        end = args_end + 1
+        trailing = block_after(content, end)
+        if trailing and not content[end : trailing[0]].strip():  # NavigationLink(destination:) { Text("x") }
+            if label is None:
+                label = _TEXT.search(content[trailing[0] : trailing[1]])
+            end = trailing[1] + 1
+        return (destination.group(1) if destination else None), (label.group(1) if label else None), end
+    # NavigationLink { DetailView() } label: { Text("Details") }
+    dest_block = block_after(content, match.end() - 1)
+    if dest_block is None:
+        return None, None, match.end()
+    view = _FIRST_VIEW.match(content[dest_block[0] + 1 : dest_block[1]])
+    label_kw = _LABEL.match(content, dest_block[1] + 1) or _LABEL.search(content, dest_block[1] + 1, dest_block[1] + 40)
+    end = dest_block[1] + 1
+    label = None
+    if label_kw:
+        label_block = block_after(content, label_kw.end() - 1)
+        if label_block:
+            label = _TEXT.search(content[label_block[0] : label_block[1]])
+            end = label_block[1] + 1
+    return (view.group(1) if view else None), (label.group(1) if label else None), end
+
+
+def _identifier_after(content: str, end: int) -> Optional[str]:
+    """The accessibilityIdentifier in the modifier chain right after a view ending at ``end``."""
+    chain = _MODIFIERS.match(content[end:])
+    ident = _A11Y_ID.search(chain.group(0)) if chain else None
+    return ident.group(1) if ident else None

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from framework.analyzers.analysis_result import AnalysisResult, UIElementCandidate
 from framework.crawler.graph import InteractionGraph, build_graph
@@ -88,6 +88,27 @@ def _element(candidate: UIElementCandidate, platform: str) -> CrawlElement:
     )
 
 
+def destination_resolver(result: AnalysisResult) -> Callable[[str], str]:
+    """A route/destination name -> the screen it opens: an explicit route registration (a
+    screen's own route wins over a sealed-class registry entry), else the screen whose name is
+    that route (DetailsScreen for "details"), else the raw route as its own node."""
+    route_to_screen: Dict[str, str] = {}
+    name_stem_to_screen: Dict[str, str] = {}
+    for screen in result.screens:
+        if screen.route:
+            route_to_screen[_normalize_route(screen.route)] = screen.name
+        name_stem_to_screen.setdefault(_screen_key(screen.name), screen.name)
+    for nav in result.navigation:
+        if nav.from_screen is None:  # a sealed-class route registry entry (route -> screen NAME)
+            route_to_screen.setdefault(_normalize_route(nav.route), nav.to_screen)
+
+    def resolve(route: str) -> str:
+        key = _normalize_route(route)
+        return route_to_screen.get(key) or name_stem_to_screen.get(key) or route
+
+    return resolve
+
+
 def source_crawl_result(result: AnalysisResult) -> CrawlResult:
     """Translate a static :class:`AnalysisResult` into the crawler's
     :class:`CrawlResult` shape: one screen per detected screen (carrying its
@@ -107,35 +128,19 @@ def source_crawl_result(result: AnalysisResult) -> CrawlResult:
         if name and name not in crawl.screens:
             crawl.screens[name] = CrawlScreen(fingerprint=name, elements=elements or [], platform=platform)
 
-    # Route -> screen name. A screen's own route wins over a sealed-class registry
-    # entry, so navigate() resolves to the composable node when both name it.
-    route_to_screen: Dict[str, str] = {}
-    name_stem_to_screen: Dict[str, str] = {}
+    resolve = destination_resolver(result)
     for screen in result.screens:
         _add_screen(screen.name, by_screen.get(screen.name, []))
-        if screen.route:
-            route_to_screen[_normalize_route(screen.route)] = screen.name
-        name_stem_to_screen.setdefault(_screen_key(screen.name), screen.name)
-    for nav in result.navigation:
-        if nav.from_screen is None:  # a sealed-class route registry entry (route -> screen NAME)
-            route_to_screen.setdefault(_normalize_route(nav.route), nav.to_screen)
-
-    def _resolve(route: str) -> str:
-        """A navigate() route -> its destination screen name: an explicit route
-        registration first, else the screen whose name is that route (DetailsScreen
-        for "details"), else the raw route as its own node."""
-        key = _normalize_route(route)
-        return route_to_screen.get(key) or name_stem_to_screen.get(key) or route
 
     # Edges: each navigate() call site (from_screen set) -> its resolved destination.
     for nav in result.navigation:
         if not nav.from_screen:
             continue  # a registry entry, not a call site
-        dst = _resolve(nav.to_screen)
+        dst = resolve(nav.to_screen)
         _add_screen(nav.from_screen)  # a navigate() may sit in a non-"Screen" composable...
         _add_screen(dst)  # ...or point at a route with no detected screen
         element = CrawlElement(
-            resource_id="",
+            resource_id=nav.trigger_test_tag or "",
             text=nav.trigger or nav.route,
             content_desc="",
             class_name=_class_for("button", platform),

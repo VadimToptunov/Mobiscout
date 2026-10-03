@@ -74,3 +74,17 @@ def block_text_after(content: str, from_pos: int) -> str:
     ``""`` — for scanning a declaration's body instead of a fixed window."""
     block = block_after(content, from_pos)
     return content[block[0] : block[1] + 1] if block else ""
+
+
+def paren_close(content: str, open_index: int) -> int:
+    """Index of the ``)`` matching the ``(`` at ``open_index`` (or end-of-content when
+    unbalanced) — for reading a call's argument list."""
+    depth = 0
+    for j in range(open_index, len(content)):
+        if content[j] == "(":
+            depth += 1
+        elif content[j] == ")":
+            depth -= 1
+            if depth == 0:
+                return j
+    return len(content)
