@@ -6,16 +6,19 @@ conforming to ``View``) and **UI elements** (components carrying an
 bridge (``analysis_to_app_model`` → ``build_smoke_model`` → emitters) that works
 for Android/Compose also works for iOS/SwiftUI.
 
-Regex/heuristic like the Android analyzer — good enough to map the a11y-identified
-elements the tests need to locate; a full Swift AST is a separate, larger effort.
+Each file is read from the Swift AST when the Rust core is installed (it always is in the
+shipped engine): exact about which view a modifier sits on, blind to comments, and it
+drops interpolated identifiers that no device will show verbatim. Without the core, or for a
+file the grammar can't parse cleanly, the regex/heuristic path below takes over.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
+from framework.analyzers import native
 from framework.analyzers._scope import block_after, enclosing_declaration, paren_close
 from framework.analyzers.analysis_result import (
     AnalysisResult,
@@ -73,6 +76,10 @@ class IOSSourceAnalyzer:
         return result
 
     def _analyze_file(self, content: str, path: Path, result: AnalysisResult) -> None:
+        extracted = native.extract_swiftui(content)
+        if extracted is not None:
+            _from_ast(extracted, path, result)
+            return
         root = _WINDOW_GROUP_ROOT.search(content)
         if root and result.entry_screen is None:
             result.entry_screen = root.group(1)
@@ -162,6 +169,51 @@ class IOSSourceAnalyzer:
         """The ``struct X: View`` whose body actually contains the element (brace-
         matched, so an element after a view's closing brace isn't misattributed)."""
         return enclosing_declaration(content, pos, _VIEW)
+
+
+def _from_ast(extracted: Dict[str, Any], path: Path, result: AnalysisResult) -> None:
+    """Fill ``result`` from the Rust core's AST extraction — the same candidates, in the same
+    order, as the regex path produces."""
+    if extracted["entry_screen"] and result.entry_screen is None:
+        result.entry_screen = extracted["entry_screen"]
+    for from_screen, to_screen, label, tag, line in extracted["links"] + extracted["presented"]:
+        result.navigation.append(
+            NavigationCandidate(
+                from_screen=from_screen,
+                to_screen=to_screen,
+                route=to_screen,
+                trigger=label,
+                trigger_test_tag=tag,
+                file_path=str(path),
+                line_number=line,
+            )
+        )
+    for name, line in extracted["screens"]:
+        result.screens.append(ScreenCandidate(name=name, file_path=str(path), line_number=line))
+    seen: set = set()
+    # Identifiers first, then labels — the identifier wins when a view carries both.
+    for value, _is_identifier, view, screen, line in sorted(extracted["elements"], key=lambda e: not e[1]):
+        if value in seen:
+            continue
+        seen.add(value)
+        result.ui_elements.append(
+            UIElementCandidate(
+                id=value,
+                type=_element_type(view),
+                screen=screen,
+                file_path=str(path),
+                line_number=line,
+                content_description=value,
+            )
+        )
+
+
+def _element_type(view: str) -> str:
+    """The view a modifier sits on, as an element type: a known component as is, a
+    NavigationLink as the Button it is to a test, anything else (a container) as Text."""
+    if view in _COMPONENTS:
+        return view
+    return "Button" if view == "NavigationLink" else "Text"
 
 
 def _nav_link(content: str, match: "re.Match[str]") -> Tuple[Optional[str], Optional[str], int]:

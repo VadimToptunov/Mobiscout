@@ -6,12 +6,14 @@
 //!
 //! - `ast_analyzer`: tree-sitter AST parsing and complexity analysis (`RustAstAnalyzer`)
 //! - `sast_scan`: multi-pattern line scanner for SAST (`scan_lines`, RegexSet + rayon)
+//! - `swiftui`: SwiftUI screens/elements/navigation from the Swift AST (`extract_swiftui`)
 
 use pyo3::prelude::*;
 
 // Module declarations
 pub mod ast_analyzer;
 pub mod sast_scan;
+pub mod swiftui;
 pub mod utils;
 
 // Re-exports
@@ -29,6 +31,9 @@ fn mobiscout_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Register the SAST multi-pattern line scanner (RegexSet, parallel over files)
     m.add_function(wrap_pyfunction!(sast_scan::scan_lines, m)?)?;
+
+    // SwiftUI structure from the Swift AST (IOSSourceAnalyzer's precise path)
+    m.add_function(wrap_pyfunction!(swiftui::extract_swiftui, m)?)?;
 
     // Module metadata
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
