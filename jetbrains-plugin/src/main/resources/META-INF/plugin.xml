@@ -52,6 +52,23 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>0.14.0 — senior kits, source/API tests, security scanning</h3>
+    <ul>
+        <li><b>Generated kits rewritten to a senior bar.</b> Page-Object suites by default
+        for Python, Java, Kotlin, WebdriverIO and C# (new), with BDD on page objects
+        (pytest-bdd/Behave, Cucumber, Reqnroll) — from one model, not flat scripts.</li>
+        <li><b>One suite for Android + iOS.</b> The two platform models merge into a single
+        cross-platform suite; the platform is chosen at run time.</li>
+        <li><b>Tests that fail until the app is fixed.</b> Crashes and error screens become
+        failing defect tests; negative-form and robustness tests ship by default.</li>
+        <li><b>API tests from a crawl alone</b> via network capture, plus SwiftUI read from
+        the Swift AST for more accurate iOS locators and navigation.</li>
+        <li><b>Active API security scanning</b> (<code>security api --active</code>): SQLi,
+        XSS, path traversal, auth bypass, rate limiting and CORS — opt-in, authorized and
+        rate-limited; off by default.</li>
+        <li><b>Resilient runs:</b> a crashed session costs one test, not the run; one target
+        failing never costs the others.</li>
+    </ul>
     <h3>0.13.3 — crawl quality + source-first graph</h3>
     <ul>
         <li><b>Interaction graph from source.</b> New <code>mobiscout source graph &lt;dir&gt;</code>
