@@ -22,6 +22,7 @@ import com.mobiletest.recorder.settings.MTRSettings
 import java.io.File
 import javax.swing.JButton
 import javax.swing.JComponent
+import javax.swing.JList
 import javax.swing.SwingWorker
 
 /**
@@ -246,9 +247,14 @@ class GenerateKitDialog(private val project: Project) : DialogWrapper(project) {
      *  by friendly name. Best-effort: if the engine isn't running the combo stays empty
      *  and editable, so a UDID can still be typed. Auto-selects the only device. */
     private fun loadDevices() {
-        udidCombo.renderer = SimpleListCellRenderer.create("") { udid ->
-            val name = deviceNames[udid]
-            if (name.isNullOrBlank()) udid else "$name — $udid"
+        // A customize()-override subclass, not SimpleListCellRenderer.create(...): that factory is
+        // @Deprecated(forRemoval) from 2024.3 on (the verifier flags it against the 2026.x IDEs).
+        udidCombo.renderer = object : SimpleListCellRenderer<String>() {
+            override fun customize(list: JList<out String>, value: String?, index: Int, selected: Boolean, hasFocus: Boolean) {
+                val udid = value ?: ""
+                val name = deviceNames[udid]
+                text = if (name.isNullOrBlank()) udid else "$name — $udid"
+            }
         }
         val app = ApplicationManager.getApplication()
         // The device enumeration (adb / simctl) can take seconds — do it off the EDT via the
