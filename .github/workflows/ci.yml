@@ -211,7 +211,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Set up Gradle (real compile of the Kotlin Page-Object kit)
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
         with:
           gradle-version: '9.3.1'
 
@@ -361,7 +361,7 @@ jobs:
         # The committed Gradle wrapper (jetbrains-plugin/gradlew + wrapper jar)
         # pins Gradle 9.6.1, which the IntelliJ Platform Gradle Plugin 2.18.1
         # requires (it refuses anything below 9.0). Invoke it via ./gradlew.
-        uses: gradle/actions/setup-gradle@v6.3.0
+        uses: gradle/actions/setup-gradle@v6.4.0
 
       - name: Run plugin unit tests
         working-directory: jetbrains-plugin
