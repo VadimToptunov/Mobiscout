@@ -29,10 +29,21 @@ GOLDEN_DIR = Path(__file__).parent / "golden"
 TARGET_IDS = [t.id for t in available_targets()]
 
 # javac without the Appium/TestNG/Selenium jars on the classpath can only fail
-# on dependency resolution, never on syntax. So we accept those two error
-# classes and treat anything else (';' expected, illegal start, ...) as a real
-# syntax defect in the generated source.
-_JAVAC_DEP_ERROR = re.compile(r"error:\s+(cannot find symbol|package \S+ does not exist)")
+# on dependency resolution, never on syntax. So we accept those error classes
+# and treat anything else (';' expected, illegal start, ...) as a real syntax
+# defect in the generated source.
+#
+# "cannot infer type arguments for X<>" is a *cascade* of a missing symbol: when
+# a diamond's target type references an unresolved type (e.g. Map<String, By[]>
+# where By isn't on the classpath), JDK 25's javac reports both "cannot find
+# symbol" and this inference error, where JDK <=21 reported only the former. The
+# generated code is valid — `Map<..> x = new HashMap<>()` compiles once deps are
+# present (where this gate short-circuits on returncode 0) — so the inference
+# error here is a dependency artifact, not a template defect.
+_JAVAC_DEP_ERROR = re.compile(
+    r"error:\s+(cannot find symbol|package \S+ does not exist"
+    r"|incompatible types: cannot infer type arguments for )"
+)
 
 
 def _java_syntax_ok(java_file: Path) -> None:
