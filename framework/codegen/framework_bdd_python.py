@@ -159,7 +159,7 @@ def render_pytest_bdd(fm: FrameworkModel) -> Dict[str, str]:
         "from pytest_bdd import scenarios\n\n"
         'scenarios("../features")\n'
     )
-    files["requirements.txt"] = PYTHON_REQUIREMENTS + "pytest>=8.0.0\npytest-bdd>=7.0.0\n"
+    files["requirements.txt"] = PYTHON_REQUIREMENTS + "pytest>=8.0.0\npytest-bdd>=9.0.1\n"
     return files
 
 
