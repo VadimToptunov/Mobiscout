@@ -41,8 +41,7 @@ TARGET_IDS = [t.id for t in available_targets()]
 # present (where this gate short-circuits on returncode 0) — so the inference
 # error here is a dependency artifact, not a template defect.
 _JAVAC_DEP_ERROR = re.compile(
-    r"error:\s+(cannot find symbol|package \S+ does not exist"
-    r"|incompatible types: cannot infer type arguments for )"
+    r"error:\s+(cannot find symbol|package \S+ does not exist" r"|incompatible types: cannot infer type arguments for )"
 )
 
 
