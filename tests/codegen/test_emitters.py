@@ -493,3 +493,109 @@ def test_espresso_annotates_unsupported_xpath():
     code = next(iter(out.values()))
     assert "SKIPPED — Espresso has no XPath" in code
     assert "onView(" not in code  # no broken locator emitted
+
+
+# --- Flutter (Route B) codegen -------------------------------------------------
+#
+# A Flutter app paints into one canvas, so the only locators that resolve at
+# runtime are the appium-flutter-integration-driver's own finders. The Appium
+# Python and Java/Kotlin kits bind them; the rest cannot and must refuse rather
+# than emit a native locator that would silently never match on the canvas.
+
+# Targets whose client library exposes a published Flutter-integration finder API.
+_FLUTTER_TARGETS = ["python_pytest", "python_pytest_bdd", "java_testng", "java_cucumber", "kotlin_appium"]
+# Registered targets that cannot drive a Flutter canvas (native kit, or no finder binding).
+_FLUTTER_NONCAPABLE = ["js_webdriverio", "js_cucumber", "kotlin_espresso", "maestro"]
+
+# The exact finder tokens each language must emit. These are the published client
+# bindings for the integration driver's "-flutter key | semantics label | text |
+# type" W3C strategies — the external anchor for this feature:
+#   * Appium Python client: AppiumBy.FLUTTER_INTEGRATION_* constants.
+#   * Appium java-client (Java + Kotlin): AppiumBy.flutter* factory methods.
+_FLUTTER_TOKENS = {
+    "python_pytest": [
+        "AppiumBy.FLUTTER_INTEGRATION_KEY",
+        "AppiumBy.FLUTTER_INTEGRATION_SEMANTICS_LABEL",
+        "AppiumBy.FLUTTER_INTEGRATION_TEXT",
+        "AppiumBy.FLUTTER_INTEGRATION_TYPE",
+    ],
+    "python_pytest_bdd": [
+        "AppiumBy.FLUTTER_INTEGRATION_KEY",
+        "AppiumBy.FLUTTER_INTEGRATION_SEMANTICS_LABEL",
+        "AppiumBy.FLUTTER_INTEGRATION_TEXT",
+        "AppiumBy.FLUTTER_INTEGRATION_TYPE",
+    ],
+    "java_testng": [
+        "AppiumBy.flutterKey(",
+        "AppiumBy.flutterSemanticsLabel(",
+        "AppiumBy.flutterText(",
+        "AppiumBy.flutterType(",
+    ],
+    "java_cucumber": [
+        "AppiumBy.flutterKey(",
+        "AppiumBy.flutterSemanticsLabel(",
+        "AppiumBy.flutterText(",
+        "AppiumBy.flutterType(",
+    ],
+    "kotlin_appium": [
+        "AppiumBy.flutterKey(",
+        "AppiumBy.flutterSemanticsLabel(",
+        "AppiumBy.flutterText(",
+        "AppiumBy.flutterType(",
+    ],
+}
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_TARGETS)
+def test_flutter_emitter_golden(target_id: str, flutter_model: TestModel):
+    """Flutter-capable targets pin their output under golden/<target>/flutter/."""
+    out = get_emitter(target_id).emit(flutter_model)
+    assert out, f"{target_id} emitted no files for a Flutter model"
+    for path, content in out.items():
+        _check_golden(f"{target_id}/flutter/{path}", content)
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_TARGETS)
+def test_flutter_generated_source_is_valid(target_id: str, flutter_model: TestModel, tmp_path):
+    """Generated Flutter source must be syntactically valid for its language, the
+    same gate the native model uses."""
+    out = get_emitter(target_id).emit(flutter_model)
+    checked = 0
+    for path, content in out.items():
+        f = tmp_path / path
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(content, encoding="utf-8", newline="\n")
+        if path.endswith(".py"):
+            py_compile.compile(str(f), doraise=True)
+            checked += 1
+        elif path.endswith(".java"):
+            _java_syntax_ok(f)
+            checked += 1
+        elif path.endswith(".kt"):
+            _kotlin_syntax_ok(f)
+            checked += 1
+    assert checked, f"{target_id} produced no source to validate"
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_TARGETS)
+def test_flutter_finders_use_published_client_api(target_id: str, flutter_model: TestModel):
+    """Every tier (key/semantics/text/type) is emitted through the published Appium
+    client binding for the integration driver — the external anchor for the feature."""
+    src = "\n".join(get_emitter(target_id).emit(flutter_model).values())
+    for token in _FLUTTER_TOKENS[target_id]:
+        assert token in src, f"{target_id}: missing published Flutter finder {token!r}"
+    # The Flutter selectors themselves never fall back to a native strategy (which
+    # would not resolve on the canvas) — proved rigorously at the IR level in
+    # tests/test_flutter_selector.py::test_flutter_selectors_are_a_closed_family.
+    # (The generated POM still carries a generic UiAutomator scrollIntoView helper,
+    # which is scaffolding, not a widget locator, so it is not asserted against here.)
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_NONCAPABLE)
+def test_flutter_noncapable_targets_refuse(target_id: str, flutter_model: TestModel):
+    """A kit that cannot drive Flutter fails loudly with an actionable message,
+    rather than silently emitting locators that never resolve on the canvas."""
+    with pytest.raises(ValueError) as exc:
+        get_emitter(target_id).emit(flutter_model)
+    msg = str(exc.value)
+    assert "Flutter" in msg and "Python, Java, or Kotlin" in msg, f"{target_id}: unclear refusal: {msg!r}"
