@@ -133,7 +133,7 @@ def _python_pytest(model: TestModel, server: str, target: str) -> Dict[str, str]
     # the kit-execution tests run it against 6.x, so don't pin users to a stale 4.x.
     requirements = "Appium-Python-Client>=4.0.0,<7.0.0\npytest>=8.0.0\nselenium>=4.15.0,<5.0.0\n"
     if is_bdd:
-        requirements += "pytest-bdd>=7.0.0\n"
+        requirements += "pytest-bdd>=9.0.1\n"
     pytest_ini = f"[pytest]\ntestpaths = {target}\npython_files = test_*.py\n"
     readme = (
         "# Generated mobile tests (pytest + Appium)\n\n"
