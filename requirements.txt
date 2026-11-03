@@ -16,7 +16,7 @@ selenium>=4.15.0,<5.0.0  # Required for W3C WebDriver protocol
 
 # Testing framework
 pytest>=8.0.0,<10.0.0
-pytest-bdd>=6.1.0
+pytest-bdd>=9.0.1
 
 # Static analysis (optional)
 tree-sitter>=0.20.0
