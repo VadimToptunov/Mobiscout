@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Optional
 
 from framework.codegen.emitters._kotlin_common import kotlin_str
-from framework.codegen.ir import Selector, SelectorStrategy, TestModel
+from framework.codegen.ir import FLUTTER_STRATEGIES, Selector, SelectorStrategy, TestModel, unsupported_flutter
 
 
 def resource_id_segment(value: str) -> str:
@@ -34,6 +34,10 @@ def matcher_expr(sel: Optional[Selector]) -> Optional[str]:
     if sel is None:
         return None
     s = sel.strategy
+    if s in FLUTTER_STRATEGIES:
+        # Espresso runs in-process against the native view hierarchy; it cannot
+        # see widgets inside the Flutter canvas at all.
+        raise unsupported_flutter("The Espresso kit")
     if s is SelectorStrategy.ID:
         return f"withId(R.id.{resource_id_segment(sel.value)})"
     if s is SelectorStrategy.ACCESSIBILITY_ID:

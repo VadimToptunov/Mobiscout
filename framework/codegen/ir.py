@@ -52,13 +52,49 @@ class AssertionType(Enum):
 class SelectorStrategy(Enum):
     """Abstract locator strategy. Each emitter maps these to its own binding
     (e.g. AppiumBy.ID for Python, By.id(...) for Java). Keeping the strategy
-    abstract is what keeps the IR language-agnostic."""
+    abstract is what keeps the IR language-agnostic.
+
+    The ``FLUTTER_*`` strategies are the widget-tree finders of the
+    appium-flutter-integration-driver (Route B): a Flutter app paints into one
+    opaque canvas, so the only locators that resolve at runtime are the driver's
+    own finders (W3C strategies ``-flutter key`` / ``-flutter semantics label`` /
+    ``-flutter text`` / ``-flutter type``). They are a closed family — a Flutter
+    selector never falls back to a native strategy, which would not resolve on
+    the canvas — and only the Appium Python/Java/Kotlin kits bind them."""
 
     ID = "id"
     ACCESSIBILITY_ID = "accessibility_id"
     XPATH = "xpath"
     CLASS_NAME = "class_name"
     TEXT = "text"
+    FLUTTER_KEY = "flutter_key"  # ValueKey — developer-assigned, most stable
+    FLUTTER_SEMANTICS = "flutter_semantics"  # Semantics label (accessibility)
+    FLUTTER_TEXT = "flutter_text"  # visible widget text
+    FLUTTER_TYPE = "flutter_type"  # widget type — last resort (first of type)
+
+
+# The finders only the appium-flutter-integration-driver understands. A kit that
+# cannot emit them (a native kit like Espresso, or one with no published Flutter
+# binding like WebdriverIO/.NET) must fail loudly rather than emit a native
+# locator that would never resolve on the Flutter canvas.
+FLUTTER_STRATEGIES = frozenset(
+    {
+        SelectorStrategy.FLUTTER_KEY,
+        SelectorStrategy.FLUTTER_SEMANTICS,
+        SelectorStrategy.FLUTTER_TEXT,
+        SelectorStrategy.FLUTTER_TYPE,
+    }
+)
+
+
+def unsupported_flutter(kit: str) -> ValueError:
+    """A clear error for a kit asked to render a Flutter (Route B) locator it has
+    no published finder for — see :data:`FLUTTER_STRATEGIES`."""
+    return ValueError(
+        f"{kit} cannot locate Flutter widgets (Route B): the "
+        f"appium-flutter-integration-driver needs its own key/semantics/text/type "
+        f"finders. Generate the Appium Python, Java, or Kotlin kit for a Flutter app."
+    )
 
 
 @dataclass

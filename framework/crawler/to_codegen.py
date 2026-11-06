@@ -122,6 +122,46 @@ def _xpath_by_label(value: str) -> str:
     return f"//*[@label={lit} or @name={lit}]"
 
 
+def _flutter_widget_type(class_name: str) -> str:
+    """The real Flutter widget type from the synthesized class name (``flutter_mode``
+    prefixes it ``Flutter``). The two input sentinels collapse back to ``TextField`` —
+    ``SecureTextField`` is not a Flutter widget type."""
+    t = (class_name or "")[len("Flutter") :] or "Widget"
+    return "TextField" if t == "SecureTextField" else t
+
+
+def _flutter_selector_for(element: CrawlElement) -> Selector:
+    """Ranked Flutter (Route B) locator for a widget enumerated through
+    :func:`framework.crawler.flutter_mode.build_flutter_screen`.
+
+    A closed family of integration-driver finders (see :class:`SelectorStrategy`),
+    ranked by stability: a developer-assigned **ValueKey** (landed in ``resource_id``)
+    outranks a **semantics label** (``content_desc``; shifts with localisation), which
+    outranks the visible **text**, and a bare **widget type** is the last resort — it
+    matches the first widget of its kind, the Flutter analogue of a positional locator,
+    never stable enough to assert on (score below :data:`_ASSERTABLE_SCORE`). The widget
+    type is always known, so a Flutter control is never unlocatable (no native fallback,
+    which would not resolve on the canvas)."""
+    candidates: List[Selector] = []
+    key = (element.resource_id or "").strip()  # ValueKey landed in resource-id
+    if key:
+        candidates.append(Selector(SelectorStrategy.FLUTTER_KEY, key, score=0.95, description=element.label))
+    label = (element.content_desc or "").strip()  # semantics label landed in content-desc
+    if label:
+        candidates.append(Selector(SelectorStrategy.FLUTTER_SEMANTICS, label, score=0.90, description=element.label))
+    txt = (element.text or "").strip()
+    if txt:
+        # Same fragility penalty as a native text locator: a dynamic/verbose string
+        # drops below the assert bar while staying a usable tap target.
+        text_score = 0.42 if (_looks_dynamic(txt) or _looks_verbose(txt)) else 0.60
+        candidates.append(Selector(SelectorStrategy.FLUTTER_TEXT, txt, score=text_score, description=element.label))
+    widget_type = _flutter_widget_type(element.class_name)
+    candidates.append(Selector(SelectorStrategy.FLUTTER_TYPE, widget_type, score=0.3, description=widget_type))
+    primary, *rest = candidates
+    primary.fallbacks = rest
+    return primary
+
+
 def _selector_for(element: CrawlElement, platform: str = "android") -> Optional[Selector]:
     """Ranked IR selector (primary + fallbacks) from a crawled element.
 
@@ -129,7 +169,13 @@ def _selector_for(element: CrawlElement, platform: str = "android") -> Optional[
     *visible-text* locator does not: Android wants a uiautomator ``text()``
     selector, whereas iOS has no such thing — it must match the element's
     ``label`` via XPath. So the text tier is rendered per platform.
+
+    A Flutter (Route B) widget — its synthesized class name is ``Flutter*`` — takes
+    the integration-driver finder family instead (see :func:`_flutter_selector_for`),
+    since no native strategy resolves on the Flutter canvas.
     """
+    if (element.class_name or "").startswith("Flutter"):
+        return _flutter_selector_for(element)
     candidates: List[Selector] = []
     label = element.label
     if platform == "ios":

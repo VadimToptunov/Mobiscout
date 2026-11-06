@@ -14,7 +14,7 @@ share one definition of "how a locator looks in WebdriverIO".
 from __future__ import annotations
 
 from framework.codegen.emitters._escape import make_escaper
-from framework.codegen.ir import Selector, SelectorStrategy
+from framework.codegen.ir import FLUTTER_STRATEGIES, Selector, SelectorStrategy, unsupported_flutter
 from framework.codegen.emitters._naming import ios_text_xpath, ua_escape
 
 # Single-quoted JS string literal, safely escaped. Single quotes keep the common
@@ -25,6 +25,8 @@ js_str = make_escaper("'")
 def _wdio_selector(sel: Selector, platform: str = "android") -> str:
     """The raw WebdriverIO selector string for one selector (pre-escaping)."""
     s = sel.strategy
+    if s in FLUTTER_STRATEGIES:
+        raise unsupported_flutter("The WebdriverIO kit")
     if s is SelectorStrategy.ACCESSIBILITY_ID:
         return f"~{sel.value}"
     if s is SelectorStrategy.XPATH:
