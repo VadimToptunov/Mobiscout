@@ -68,6 +68,7 @@ class SystemDoctor:
             ("File Permissions", self._check_permissions),
             ("Appium Server", self._check_appium),
             ("Appium Driver Manager", self._check_driver_manager),
+            ("Flutter Driver (Route B)", self._check_flutter),
             ("Android SDK", self._check_android_sdk),
             ("Connected Devices", self._check_devices),
             ("Configuration Files", self._check_config),
@@ -322,6 +323,31 @@ class SystemDoctor:
             status=CheckStatus.WARN,
             message=reason or driver_manager_remediation(node, npm),
             fix_command=driver_manager_remediation(node, npm),
+        )
+
+    def _check_flutter(self, verbose: bool) -> HealthCheck:
+        """Report whether Flutter Route B can run here: the appium-flutter-integration-driver.
+
+        A Flutter app paints its whole UI into one canvas, so the real widget tree is
+        only reachable through that driver (automationName FlutterIntegration). Optional,
+        like Appium itself: SKIP when Appium is absent (no driver host to diagnose), else
+        PASS when the integration driver is installed, or WARN with an install fix when it
+        is missing or only the deprecated legacy appium-flutter-driver is present.
+        """
+        if not shutil.which("appium"):
+            return HealthCheck(
+                name="Flutter Driver (Route B)",
+                status=CheckStatus.SKIP,
+                message="Appium not found; Route B needs Appium + the Flutter integration driver",
+            )
+        from framework.health.preflight import flutter_route_b_status
+
+        status = flutter_route_b_status()
+        return HealthCheck(
+            name="Flutter Driver (Route B)",
+            status=CheckStatus.PASS if status.level == "pass" else CheckStatus.WARN,
+            message=status.detail,
+            fix_command=status.fix or None,
         )
 
     def _check_android_sdk(self, verbose: bool) -> HealthCheck:
