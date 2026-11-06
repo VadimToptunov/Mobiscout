@@ -249,3 +249,21 @@ class TestModel:
             launch_args=list(data.get("launch_args", [])),
             cases=[TestCase.from_dict(c) for c in data.get("cases", [])],
         )
+
+
+def uses_flutter_finders(model: TestModel) -> bool:
+    """Whether a model locates with Flutter integration-driver finders (Route B) rather
+    than native locators (Route A).
+
+    A ``toolkit == "flutter"`` model can be either: **Route B** (a cooperating build +
+    the integration driver) carries ``FLUTTER_*`` selectors — real widget finders — while
+    **Route A** (a foreign app with no integration driver) carries the native
+    semantics/text locators the app projects into the accessibility tree. The two need
+    different guidance, so the emitters tell them apart by the selector strategies the
+    model actually uses, not by ``toolkit`` alone.
+    """
+
+    def _is_flutter(sel: Selector) -> bool:
+        return sel.strategy in FLUTTER_STRATEGIES or any(_is_flutter(f) for f in sel.fallbacks)
+
+    return any(step.selector is not None and _is_flutter(step.selector) for case in model.cases for step in case.steps)
