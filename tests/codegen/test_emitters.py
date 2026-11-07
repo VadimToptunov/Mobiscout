@@ -599,3 +599,52 @@ def test_flutter_noncapable_targets_refuse(target_id: str, flutter_model: TestMo
         get_emitter(target_id).emit(flutter_model)
     msg = str(exc.value)
     assert "Flutter" in msg and "Python, Java, or Kotlin" in msg, f"{target_id}: unclear refusal: {msg!r}"
+
+
+def test_flutter_route_b_guidance_names_the_integration_driver(flutter_model: TestModel):
+    """A Route B kit (integration-driver finders) must say so — not the deprecated
+    legacy appium-flutter-driver, and not the Route A best-effort caveat."""
+    src = get_emitter("python_pytest").emit(flutter_model)["test_flutter_login_flow.py"]
+    assert "appium-flutter-integration-driver (Route B)" in src
+    assert "Route A" not in src
+    assert "appium-flutter-driver," not in src  # the old, inaccurate legacy-driver caveat
+
+
+def test_flutter_route_a_guidance_is_honest_best_effort():
+    """A foreign Flutter app with no integration driver is Route A: toolkit 'flutter'
+    but native semantics locators. The kit must flag it as best-effort and point to
+    Route B (the integration driver + a cooperating build), via `mobiscout doctor`."""
+    from framework.codegen.ir import (
+        ActionType,
+        AssertionType,
+        Selector,
+        SelectorStrategy,
+        Step,
+        TestCase,
+        TestModel as TM,
+    )
+
+    model = TM(
+        name="FlutterForeignApp",
+        app_package="com.example.foreign",
+        toolkit="flutter",
+        cases=[
+            TestCase(
+                name="home",
+                steps=[
+                    Step(ActionType.LAUNCH, description="Open app"),
+                    Step(
+                        ActionType.ASSERT,
+                        selector=Selector(SelectorStrategy.ACCESSIBILITY_ID, "Settings", score=0.95),
+                        assertion=AssertionType.VISIBLE,
+                        description="Settings is shown",
+                    ),
+                ],
+            )
+        ],
+    )
+    src = get_emitter("python_pytest").emit(model)["test_flutter_foreign_app.py"]
+    assert "Route A" in src
+    assert "appium_flutter_server" in src
+    assert "mobiscout doctor" in src
+    assert "(Route B)" not in src  # the Route B finder caveat must not fire here
