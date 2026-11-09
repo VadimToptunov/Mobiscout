@@ -10,8 +10,10 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.Separator
-import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBTabbedPane
@@ -105,30 +107,39 @@ class MTRToolWindow(private val project: Project) : Disposable {
         daemonStarting = true
         statusLabel.text = "● Starting…"
         statusLabel.foreground = stoppedColor
-        (object : SwingWorker<Boolean, Void>() {
-            override fun doInBackground(): Boolean = daemonService.start()
+        // A background task (not a bare SwingWorker) so the FIRST run — which downloads the
+        // ~85 MB engine binary — shows real progress in the IDE status bar instead of only a
+        // "● Starting…" dot that looks hung on a slow connection.
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Starting the Mobiscout engine", false) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "Preparing the engine (first run downloads it, ~85 MB)…"
+                daemonService.start()
+            }
 
-            override fun done() {
-                daemonStarting = false
-                if (get()) {
-                    daemonRunning = true
-                    statusLabel.text = "● Running"
-                    statusLabel.foreground = runningColor
-                    devicesPanel.refreshDevices()
-                    proPanel.refreshTier()
-                } else {
-                    statusLabel.text = "● Stopped"
-                    statusLabel.foreground = stoppedColor
-                    if (showErrorOnFail) {
-                        // Report the real cause (missing CLI, download failure, health-check
-                        // error), not a blanket "check your internet".
-                        val cause = daemonService.lastStartError
-                            ?: "Check your internet connection and try again."
-                        Notifier.error(project, "Couldn't start the engine", cause)
+            override fun onFinished() {
+                ApplicationManager.getApplication().invokeLater {
+                    daemonStarting = false
+                    if (daemonService.isRunning()) {
+                        daemonRunning = true
+                        statusLabel.text = "● Running"
+                        statusLabel.foreground = runningColor
+                        devicesPanel.refreshDevices()
+                        proPanel.refreshTier()
+                    } else {
+                        statusLabel.text = "● Stopped"
+                        statusLabel.foreground = stoppedColor
+                        if (showErrorOnFail) {
+                            // Report the real cause (missing CLI, download failure, health-check
+                            // error), not a blanket "check your internet".
+                            val cause = daemonService.lastStartError
+                                ?: "Check your internet connection and try again."
+                            Notifier.error(project, "Couldn't start the engine", cause)
+                        }
                     }
                 }
             }
-        }).execute()
+        })
     }
     
     private fun createToolbar() {
@@ -136,7 +147,10 @@ class MTRToolWindow(private val project: Project) : Disposable {
         // hand-rolled row of JButtons: it renders like the rest of the IDE and the
         // actions enable/disable themselves via update() off `daemonRunning`.
         val group = DefaultActionGroup().apply {
-            add(GenerateKitAction())
+            // The primary action is the one registered in plugin.xml (also under Tools ▸
+            // Mobiscout Framework) — add that instance so the toolbar and the menu are the
+            // same action, with its registered text/icon, instead of a forwarder.
+            ActionManager.getInstance().getAction("MTR.GenerateKit")?.let { add(it) }
             add(Separator.getInstance())
             add(StartDaemonAction())
             add(StopDaemonAction())
@@ -153,24 +167,6 @@ class MTRToolWindow(private val project: Project) : Disposable {
             add(statusLabel, BorderLayout.EAST)
         }
         mainPanel.add(bar, BorderLayout.NORTH)
-    }
-
-    /** The primary action — also registered under Tools ▸ Mobiscout Framework. */
-    private inner class GenerateKitAction : AnAction(
-        "Generate Test Kit…",
-        "Generate a runnable test project from a crawl or app",
-        AllIcons.Actions.Execute,
-    ) {
-        override fun getActionUpdateThread() = ActionUpdateThread.EDT
-        override fun actionPerformed(e: AnActionEvent) {
-            // ActionUtil.invokeAction is the sanctioned way to fire a registered
-            // action programmatically — don't call actionPerformed() directly.
-            ActionManager.getInstance().getAction("MTR.GenerateKit")?.let { action ->
-                // Fire it with this action's own event (its data context), the current
-                // non-deprecated invokeAction(action, event, onDone) form.
-                ActionUtil.invokeAction(action, e, null)
-            }
-        }
     }
 
     // Manual restart, for when the auto-start on open didn't catch (offline, then back

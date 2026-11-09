@@ -20,7 +20,7 @@
         <li><strong>🎯 Interactive Control</strong> - Tap the device screen from the IDE, mirrored live</li>
         <li><strong>🧠 Ranked, self-healing selectors</strong> - accessibility-id → resource-id → text, with fallbacks; element types from a hybrid ML + heuristic classifier</li>
         <li><strong>🔄 Interaction Graph</strong> - the app's navigation map, mined into multi-step, form-filling test paths, with structural findings (unreachable / dead-end screens)</li>
-        <li><strong>🌍 Multi-Language</strong> - generate tests in Python, Java, Kotlin and JavaScript, imperative or BDD, flat files or Page-Object structure</li>
+        <li><strong>🌍 Multi-Language</strong> - generate tests in Python, Java, Kotlin, JavaScript, C# or Maestro (pytest / TestNG / JUnit / WebdriverIO / NUnit / YAML flows), imperative or BDD, flat files or Page-Object structure</li>
         <li><strong>🔌 Backends</strong> - Appium (Android UiAutomator2 + iOS XCUITest) and on-device Espresso</li>
         <li><strong>🔐 Gates</strong> - pass login, TOTP/2FA, biometric, QR/document-scan and permission prompts to test behind them</li>
         <li><strong>➕ Only what's new</strong> - generate tests only for what your existing suite doesn't already cover</li>
@@ -52,6 +52,16 @@
     ]]>    </description>
 
     <change-notes><![CDATA[
+    <h3>1.0.0 — first stable release</h3>
+    <ul>
+        <li><b>Engine + plugin reach 1.0 together.</b> Point the IDE at a running app and get
+        a per-screen element inventory, the interaction graph, and runnable tests — in Python,
+        Java, Kotlin, JavaScript, C# or Maestro, imperative or BDD, flat or Page-Object.</li>
+        <li><b>Smoother first run.</b> The one-time engine download now shows progress on the
+        tool-window auto-start, so a slow first download no longer looks like a hang.</li>
+        <li><b>Publish polish.</b> Trimmed change-notes, refreshed the feature list, and removed
+        the last deprecated IntelliJ API usages.</li>
+    </ul>
     <h3>0.14.0 — senior kits, source/API tests, security scanning</h3>
     <ul>
         <li><b>Generated kits rewritten to a senior bar.</b> Page-Object suites by default
@@ -83,253 +93,6 @@
         instead of failing with "No Appium server reachable".</li>
         <li><b>Faster Android-over-Appium crawls</b> via an adaptive settle on native
         screens, plus a safer negative-form probe and a Rust core on PyO3 0.29.</li>
-    </ul>
-    <h3>0.13.2 — find, run, finish (dogfooding fixes)</h3>
-    <ul>
-        <li><b>A partial kit shows its tests.</b> A crawl that ended early used to lead
-        with the device error and bury the output path; it now leads with the tests
-        written + their location and always has an <b>Open folder</b> action, with the
-        reason it stopped last.</li>
-        <li><b>Java/Kotlin kits compile in place.</b> Files now sit under a
-        package-matching <code>mobiscout/</code> directory (a valid source root), instead
-        of a flat file whose path contradicted its package. Package is <code>mobiscout</code>,
-        not <code>generated</code> — the latter is a common <code>.gitignore</code> rule
-        that would swallow your committed tests.</li>
-        <li><b>A slow screen no longer cuts the crawl short.</b> The Android-over-Appium UI
-        dump bound went 20s → 40s (a heavy screen isn't a hang), and the message is honest
-        about the cause instead of always blaming a WebView.</li>
-    </ul>
-    <h3>0.13.1 — Appium starts itself</h3>
-    <ul>
-        <li><b>Generate Kit with the Appium driver no longer needs you to start Appium.</b>
-        It used to fail with "Appium server not reachable at http://localhost:4723" unless
-        you'd started Appium by hand. Now the engine finds your <code>appium</code>, starts
-        it on a free port, uses it, and stops it when done. Not installed? It tells you how.
-        Pointing at a remote/cloud hub that's down still reports a real error. (adb crawls
-        never needed Appium and are unchanged.)</li>
-    </ul>
-    <h3>0.13.0 — more correct kits, deeper crawls</h3>
-    <ul>
-        <li><b>JavaScript kits reset between tests.</b> The WebdriverIO/Cucumber-JS kits
-        shared one session without resetting the app, so a test could inherit an earlier
-        test's state — a flake unique to JS. They now reset like every other target.</li>
-        <li><b>BDD scenarios no longer ship a row that fails by design.</b> A form outline
-        used to add a second, invented data row while its assertions stayed literal, so a
-        sign-in/negative scenario always had one red row. Gone.</li>
-        <li><b>The soft keyboard is dismissed as a screen settles</b> (Kotlin/Java/JS, to
-        match Python), so a raised keyboard can't drop or hide the control the next step
-        asserts on.</li>
-        <li><b>Login-first tab apps are crawled past the first tab.</b> The nav bar is now
-        re-learned after sign-in, instead of only from the (barless) login screen.</li>
-        <li><b>Dialog dismissal no longer misfires</b> on "Book"/"Cookies"/"Unlock" — the
-        "OK"/"Allow" match is whole-word now.</li>
-        <li><b>Coverage now reports targetability</b> — how much of the UI has a stable
-        identity to locate, so you can see where a testTag/accessibilityId would help.</li>
-    </ul>
-    <h3>0.12.9 — real-device Android crawling fixed</h3>
-    <ul>
-        <li><b>Crawling a real Android device (or a cloud grid) over Appium works
-        again.</b> It had started aborting before the first screen with
-        <code>'ClientConfig' object has no attribute 'direct_connection'</code> after a
-        routine Appium client update. The engine now opens the session with Appium's own
-        client config. iOS and the generated test kits were never affected — only the
-        engine's own Android-over-Appium crawl.</li>
-        <li><b>Honest engine version on connect.</b> The engine announced a hardcoded
-        <code>0.5.0</code> to the IDE no matter which build was running; it now reports
-        its real version.</li>
-    </ul>
-    <h3>0.12.8 — faster, steadier kits</h3>
-    <ul>
-        <li><b>One session per file, not per test.</b> A generated kit opened a fresh
-        Appium session for every test, and a session costs about 30&nbsp;seconds to start.
-        The kit now opens one session for the whole file and resets the app's data before
-        each test (about 3&nbsp;seconds) — same isolation, far less waiting. A live
-        Omni-Notes file went from ~12&nbsp;minutes to about 4. Set
-        <code>MOBISCOUT_KEEP_APP_DATA=1</code> to keep app data between tests.</li>
-        <li><b>A realistic startup budget.</b> The Android kit now gives the UiAutomator2
-        server a 90-second launch budget, so a cold emulator no longer fails the whole
-        session before the first test runs.</li>
-    </ul>
-    <h3>0.12.7 — signing in</h3>
-    <ul>
-        <li><b>Two-factor now works.</b> The Generate dialog took only a username and
-        password, so a crawl got past the password and stopped at the code prompt — one
-        screen short of your app. Add your 2FA secret (the Base32 string from the
-        authenticator enrolment) and the crawl passes both gates. The code is computed on
-        your machine and never stored.</li>
-        <li><b>Signing in from the command line</b>: <code>mobiscout crawl</code> gained
-        <code>--login-user</code> and <code>--otp-secret</code> (and their submit-button
-        labels); both secrets can come from environment variables instead.</li>
-        <li>The user guide now documents crawling an app that requires sign-in.</li>
-    </ul>
-    <h3>0.12.6 — tested against five real apps</h3>
-    <ul>
-        <li><b>Kits that could not run at all, now run.</b> A debug build shipping LeakCanary
-        has two launcher icons, which made Android's launcher lookup ambiguous — the crawl
-        could explore <i>the leak viewer instead of your app</i>, and the generated kit
-        failed to start every test. Worse, after resetting app data a kit could end up
-        testing <i>a different app</i> that happened to be on screen. All fixed.</li>
-        <li><b>Web sign-in no longer stops the crawl.</b> A WebView loads its page a moment
-        after the screen appears, so the crawl saw a browser bar, found no login form and
-        turned back — leaving everything behind the login unmapped. It now waits for the
-        page and fills the form.</li>
-        <li><b>iOS kits start from a clean state</b> like Android ones already did. One app
-        went from 0 of 7 tests passing to 9 passing.</li>
-        <li><b>Animated screens</b> (onboarding carousels) no longer fail a test.</li>
-    </ul>
-    <h3>0.12.5 — Compose apps crawl properly now</h3>
-    <ul>
-        <li><b>Jetpack Compose apps used to come back nearly empty.</b> Compose renders every
-        tappable control as an anonymous view whose label sits on a child, so the crawler
-        could see no name for anything. On Google's Sunflower the crawl went from
-        <b>2 screens / 0% of elements</b> to <b>4 screens / 94%</b> — 8 generated tests, all
-        passing against the live app.</li>
-        <li><b>Screens behind a tab bar are reached.</b> Tapping a tab used to strand the
-        crawl and silently drop whatever the previous screen still had to offer. It now walks
-        list → detail → action, so the app's real flows get tested.</li>
-        <li><b>Android tests start from a known state</b>: app data is cleared before each
-        test, so a test no longer fails because of something an earlier run (or the crawl
-        itself) left behind. Keep the device's state with MOBISCOUT_KEEP_APP_DATA=1.</li>
-        <li><b>Guidance on stable locators</b>: when your app offers nothing better, tests
-        locate by visible text — which breaks on a copy change or translation. The report now
-        tells you the one fix for your platform: <code>Modifier.testTag(...)</code> with
-        <code>testTagsAsResourceId</code> in the debug variant (Compose), or
-        <code>.accessibilityIdentifier(...)</code> (iOS).</li>
-    </ul>
-    <h3>0.12.4 — generated tests that actually test</h3>
-    <ul>
-        <li><b>A passing test now means something.</b> A "rejects invalid input" test could
-        go green <i>while the app accepted the bad input</i> — the check was satisfied by the
-        next screen's matching button. Page-object tests could be generated with no
-        assertion at all, "prove" arrival using a logo or app bar shared by every screen, or
-        crash on a perfectly healthy app. All fixed, and the CI harness that runs generated
-        kits now exercises the self-healing fallbacks that hid these.</li>
-        <li><b>Honest results</b>: a crawl that stops on a device failure is reported as a
-        partial kit instead of a finished one; APK analysis and root detection no longer
-        report a confident answer they never actually computed; errored tests no longer
-        disappear from report summaries.</li>
-        <li><b>Deeper crawls</b>: the keyboard is dismissed before a login/OTP is submitted,
-        so gates whose button sat under it now open — and everything behind them is
-        crawled.</li>
-        <li><b>Android reliability</b>: adb failures are surfaced instead of ignored, text
-        with special characters types correctly, scrolling adapts to the real screen size,
-        and a stale screen dump is never reused.</li>
-    </ul>
-    <h3>0.12.3 — kits that compile, reachable gated screens, Windows-safe engine</h3>
-    <ul>
-        <li><b>Generated kits compile on real apps.</b> A label containing a line break, or
-        a screen titled like "2FA Setup", used to produce source that Java, Kotlin, JS,
-        Python or Maestro rejected. Checked against the real toolchains — 11 failures
-        before, none now. BDD kits, smoke kits and page objects were fixed the same way.</li>
-        <li><b>Everything behind a login is tested again</b>: a gate reached mid-crawl left
-        the whole post-auth app marked unreachable with no tests, and gated tests began
-        typing credentials on the launch screen. Both fixed.</li>
-        <li><b>Windows</b>: device names, paths and commands are read as UTF-8 end to end,
-        so a non-ASCII profile folder or device name no longer breaks the engine
-        connection.</li>
-        <li><b>Honest environment reporting</b>: a stale Android SDK path, an emulator that
-        failed to boot, and a missing or slow adb are each reported as what they are
-        instead of passing silently or showing an empty device list.</li>
-        <li><b>Espresso, launch args and the Appium-server override</b> now work in every
-        target, not just Python; the security scanner's TLS check actually detects
-        TLS 1.0/1.1 again; element classification and model training are reproducible, so
-        the same crawl produces the same kit on every machine.</li>
-    </ul>
-    <h3>0.12.2 — project-wide review: safer crawls, sturdier engine, honest UI</h3>
-    <ul>
-        <li><b>Deeper crawls</b>: the screen behind a mid-crawl gate (a login/OTP you tap
-        into) is now explored, not mapped as one dead node; forms are cleared before typing
-        so the invalid and valid passes are both real; a money field revealed by scrolling
-        re-arms the "don't move money" gate.</li>
-        <li><b>Never taps the wrong button</b>: a permission grant (and the blocking-dialog
-        handler) no longer taps "Don't Allow"; onboarding auto-skip no longer treats a
-        form's "Done" as a skip; a stale-coordinate tap after a failed back-out is prevented.</li>
-        <li><b>Sturdier engine</b>: iOS swipe direction fixed; screenshots are platform-aware
-        (a host without adb no longer crashes an iOS capture); a rejected Android tap is an
-        error, not a fake success; the device log stream actually stops when you stop it.</li>
-        <li><b>Tool-window polish</b>: the Generate dialog's collapsed "Advanced" no longer
-        leaves a dead gap; the screen mirror scales to a short window; Live stops and warns
-        once on failure instead of storming; actions report the real cause and never freeze
-        the IDE.</li>
-        <li><b>Honest feature list</b> and a packaging fix so iOS/Appium crawls no longer
-        fail with "No package metadata was found for Appium-Python-Client".</li>
-    </ul>
-    <h3>0.12.1 — crawl-safety follow-ups</h3>
-    <ul>
-        <li>A transfer form whose amount field is identified only by its id (no visible
-        currency symbol or hint word) is now recognised as a money screen, so its
-        Send/Confirm is blocked by default — while OTP, phone-OTP and messaging screens
-        stay crawlable.</li>
-    </ul>
-    <h3>0.12.0 — tool-window polish, safer crawls, hardened engine</h3>
-    <ul>
-        <li><b>Native tool window</b>: the Devices/Screen/Logs/Inspector toolbars are now
-        real IDE ActionToolbars; the Generate dialog groups the rarely-used knobs under a
-        collapsible "Advanced", browses for the output folder, and validates before it runs.</li>
-        <li><b>Honest feedback</b>: the generated kit lands in your project with an "Open
-        folder" action; the progress bar names the phase it is in (booting, installing,
-        crawling); errors are non-modal balloons; the Logs view is bounded and no longer
-        yanks you to the bottom while you read.</li>
-        <li><b>Live screen mirror</b>: a "Live" toggle auto-refreshes while a session is
-        active; the Inspector lets you copy a locator or generate a ranked, self-healing
-        selector for the selected element.</li>
-        <li><b>Never freezes the IDE</b>: every engine call (start, screenshot, …) runs off
-        the UI thread, asserted at the service boundary so a regression fails loudly.</li>
-        <li><b>Safer crawls</b>: a default crawl never taps money-moving controls
-        (Pay/Buy/Transfer/… and Send/Confirm on a screen with a money field) — while OTP
-        "Send code", messaging and email-confirmation flows are still crawled. Use
-        <code>--allow-destructive</code> only on throwaway/sandbox apps.</li>
-        <li><b>Hardened Rust engine</b>: the accelerated core is version-gated across the
-        Python↔Rust seam, so a stale build degrades loudly instead of silently.</li>
-    </ul>
-    <h3>0.11.0 — Maestro, MCP, and crawl intelligence</h3>
-    <ul>
-        <li>New codegen target: <b>Maestro</b> declarative YAML flows (cross-platform, no Appium) —
-        a 9th target alongside Python/Java/Kotlin/JS, imperative and BDD.</li>
-        <li><b>MCP server</b> (<code>mobiscout mcp</code>): drive the engine from an AI agent
-        (Claude, etc.) over the Model Context Protocol — list targets, generate tests from an IR,
-        crawl an app. The engine stays deterministic and offline; no runtime LLM.</li>
-        <li><b>Coverage artifact</b>: every kit now includes coverage.md + coverage.json — what the
-        crawl reached vs what the generated kit tests (reachable / unreachable / gated / dead-end
-        screens, element and screen coverage).</li>
-        <li><b>Diff-aware regeneration</b> (<code>crawl --diff</code> / <code>--only-changed</code>):
-        re-crawl an evolving app and get a CHANGES.md of added/changed/removed tests — regenerate
-        only the delta, not the whole app.</li>
-    </ul>
-    <h3>0.10.0 — one path, zero setup</h3>
-    <ul>
-        <li>Generate now leads with "Detect from project…": point at your repo and it finds the
-        app(s) — Android applicationId, iOS bundle id — and fills the form for you.</li>
-        <li>A project with more than one app (Android + iOS) can be generated in one action,
-        crawled in parallel, each on its own device.</li>
-        <li>No device running? The flow boots one for you — an installed Android emulator or a
-        shut-down iOS simulator — and waits for it, instead of returning an empty crawl. You're
-        only asked when there's genuinely nothing to boot.</li>
-        <li>The device picker auto-matches a running device to the app's platform.</li>
-        <li>The old setup wizard is gone: the engine installs and starts itself in the
-        background, so there's nothing to set up before the first run.</li>
-    </ul>
-    <h3>0.9.1</h3>
-    <ul>
-        <li>Android now works when the IDE is launched from Finder/Dock — the engine resolves
-        the Android SDK onto PATH, so adb/emulator are found (Devices, Boot and crawls
-        no longer silently see no Android device).</li>
-        <li>Generate Test Kit: the device is a dropdown of running devices (pick by name, no
-        more hunting for a UDID); the form leads with the essentials and groups the rest
-        under "Advanced".</li>
-        <li>Devices tab: shows running/connected devices first (no wall of idle simulators),
-        with platform glyphs and colored status.</li>
-        <li>Errors and results now use notification balloons instead of modal pop-ups; a crawl
-        that reaches 0 screens is reported honestly as a warning, not a success.</li>
-    </ul>
-    <h3>0.9.0 — public beta</h3>
-    <ul>
-        <li>First public beta. Point the IDE at a running app and get an element inventory, an
-        interaction graph, and runnable tests, without leaving the IDE.</li>
-        <li>Runnable-project scaffolds for Java (Maven) and Kotlin (Gradle).</li>
-        <li>Anti-flake generated tests: a settle() wait after each transition.</li>
-        <li>Stream app logs and capture crashes into the kit.</li>
-        <li>Native tool-window toolbar and actionable empty states.</li>
     </ul>
     ]]></change-notes>
 

@@ -13,7 +13,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
-import java.io.File
 import java.util.Base64
 import com.mobiletest.recorder.ui.Notifier
 
@@ -63,6 +62,12 @@ class CaptureScreenshotAction : AnAction() {
 
     /** Prompt for a location and write the PNG — on the EDT (the file-save dialog needs it). */
     private fun saveScreenshot(project: Project, imageBytes: ByteArray) {
+        // The (title, description, vararg extensions) constructor is @Deprecated (not
+        // for-removal) from 252 on. Its non-deprecated replacements — the (String, String)
+        // and single-String (String, String, String) constructors — don't exist at our
+        // sinceBuild floor (243 / 2024.3); a (title, description) call there still binds to
+        // this vararg ctor. So it stays until the floor rises above 243. The verifier reports
+        // it as "1 usage of deprecated API" and remains Compatible.
         val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot", "png")
         val saveDialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
         // Cast the null baseDir to disambiguate the VirtualFile? vs Path? save() overloads.
