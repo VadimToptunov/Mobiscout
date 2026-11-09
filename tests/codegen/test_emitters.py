@@ -29,10 +29,20 @@ GOLDEN_DIR = Path(__file__).parent / "golden"
 TARGET_IDS = [t.id for t in available_targets()]
 
 # javac without the Appium/TestNG/Selenium jars on the classpath can only fail
-# on dependency resolution, never on syntax. So we accept those two error
-# classes and treat anything else (';' expected, illegal start, ...) as a real
-# syntax defect in the generated source.
-_JAVAC_DEP_ERROR = re.compile(r"error:\s+(cannot find symbol|package \S+ does not exist)")
+# on dependency resolution, never on syntax. So we accept those error classes
+# and treat anything else (';' expected, illegal start, ...) as a real syntax
+# defect in the generated source.
+#
+# "cannot infer type arguments for X<>" is a *cascade* of a missing symbol: when
+# a diamond's target type references an unresolved type (e.g. Map<String, By[]>
+# where By isn't on the classpath), JDK 25's javac reports both "cannot find
+# symbol" and this inference error, where JDK <=21 reported only the former. The
+# generated code is valid — `Map<..> x = new HashMap<>()` compiles once deps are
+# present (where this gate short-circuits on returncode 0) — so the inference
+# error here is a dependency artifact, not a template defect.
+_JAVAC_DEP_ERROR = re.compile(
+    r"error:\s+(cannot find symbol|package \S+ does not exist" r"|incompatible types: cannot infer type arguments for )"
+)
 
 
 def _java_syntax_ok(java_file: Path) -> None:
@@ -483,3 +493,158 @@ def test_espresso_annotates_unsupported_xpath():
     code = next(iter(out.values()))
     assert "SKIPPED — Espresso has no XPath" in code
     assert "onView(" not in code  # no broken locator emitted
+
+
+# --- Flutter (Route B) codegen -------------------------------------------------
+#
+# A Flutter app paints into one canvas, so the only locators that resolve at
+# runtime are the appium-flutter-integration-driver's own finders. The Appium
+# Python and Java/Kotlin kits bind them; the rest cannot and must refuse rather
+# than emit a native locator that would silently never match on the canvas.
+
+# Targets whose client library exposes a published Flutter-integration finder API.
+_FLUTTER_TARGETS = ["python_pytest", "python_pytest_bdd", "java_testng", "java_cucumber", "kotlin_appium"]
+# Registered targets that cannot drive a Flutter canvas (native kit, or no finder binding).
+_FLUTTER_NONCAPABLE = ["js_webdriverio", "js_cucumber", "kotlin_espresso", "maestro"]
+
+# The exact finder tokens each language must emit. These are the published client
+# bindings for the integration driver's "-flutter key | semantics label | text |
+# type" W3C strategies — the external anchor for this feature:
+#   * Appium Python client: AppiumBy.FLUTTER_INTEGRATION_* constants.
+#   * Appium java-client (Java + Kotlin): AppiumBy.flutter* factory methods.
+_FLUTTER_TOKENS = {
+    "python_pytest": [
+        "AppiumBy.FLUTTER_INTEGRATION_KEY",
+        "AppiumBy.FLUTTER_INTEGRATION_SEMANTICS_LABEL",
+        "AppiumBy.FLUTTER_INTEGRATION_TEXT",
+        "AppiumBy.FLUTTER_INTEGRATION_TYPE",
+    ],
+    "python_pytest_bdd": [
+        "AppiumBy.FLUTTER_INTEGRATION_KEY",
+        "AppiumBy.FLUTTER_INTEGRATION_SEMANTICS_LABEL",
+        "AppiumBy.FLUTTER_INTEGRATION_TEXT",
+        "AppiumBy.FLUTTER_INTEGRATION_TYPE",
+    ],
+    "java_testng": [
+        "AppiumBy.flutterKey(",
+        "AppiumBy.flutterSemanticsLabel(",
+        "AppiumBy.flutterText(",
+        "AppiumBy.flutterType(",
+    ],
+    "java_cucumber": [
+        "AppiumBy.flutterKey(",
+        "AppiumBy.flutterSemanticsLabel(",
+        "AppiumBy.flutterText(",
+        "AppiumBy.flutterType(",
+    ],
+    "kotlin_appium": [
+        "AppiumBy.flutterKey(",
+        "AppiumBy.flutterSemanticsLabel(",
+        "AppiumBy.flutterText(",
+        "AppiumBy.flutterType(",
+    ],
+}
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_TARGETS)
+def test_flutter_emitter_golden(target_id: str, flutter_model: TestModel):
+    """Flutter-capable targets pin their output under golden/<target>/flutter/."""
+    out = get_emitter(target_id).emit(flutter_model)
+    assert out, f"{target_id} emitted no files for a Flutter model"
+    for path, content in out.items():
+        _check_golden(f"{target_id}/flutter/{path}", content)
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_TARGETS)
+def test_flutter_generated_source_is_valid(target_id: str, flutter_model: TestModel, tmp_path):
+    """Generated Flutter source must be syntactically valid for its language, the
+    same gate the native model uses."""
+    out = get_emitter(target_id).emit(flutter_model)
+    checked = 0
+    for path, content in out.items():
+        f = tmp_path / path
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(content, encoding="utf-8", newline="\n")
+        if path.endswith(".py"):
+            py_compile.compile(str(f), doraise=True)
+            checked += 1
+        elif path.endswith(".java"):
+            _java_syntax_ok(f)
+            checked += 1
+        elif path.endswith(".kt"):
+            _kotlin_syntax_ok(f)
+            checked += 1
+    assert checked, f"{target_id} produced no source to validate"
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_TARGETS)
+def test_flutter_finders_use_published_client_api(target_id: str, flutter_model: TestModel):
+    """Every tier (key/semantics/text/type) is emitted through the published Appium
+    client binding for the integration driver — the external anchor for the feature."""
+    src = "\n".join(get_emitter(target_id).emit(flutter_model).values())
+    for token in _FLUTTER_TOKENS[target_id]:
+        assert token in src, f"{target_id}: missing published Flutter finder {token!r}"
+    # The Flutter selectors themselves never fall back to a native strategy (which
+    # would not resolve on the canvas) — proved rigorously at the IR level in
+    # tests/test_flutter_selector.py::test_flutter_selectors_are_a_closed_family.
+    # (The generated POM still carries a generic UiAutomator scrollIntoView helper,
+    # which is scaffolding, not a widget locator, so it is not asserted against here.)
+
+
+@pytest.mark.parametrize("target_id", _FLUTTER_NONCAPABLE)
+def test_flutter_noncapable_targets_refuse(target_id: str, flutter_model: TestModel):
+    """A kit that cannot drive Flutter fails loudly with an actionable message,
+    rather than silently emitting locators that never resolve on the canvas."""
+    with pytest.raises(ValueError) as exc:
+        get_emitter(target_id).emit(flutter_model)
+    msg = str(exc.value)
+    assert "Flutter" in msg and "Python, Java, or Kotlin" in msg, f"{target_id}: unclear refusal: {msg!r}"
+
+
+def test_flutter_route_b_guidance_names_the_integration_driver(flutter_model: TestModel):
+    """A Route B kit (integration-driver finders) must say so — not the deprecated
+    legacy appium-flutter-driver, and not the Route A best-effort caveat."""
+    src = get_emitter("python_pytest").emit(flutter_model)["test_flutter_login_flow.py"]
+    assert "appium-flutter-integration-driver (Route B)" in src
+    assert "Route A" not in src
+    assert "appium-flutter-driver," not in src  # the old, inaccurate legacy-driver caveat
+
+
+def test_flutter_route_a_guidance_is_honest_best_effort():
+    """A foreign Flutter app with no integration driver is Route A: toolkit 'flutter'
+    but native semantics locators. The kit must flag it as best-effort and point to
+    Route B (the integration driver + a cooperating build), via `mobiscout doctor`."""
+    from framework.codegen.ir import (
+        ActionType,
+        AssertionType,
+        Selector,
+        SelectorStrategy,
+        Step,
+        TestCase,
+        TestModel as TM,
+    )
+
+    model = TM(
+        name="FlutterForeignApp",
+        app_package="com.example.foreign",
+        toolkit="flutter",
+        cases=[
+            TestCase(
+                name="home",
+                steps=[
+                    Step(ActionType.LAUNCH, description="Open app"),
+                    Step(
+                        ActionType.ASSERT,
+                        selector=Selector(SelectorStrategy.ACCESSIBILITY_ID, "Settings", score=0.95),
+                        assertion=AssertionType.VISIBLE,
+                        description="Settings is shown",
+                    ),
+                ],
+            )
+        ],
+    )
+    src = get_emitter("python_pytest").emit(model)["test_flutter_foreign_app.py"]
+    assert "Route A" in src
+    assert "appium_flutter_server" in src
+    assert "mobiscout doctor" in src
+    assert "(Route B)" not in src  # the Route B finder caveat must not fire here
