@@ -324,6 +324,53 @@ def required_driver(platform: str) -> str:
     return "xcuitest" if platform.lower() == "ios" else "uiautomator2"
 
 
+# Flutter Route B is served by the appium-flutter-integration-driver, whose
+# driverName is "flutter-integration" (automationName "FlutterIntegration"). The
+# legacy, deprecated appium-flutter-driver registers as "flutter" — a DIFFERENT
+# name that does not serve Route B. Both can appear in `appium driver list`, so
+# they are matched exactly, never as a "flutter" substring.
+FLUTTER_INTEGRATION_DRIVER = "flutter-integration"
+_LEGACY_FLUTTER_DRIVER = "flutter"
+FLUTTER_INTEGRATION_INSTALL = "appium driver install --source npm appium-flutter-integration-driver"
+
+
+def flutter_route_b_status(drivers: Optional[Dict[str, str]] = None) -> PreflightResult:
+    """Whether this machine can drive a Flutter app over Route B (the real widget tree).
+
+    Route B needs the appium-flutter-integration-driver (driverName
+    ``flutter-integration``). The legacy appium-flutter-driver (``flutter``) is
+    deprecated and does NOT serve it; the two names are matched exactly (both can
+    co-occur in ``appium driver list``). ``drivers`` (``{name: version}``) is
+    injectable for tests; by default it reads :func:`installed_appium_drivers`.
+
+    Never a hard failure (``ok=True``): Flutter support is optional, like Appium
+    itself — ``pass`` when the integration driver is present, else ``warn`` with the
+    install command as the fix.
+    """
+    if drivers is None:
+        drivers = installed_appium_drivers()
+    if FLUTTER_INTEGRATION_DRIVER in drivers:
+        ver = drivers[FLUTTER_INTEGRATION_DRIVER]
+        detail = f"{FLUTTER_INTEGRATION_DRIVER} installed" + (f" (v{ver})" if ver else "")
+        return PreflightResult("Flutter driver", True, "pass", detail)
+    if _LEGACY_FLUTTER_DRIVER in drivers:
+        return PreflightResult(
+            "Flutter driver",
+            True,
+            "warn",
+            "only the legacy appium-flutter-driver ('flutter') is installed — it is "
+            "deprecated and does not serve Route B (the real widget tree)",
+            fix=FLUTTER_INTEGRATION_INSTALL,
+        )
+    return PreflightResult(
+        "Flutter driver",
+        True,
+        "warn",
+        "the Flutter integration driver is not installed (Route B needs it to read the widget tree)",
+        fix=FLUTTER_INTEGRATION_INSTALL,
+    )
+
+
 def _check_android_home(results: List[PreflightResult]) -> None:
     """Append the ANDROID_HOME check, self-healing this process's env when possible."""
     pre_set = _env_android_home()
