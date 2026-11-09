@@ -35,14 +35,6 @@ class ProPanel(
             "`mobiscout grid run <kit> --provider … --device …` (credentials from env vars, nothing stored).",
     )
 
-    // The premium layer (Mobiscout-PRO).
-    private val features = listOf(
-        "TestRail reporting" to "Push a run's results into TestRail, one result per case.",
-        "Crawl dashboards" to "A shareable, self-contained HTML report of a crawl.",
-        "Network mocking" to "Deterministic offline responses (WireMock) — no flaky backend.",
-        "Auto re-crawl → PR" to "Diff a fresh crawl against your tests → a ready git patch + PR.",
-    )
-
     init {
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -61,14 +53,6 @@ class ProPanel(
         content.add(left(JBLabel("<html><b>Available now</b></html>")))
         content.add(Box.createVerticalStrut(6))
         for ((name, desc) in available) {
-            content.add(left(JBLabel("<html><b>$name</b> — $desc</html>")))
-            content.add(Box.createVerticalStrut(6))
-        }
-        content.add(Box.createVerticalStrut(8))
-
-        content.add(left(JBLabel("<html><b>Mobiscout PRO (planned)</b></html>")))
-        content.add(Box.createVerticalStrut(6))
-        for ((name, desc) in features) {
             content.add(left(JBLabel("<html><b>$name</b> — $desc</html>")))
             content.add(Box.createVerticalStrut(6))
         }

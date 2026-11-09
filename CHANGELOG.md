@@ -7,6 +7,24 @@ project adheres to [Semantic Versioning](https://semver.org/). Versioned release
 began at 0.9.0; everything before that is summarised under *Pre-release
 development*, whose authoritative record is the PR-linked git history.
 
+## [1.0.0] — 2026-11-09
+
+First stable release. The engine and the JetBrains plugin reach 1.0 together: point the IDE
+at a running app and get a per-screen element inventory, the interaction graph, and runnable
+tests — in Python, Java, Kotlin, JavaScript, C# or Maestro, imperative or BDD, flat or
+Page-Object — without leaving the IDE. Local-first, no servers.
+
+### Changed
+- Plugin publish polish: trimmed the inline change-notes, refreshed the Marketplace
+  description to the full language set (adds C#, Maestro, WebdriverIO), removed dead engine
+  wrappers and the two deprecated IntelliJ API usages the verifier flagged.
+- First-run experience: the engine download now shows progress on the tool-window auto-start
+  path (not just a status dot), so a slow first download no longer looks like a hang.
+- The PRO tab lists only what ships today (the cloud device grid) and the active tier; the
+  unbuilt "planned" features are off the free listing.
+
+See the 0.x entries below for the feature history that led here.
+
 ## [0.14.0] — 2026-10-04
 
 The big one: generated kits are rewritten to a senior bar, the source/API test path is

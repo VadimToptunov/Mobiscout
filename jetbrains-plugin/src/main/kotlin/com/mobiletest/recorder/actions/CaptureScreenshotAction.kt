@@ -13,7 +13,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.services.MTRToolWindowService
-import java.io.File
 import java.util.Base64
 import com.mobiletest.recorder.ui.Notifier
 
@@ -63,7 +62,10 @@ class CaptureScreenshotAction : AnAction() {
 
     /** Prompt for a location and write the PNG — on the EDT (the file-save dialog needs it). */
     private fun saveScreenshot(project: Project, imageBytes: ByteArray) {
-        val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot", "png")
+        // 2-arg constructor + withExtensionFilter is the non-deprecated form (the
+        // (title, description, vararg extensions) ctor is @Deprecated from 2024.3 on).
+        val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot")
+            .withExtensionFilter("PNG", "png")
         val saveDialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
         // Cast the null baseDir to disambiguate the VirtualFile? vs Path? save() overloads.
         val fileWrapper = saveDialog.save(null as VirtualFile?, "screenshot.png") ?: return
