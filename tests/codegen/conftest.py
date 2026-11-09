@@ -61,3 +61,63 @@ def login_model() -> TestModel:
             )
         ],
     )
+
+
+@pytest.fixture()
+def flutter_model() -> TestModel:
+    """A Flutter (Route B) login flow exercising every integration-driver finder
+    tier — ValueKey, semantics label, visible text and bare widget type — plus a
+    Flutter-only fallback chain. Pins the Flutter-capable emitters' output and the
+    scoring order (ValueKey > semantics > text > type)."""
+    return TestModel(
+        name="FlutterLoginFlow",
+        app_package="com.example.flutterapp",
+        app_activity=".MainActivity",
+        description="Generated Flutter (Route B) login flow used for golden tests.",
+        toolkit="flutter",
+        cases=[
+            TestCase(
+                name="login",
+                description="User can log in with valid credentials",
+                steps=[
+                    Step(ActionType.LAUNCH, description="Open app"),
+                    Step(
+                        ActionType.TYPE,
+                        # ValueKey wins over the semantics-label fallback.
+                        selector=Selector(
+                            SelectorStrategy.FLUTTER_KEY,
+                            "email_field",
+                            score=0.95,
+                            fallbacks=[Selector(SelectorStrategy.FLUTTER_SEMANTICS, "Email", score=0.9)],
+                        ),
+                        text="alice@example.com",
+                        description="Enter email",
+                    ),
+                    Step(
+                        ActionType.TAP,
+                        # No key: semantics label, falling back to the visible text.
+                        selector=Selector(
+                            SelectorStrategy.FLUTTER_SEMANTICS,
+                            "Log in",
+                            score=0.9,
+                            fallbacks=[Selector(SelectorStrategy.FLUTTER_TEXT, "Log in", score=0.6)],
+                        ),
+                        description="Tap login",
+                    ),
+                    Step(ActionType.WAIT, timeout=3, description="Wait for home"),
+                    Step(
+                        ActionType.TAP,
+                        # Nothing but a widget type — the last-resort positional tier.
+                        selector=Selector(SelectorStrategy.FLUTTER_TYPE, "IconButton", score=0.3),
+                        description="Open the menu",
+                    ),
+                    Step(
+                        ActionType.ASSERT,
+                        selector=Selector(SelectorStrategy.FLUTTER_TEXT, "Welcome", score=0.6),
+                        assertion=AssertionType.VISIBLE,
+                        description="Welcome message shown",
+                    ),
+                ],
+            )
+        ],
+    )
