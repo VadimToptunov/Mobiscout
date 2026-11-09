@@ -2,11 +2,11 @@ package com.mobiletest.recorder.ui.panels
 
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.project.Project
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
 import com.mobiletest.recorder.services.MTRDaemonService
+import com.mobiletest.recorder.ui.MtrColors
 import java.awt.BorderLayout
 import java.awt.Component
 import javax.swing.Box
@@ -44,7 +44,7 @@ class ProPanel(
         content.add(left(JBLabel("<html><b>Mobiscout PRO</b></html>")))
         content.add(Box.createVerticalStrut(2))
         content.add(left(JBLabel("The premium layer over the open-core engine.").apply {
-            foreground = JBColor(0x9E9E9E, 0x808080)
+            foreground = MtrColors.idle
         }))
         content.add(Box.createVerticalStrut(8))
         content.add(left(tierLabel))

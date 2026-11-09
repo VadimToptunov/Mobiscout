@@ -116,16 +116,7 @@ class LogsPanel(
         daemonService.addNotificationListener(logListener)
     }
 
-    private fun loadDevices() {
-        (object : SwingWorker<List<DeviceItem>, Void>() {
-            override fun doInBackground(): List<DeviceItem> = DeviceList.load("all")
-
-            override fun done() {
-                deviceCombo.removeAllItems()
-                get().forEach { deviceCombo.addItem(it) }
-            }
-        }).execute()
-    }
+    private fun loadDevices() = DeviceList.populateCombo(deviceCombo)
 
     private fun startAppLogs() {
         val selected = deviceCombo.selectedItem as? DeviceItem

@@ -15,7 +15,6 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import com.intellij.ui.JBColor
 import com.intellij.ui.components.JBTabbedPane
 import com.intellij.util.ui.JBUI
 import com.mobiletest.recorder.services.MTRDaemonService
@@ -42,10 +41,9 @@ class MTRToolWindow(private val project: Project) : Disposable {
     
     private val mainPanel = JPanel(BorderLayout())
 
-    // Theme-aware status colours (a hardcoded Color.GREEN/RED washes out in the
-    // Darcula/dark themes); JBColor picks the right shade per theme.
-    private val runningColor = JBColor(0x2E7D32, 0x6A8759)
-    private val stoppedColor = JBColor(0x9E9E9E, 0x808080)
+    // Theme-aware status colours shared with the panels (see MtrColors).
+    private val runningColor = MtrColors.ready
+    private val stoppedColor = MtrColors.idle
     private val statusLabel = JLabel("● Stopped").apply { foreground = stoppedColor }
 
     // Single source of truth for the daemon state so the toolbar actions can
