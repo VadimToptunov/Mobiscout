@@ -90,7 +90,7 @@ def test_run_all_checks_and_report(tmp_path, monkeypatch):
 
     doctor = _doctor()
     checks = doctor.run_all_checks(verbose=False)
-    assert len(checks) == 11  # + Native Core (V1)
+    assert len(checks) == 12  # + Native Core (V1), + Flutter Driver (Route B)
     assert all(isinstance(c, HealthCheck) for c in checks)
 
     passed, failed, warned, skipped = doctor.generate_report()
@@ -291,3 +291,50 @@ def test_generate_report_counts_each_status():
         HealthCheck("e", CheckStatus.PASS, "ok"),
     ]
     assert doctor.generate_report() == (2, 1, 1, 1)
+
+
+# --- Flutter Route B driver check ---------------------------------------------
+
+
+def test_flutter_check_skips_when_appium_absent(monkeypatch):
+    # No Appium on PATH -> nothing to diagnose, so the check SKIPs (never FAILs).
+    monkeypatch.setattr("framework.health.doctor.shutil.which", lambda _: None)
+    check = _doctor()._check_flutter(verbose=False)
+    assert check.status == CheckStatus.SKIP
+    assert "Appium not found" in check.message
+
+
+def test_flutter_check_passes_when_integration_driver_installed(monkeypatch):
+    monkeypatch.setattr("framework.health.doctor.shutil.which", lambda _: "/usr/local/bin/appium")
+    monkeypatch.setattr(
+        "framework.health.preflight.installed_appium_drivers",
+        lambda: {"uiautomator2": "2.34.1", "flutter-integration": "2.0.3"},
+    )
+    check = _doctor()._check_flutter(verbose=False)
+    assert check.status == CheckStatus.PASS
+    assert "flutter-integration" in check.message
+    assert check.fix_command is None
+
+
+def test_flutter_check_warns_when_driver_missing(monkeypatch):
+    monkeypatch.setattr("framework.health.doctor.shutil.which", lambda _: "/usr/local/bin/appium")
+    monkeypatch.setattr(
+        "framework.health.preflight.installed_appium_drivers",
+        lambda: {"uiautomator2": "2.34.1"},
+    )
+    check = _doctor()._check_flutter(verbose=False)
+    assert check.status == CheckStatus.WARN
+    assert "appium-flutter-integration-driver" in (check.fix_command or "")
+
+
+def test_flutter_check_warns_on_legacy_driver_only(monkeypatch):
+    # The deprecated appium-flutter-driver ('flutter') is NOT a substitute for Route B.
+    monkeypatch.setattr("framework.health.doctor.shutil.which", lambda _: "/usr/local/bin/appium")
+    monkeypatch.setattr(
+        "framework.health.preflight.installed_appium_drivers",
+        lambda: {"flutter": "4.1.0"},
+    )
+    check = _doctor()._check_flutter(verbose=False)
+    assert check.status == CheckStatus.WARN
+    assert "legacy" in check.message.lower()
+    assert "appium-flutter-integration-driver" in (check.fix_command or "")

@@ -2,6 +2,8 @@ package com.mobiletest.recorder.ui
 
 import com.intellij.openapi.application.ApplicationManager
 import com.mobiletest.recorder.services.MTRDaemonService
+import javax.swing.JComboBox
+import javax.swing.SwingWorker
 
 /**
  * One device as the engine reports it. [toString] is the combo label; the id and platform
@@ -41,5 +43,19 @@ object DeviceList {
                 d.get("status")?.asString ?: "",
             )
         }
+    }
+
+    /** Reload [combo] with the devices off the EDT (the enumeration can take seconds), then
+     *  repopulate on the EDT. The one loader the Screen and Logs panels share instead of
+     *  hand-rolling the same SwingWorker each. */
+    fun populateCombo(combo: JComboBox<DeviceItem>) {
+        (object : SwingWorker<List<DeviceItem>, Void>() {
+            override fun doInBackground(): List<DeviceItem> = load("all")
+
+            override fun done() {
+                combo.removeAllItems()
+                get().forEach { combo.addItem(it) }
+            }
+        }).execute()
     }
 }

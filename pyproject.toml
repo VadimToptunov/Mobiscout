@@ -9,7 +9,7 @@ name = "mobiscout"
 # three releases behind: the wheel a release builds then self-identifies with the old
 # version and `pip install "mobiscout>=0.12"` can't resolve it. tests/test_packaging.py
 # now fails if it drifts again.
-version = "0.14.0"
+version = "1.0.0"
 description = "Intelligent Mobile Testing Platform - Scout, Analyze, Automate"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -39,7 +39,7 @@ dependencies = [
     "selenium>=4.15.0,<5.0.0",
     "argon2-cffi>=23.1.0",
     "pytest>=8.0.0,<10.0.0",
-    "pytest-bdd>=6.1.0",
+    "pytest-bdd>=9.0.1",
 ]
 
 [project.optional-dependencies]

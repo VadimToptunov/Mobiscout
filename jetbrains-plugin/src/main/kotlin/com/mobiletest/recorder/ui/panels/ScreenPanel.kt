@@ -17,6 +17,7 @@ import com.intellij.ui.components.JBTextField
 import com.mobiletest.recorder.services.MTRDaemonService
 import com.mobiletest.recorder.ui.DeviceItem
 import com.mobiletest.recorder.ui.DeviceList
+import com.mobiletest.recorder.ui.MtrColors
 import com.mobiletest.recorder.ui.Notifier
 import java.awt.*
 import java.awt.event.MouseAdapter
@@ -87,24 +88,16 @@ class ScreenPanel(
             currentImage?.let { img ->
                 val g2d = g as Graphics2D
                 g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-                
-                // Scale to fit panel
-                val scale = minOf(
-                    width.toDouble() / img.width,
-                    height.toDouble() / img.height
-                )
-                val scaledWidth = (img.width * scale).toInt()
-                val scaledHeight = (img.height * scale).toInt()
-                val x = (width - scaledWidth) / 2
-                val y = (height - scaledHeight) / 2
-                
-                g2d.drawImage(img, x, y, scaledWidth, scaledHeight, null)
+                // The SAME fit the click handler maps taps through, so the drawn frame and the
+                // tap target can't drift apart.
+                val fit = fitImage(img, width, height)
+                g2d.drawImage(img, fit.offsetX, fit.offsetY, fit.width, fit.height, null)
             }
             if (currentImage == null) {
                 // Empty state: guide the user instead of showing a blank dark panel.
                 val g2d = g as Graphics2D
                 g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
-                g2d.color = JBColor(0x9E9E9E, 0x808080)
+                g2d.color = MtrColors.idle
                 val msg = "Load a device and Start Session to mirror the screen"
                 val fm = g2d.fontMetrics
                 g2d.drawString(msg, (width - fm.stringWidth(msg)) / 2, height / 2)
@@ -120,22 +113,13 @@ class ScreenPanel(
         // Handle clicks on image
         imagePanel.addMouseListener(object : MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
-                if (currentImage != null && currentSessionId != null) {
-                    // Convert screen coords to device coords
-                    val scale = minOf(
-                        imagePanel.width.toDouble() / currentImage!!.width,
-                        imagePanel.height.toDouble() / currentImage!!.height
-                    )
-                    val scaledWidth = (currentImage!!.width * scale).toInt()
-                    val scaledHeight = (currentImage!!.height * scale).toInt()
-                    val offsetX = (imagePanel.width - scaledWidth) / 2
-                    val offsetY = (imagePanel.height - scaledHeight) / 2
-                    
-                    val deviceX = ((e.x - offsetX) / scale).toInt()
-                    val deviceY = ((e.y - offsetY) / scale).toInt()
-                    
-                    if (deviceX >= 0 && deviceY >= 0 && 
-                        deviceX < currentImage!!.width && deviceY < currentImage!!.height) {
+                val img = currentImage
+                if (img != null && currentSessionId != null) {
+                    // Map the click back to device pixels through the same fit paintComponent draws.
+                    val fit = fitImage(img, imagePanel.width, imagePanel.height)
+                    val deviceX = ((e.x - fit.offsetX) / fit.scale).toInt()
+                    val deviceY = ((e.y - fit.offsetY) / fit.scale).toInt()
+                    if (deviceX >= 0 && deviceY >= 0 && deviceX < img.width && deviceY < img.height) {
                         performTap(deviceX, deviceY)
                     }
                 }
@@ -275,15 +259,18 @@ class ScreenPanel(
         }
     }
 
-    private fun loadDevices() {
-        (object : SwingWorker<List<DeviceItem>, Void>() {
-            override fun doInBackground(): List<DeviceItem> = DeviceList.load("all")
+    private fun loadDevices() = DeviceList.populateCombo(deviceCombo)
 
-            override fun done() {
-                deviceCombo.removeAllItems()
-                get().forEach { deviceCombo.addItem(it) }
-            }
-        }).execute()
+    /** How the device frame scales to fit an [areaW]×[areaH] viewport, and where it sits — the
+     *  one computation paintComponent (to draw) and the click handler (to map a tap back to
+     *  device pixels) share, so the drawn frame and the tap target never drift. */
+    private class Fit(val scale: Double, val offsetX: Int, val offsetY: Int, val width: Int, val height: Int)
+
+    private fun fitImage(img: BufferedImage, areaW: Int, areaH: Int): Fit {
+        val scale = minOf(areaW.toDouble() / img.width, areaH.toDouble() / img.height)
+        val w = (img.width * scale).toInt()
+        val h = (img.height * scale).toInt()
+        return Fit(scale, (areaW - w) / 2, (areaH - h) / 2, w, h)
     }
 
     private fun startSession(device: DeviceItem, appId: String, server: String, launchArgsText: String) {
