@@ -27,6 +27,13 @@ APPIUM_BY = {
     # iOS has no UiAutomator; a TEXT selector is rendered as an XPath-by-label
     # instead (see by_value / locator_value), so this entry is Android-only.
     SelectorStrategy.TEXT: "AppiumBy.ANDROID_UIAUTOMATOR",
+    # Flutter Route B — appium-flutter-integration-driver finders. These AppiumBy
+    # members carry the W3C strategy strings "-flutter key" / "-flutter semantics
+    # label" / "-flutter text" / "-flutter type"; the raw value needs no wrapping.
+    SelectorStrategy.FLUTTER_KEY: "AppiumBy.FLUTTER_INTEGRATION_KEY",
+    SelectorStrategy.FLUTTER_SEMANTICS: "AppiumBy.FLUTTER_INTEGRATION_SEMANTICS_LABEL",
+    SelectorStrategy.FLUTTER_TEXT: "AppiumBy.FLUTTER_INTEGRATION_TEXT",
+    SelectorStrategy.FLUTTER_TYPE: "AppiumBy.FLUTTER_INTEGRATION_TYPE",
 }
 
 

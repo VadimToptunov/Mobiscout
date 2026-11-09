@@ -15,7 +15,7 @@ from framework.codegen.emitters._naming import snake
 from framework.codegen.emitters._naming import ua_escape
 from framework.codegen.emitters._python_common import by_value, keycode, py_str
 from framework.codegen.emitters.base import Emitter
-from framework.codegen.ir import Selector, Step, TestModel
+from framework.codegen.ir import Selector, Step, TestModel, uses_flutter_finders
 from framework.codegen.targets import Target, register
 from framework.core.engine import Language
 
@@ -72,7 +72,9 @@ class PythonPytestEmitter(Emitter):
         self._platform = model.platform.value
         test_data = self._build_test_data(model)
         template = self.env.get_template("test_file.py.j2")
-        content = template.render(model=model, test_data=test_data)
+        # Route B (integration-driver finders) vs Route A (native semantics) need
+        # different guidance, and both carry toolkit == "flutter" — see the caveat block.
+        content = template.render(model=model, test_data=test_data, flutter_route_b=uses_flutter_finders(model))
         return {f"test_{snake(model.name)}.py": content}
 
 

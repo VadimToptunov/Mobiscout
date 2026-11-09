@@ -237,8 +237,6 @@ class MTRDaemonService : Disposable {
         return client?.call(method, params)?.getResultOrThrow()
     }
 
-    fun healthCheck(): JsonObject? = rpc("health/check")
-
     fun listDevices(platform: String = "all"): JsonObject? = rpc("device/list", mapOf("platform" to platform))
 
     /** Start streaming the app-under-test's device logs; each line arrives as a
@@ -283,17 +281,8 @@ class MTRDaemonService : Disposable {
      *  project's Start heals instead of claiming to still be streaming. */
     fun ownsLogStream(owner: Any): Boolean = logStreamOwner === owner
 
-    fun getUiTree(sessionId: String): JsonObject? = rpc("ui/getTree", mapOf("session_id" to sessionId))
-
     fun getScreenshot(sessionId: String, format: String = "png"): JsonObject? =
         rpc("ui/getScreenshot", mapOf("session_id" to sessionId, "format" to format))
-
-    /**
-     * Detect the automation toolchain (Appium, adb/Android SDK, drivers, Xcode)
-     * so the setup wizard can tell the user what to fix before crawling — e.g.
-     * the ANDROID_HOME an UiAutomator2 Appium session needs. Runs no device.
-     */
-    fun detectEnvironment(): JsonObject? = rpc("environment/detect")
 
     /** Boot an emulator/simulator so a session can start on it. */
     fun startDevice(platform: String, target: String): JsonObject? =

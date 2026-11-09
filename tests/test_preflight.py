@@ -9,11 +9,13 @@ status probe over a stubbed HTTP seam, driver-list parsing, and the aggregate
 
 import framework.health.preflight as pf
 from framework.health.preflight import (
+    FLUTTER_INTEGRATION_DRIVER,
     PreflightResult,
     appium_status,
     driver_manager_healthy,
     driver_manager_remediation,
     ensure_android_home,
+    flutter_route_b_status,
     installed_appium_drivers,
     node_npm_versions,
     preflight,
@@ -348,3 +350,45 @@ def test_preflight_ios_needs_no_android_home(monkeypatch):
     names = {r.name for r in results}
     assert "ANDROID_HOME" not in names
     assert "Appium driver: xcuitest" in names
+
+
+# --- flutter_route_b_status -------------------------------------------------
+
+
+def test_flutter_status_pass_when_integration_driver_installed():
+    status = flutter_route_b_status({"uiautomator2": "2.34.1", "flutter-integration": "2.0.3"})
+    assert status.level == "pass"
+    assert status.ok is True
+    assert FLUTTER_INTEGRATION_DRIVER in status.detail
+    assert "2.0.3" in status.detail
+    assert status.fix == ""
+
+
+def test_flutter_status_warn_when_no_flutter_driver():
+    status = flutter_route_b_status({"uiautomator2": "2.34.1"})
+    assert status.level == "warn"
+    assert status.ok is True  # optional, never a hard failure
+    assert "appium-flutter-integration-driver" in status.fix
+
+
+def test_flutter_status_warn_on_legacy_driver_only():
+    # The deprecated appium-flutter-driver registers as "flutter" — a different name
+    # that does NOT serve Route B; it must not be mistaken for the integration driver.
+    status = flutter_route_b_status({"flutter": "4.1.0"})
+    assert status.level == "warn"
+    assert "legacy" in status.detail.lower()
+    assert "appium-flutter-integration-driver" in status.fix
+
+
+def test_flutter_status_prefers_integration_when_both_present():
+    # Both names can co-occur in `appium driver list`; the exact-match integration
+    # driver wins and is not shadowed by the legacy "flutter" entry.
+    status = flutter_route_b_status({"flutter": "4.1.0", "flutter-integration": "2.0.3"})
+    assert status.level == "pass"
+
+
+def test_flutter_status_reads_installed_drivers_by_default(monkeypatch):
+    monkeypatch.setattr(pf, "installed_appium_drivers", lambda: {"flutter-integration": ""})
+    status = flutter_route_b_status()
+    assert status.level == "pass"
+    assert FLUTTER_INTEGRATION_DRIVER in status.detail

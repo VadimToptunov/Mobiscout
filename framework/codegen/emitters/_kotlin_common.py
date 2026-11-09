@@ -22,6 +22,11 @@ _BY_FACTORY = {
     SelectorStrategy.XPATH: "xpath",
     SelectorStrategy.CLASS_NAME: "className",
     SelectorStrategy.TEXT: "androidUIAutomator",
+    # Flutter Route B — same java-client AppiumBy.flutter* factory methods as Java.
+    SelectorStrategy.FLUTTER_KEY: "flutterKey",
+    SelectorStrategy.FLUTTER_SEMANTICS: "flutterSemanticsLabel",
+    SelectorStrategy.FLUTTER_TEXT: "flutterText",
+    SelectorStrategy.FLUTTER_TYPE: "flutterType",
 }
 
 
