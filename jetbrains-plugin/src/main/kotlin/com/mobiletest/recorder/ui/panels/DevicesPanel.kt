@@ -23,6 +23,7 @@ import java.awt.Component
 import javax.swing.*
 import javax.swing.table.DefaultTableCellRenderer
 import javax.swing.table.DefaultTableModel
+import com.mobiletest.recorder.ui.MtrColors
 import com.mobiletest.recorder.ui.Notifier
 
 class DevicesPanel(
@@ -185,8 +186,8 @@ class DevicesPanel(
 
     /** Status → colour: ready is green, connected-but-not-ready is amber, else grey. */
     private fun statusColor(status: String): java.awt.Color = when (status.lowercase()) {
-        in READY_STATUSES -> JBColor(0x2E7D32, 0x6A8759)
-        "offline", "unauthorized" -> JBColor(0xB8860B, 0xBF8B00)
+        in READY_STATUSES -> MtrColors.ready
+        "offline", "unauthorized" -> MtrColors.notReady
         else -> JBColor.GRAY
     }
     
