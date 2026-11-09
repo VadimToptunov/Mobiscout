@@ -64,8 +64,11 @@ class CaptureScreenshotAction : AnAction() {
     private fun saveScreenshot(project: Project, imageBytes: ByteArray) {
         // 2-arg constructor + withExtensionFilter is the non-deprecated form (the
         // (title, description, vararg extensions) ctor is @Deprecated from 2024.3 on).
+        // withExtensionFilter mutates the descriptor in place and returns the base
+        // FileChooserDescriptor, so call it as a statement — `descriptor` keeps its
+        // FileSaverDescriptor type for createSaveFileDialog.
         val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot")
-            .withExtensionFilter("PNG", "png")
+        descriptor.withExtensionFilter("PNG", "png")
         val saveDialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
         // Cast the null baseDir to disambiguate the VirtualFile? vs Path? save() overloads.
         val fileWrapper = saveDialog.save(null as VirtualFile?, "screenshot.png") ?: return
