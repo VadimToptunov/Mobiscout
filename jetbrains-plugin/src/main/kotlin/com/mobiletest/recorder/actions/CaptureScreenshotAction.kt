@@ -62,13 +62,13 @@ class CaptureScreenshotAction : AnAction() {
 
     /** Prompt for a location and write the PNG — on the EDT (the file-save dialog needs it). */
     private fun saveScreenshot(project: Project, imageBytes: ByteArray) {
-        // 2-arg constructor + withExtensionFilter is the non-deprecated form (the
-        // (title, description, vararg extensions) ctor is @Deprecated from 2024.3 on).
-        // withExtensionFilter mutates the descriptor in place and returns the base
-        // FileChooserDescriptor, so call it as a statement — `descriptor` keeps its
-        // FileSaverDescriptor type for createSaveFileDialog.
-        val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot")
-        descriptor.withExtensionFilter("PNG", "png")
+        // The (title, description, vararg extensions) constructor is @Deprecated (not
+        // for-removal) from 252 on. Its non-deprecated replacements — the (String, String)
+        // and single-String (String, String, String) constructors — don't exist at our
+        // sinceBuild floor (243 / 2024.3); a (title, description) call there still binds to
+        // this vararg ctor. So it stays until the floor rises above 243. The verifier reports
+        // it as "1 usage of deprecated API" and remains Compatible.
+        val descriptor = FileSaverDescriptor("Save Screenshot", "Save device screenshot", "png")
         val saveDialog = FileChooserFactory.getInstance().createSaveFileDialog(descriptor, project)
         // Cast the null baseDir to disambiguate the VirtualFile? vs Path? save() overloads.
         val fileWrapper = saveDialog.save(null as VirtualFile?, "screenshot.png") ?: return
