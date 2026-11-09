@@ -27,7 +27,17 @@ from typing import Dict, List, Optional, Tuple
 
 from framework.codegen.emitters._escape import single_line
 from framework.codegen.emitters._naming import snake
-from framework.codegen.ir import ActionType, AssertionType, Selector, SelectorStrategy, Step, TestCase, TestModel
+from framework.codegen.ir import (
+    ActionType,
+    AssertionType,
+    FLUTTER_STRATEGIES,
+    Selector,
+    SelectorStrategy,
+    Step,
+    TestCase,
+    TestModel,
+    unsupported_flutter,
+)
 from framework.codegen.targets import Target, register
 from framework.core.engine import Language
 
@@ -52,6 +62,10 @@ def _selector(sel: Optional[Selector]) -> Optional[Tuple[str, str]]:
     Maestro has no equivalent (XPath / class-name), so the caller can skip honestly."""
     if sel is None:
         return None
+    if sel.strategy in FLUTTER_STRATEGIES:
+        # Maestro has its own Flutter matchers, not the Appium integration-driver
+        # finders this IR carries — refuse rather than silently drop every locator.
+        raise unsupported_flutter("The Maestro kit")
     if sel.strategy in (SelectorStrategy.ID, SelectorStrategy.ACCESSIBILITY_ID):
         return ("id", sel.value)
     if sel.strategy is SelectorStrategy.TEXT:
